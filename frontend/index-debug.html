@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TradeFlow - Unified Trading Platform</title>
+  </head>
+  <body>
+    <div id="root">
+      <div style="padding: 20px; font-family: Arial, sans-serif;">
+        <h1>🚀 TradeFlow SaaS Platform</h1>
+        <p><strong>Status:</strong> Loading...</p>
+        <p><strong>URL:</strong> <span id="url"></span></p>
+        <p><strong>Environment:</strong> <span id="env"></span></p>
+        <div id="error" style="color: red; margin-top: 20px;"></div>
+      </div>
+    </div>
+    
+    <script>
+      // Simple debug script
+      document.getElementById('url').textContent = window.location.href;
+      document.getElementById('env').textContent = import.meta.env.MODE || 'unknown';
+      
+      // Try to load React app
+      window.addEventListener('load', function() {
+        const root = document.getElementById('root');
+        
+        // Load the main React app
+        const script = document.createElement('script');
+        script.type = 'module';
+        script.src = '/src/main.jsx';
+        script.onerror = function(e) {
+          document.getElementById('error').innerHTML = 
+            '❌ Failed to load main.jsx<br>' +
+            'Error: ' + e.message + '<br>' +
+            'Check console for details';
+        };
+        script.onload = function() {
+          document.querySelector('div[style*="padding: 20px"]').style.display = 'none';
+        };
+        
+        document.body.appendChild(script);
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,616 @@
+openapi: 3.0.3
+info:
+  title: Empire Trading Hub - Unified API Gateway
+  description: |
+    Enterprise-grade multi-broker trading platform API.
+    Supports TradeLocker, Topstep (Topstep), and TruForex (MT4/MT5).
+    
+    **Authentication**: Bearer token (API key from broker account registration)
+    **Rate Limiting**: Plan-based (Starter: 100/min, Pro: 500/min, Elite: 2000/min)
+    **Webhooks**: HMAC-SHA256 signed payloads
+  version: 5.0.0
+  contact:
+    name: Empire Trading Support
+    email: support@empiretrading.io
+  license:
+    name: Proprietary
+    
+servers:
+  - url: https://api.empiretrading.io/api/unify/v1
+    description: Production
+  - url: https://staging-api.empiretrading.io/api/unify/v1
+    description: Staging
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: Orders
+    description: Place, modify, and cancel orders
+  - name: Positions
+    description: View and manage open positions
+  - name: Risk
+    description: Risk management settings
+  - name: Webhooks
+    description: TradingView webhook endpoints
+  - name: Health
+    description: System health and status
+
+paths:
+  /order:
+    post:
+      tags: [Orders]
+      summary: Place a new order
+      description: |
+        Place a market, limit, or stop order across any connected broker.
+        Supports advanced features like SL/TP, trailing stops, and partial closes.
+      operationId: placeOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderIntent'
+            examples:
+              marketBuy:
+                summary: Market Buy with SL/TP
+                value:
+                  broker: "tradelocker"
+                  side: "buy"
+                  type: "market"
+                  symbol: "EURUSD"
+                  qty_mode: "risk_pct"
+                  qty: 1.0
+                  sl:
+                    mode: "price"
+                    value: 1.0950
+                  tp:
+                    mode: "rr"
+                    value: 2.0
+                  tag: "EU_Breakout"
+              limitSell:
+                summary: Limit Sell with Trailing Stop
+                value:
+                  broker: "topstep"
+                  side: "sell"
+                  type: "limit"
+                  symbol: "ES"
+                  price: 4850.00
+                  qty_mode: "fixed_qty"
+                  qty: 2
+                  sl:
+                    mode: "offset"
+                    value: 0.005
+                  trail:
+                    mode: "offset"
+                    value: 0.002
+                  tag: "ES_Reversal"
+      responses:
+        '200':
+          description: Order placed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+          
+  /order/{orderId}:
+    delete:
+      tags: [Orders]
+      summary: Cancel a pending order
+      operationId: cancelOrder
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Order cancelled successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  order_id:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    enum: [CANCELLED]
+        '404':
+          $ref: '#/components/responses/NotFound'
+          
+  /positions:
+    get:
+      tags: [Positions]
+      summary: Get all open positions
+      operationId: getPositions
+      parameters:
+        - name: broker
+          in: query
+          schema:
+            type: string
+            enum: [tradelocker, topstep, truforex]
+        - name: symbol
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of positions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Position'
+                  
+  /positions/{positionId}:
+    put:
+      tags: [Positions]
+      summary: Modify position SL/TP
+      operationId: modifyPosition
+      parameters:
+        - name: positionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                stop_loss:
+                  type: number
+                  format: double
+                take_profit:
+                  type: number
+                  format: double
+      responses:
+        '200':
+          description: Position modified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Position'
+    delete:
+      tags: [Positions]
+      summary: Close a position
+      operationId: closePosition
+      parameters:
+        - name: positionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Position closed
+          
+  /risk:
+    get:
+      tags: [Risk]
+      summary: Get risk settings
+      operationId: getRiskSettings
+      responses:
+        '200':
+          description: Current risk profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RiskProfile'
+    put:
+      tags: [Risk]
+      summary: Update risk settings
+      operationId: updateRiskSettings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RiskProfile'
+      responses:
+        '200':
+          description: Risk settings updated
+          
+  /webhook/{broker}:
+    post:
+      tags: [Webhooks]
+      summary: TradingView webhook endpoint
+      description: |
+        Receive TradingView alerts and execute trades.
+        Payload must be HMAC-SHA256 signed.
+      operationId: handleWebhook
+      security:
+        - HmacAuth: []
+      parameters:
+        - name: broker
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [tradelocker, topstep, truforex]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookEnvelope'
+      responses:
+        '200':
+          description: Webhook processed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  order_id:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+        '400':
+          description: Invalid signature or payload
+          
+  /health:
+    get:
+      tags: [Health]
+      summary: System health check
+      operationId: getHealth
+      security: []
+      responses:
+        '200':
+          description: System status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy, degraded, down]
+                  brokers:
+                    type: object
+                    properties:
+                      tradelocker:
+                        type: string
+                        enum: [operational, degraded, down]
+                      topstep:
+                        type: string
+                        enum: [operational, degraded, down]
+                      truforex:
+                        type: string
+                        enum: [operational, degraded, down]
+                  latency_ms:
+                    type: integer
+                  timestamp:
+                    type: string
+                    format: date-time
+                    
+  /metrics:
+    get:
+      tags: [Health]
+      summary: Prometheus metrics
+      operationId: getMetrics
+      security: []
+      responses:
+        '200':
+          description: Prometheus metrics
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: |
+                # HELP orders_total Total orders placed
+                # TYPE orders_total counter
+                orders_total{broker="tradelocker",side="buy",status="filled"} 1247
+                orders_total{broker="topstep",side="sell",status="filled"} 832
+                
+                # HELP rejects_total Total orders rejected
+                # TYPE rejects_total counter
+                rejects_total{reason="insufficient_margin"} 12
+                rejects_total{reason="max_daily_loss"} 5
+                
+                # HELP pnl_unrealized Unrealized P&L
+                # TYPE pnl_unrealized gauge
+                pnl_unrealized{broker="tradelocker",symbol="EURUSD"} 125.50
+                
+                # HELP webhook_latency_ms Webhook processing latency
+                # TYPE webhook_latency_ms histogram
+                webhook_latency_ms_bucket{broker="tradelocker",le="50"} 892
+                webhook_latency_ms_bucket{broker="tradelocker",le="100"} 1205
+                webhook_latency_ms_bucket{broker="tradelocker",le="+Inf"} 1247
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: API Key
+      description: |
+        API key generated during broker account registration.
+        Include in Authorization header: `Bearer your-api-key`
+    HmacAuth:
+      type: apiKey
+      in: header
+      name: X-Webhook-Signature
+      description: |
+        HMAC-SHA256 signature of webhook payload.
+        Format: `t=<timestamp>,v1=<signature>`
+        
+  schemas:
+    OrderIntent:
+      type: object
+      required: [broker, side, type, symbol, qty_mode, qty]
+      properties:
+        broker:
+          type: string
+          enum: [tradelocker, topstep, truforex]
+        side:
+          type: string
+          enum: [buy, sell]
+        type:
+          type: string
+          enum: [market, limit, stop]
+        symbol:
+          type: string
+          example: "EURUSD"
+        qty_mode:
+          type: string
+          enum: [fixed_qty, risk_usd, risk_pct]
+          description: |
+            - fixed_qty: Exact lot size
+            - risk_usd: Calculate lot size based on $ risk
+            - risk_pct: Calculate lot size based on % risk
+        qty:
+          type: number
+          format: double
+          minimum: 0.01
+        price:
+          type: number
+          format: double
+          description: Required for limit/stop orders
+        sl:
+          type: object
+          properties:
+            mode:
+              type: string
+              enum: [price, offset, atr, rr]
+            value:
+              type: number
+              format: double
+        tp:
+          type: object
+          properties:
+            mode:
+              type: string
+              enum: [price, offset, rr]
+            value:
+              type: number
+              format: double
+        trail:
+          type: object
+          properties:
+            mode:
+              type: string
+              enum: [offset, atr]
+            value:
+              type: number
+              format: double
+        tag:
+          type: string
+          description: Strategy or alert name
+          
+    OrderResponse:
+      type: object
+      properties:
+        order_id:
+          type: string
+          format: uuid
+        broker_order_id:
+          type: string
+        status:
+          type: string
+          enum: [PENDING, FILLED, REJECTED]
+        filled_qty:
+          type: number
+          format: double
+        avg_fill_price:
+          type: number
+          format: double
+        timestamp:
+          type: string
+          format: date-time
+          
+    Position:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        broker:
+          type: string
+        symbol:
+          type: string
+        side:
+          type: string
+          enum: [LONG, SHORT]
+        qty:
+          type: number
+          format: double
+        entry_price:
+          type: number
+          format: double
+        current_price:
+          type: number
+          format: double
+        unrealized_pnl:
+          type: number
+          format: double
+        unrealized_pnl_pct:
+          type: number
+          format: double
+        stop_loss:
+          type: number
+          format: double
+        take_profit:
+          type: number
+          format: double
+        open_time:
+          type: string
+          format: date-time
+          
+    RiskProfile:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        max_daily_loss_usd:
+          type: number
+          format: double
+        max_daily_loss_pct:
+          type: number
+          format: double
+        max_trades_per_day:
+          type: integer
+        max_open_trades:
+          type: integer
+        max_concurrent_positions:
+          type: integer
+        max_risk_per_trade_usd:
+          type: number
+          format: double
+        max_risk_per_trade_pct:
+          type: number
+          format: double
+        leverage_cap:
+          type: number
+          format: double
+        allowed_instruments:
+          type: array
+          items:
+            type: string
+        denied_instruments:
+          type: array
+          items:
+            type: string
+            
+    WebhookEnvelope:
+      type: object
+      required: [version, source, intent, ts]
+      properties:
+        version:
+          type: string
+          enum: [unify.v1]
+        source:
+          type: string
+          enum: [tradingview, api]
+        intent:
+          $ref: '#/components/schemas/OrderIntent'
+        user_context:
+          type: object
+          properties:
+            account:
+              type: string
+            workspace:
+              type: string
+        ts:
+          type: string
+          format: date-time
+        signature:
+          type: string
+          description: HMAC-SHA256 signature (optional for Bearer auth)
+          
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+              
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: "INVALID_PARAMETER"
+              message: "qty must be >= 0.01"
+              details:
+                field: "qty"
+                value: 0.001
+                
+    Unauthorized:
+      description: Invalid or missing API key
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: "UNAUTHORIZED"
+              message: "Invalid API key"
+              
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: "NOT_FOUND"
+              message: "Order not found"
+              
+    RateLimited:
+      description: Rate limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: "RATE_LIMIT_EXCEEDED"
+              message: "100 requests per minute limit reached"
+              details:
+                limit: 100
+                reset_at: "2025-10-14T14:32:00Z"
+                
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: "INTERNAL_ERROR"
+              message: "An unexpected error occurred"
+              details:
+                correlation_id: "req_abc123xyz"

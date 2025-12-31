@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:brand-docs.tradelocker.com)",
+      "WebFetch(domain:api.tradelocker.com)",
+      "WebFetch(domain:gateway.docs.projectx.com)",
+      "Bash(python3:*)",
+      "Bash(docker:*)",
+      "Bash(docker compose:*)",
+      "Bash(pip install:*)",
+      "Bash(npm install)",
+      "Bash(pip3 install:*)",
+      "Bash(npm install:*)",
+      "Bash(sudo apt update:*)",
+      "Bash(sudo apt install:*)",
+      "Bash(cp:*)",
+      "Bash(sudo rm:*)",
+      "Bash(mkdir:*)",
+      "Bash(kill:*)",
+      "Bash(curl:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

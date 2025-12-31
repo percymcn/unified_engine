@@ -1,0 +1,107 @@
+# =============================================================================
+# PROMETHEUS AND GRAFANA CONFIGURATION
+# =============================================================================
+
+# =============================================================================
+# PROMETHEUS CONFIGURATION
+# =============================================================================
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - "prometheus.yml"
+  - "targets.yml"
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+# =============================================================================
+# ALERTMANAGER CONFIGURATION
+# =============================================================================
+alerting:
+  alertmanagers:
+    - name: 'trading-engine-alerts'
+      static_configs:
+        - smtp:
+            smarthost: 'localhost'
+            smtp_port: 587
+            smtp_from: 'alerts@tradingengine.com'
+            smtp_auth_username: 'your-email@gmail.com'
+            smtp_auth_password: 'your-app-password'
+            smtp_require_tls: true
+
+# =============================================================================
+# ALERT RULES
+# =============================================================================
+rule_files:
+  - "alert_rules.yml"
+
+# =============================================================================
+# TEMPLATES
+# =============================================================================
+templates:
+  - 'email_template.yml'
+
+# =============================================================================
+# RECEIVERS
+# =============================================================================
+receivers:
+  - name: 'admin-email'
+    email_configs:
+      - to: 'admin@tradingengine.com'
+      from: 'alerts@tradingengine.com'
+      smarthost: 'localhost'
+      smtp_port: 587
+      smtp_auth_username: 'your-email@gmail.com'
+      smtp_auth_password: 'your-app-password'
+      smtp_require_tls: true
+
+# =============================================================================
+# INHIBIT RULES
+# =============================================================================
+inhibit_rules:
+  - name: 'SilentNotifications'
+    source_match:
+      - severity: 'info'
+    target_match:
+      - receiver: 'admin-email'
+    equal: ['silenced']
+
+# =============================================================================
+# ROUTES
+# =============================================================================
+route:
+  group_by: ['alertname']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 1h
+  receiver: 'admin-email'
+  routes:
+    - match:
+        alertname: 'TradingEngineDown'
+      receiver: 'admin-email'
+      group_wait: 5s
+      repeat_interval: 15m
+    - match:
+        alertname: 'DatabaseDown'
+      receiver: 'admin-email'
+      group_wait: 5s
+      repeat_interval: 15m
+    - match:
+        alertname: 'HighErrorRate'
+      receiver: 'admin-email'
+      group_wait: 5s
+      repeat_interval: 30m
+    - match:
+        alertname: 'DiskSpaceLow'
+      receiver: 'admin-email'
+      group_wait: 5s
+      repeat_interval: 1h
+    - match:
+        alertname: 'MemoryUsageHigh'
+      receiver: 'admin-email'
+      group_wait: 5s
+      repeat_interval: 30m

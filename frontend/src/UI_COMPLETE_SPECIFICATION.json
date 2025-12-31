@@ -1,0 +1,2715 @@
+{
+  "application": "TradeFlow by Fluxeo",
+  "version": "6.0",
+  "generated": "2025-10-19",
+  "total_screens": 15,
+  "total_interactive_elements": 250,
+  
+  "screens": [
+    {
+      "screen_name": "LandingPage",
+      "route": "/",
+      "auth_required": false,
+      "elements": [
+        {
+          "element_id": "landing_login_button",
+          "type": "button",
+          "label": "Log In",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["navigate_to_login"]
+        },
+        {
+          "element_id": "landing_signup_button",
+          "type": "button",
+          "label": "Get Started",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["navigate_to_signup"]
+        },
+        {
+          "element_id": "landing_admin_link",
+          "type": "link",
+          "label": "Admin Login",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["navigate_to_admin_login"]
+        },
+        {
+          "element_id": "landing_features_section",
+          "type": "content",
+          "action_type": "display",
+          "expected_backend_call": null,
+          "ui_updates": ["display_features_cards"]
+        },
+        {
+          "element_id": "landing_pricing_section",
+          "type": "content",
+          "action_type": "display",
+          "expected_backend_call": null,
+          "ui_updates": ["display_pricing_tiers"]
+        }
+      ]
+    },
+    {
+      "screen_name": "LoginPage",
+      "route": "/login",
+      "auth_required": false,
+      "elements": [
+        {
+          "element_id": "login_form",
+          "type": "form",
+          "fields": ["email", "password"],
+          "action_type": "submit",
+          "expected_backend_call": {
+            "method": "POST",
+            "route": "/auth/login",
+            "implementation": "supabase.auth.signInWithPassword",
+            "params": {
+              "email": "string",
+              "password": "string"
+            },
+            "response": {
+              "access_token": "string",
+              "user": {
+                "id": "string",
+                "email": "string",
+                "name": "string",
+                "plan": "string",
+                "role": "string"
+              }
+            }
+          },
+          "ui_updates": ["store_token", "update_user_context", "navigate_to_dashboard"]
+        },
+        {
+          "element_id": "login_email_input",
+          "type": "input",
+          "input_type": "email",
+          "required": true,
+          "action_type": "change",
+          "expected_backend_call": null,
+          "ui_updates": ["update_form_state"]
+        },
+        {
+          "element_id": "login_password_input",
+          "type": "input",
+          "input_type": "password",
+          "required": true,
+          "action_type": "change",
+          "expected_backend_call": null,
+          "ui_updates": ["update_form_state"]
+        },
+        {
+          "element_id": "login_submit_button",
+          "type": "button",
+          "label": "Sign In",
+          "action_type": "click",
+          "triggers": "login_form_submit",
+          "expected_backend_call": "see_login_form",
+          "ui_updates": ["show_loading", "handle_success_or_error"]
+        },
+        {
+          "element_id": "login_forgot_password_link",
+          "type": "link",
+          "label": "Forgot password?",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["navigate_to_password_reset"]
+        },
+        {
+          "element_id": "login_signup_link",
+          "type": "link",
+          "label": "Sign up",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["navigate_to_signup"]
+        },
+        {
+          "element_id": "login_back_button",
+          "type": "button",
+          "label": "Back to Home",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["navigate_to_landing"]
+        }
+      ]
+    },
+    {
+      "screen_name": "SignupPage",
+      "route": "/signup",
+      "auth_required": false,
+      "elements": [
+        {
+          "element_id": "signup_form",
+          "type": "form",
+          "fields": ["name", "email", "password"],
+          "action_type": "submit",
+          "expected_backend_call": {
+            "method": "POST",
+            "route": "/auth/signup",
+            "implementation": "supabase.auth.admin.createUser",
+            "params": {
+              "email": "string",
+              "password": "string",
+              "user_metadata": {
+                "name": "string"
+              },
+              "email_confirm": true
+            },
+            "response": {
+              "user_id": "string",
+              "email": "string",
+              "name": "string",
+              "plan": "trial"
+            }
+          },
+          "ui_updates": ["store_token", "update_user_context", "navigate_to_onboarding"]
+        },
+        {
+          "element_id": "signup_name_input",
+          "type": "input",
+          "input_type": "text",
+          "required": true,
+          "action_type": "change",
+          "expected_backend_call": null,
+          "ui_updates": ["update_form_state"]
+        },
+        {
+          "element_id": "signup_email_input",
+          "type": "input",
+          "input_type": "email",
+          "required": true,
+          "action_type": "change",
+          "expected_backend_call": null,
+          "ui_updates": ["update_form_state"]
+        },
+        {
+          "element_id": "signup_password_input",
+          "type": "input",
+          "input_type": "password",
+          "required": true,
+          "action_type": "change",
+          "expected_backend_call": null,
+          "ui_updates": ["update_form_state"]
+        },
+        {
+          "element_id": "signup_submit_button",
+          "type": "button",
+          "label": "Create Account",
+          "action_type": "click",
+          "triggers": "signup_form_submit",
+          "expected_backend_call": "see_signup_form",
+          "ui_updates": ["show_loading", "handle_success_or_error"]
+        },
+        {
+          "element_id": "signup_login_link",
+          "type": "link",
+          "label": "Already have an account? Log in",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["navigate_to_login"]
+        },
+        {
+          "element_id": "signup_back_button",
+          "type": "button",
+          "label": "Back to Home",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["navigate_to_landing"]
+        }
+      ]
+    },
+    {
+      "screen_name": "PasswordResetPage",
+      "route": "/password-reset",
+      "auth_required": false,
+      "elements": [
+        {
+          "element_id": "password_reset_form",
+          "type": "form",
+          "fields": ["email"],
+          "action_type": "submit",
+          "expected_backend_call": {
+            "method": "POST",
+            "route": "/auth/reset-password",
+            "implementation": "supabase.auth.resetPasswordForEmail",
+            "params": {
+              "email": "string"
+            },
+            "response": {
+              "success": "boolean",
+              "message": "string"
+            }
+          },
+          "ui_updates": ["show_success_message", "navigate_to_login"]
+        },
+        {
+          "element_id": "password_reset_email_input",
+          "type": "input",
+          "input_type": "email",
+          "required": true,
+          "action_type": "change",
+          "expected_backend_call": null,
+          "ui_updates": ["update_form_state"]
+        },
+        {
+          "element_id": "password_reset_submit_button",
+          "type": "button",
+          "label": "Send Reset Link",
+          "action_type": "click",
+          "triggers": "password_reset_form_submit",
+          "expected_backend_call": "see_password_reset_form",
+          "ui_updates": ["show_loading", "handle_success_or_error"]
+        },
+        {
+          "element_id": "password_reset_back_button",
+          "type": "button",
+          "label": "Back to Login",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["navigate_to_login"]
+        }
+      ]
+    },
+    {
+      "screen_name": "AdminLoginPage",
+      "route": "/admin",
+      "auth_required": false,
+      "elements": [
+        {
+          "element_id": "admin_login_form",
+          "type": "form",
+          "fields": ["username", "password"],
+          "action_type": "submit",
+          "expected_backend_call": {
+            "method": "POST",
+            "route": "/auth/admin/login",
+            "params": {
+              "username": "string",
+              "password": "string"
+            },
+            "response": {
+              "access_token": "string",
+              "admin_role": "boolean"
+            },
+            "notes": "Currently hardcoded as admin/admin123 - needs secure backend"
+          },
+          "ui_updates": ["store_admin_token", "navigate_to_admin_dashboard"]
+        },
+        {
+          "element_id": "admin_username_input",
+          "type": "input",
+          "input_type": "text",
+          "required": true,
+          "action_type": "change",
+          "expected_backend_call": null,
+          "ui_updates": ["update_form_state"]
+        },
+        {
+          "element_id": "admin_password_input",
+          "type": "input",
+          "input_type": "password",
+          "required": true,
+          "action_type": "change",
+          "expected_backend_call": null,
+          "ui_updates": ["update_form_state"]
+        },
+        {
+          "element_id": "admin_login_submit_button",
+          "type": "button",
+          "label": "Admin Login",
+          "action_type": "click",
+          "triggers": "admin_login_form_submit",
+          "expected_backend_call": "see_admin_login_form",
+          "ui_updates": ["show_loading", "handle_success_or_error"]
+        },
+        {
+          "element_id": "admin_back_button",
+          "type": "button",
+          "label": "Back to Public Site",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["navigate_to_landing"]
+        }
+      ]
+    },
+    {
+      "screen_name": "OnboardingPlanSelection",
+      "route": "/onboarding",
+      "auth_required": true,
+      "elements": [
+        {
+          "element_id": "plan_starter_card",
+          "type": "card",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["set_plan_starter", "navigate_to_connect_broker"],
+          "notes": "Plan selection stored in context, no immediate backend call"
+        },
+        {
+          "element_id": "plan_pro_card",
+          "type": "card",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["set_plan_pro", "navigate_to_connect_broker"]
+        },
+        {
+          "element_id": "plan_elite_card",
+          "type": "card",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["set_plan_elite", "navigate_to_connect_broker"]
+        },
+        {
+          "element_id": "plan_select_button",
+          "type": "button",
+          "label": "Select Plan",
+          "action_type": "click",
+          "expected_backend_call": {
+            "method": "PATCH",
+            "route": "/api/user/profile",
+            "params": {
+              "plan": "string"
+            },
+            "response": {
+              "user_id": "string",
+              "plan": "string",
+              "updated_at": "timestamp"
+            },
+            "notes": "Or may trigger Stripe checkout for paid plans"
+          },
+          "ui_updates": ["update_user_context", "navigate_to_connect_broker"]
+        },
+        {
+          "element_id": "onboarding_skip_button",
+          "type": "button",
+          "label": "Skip for now",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["navigate_to_dashboard"]
+        }
+      ]
+    },
+    {
+      "screen_name": "ConnectBrokerPage",
+      "route": "/connect-broker",
+      "auth_required": true,
+      "elements": [
+        {
+          "element_id": "broker_tradelocker_card",
+          "type": "card",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["show_tradelocker_form", "set_active_broker_tradelocker"]
+        },
+        {
+          "element_id": "broker_topstep_card",
+          "type": "card",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["show_topstep_form", "set_active_broker_topstep"]
+        },
+        {
+          "element_id": "broker_truforex_card",
+          "type": "card",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["show_truforex_form", "set_active_broker_truforex"]
+        },
+        {
+          "element_id": "tradelocker_registration_form",
+          "type": "form",
+          "fields": ["email", "password", "server", "mode"],
+          "action_type": "submit",
+          "expected_backend_call": {
+            "method": "POST",
+            "route": "/register/tradelocker",
+            "params": {
+              "email": "string",
+              "password": "string",
+              "server": "string",
+              "mode": "demo | live"
+            },
+            "response": {
+              "id": "string",
+              "broker": "tradelocker",
+              "email": "string",
+              "server": "string",
+              "mode": "string",
+              "status": "active",
+              "balance": "number",
+              "equity": "number",
+              "created_at": "timestamp",
+              "api_key": "string"
+            }
+          },
+          "ui_updates": ["show_api_key_modal", "add_to_broker_context", "show_success_toast"]
+        },
+        {
+          "element_id": "topstep_registration_form",
+          "type": "form",
+          "fields": ["email", "password", "mode"],
+          "action_type": "submit",
+          "expected_backend_call": {
+            "method": "POST",
+            "route": "/register/projectx",
+            "params": {
+              "email": "string",
+              "password": "string",
+              "mode": "demo | live"
+            },
+            "response": {
+              "id": "string",
+              "broker": "topstep",
+              "email": "string",
+              "mode": "string",
+              "status": "active",
+              "balance": "number",
+              "equity": "number",
+              "created_at": "timestamp",
+              "api_key": "string"
+            }
+          },
+          "ui_updates": ["show_api_key_modal", "add_to_broker_context", "show_success_toast"]
+        },
+        {
+          "element_id": "truforex_registration_form",
+          "type": "form",
+          "fields": ["email", "password", "platform", "account_login", "mode"],
+          "action_type": "submit",
+          "expected_backend_call": {
+            "method": "POST",
+            "route": "/register/mtx",
+            "params": {
+              "email": "string",
+              "password": "string",
+              "platform": "MT4 | MT5",
+              "account_login": "string",
+              "mode": "demo | live"
+            },
+            "response": {
+              "id": "string",
+              "broker": "truforex",
+              "email": "string",
+              "platform": "string",
+              "account_login": "string",
+              "mode": "string",
+              "status": "pending",
+              "created_at": "timestamp",
+              "api_key": "string",
+              "ea_installation_required": true,
+              "ea_download_url": "string"
+            }
+          },
+          "ui_updates": ["show_ea_installation_modal", "add_to_broker_context", "show_success_toast"]
+        },
+        {
+          "element_id": "connect_broker_submit_button",
+          "type": "button",
+          "label": "Register Account",
+          "action_type": "click",
+          "triggers": "registration_form_submit",
+          "expected_backend_call": "see_registration_forms",
+          "ui_updates": ["show_loading", "handle_success_or_error"]
+        },
+        {
+          "element_id": "api_key_success_modal",
+          "type": "modal",
+          "action_type": "display",
+          "elements": [
+            {
+              "element_id": "api_key_display",
+              "type": "text",
+              "action_type": "display",
+              "expected_backend_call": null,
+              "ui_updates": ["show_api_key"]
+            },
+            {
+              "element_id": "api_key_copy_button",
+              "type": "button",
+              "label": "Copy API Key",
+              "action_type": "click",
+              "expected_backend_call": null,
+              "ui_updates": ["copy_to_clipboard", "show_copied_toast"]
+            },
+            {
+              "element_id": "api_key_modal_close",
+              "type": "button",
+              "label": "Done",
+              "action_type": "click",
+              "expected_backend_call": null,
+              "ui_updates": ["close_modal", "navigate_to_dashboard"]
+            }
+          ]
+        },
+        {
+          "element_id": "ea_installation_modal",
+          "type": "modal",
+          "action_type": "display",
+          "elements": [
+            {
+              "element_id": "ea_download_button",
+              "type": "button",
+              "label": "Download EA",
+              "action_type": "click",
+              "expected_backend_call": null,
+              "ui_updates": ["download_ea_file"]
+            },
+            {
+              "element_id": "ea_instructions_display",
+              "type": "text",
+              "action_type": "display",
+              "expected_backend_call": null,
+              "ui_updates": ["show_installation_steps"]
+            }
+          ]
+        },
+        {
+          "element_id": "connect_broker_skip_button",
+          "type": "button",
+          "label": "Skip",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["navigate_to_dashboard"]
+        }
+      ]
+    },
+    {
+      "screen_name": "Dashboard",
+      "route": "/dashboard",
+      "auth_required": true,
+      "elements": [
+        {
+          "element_id": "dashboard_header",
+          "type": "header",
+          "elements": [
+            {
+              "element_id": "hamburger_menu_button",
+              "type": "button",
+              "label": "Menu",
+              "action_type": "click",
+              "expected_backend_call": null,
+              "ui_updates": ["toggle_mobile_menu"]
+            },
+            {
+              "element_id": "tradeflow_logo",
+              "type": "logo",
+              "action_type": "click",
+              "expected_backend_call": null,
+              "ui_updates": ["navigate_to_dashboard"]
+            },
+            {
+              "element_id": "broker_switcher",
+              "type": "component",
+              "action_type": "see_broker_switcher_component",
+              "expected_backend_call": null,
+              "ui_updates": ["see_broker_switcher"]
+            },
+            {
+              "element_id": "user_plan_badge",
+              "type": "badge",
+              "action_type": "display",
+              "expected_backend_call": null,
+              "ui_updates": ["display_current_plan"]
+            },
+            {
+              "element_id": "admin_badge",
+              "type": "badge",
+              "action_type": "display",
+              "condition": "isAdmin",
+              "expected_backend_call": null,
+              "ui_updates": ["display_admin_indicator"]
+            },
+            {
+              "element_id": "settings_dropdown",
+              "type": "dropdown",
+              "action_type": "see_settings_dropdown_component",
+              "expected_backend_call": null,
+              "ui_updates": ["see_settings_dropdown"]
+            }
+          ]
+        },
+        {
+          "element_id": "broker_navigation_bar",
+          "type": "component",
+          "action_type": "see_broker_navigation_bar_component",
+          "expected_backend_call": null,
+          "ui_updates": ["see_broker_navigation_bar"]
+        },
+        {
+          "element_id": "dashboard_sidebar",
+          "type": "navigation",
+          "elements": [
+            {
+              "element_id": "nav_dashboard",
+              "type": "nav_item",
+              "label": "Dashboard",
+              "action_type": "click",
+              "expected_backend_call": null,
+              "ui_updates": ["set_active_section_dashboard"]
+            },
+            {
+              "element_id": "nav_analytics",
+              "type": "nav_item",
+              "label": "Analytics",
+              "action_type": "click",
+              "expected_backend_call": null,
+              "ui_updates": ["set_active_section_analytics"]
+            },
+            {
+              "element_id": "nav_connect",
+              "type": "nav_item",
+              "label": "Connect Broker",
+              "action_type": "click",
+              "expected_backend_call": null,
+              "ui_updates": ["set_active_section_connect"]
+            },
+            {
+              "element_id": "nav_accounts",
+              "type": "nav_item",
+              "label": "Accounts",
+              "action_type": "click",
+              "expected_backend_call": null,
+              "ui_updates": ["set_active_section_accounts"]
+            },
+            {
+              "element_id": "nav_webhooks",
+              "type": "nav_item",
+              "label": "Webhooks",
+              "action_type": "click",
+              "expected_backend_call": null,
+              "ui_updates": ["set_active_section_webhooks"]
+            },
+            {
+              "element_id": "nav_trading",
+              "type": "nav_item",
+              "label": "Trading Config",
+              "action_type": "click",
+              "expected_backend_call": null,
+              "ui_updates": ["set_active_section_trading"]
+            },
+            {
+              "element_id": "nav_orders",
+              "type": "nav_item",
+              "label": "Orders",
+              "action_type": "click",
+              "expected_backend_call": null,
+              "ui_updates": ["set_active_section_orders"]
+            },
+            {
+              "element_id": "nav_positions",
+              "type": "nav_item",
+              "label": "Positions",
+              "action_type": "click",
+              "expected_backend_call": null,
+              "ui_updates": ["set_active_section_positions"]
+            },
+            {
+              "element_id": "nav_risk",
+              "type": "nav_item",
+              "label": "Risk",
+              "action_type": "click",
+              "expected_backend_call": null,
+              "ui_updates": ["set_active_section_risk"]
+            },
+            {
+              "element_id": "nav_keys",
+              "type": "nav_item",
+              "label": "API Keys",
+              "action_type": "click",
+              "expected_backend_call": null,
+              "ui_updates": ["set_active_section_keys"]
+            },
+            {
+              "element_id": "nav_billing",
+              "type": "nav_item",
+              "label": "Billing",
+              "action_type": "click",
+              "expected_backend_call": null,
+              "ui_updates": ["set_active_section_billing"]
+            },
+            {
+              "element_id": "nav_admin",
+              "type": "nav_item",
+              "label": "Admin",
+              "action_type": "click",
+              "condition": "isAdmin",
+              "expected_backend_call": null,
+              "ui_updates": ["set_active_section_admin"]
+            },
+            {
+              "element_id": "nav_logs",
+              "type": "nav_item",
+              "label": "Logs",
+              "action_type": "click",
+              "expected_backend_call": null,
+              "ui_updates": ["set_active_section_logs"]
+            },
+            {
+              "element_id": "nav_chatbot",
+              "type": "component",
+              "label": "Support Chatbot",
+              "action_type": "see_chatbot_component",
+              "expected_backend_call": null,
+              "ui_updates": ["see_chatbot"]
+            }
+          ]
+        },
+        {
+          "element_id": "trial_banner",
+          "type": "banner",
+          "action_type": "display",
+          "condition": "user.plan === 'trial'",
+          "expected_backend_call": {
+            "method": "GET",
+            "route": "/api/billing/usage",
+            "params": {},
+            "response": {
+              "trades_count": "number",
+              "trades_limit": 100,
+              "days_remaining": "number",
+              "trial_trades_remaining": "number"
+            }
+          },
+          "ui_updates": ["display_trial_progress"]
+        },
+        {
+          "element_id": "billing_guard_banner",
+          "type": "banner",
+          "action_type": "display",
+          "condition": "billing_blocked",
+          "expected_backend_call": null,
+          "ui_updates": ["display_upgrade_prompt"]
+        }
+      ]
+    },
+    {
+      "screen_name": "Dashboard_DashboardOverview",
+      "route": "/dashboard (section: dashboard)",
+      "auth_required": true,
+      "parent": "Dashboard",
+      "elements": [
+        {
+          "element_id": "overview_metrics_cards",
+          "type": "cards_grid",
+          "action_type": "load",
+          "expected_backend_call": {
+            "method": "GET",
+            "route": "/api/overview",
+            "params": {
+              "broker": "string (optional)"
+            },
+            "response": {
+              "total_pnl": "number",
+              "total_pnl_pct": "number",
+              "today_pnl": "number",
+              "today_trades": "number",
+              "win_rate": "number",
+              "active_positions": "number",
+              "total_trades": "number",
+              "largest_win": "number",
+              "largest_loss": "number",
+              "avg_win": "number",
+              "avg_loss": "number",
+              "sharpe_ratio": "number",
+              "balance": "number",
+              "equity": "number"
+            }
+          },
+          "ui_updates": ["display_metrics"]
+        },
+        {
+          "element_id": "overview_recent_activity_list",
+          "type": "list",
+          "action_type": "load",
+          "expected_backend_call": {
+            "method": "GET",
+            "route": "/api/logs",
+            "params": {
+              "type": "order,position",
+              "limit": 5
+            },
+            "response": "array_of_activity_logs"
+          },
+          "ui_updates": ["display_recent_activity"]
+        },
+        {
+          "element_id": "overview_alerts_button",
+          "type": "button",
+          "label": "View Alerts",
+          "action_type": "click",
+          "expected_backend_call": {
+            "method": "GET",
+            "route": "/api/notifications",
+            "params": {
+              "unread": true
+            },
+            "response": "array_of_notifications"
+          },
+          "ui_updates": ["open_alerts_panel"]
+        },
+        {
+          "element_id": "overview_refresh_button",
+          "type": "button",
+          "label": "Refresh",
+          "action_type": "click",
+          "expected_backend_call": {
+            "method": "GET",
+            "route": "/api/overview",
+            "params": {}
+          },
+          "ui_updates": ["refresh_metrics"]
+        }
+      ]
+    },
+    {
+      "screen_name": "Dashboard_AccountsManager",
+      "route": "/dashboard (section: accounts)",
+      "auth_required": true,
+      "parent": "Dashboard",
+      "elements": [
+        {
+          "element_id": "accounts_list",
+          "type": "cards_list",
+          "action_type": "load",
+          "expected_backend_call": {
+            "method": "GET",
+            "route": "/api/user/brokers",
+            "params": {
+              "broker": "string (filter by active broker)"
+            },
+            "response": [
+              {
+                "id": "string",
+                "broker": "string",
+                "account_id": "string",
+                "account_name": "string",
+                "email": "string",
+                "server": "string",
+                "mode": "string",
+                "status": "string",
+                "enabled": "boolean",
+                "connected": "boolean",
+                "balance": "number",
+                "equity": "number",
+                "margin_used": "number",
+                "margin_available": "number",
+                "last_sync": "timestamp",
+                "api_key": "string",
+                "created_at": "timestamp"
+              }
+            ]
+          },
+          "ui_updates": ["display_accounts_list"]
+        },
+        {
+          "element_id": "accounts_add_button",
+          "type": "button",
+          "label": "Add Account",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["navigate_to_connect_broker"],
+          "notes": "Checks tier limits before allowing"
+        },
+        {
+          "element_id": "account_card_toggle",
+          "type": "switch",
+          "label": "Enabled",
+          "action_type": "change",
+          "expected_backend_call": {
+            "method": "PATCH",
+            "route": "/api/accounts/{account_id}/toggle",
+            "params": {
+              "enabled": "boolean"
+            },
+            "response": {
+              "account_id": "string",
+              "enabled": "boolean",
+              "message": "string"
+            }
+          },
+          "ui_updates": ["update_account_enabled_state", "show_toast"]
+        },
+        {
+          "element_id": "account_card_refresh_button",
+          "type": "button",
+          "label": "Refresh",
+          "action_type": "click",
+          "expected_backend_call": {
+            "method": "POST",
+            "route": "/api/accounts/sync/{account_id}",
+            "params": {},
+            "response": {
+              "account_id": "string",
+              "broker": "string",
+              "status": "success | error | partial",
+              "positions_synced": "number",
+              "orders_synced": "number",
+              "balance_updated": "boolean",
+              "errors": "array",
+              "synced_at": "timestamp"
+            }
+          },
+          "ui_updates": ["update_account_data", "update_last_sync", "show_toast"]
+        },
+        {
+          "element_id": "account_card_delete_button",
+          "type": "button",
+          "label": "Delete",
+          "action_type": "click",
+          "expected_backend_call": {
+            "method": "DELETE",
+            "route": "/api/accounts/{account_id}",
+            "params": {},
+            "response": {
+              "success": "boolean",
+              "message": "string"
+            }
+          },
+          "ui_updates": ["remove_from_list", "show_toast", "update_broker_context"]
+        },
+        {
+          "element_id": "account_card_edit_number_button",
+          "type": "button",
+          "label": "Edit Account Number",
+          "action_type": "click",
+          "expected_backend_call": {
+            "method": "PATCH",
+            "route": "/api/accounts/{account_id}",
+            "params": {
+              "account_number": "string",
+              "account_name": "string"
+            },
+            "response": {
+              "id": "string",
+              "account_number": "string",
+              "account_name": "string",
+              "updated_at": "timestamp"
+            }
+          },
+          "ui_updates": ["update_account_display", "show_toast"]
+        },
+        {
+          "element_id": "account_card_api_key_section_toggle",
+          "type": "collapsible_trigger",
+          "label": "API Key & Webhook Configuration",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["toggle_api_key_section"]
+        },
+        {
+          "element_id": "account_card_api_key_display",
+          "type": "component",
+          "action_type": "see_api_key_display_component",
+          "expected_backend_call": null,
+          "ui_updates": ["see_api_key_display"]
+        },
+        {
+          "element_id": "account_card_api_key_show_button",
+          "type": "button",
+          "label": "Show",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["reveal_api_key"]
+        },
+        {
+          "element_id": "account_card_api_key_copy_button",
+          "type": "button",
+          "label": "Copy",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["copy_api_key_to_clipboard", "show_toast"]
+        },
+        {
+          "element_id": "account_card_api_key_regenerate_button",
+          "type": "button",
+          "label": "Regenerate",
+          "action_type": "click",
+          "expected_backend_call": {
+            "method": "POST",
+            "route": "/api/accounts/{account_id}/regenerate-api-key",
+            "params": {},
+            "response": {
+              "account_id": "string",
+              "api_key": "string (new)",
+              "regenerated_at": "timestamp"
+            }
+          },
+          "ui_updates": ["update_api_key", "show_warning_modal", "show_toast"]
+        }
+      ]
+    },
+    {
+      "screen_name": "Dashboard_WebhookTemplates",
+      "route": "/dashboard (section: webhooks)",
+      "auth_required": true,
+      "parent": "Dashboard",
+      "elements": [
+        {
+          "element_id": "webhook_account_selector",
+          "type": "select",
+          "label": "Select Account",
+          "action_type": "change",
+          "expected_backend_call": {
+            "method": "GET",
+            "route": "/api/user/brokers",
+            "params": {
+              "broker": "string (current active broker)"
+            },
+            "response": "array_of_accounts"
+          },
+          "ui_updates": ["set_selected_account", "update_webhook_url", "update_templates"]
+        },
+        {
+          "element_id": "webhook_url_display",
+          "type": "text",
+          "action_type": "display",
+          "expected_backend_call": null,
+          "ui_updates": ["display_webhook_endpoint"],
+          "notes": "Format: https://unified.fluxeo.net/api/unify/v1/webhook/{broker}"
+        },
+        {
+          "element_id": "webhook_url_copy_button",
+          "type": "button",
+          "label": "Copy URL",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["copy_to_clipboard", "show_toast"]
+        },
+        {
+          "element_id": "webhook_template_tabs",
+          "type": "tabs",
+          "tabs": ["Market Buy", "Market Sell", "Limit Entry", "Stop Entry", "Close Position", "Modify SL/TP"],
+          "action_type": "change",
+          "expected_backend_call": null,
+          "ui_updates": ["display_selected_template"]
+        },
+        {
+          "element_id": "webhook_template_json_display",
+          "type": "code_block",
+          "action_type": "display",
+          "expected_backend_call": null,
+          "ui_updates": ["display_json_template"]
+        },
+        {
+          "element_id": "webhook_template_copy_button",
+          "type": "button",
+          "label": "Copy Template",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["copy_json_to_clipboard", "show_toast"]
+        },
+        {
+          "element_id": "webhook_test_button",
+          "type": "button",
+          "label": "Test Webhook",
+          "action_type": "click",
+          "expected_backend_call": {
+            "method": "POST",
+            "route": "/api/webhook/test",
+            "params": {
+              "webhook_url": "string",
+              "api_key": "string",
+              "test_payload": "object"
+            },
+            "response": {
+              "success": "boolean",
+              "response_status": "number",
+              "response_body": "object",
+              "latency_ms": "number"
+            }
+          },
+          "ui_updates": ["show_test_result", "show_toast"]
+        },
+        {
+          "element_id": "webhook_symbol_hints",
+          "type": "alert",
+          "action_type": "display",
+          "expected_backend_call": null,
+          "ui_updates": ["display_broker_specific_hints"]
+        }
+      ]
+    },
+    {
+      "screen_name": "Dashboard_OrdersManager",
+      "route": "/dashboard (section: orders)",
+      "auth_required": true,
+      "parent": "Dashboard",
+      "elements": [
+        {
+          "element_id": "orders_list",
+          "type": "table",
+          "action_type": "load",
+          "expected_backend_call": {
+            "method": "GET",
+            "route": "/api/orders",
+            "params": {
+              "limit": "number",
+              "offset": "number",
+              "status": "string (optional)",
+              "symbol": "string (optional)",
+              "broker": "string (optional)"
+            },
+            "response": [
+              {
+                "id": "string",
+                "symbol": "string",
+                "side": "BUY | SELL",
+                "type": "MARKET | LIMIT | STOP",
+                "qty": "number",
+                "price": "number (optional)",
+                "filled_qty": "number",
+                "avg_fill_price": "number (optional)",
+                "status": "PENDING | FILLED | CANCELED | REJECTED",
+                "broker": "string",
+                "account_id": "string",
+                "created_at": "timestamp",
+                "filled_at": "timestamp (optional)",
+                "tag": "string (optional)",
+                "reject_reason": "string (optional)"
+              }
+            ]
+          },
+          "ui_updates": ["display_orders_table"]
+        },
+        {
+          "element_id": "orders_search_input",
+          "type": "input",
+          "input_type": "search",
+          "action_type": "change",
+          "expected_backend_call": null,
+          "ui_updates": ["filter_orders_locally"]
+        },
+        {
+          "element_id": "orders_status_filter",
+          "type": "select",
+          "options": ["all", "pending", "filled", "canceled", "rejected"],
+          "action_type": "change",
+          "expected_backend_call": null,
+          "ui_updates": ["filter_orders_by_status"]
+        },
+        {
+          "element_id": "orders_refresh_button",
+          "type": "button",
+          "label": "Refresh",
+          "action_type": "click",
+          "expected_backend_call": {
+            "method": "GET",
+            "route": "/api/orders",
+            "params": {}
+          },
+          "ui_updates": ["reload_orders", "show_toast"]
+        },
+        {
+          "element_id": "order_row_cancel_button",
+          "type": "button",
+          "label": "Cancel",
+          "action_type": "click",
+          "condition": "status === 'PENDING'",
+          "expected_backend_call": {
+            "method": "DELETE",
+            "route": "/api/orders/{order_id}",
+            "params": {},
+            "response": {
+              "success": "boolean",
+              "message": "string"
+            }
+          },
+          "ui_updates": ["update_order_status", "show_toast"]
+        }
+      ]
+    },
+    {
+      "screen_name": "Dashboard_PositionsMonitor",
+      "route": "/dashboard (section: positions)",
+      "auth_required": true,
+      "parent": "Dashboard",
+      "elements": [
+        {
+          "element_id": "positions_list",
+          "type": "table",
+          "action_type": "load",
+          "expected_backend_call": {
+            "method": "GET",
+            "route": "/api/positions",
+            "params": {
+              "broker": "string (optional)"
+            },
+            "response": [
+              {
+                "id": "string",
+                "symbol": "string",
+                "side": "BUY | SELL",
+                "qty": "number",
+                "avg_price": "number",
+                "current_price": "number",
+                "pnl": "number",
+                "pnl_percent": "number",
+                "broker": "string",
+                "account_id": "string",
+                "opened_at": "timestamp",
+                "stop_loss": "number (optional)",
+                "take_profit": "number (optional)",
+                "tag": "string (optional)"
+              }
+            ]
+          },
+          "ui_updates": ["display_positions_table"]
+        },
+        {
+          "element_id": "positions_search_input",
+          "type": "input",
+          "input_type": "search",
+          "action_type": "change",
+          "expected_backend_call": null,
+          "ui_updates": ["filter_positions_locally"]
+        },
+        {
+          "element_id": "positions_refresh_button",
+          "type": "button",
+          "label": "Refresh",
+          "action_type": "click",
+          "expected_backend_call": {
+            "method": "GET",
+            "route": "/api/positions",
+            "params": {}
+          },
+          "ui_updates": ["reload_positions", "show_toast"]
+        },
+        {
+          "element_id": "position_row_close_button",
+          "type": "button",
+          "label": "Close",
+          "action_type": "click",
+          "expected_backend_call": {
+            "method": "POST",
+            "route": "/api/orders/close",
+            "params": {
+              "position_id": "string",
+              "close_qty": "number (optional for partial close)"
+            },
+            "response": {
+              "success": "boolean",
+              "pnl": "number",
+              "order_id": "string",
+              "message": "string"
+            }
+          },
+          "ui_updates": ["remove_position", "show_toast", "update_overview_metrics"]
+        },
+        {
+          "element_id": "position_row_modify_button",
+          "type": "button",
+          "label": "Modify SL/TP",
+          "action_type": "click",
+          "expected_backend_call": {
+            "method": "PATCH",
+            "route": "/api/positions/{position_id}",
+            "params": {
+              "stop_loss": "number (optional)",
+              "take_profit": "number (optional)"
+            },
+            "response": {
+              "success": "boolean",
+              "position_id": "string",
+              "stop_loss": "number",
+              "take_profit": "number"
+            }
+          },
+          "ui_updates": ["update_position", "show_toast"]
+        }
+      ]
+    },
+    {
+      "screen_name": "Dashboard_RiskControls",
+      "route": "/dashboard (section: risk)",
+      "auth_required": true,
+      "parent": "Dashboard",
+      "elements": [
+        {
+          "element_id": "risk_config_form",
+          "type": "form",
+          "action_type": "load",
+          "expected_backend_call": {
+            "method": "GET",
+            "route": "/api/user/risk_config",
+            "params": {},
+            "response": {
+              "enabled": "boolean",
+              "risk_mode": "string",
+              "max_daily_loss": "number",
+              "max_daily_loss_pct": "number",
+              "max_trades_per_day": "number",
+              "max_open_trades": "number",
+              "max_concurrent_positions": "number",
+              "max_risk_per_trade": "number",
+              "max_risk_per_trade_pct": "number",
+              "leverage_cap": "number",
+              "allowed_instruments": "array",
+              "denied_instruments": "array",
+              "trading_hours_enabled": "boolean",
+              "trading_hours_start": "string",
+              "trading_hours_end": "string",
+              "trading_hours_timezone": "string",
+              "news_lockout_enabled": "boolean",
+              "news_lockout_minutes": "number",
+              "emergency_stop_enabled": "boolean",
+              "emergency_stop_loss": "number"
+            }
+          },
+          "ui_updates": ["populate_risk_form"]
+        },
+        {
+          "element_id": "risk_enabled_toggle",
+          "type": "switch",
+          "label": "Risk Controls Enabled",
+          "action_type": "change",
+          "expected_backend_call": null,
+          "ui_updates": ["update_form_state", "mark_changed"]
+        },
+        {
+          "element_id": "risk_max_daily_loss_input",
+          "type": "input",
+          "input_type": "number",
+          "action_type": "change",
+          "expected_backend_call": null,
+          "ui_updates": ["update_form_state", "mark_changed"]
+        },
+        {
+          "element_id": "risk_max_trades_input",
+          "type": "input",
+          "input_type": "number",
+          "action_type": "change",
+          "expected_backend_call": null,
+          "ui_updates": ["update_form_state", "mark_changed"]
+        },
+        {
+          "element_id": "risk_trading_hours_toggle",
+          "type": "switch",
+          "label": "Trading Hours Enabled",
+          "action_type": "change",
+          "expected_backend_call": null,
+          "ui_updates": ["update_form_state", "mark_changed"]
+        },
+        {
+          "element_id": "risk_save_button",
+          "type": "button",
+          "label": "Save Changes",
+          "action_type": "click",
+          "expected_backend_call": {
+            "method": "PUT",
+            "route": "/api/user/risk_config",
+            "params": "RiskConfig (partial)",
+            "response": "RiskConfig (updated)"
+          },
+          "ui_updates": ["clear_changed_flag", "show_toast"]
+        },
+        {
+          "element_id": "risk_reset_button",
+          "type": "button",
+          "label": "Reset",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["reload_form_from_backend"]
+        }
+      ]
+    },
+    {
+      "screen_name": "Dashboard_TradingConfiguration",
+      "route": "/dashboard (section: trading)",
+      "auth_required": true,
+      "parent": "Dashboard",
+      "elements": [
+        {
+          "element_id": "trading_config_form",
+          "type": "form",
+          "action_type": "load",
+          "expected_backend_call": {
+            "method": "GET",
+            "route": "/api/user/config",
+            "params": {},
+            "response": {
+              "stop_loss_pct": "number",
+              "take_profit_pct": "number",
+              "position_size": "number",
+              "max_daily_loss": "number",
+              "max_daily_trades": "number",
+              "allow_weekend_trading": "boolean",
+              "default_broker": "string",
+              "slippage_tolerance": "number"
+            }
+          },
+          "ui_updates": ["populate_config_form"]
+        },
+        {
+          "element_id": "trading_stop_loss_slider",
+          "type": "slider",
+          "label": "Stop Loss %",
+          "min": 0,
+          "max": 100,
+          "step": 0.01,
+          "action_type": "change",
+          "expected_backend_call": null,
+          "ui_updates": ["update_form_state", "mark_changed"]
+        },
+        {
+          "element_id": "trading_take_profit_slider",
+          "type": "slider",
+          "label": "Take Profit %",
+          "min": 0,
+          "max": 100,
+          "step": 0.01,
+          "action_type": "change",
+          "expected_backend_call": null,
+          "ui_updates": ["update_form_state", "mark_changed"]
+        },
+        {
+          "element_id": "trading_position_size_input",
+          "type": "input",
+          "input_type": "number",
+          "action_type": "change",
+          "expected_backend_call": null,
+          "ui_updates": ["update_form_state", "mark_changed"]
+        },
+        {
+          "element_id": "trading_weekend_toggle",
+          "type": "switch",
+          "label": "Allow Weekend Trading",
+          "action_type": "change",
+          "expected_backend_call": null,
+          "ui_updates": ["update_form_state", "mark_changed"]
+        },
+        {
+          "element_id": "trading_save_button",
+          "type": "button",
+          "label": "Save Configuration",
+          "action_type": "click",
+          "expected_backend_call": {
+            "method": "PUT",
+            "route": "/api/user/config",
+            "params": "UserConfig (partial)",
+            "response": "UserConfig (updated)"
+          },
+          "ui_updates": ["clear_changed_flag", "show_toast"]
+        }
+      ]
+    },
+    {
+      "screen_name": "Dashboard_ApiKeyManager",
+      "route": "/dashboard (section: keys)",
+      "auth_required": true,
+      "parent": "Dashboard",
+      "elements": [
+        {
+          "element_id": "api_keys_list",
+          "type": "cards_list",
+          "action_type": "load",
+          "expected_backend_call": {
+            "method": "GET",
+            "route": "/api/user/api_keys",
+            "params": {},
+            "response": [
+              {
+                "id": "string",
+                "key": "string (masked)",
+                "name": "string",
+                "permissions": "array",
+                "created_at": "timestamp",
+                "last_used": "timestamp",
+                "expires_at": "timestamp",
+                "account_id": "string",
+                "broker": "string"
+              }
+            ]
+          },
+          "ui_updates": ["display_api_keys_list"]
+        },
+        {
+          "element_id": "api_key_generate_button",
+          "type": "button",
+          "label": "Generate Custom API Key",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["open_generate_modal"]
+        },
+        {
+          "element_id": "api_key_generate_modal",
+          "type": "modal",
+          "elements": [
+            {
+              "element_id": "api_key_name_input",
+              "type": "input",
+              "input_type": "text",
+              "required": true,
+              "action_type": "change",
+              "expected_backend_call": null,
+              "ui_updates": ["update_modal_state"]
+            },
+            {
+              "element_id": "api_key_permissions_checkboxes",
+              "type": "checkbox_group",
+              "options": ["read_positions", "write_positions", "read_orders", "write_orders"],
+              "action_type": "change",
+              "expected_backend_call": null,
+              "ui_updates": ["update_modal_state"]
+            },
+            {
+              "element_id": "api_key_generate_submit",
+              "type": "button",
+              "label": "Generate",
+              "action_type": "click",
+              "expected_backend_call": {
+                "method": "POST",
+                "route": "/api/user/api_keys/generate",
+                "params": {
+                  "name": "string",
+                  "permissions": "array"
+                },
+                "response": {
+                  "id": "string",
+                  "key": "string (full - show once)",
+                  "secret": "string (full - show once)",
+                  "name": "string",
+                  "permissions": "array",
+                  "created_at": "timestamp"
+                }
+              },
+              "ui_updates": ["show_new_key_warning", "refresh_keys_list", "close_modal"]
+            }
+          ]
+        },
+        {
+          "element_id": "api_key_card_show_button",
+          "type": "button",
+          "label": "Show",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["reveal_api_key"]
+        },
+        {
+          "element_id": "api_key_card_copy_button",
+          "type": "button",
+          "label": "Copy",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["copy_to_clipboard", "show_toast"]
+        },
+        {
+          "element_id": "api_key_card_delete_button",
+          "type": "button",
+          "label": "Delete",
+          "action_type": "click",
+          "expected_backend_call": {
+            "method": "DELETE",
+            "route": "/api/user/api_keys/{key_id}",
+            "params": {},
+            "response": {
+              "success": "boolean",
+              "message": "string"
+            }
+          },
+          "ui_updates": ["remove_from_list", "show_toast"]
+        }
+      ]
+    },
+    {
+      "screen_name": "Dashboard_BillingPortal",
+      "route": "/dashboard (section: billing)",
+      "auth_required": true,
+      "parent": "Dashboard",
+      "elements": [
+        {
+          "element_id": "billing_status_load",
+          "type": "data_load",
+          "action_type": "load",
+          "expected_backend_call": {
+            "method": "GET",
+            "route": "/api/billing/status",
+            "params": {},
+            "response": {
+              "status": "active | trialing | past_due | canceled | incomplete",
+              "plan": "starter | pro | elite",
+              "price_id": "string",
+              "current_period_end": "timestamp",
+              "cancel_at_period_end": "boolean",
+              "trial_end": "timestamp",
+              "customer_id": "string",
+              "payment_method": {
+                "last4": "string",
+                "brand": "string"
+              }
+            }
+          },
+          "ui_updates": ["display_billing_status"]
+        },
+        {
+          "element_id": "billing_usage_load",
+          "type": "data_load",
+          "action_type": "load",
+          "expected_backend_call": {
+            "method": "GET",
+            "route": "/api/billing/usage",
+            "params": {},
+            "response": {
+              "trades_count": "number",
+              "trades_limit": "number",
+              "days_remaining": "number",
+              "trial_trades_remaining": "number",
+              "brokers_connected": "number",
+              "brokers_limit": "number",
+              "strategies_active": "number",
+              "strategies_limit": "number"
+            }
+          },
+          "ui_updates": ["display_usage_stats"]
+        },
+        {
+          "element_id": "billing_plan_cards",
+          "type": "cards_grid",
+          "action_type": "display",
+          "expected_backend_call": null,
+          "ui_updates": ["display_available_plans"]
+        },
+        {
+          "element_id": "billing_plan_select_button",
+          "type": "button",
+          "label": "Select Plan",
+          "action_type": "click",
+          "expected_backend_call": {
+            "method": "POST",
+            "route": "/api/billing/checkout",
+            "params": {
+              "price_id": "string",
+              "success_url": "string",
+              "cancel_url": "string"
+            },
+            "response": {
+              "url": "string (Stripe checkout URL)",
+              "session_id": "string"
+            }
+          },
+          "ui_updates": ["redirect_to_stripe"]
+        },
+        {
+          "element_id": "billing_manage_button",
+          "type": "button",
+          "label": "Manage Subscription",
+          "action_type": "click",
+          "expected_backend_call": {
+            "method": "POST",
+            "route": "/api/billing/portal",
+            "params": {
+              "return_url": "string"
+            },
+            "response": {
+              "url": "string (Stripe portal URL)"
+            }
+          },
+          "ui_updates": ["redirect_to_stripe_portal"]
+        },
+        {
+          "element_id": "billing_cancel_button",
+          "type": "button",
+          "label": "Cancel Subscription",
+          "action_type": "click",
+          "expected_backend_call": {
+            "method": "POST",
+            "route": "/api/billing/cancel",
+            "params": {},
+            "response": {
+              "success": "boolean",
+              "effective_date": "timestamp"
+            }
+          },
+          "ui_updates": ["update_billing_status", "show_toast"]
+        },
+        {
+          "element_id": "billing_change_plan_button",
+          "type": "button",
+          "label": "Upgrade/Downgrade",
+          "action_type": "click",
+          "expected_backend_call": {
+            "method": "POST",
+            "route": "/api/billing/change_plan",
+            "params": {
+              "new_price_id": "string"
+            },
+            "response": {
+              "success": "boolean",
+              "new_plan": "string",
+              "effective_date": "timestamp",
+              "proration_amount": "number"
+            }
+          },
+          "ui_updates": ["update_billing_status", "show_toast"]
+        }
+      ]
+    },
+    {
+      "screen_name": "Dashboard_AnalyticsPage",
+      "route": "/dashboard (section: analytics)",
+      "auth_required": true,
+      "parent": "Dashboard",
+      "elements": [
+        {
+          "element_id": "analytics_date_range_picker",
+          "type": "date_range",
+          "action_type": "change",
+          "expected_backend_call": null,
+          "ui_updates": ["update_date_range", "trigger_reload"]
+        },
+        {
+          "element_id": "analytics_broker_filter",
+          "type": "select",
+          "options": ["all", "tradelocker", "topstep", "truforex"],
+          "action_type": "change",
+          "expected_backend_call": null,
+          "ui_updates": ["update_broker_filter", "trigger_reload"]
+        },
+        {
+          "element_id": "analytics_pnl_report_load",
+          "type": "data_load",
+          "action_type": "load",
+          "expected_backend_call": {
+            "method": "GET",
+            "route": "/api/reports/pnl",
+            "params": {
+              "start_date": "YYYY-MM-DD",
+              "end_date": "YYYY-MM-DD",
+              "broker": "string (optional)"
+            },
+            "response": {
+              "start_date": "string",
+              "end_date": "string",
+              "total_pnl": "number",
+              "total_trades": "number",
+              "winning_trades": "number",
+              "losing_trades": "number",
+              "win_rate": "number",
+              "profit_factor": "number",
+              "daily_breakdown": [
+                {
+                  "date": "string",
+                  "pnl": "number",
+                  "trades": "number",
+                  "volume": "number"
+                }
+              ]
+            }
+          },
+          "ui_updates": ["display_pnl_chart", "display_stats"]
+        },
+        {
+          "element_id": "analytics_metrics_load",
+          "type": "data_load",
+          "action_type": "load",
+          "expected_backend_call": {
+            "method": "GET",
+            "route": "/api/analytics/metrics",
+            "params": {
+              "start_date": "YYYY-MM-DD",
+              "end_date": "YYYY-MM-DD",
+              "broker": "string (optional)"
+            },
+            "response": {
+              "period": "string",
+              "broker": "string",
+              "total_volume": "number",
+              "total_trades": "number",
+              "avg_trade_duration": "number",
+              "best_symbol": "string",
+              "worst_symbol": "string",
+              "best_day": "string",
+              "worst_day": "string",
+              "metrics_by_symbol": "object"
+            }
+          },
+          "ui_updates": ["display_advanced_metrics"]
+        },
+        {
+          "element_id": "analytics_trades_load",
+          "type": "data_load",
+          "action_type": "load",
+          "expected_backend_call": {
+            "method": "GET",
+            "route": "/api/analytics/trades",
+            "params": {
+              "start_date": "YYYY-MM-DD",
+              "end_date": "YYYY-MM-DD",
+              "broker": "string (optional)",
+              "symbol": "string (optional)"
+            },
+            "response": {
+              "trades": [
+                {
+                  "id": "string",
+                  "symbol": "string",
+                  "side": "BUY | SELL",
+                  "entry_price": "number",
+                  "exit_price": "number",
+                  "qty": "number",
+                  "pnl": "number",
+                  "duration_minutes": "number",
+                  "opened_at": "timestamp",
+                  "closed_at": "timestamp",
+                  "broker": "string",
+                  "account_id": "string",
+                  "tag": "string"
+                }
+              ]
+            }
+          },
+          "ui_updates": ["display_trades_table"]
+        },
+        {
+          "element_id": "analytics_export_button",
+          "type": "button",
+          "label": "Export Data",
+          "action_type": "click",
+          "expected_backend_call": {
+            "method": "GET",
+            "route": "/api/export/trades",
+            "params": {
+              "format": "csv | json | xlsx",
+              "start_date": "YYYY-MM-DD",
+              "end_date": "YYYY-MM-DD"
+            },
+            "response": "file_download",
+            "notes": "Endpoint may not exist yet"
+          },
+          "ui_updates": ["download_file"]
+        }
+      ]
+    },
+    {
+      "screen_name": "Dashboard_LogsViewer",
+      "route": "/dashboard (section: logs)",
+      "auth_required": true,
+      "parent": "Dashboard",
+      "elements": [
+        {
+          "element_id": "logs_list",
+          "type": "table",
+          "action_type": "load",
+          "expected_backend_call": {
+            "method": "GET",
+            "route": "/api/logs",
+            "params": {
+              "type": "webhook | order | system | error",
+              "broker": "string (optional)",
+              "limit": "number",
+              "offset": "number"
+            },
+            "response": [
+              {
+                "id": "string",
+                "timestamp": "timestamp",
+                "type": "string",
+                "level": "info | warning | error",
+                "message": "string",
+                "details": "object",
+                "broker": "string",
+                "account_id": "string"
+              }
+            ]
+          },
+          "ui_updates": ["display_logs_table"]
+        },
+        {
+          "element_id": "logs_type_filter",
+          "type": "select",
+          "options": ["all", "webhook", "order", "system", "error"],
+          "action_type": "change",
+          "expected_backend_call": null,
+          "ui_updates": ["filter_logs", "trigger_reload"]
+        },
+        {
+          "element_id": "logs_refresh_button",
+          "type": "button",
+          "label": "Refresh",
+          "action_type": "click",
+          "expected_backend_call": {
+            "method": "GET",
+            "route": "/api/logs",
+            "params": {}
+          },
+          "ui_updates": ["reload_logs", "show_toast"]
+        },
+        {
+          "element_id": "logs_webhook_history_button",
+          "type": "button",
+          "label": "View Webhook History",
+          "action_type": "click",
+          "expected_backend_call": {
+            "method": "GET",
+            "route": "/api/webhooks/logs",
+            "params": {
+              "limit": "number",
+              "offset": "number",
+              "status": "success | error",
+              "broker": "string"
+            },
+            "response": [
+              {
+                "id": "string",
+                "timestamp": "timestamp",
+                "method": "string",
+                "path": "string",
+                "status": "number",
+                "payload": "object",
+                "response": "object",
+                "latency_ms": "number",
+                "error": "string",
+                "broker": "string",
+                "account_id": "string"
+              }
+            ]
+          },
+          "ui_updates": ["open_webhook_history_modal"]
+        }
+      ]
+    },
+    {
+      "screen_name": "Dashboard_AdminPanel",
+      "route": "/dashboard (section: admin)",
+      "auth_required": true,
+      "condition": "isAdmin",
+      "parent": "Dashboard",
+      "elements": [
+        {
+          "element_id": "admin_stats_cards",
+          "type": "cards_grid",
+          "action_type": "load",
+          "expected_backend_call": {
+            "method": "GET",
+            "route": "/api/admin/stats",
+            "params": {},
+            "response": {
+              "total_users": "number",
+              "active_users": "number",
+              "total_trades_today": "number",
+              "total_trades_all_time": "number",
+              "total_volume": "number",
+              "revenue_mrr": "number",
+              "users_by_plan": {
+                "starter": "number",
+                "pro": "number",
+                "elite": "number"
+              },
+              "brokers_connected": {
+                "tradelocker": "number",
+                "topstep": "number",
+                "truforex": "number"
+              },
+              "avg_trades_per_user": "number",
+              "system_health": {
+                "api_uptime": "number",
+                "avg_latency": "number"
+              }
+            }
+          },
+          "ui_updates": ["display_admin_stats"]
+        },
+        {
+          "element_id": "admin_users_table",
+          "type": "table",
+          "action_type": "load",
+          "expected_backend_call": {
+            "method": "GET",
+            "route": "/api/admin/users",
+            "params": {
+              "limit": "number",
+              "offset": "number",
+              "plan": "string (optional)",
+              "status": "string (optional)"
+            },
+            "response": [
+              {
+                "id": "string",
+                "email": "string",
+                "name": "string",
+                "plan": "string",
+                "status": "string",
+                "created_at": "timestamp",
+                "last_login": "timestamp",
+                "total_trades": "number",
+                "total_pnl": "number",
+                "brokers_connected": "number",
+                "accounts_count": "number"
+              }
+            ]
+          },
+          "ui_updates": ["display_users_table"]
+        },
+        {
+          "element_id": "admin_user_impersonate_button",
+          "type": "button",
+          "label": "Impersonate",
+          "action_type": "click",
+          "expected_backend_call": {
+            "method": "POST",
+            "route": "/api/admin/impersonate",
+            "params": {
+              "user_id": "string"
+            },
+            "response": {
+              "access_token": "string (user token)",
+              "expires_at": "timestamp"
+            }
+          },
+          "ui_updates": ["switch_to_user_view", "show_impersonation_banner"]
+        },
+        {
+          "element_id": "admin_accounts_viewer_button",
+          "type": "button",
+          "label": "View All Accounts",
+          "action_type": "click",
+          "expected_backend_call": {
+            "method": "GET",
+            "route": "/api/admin/accounts",
+            "params": {
+              "user_id": "string (optional)"
+            },
+            "response": [
+              {
+                "id": "string",
+                "user_id": "string",
+                "user_email": "string",
+                "broker": "string",
+                "account_id": "string",
+                "status": "string",
+                "balance": "number",
+                "equity": "number",
+                "api_key": "string",
+                "created_at": "timestamp",
+                "last_sync": "timestamp"
+              }
+            ]
+          },
+          "ui_updates": ["open_accounts_viewer_modal"]
+        },
+        {
+          "element_id": "admin_logs_button",
+          "type": "button",
+          "label": "System Logs",
+          "action_type": "click",
+          "expected_backend_call": {
+            "method": "GET",
+            "route": "/api/admin/logs",
+            "params": {
+              "level": "info | warning | error",
+              "limit": "number",
+              "offset": "number"
+            },
+            "response": [
+              {
+                "timestamp": "timestamp",
+                "level": "string",
+                "message": "string",
+                "context": "object",
+                "user_id": "string",
+                "request_id": "string"
+              }
+            ]
+          },
+          "ui_updates": ["open_system_logs_modal"]
+        }
+      ]
+    },
+    {
+      "screen_name": "AdminDashboard",
+      "route": "/admin-dashboard",
+      "auth_required": true,
+      "condition": "adminAuthenticated",
+      "elements": [
+        {
+          "element_id": "admin_dashboard_stats",
+          "type": "component",
+          "action_type": "see_admin_panel_component",
+          "expected_backend_call": "see_Dashboard_AdminPanel",
+          "ui_updates": ["see_admin_panel"]
+        },
+        {
+          "element_id": "admin_dashboard_logout_button",
+          "type": "button",
+          "label": "Logout",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["clear_admin_session", "navigate_to_landing"]
+        }
+      ]
+    },
+    {
+      "screen_name": "AccountSelectionPage",
+      "route": "/account-selection",
+      "auth_required": true,
+      "elements": [
+        {
+          "element_id": "account_selection_list",
+          "type": "cards_list",
+          "action_type": "load",
+          "expected_backend_call": {
+            "method": "GET",
+            "route": "/api/user/brokers",
+            "params": {},
+            "response": "array_of_accounts"
+          },
+          "ui_updates": ["display_accounts_list"]
+        },
+        {
+          "element_id": "account_selection_card_select_button",
+          "type": "button",
+          "label": "Select Account",
+          "action_type": "click",
+          "expected_backend_call": {
+            "method": "POST",
+            "route": "/api/accounts/switch",
+            "params": {
+              "account_id": "string"
+            },
+            "response": {
+              "success": "boolean",
+              "message": "string",
+              "active_account_id": "string"
+            }
+          },
+          "ui_updates": ["update_active_account", "navigate_to_dashboard", "show_toast"]
+        },
+        {
+          "element_id": "account_selection_back_button",
+          "type": "button",
+          "label": "Back",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["navigate_to_dashboard"]
+        }
+      ]
+    },
+    {
+      "screen_name": "ChangeAccountPage",
+      "route": "/change-account",
+      "auth_required": true,
+      "elements": [
+        {
+          "element_id": "change_account_list",
+          "type": "cards_list",
+          "action_type": "load",
+          "expected_backend_call": {
+            "method": "GET",
+            "route": "/api/user/brokers",
+            "params": {},
+            "response": "array_of_accounts"
+          },
+          "ui_updates": ["display_accounts_list", "highlight_current_account"]
+        },
+        {
+          "element_id": "change_account_card_switch_button",
+          "type": "button",
+          "label": "Switch to This Account",
+          "action_type": "click",
+          "expected_backend_call": {
+            "method": "POST",
+            "route": "/api/accounts/switch",
+            "params": {
+              "account_id": "string"
+            },
+            "response": {
+              "success": "boolean",
+              "message": "string",
+              "active_account_id": "string"
+            }
+          },
+          "ui_updates": ["update_active_account", "navigate_to_dashboard", "show_toast"]
+        },
+        {
+          "element_id": "change_account_back_button",
+          "type": "button",
+          "label": "Cancel",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["navigate_to_dashboard"]
+        }
+      ]
+    },
+    {
+      "screen_name": "SyncResultsPage",
+      "route": "/sync-results",
+      "auth_required": true,
+      "elements": [
+        {
+          "element_id": "sync_results_list",
+          "type": "cards_list",
+          "action_type": "load",
+          "expected_backend_call": {
+            "method": "GET",
+            "route": "/api/accounts/sync_results",
+            "params": {},
+            "response": [
+              {
+                "account_id": "string",
+                "broker": "string",
+                "status": "success | error | partial",
+                "positions_synced": "number",
+                "orders_synced": "number",
+                "balance_updated": "boolean",
+                "errors": "array",
+                "synced_at": "timestamp"
+              }
+            ]
+          },
+          "ui_updates": ["display_sync_results"]
+        },
+        {
+          "element_id": "sync_results_back_button",
+          "type": "button",
+          "label": "Back to Dashboard",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["navigate_to_dashboard"]
+        }
+      ]
+    },
+    {
+      "screen_name": "NotFoundPage",
+      "route": "/404",
+      "auth_required": false,
+      "elements": [
+        {
+          "element_id": "not_found_dashboard_button",
+          "type": "button",
+          "label": "Go to Dashboard",
+          "action_type": "click",
+          "condition": "user !== null",
+          "expected_backend_call": null,
+          "ui_updates": ["navigate_to_dashboard"]
+        },
+        {
+          "element_id": "not_found_home_button",
+          "type": "button",
+          "label": "Go Home",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["navigate_to_landing"]
+        }
+      ]
+    }
+  ],
+  
+  "shared_components": [
+    {
+      "component_name": "BrokerSwitcher",
+      "used_in": ["Dashboard"],
+      "elements": [
+        {
+          "element_id": "broker_switcher_dropdown",
+          "type": "dropdown",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["open_broker_dropdown"]
+        },
+        {
+          "element_id": "broker_switcher_option",
+          "type": "dropdown_item",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["set_active_broker", "update_broker_context", "refresh_dashboard_data"]
+        },
+        {
+          "element_id": "broker_switcher_connect_button",
+          "type": "button",
+          "label": "Connect New Broker",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["navigate_to_connect_broker"]
+        }
+      ]
+    },
+    {
+      "component_name": "BrokerNavigationBar",
+      "used_in": ["Dashboard"],
+      "elements": [
+        {
+          "element_id": "broker_nav_tab",
+          "type": "tab",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["set_active_broker", "update_broker_context"]
+        },
+        {
+          "element_id": "broker_nav_sync_indicator",
+          "type": "indicator",
+          "action_type": "display",
+          "expected_backend_call": null,
+          "ui_updates": ["show_sync_status"]
+        }
+      ]
+    },
+    {
+      "component_name": "BrokerSyncIndicator",
+      "used_in": ["Dashboard"],
+      "elements": [
+        {
+          "element_id": "sync_indicator_bar",
+          "type": "progress_bar",
+          "action_type": "display",
+          "condition": "isSyncing",
+          "expected_backend_call": null,
+          "ui_updates": ["show_sync_progress"]
+        }
+      ]
+    },
+    {
+      "component_name": "SettingsDropdown",
+      "used_in": ["Dashboard"],
+      "elements": [
+        {
+          "element_id": "settings_dropdown_trigger",
+          "type": "button",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["open_settings_menu"]
+        },
+        {
+          "element_id": "settings_profile_option",
+          "type": "dropdown_item",
+          "label": "Profile",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["navigate_to_profile_section"]
+        },
+        {
+          "element_id": "settings_theme_option",
+          "type": "dropdown_item",
+          "label": "Theme",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["open_theme_selector"]
+        },
+        {
+          "element_id": "settings_change_password_option",
+          "type": "dropdown_item",
+          "label": "Change Password",
+          "action_type": "click",
+          "expected_backend_call": {
+            "method": "POST",
+            "route": "/api/user/change_password",
+            "params": {
+              "current_password": "string",
+              "new_password": "string"
+            },
+            "response": {
+              "success": "boolean",
+              "message": "string"
+            }
+          },
+          "ui_updates": ["open_change_password_modal"]
+        },
+        {
+          "element_id": "settings_logout_option",
+          "type": "dropdown_item",
+          "label": "Logout",
+          "action_type": "click",
+          "expected_backend_call": {
+            "method": "POST",
+            "route": "/auth/logout",
+            "implementation": "supabase.auth.signOut",
+            "params": {},
+            "response": {
+              "success": "boolean"
+            }
+          },
+          "ui_updates": ["clear_user_context", "clear_tokens", "navigate_to_landing"]
+        }
+      ]
+    },
+    {
+      "component_name": "ThemeSelector",
+      "used_in": ["SettingsDropdown"],
+      "elements": [
+        {
+          "element_id": "theme_ocean_option",
+          "type": "button",
+          "label": "Ocean",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["set_theme_ocean", "save_to_localstorage"]
+        },
+        {
+          "element_id": "theme_cyberpunk_option",
+          "type": "button",
+          "label": "Cyberpunk",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["set_theme_cyberpunk", "save_to_localstorage"]
+        },
+        {
+          "element_id": "theme_minimal_option",
+          "type": "button",
+          "label": "Minimal",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["set_theme_minimal", "save_to_localstorage"]
+        }
+      ]
+    },
+    {
+      "component_name": "Chatbot",
+      "used_in": ["Dashboard"],
+      "elements": [
+        {
+          "element_id": "chatbot_trigger_button",
+          "type": "button",
+          "label": "Support",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["open_chatbot_panel"]
+        },
+        {
+          "element_id": "chatbot_message_input",
+          "type": "input",
+          "input_type": "text",
+          "action_type": "change",
+          "expected_backend_call": null,
+          "ui_updates": ["update_message_state"]
+        },
+        {
+          "element_id": "chatbot_send_button",
+          "type": "button",
+          "label": "Send",
+          "action_type": "click",
+          "expected_backend_call": {
+            "method": "POST",
+            "route": "/api/support/chat",
+            "params": {
+              "message": "string",
+              "conversation_id": "string (optional)"
+            },
+            "response": {
+              "response": "string",
+              "conversation_id": "string",
+              "suggested_actions": "array (optional)"
+            },
+            "notes": "Optional feature - may not exist in backend yet"
+          },
+          "ui_updates": ["append_user_message", "append_bot_response"]
+        }
+      ]
+    },
+    {
+      "component_name": "TrialBanner",
+      "used_in": ["Dashboard"],
+      "elements": [
+        {
+          "element_id": "trial_banner_display",
+          "type": "banner",
+          "action_type": "display",
+          "condition": "user.plan === 'trial'",
+          "expected_backend_call": {
+            "method": "GET",
+            "route": "/api/billing/usage",
+            "params": {},
+            "response": {
+              "trades_count": "number",
+              "trades_limit": 100,
+              "days_remaining": "number",
+              "trial_trades_remaining": "number"
+            }
+          },
+          "ui_updates": ["display_trial_progress"]
+        },
+        {
+          "element_id": "trial_banner_upgrade_button",
+          "type": "button",
+          "label": "Upgrade Now",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["navigate_to_billing"]
+        }
+      ]
+    },
+    {
+      "component_name": "BillingGuard",
+      "used_in": ["Dashboard"],
+      "elements": [
+        {
+          "element_id": "billing_guard_overlay",
+          "type": "overlay",
+          "action_type": "display",
+          "condition": "billing_blocked",
+          "expected_backend_call": null,
+          "ui_updates": ["block_interaction", "show_upgrade_message"]
+        },
+        {
+          "element_id": "billing_guard_upgrade_button",
+          "type": "button",
+          "label": "Upgrade to Continue",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["navigate_to_billing"]
+        }
+      ]
+    },
+    {
+      "component_name": "EmergencyStopDialog",
+      "used_in": ["Dashboard", "RiskControls"],
+      "elements": [
+        {
+          "element_id": "emergency_stop_trigger_button",
+          "type": "button",
+          "label": "Emergency Stop",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["open_emergency_stop_confirmation"]
+        },
+        {
+          "element_id": "emergency_stop_confirm_button",
+          "type": "button",
+          "label": "Confirm Emergency Stop",
+          "action_type": "click",
+          "expected_backend_call": {
+            "method": "POST",
+            "route": "/api/user/emergency_stop",
+            "params": {},
+            "response": {
+              "success": "boolean",
+              "positions_closed": "number",
+              "total_pnl": "number",
+              "errors": "array"
+            }
+          },
+          "ui_updates": ["close_all_positions", "disable_accounts", "show_result_toast", "refresh_dashboard"]
+        },
+        {
+          "element_id": "emergency_stop_cancel_button",
+          "type": "button",
+          "label": "Cancel",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["close_dialog"]
+        }
+      ]
+    },
+    {
+      "component_name": "ApiKeyDisplay",
+      "used_in": ["AccountsManager", "ApiKeyManager"],
+      "elements": [
+        {
+          "element_id": "api_key_masked_display",
+          "type": "text",
+          "action_type": "display",
+          "expected_backend_call": null,
+          "ui_updates": ["show_masked_key"]
+        },
+        {
+          "element_id": "api_key_show_button",
+          "type": "button",
+          "label": "Show",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["reveal_full_key"]
+        },
+        {
+          "element_id": "api_key_hide_button",
+          "type": "button",
+          "label": "Hide",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["mask_key"]
+        },
+        {
+          "element_id": "api_key_copy_button",
+          "type": "button",
+          "label": "Copy",
+          "action_type": "click",
+          "expected_backend_call": null,
+          "ui_updates": ["copy_to_clipboard", "show_toast"]
+        },
+        {
+          "element_id": "api_key_regenerate_button",
+          "type": "button",
+          "label": "Regenerate",
+          "action_type": "click",
+          "expected_backend_call": {
+            "method": "POST",
+            "route": "/api/accounts/{account_id}/regenerate-api-key",
+            "params": {},
+            "response": {
+              "account_id": "string",
+              "api_key": "string (new)",
+              "regenerated_at": "timestamp"
+            }
+          },
+          "ui_updates": ["update_api_key", "show_warning", "show_toast"]
+        }
+      ]
+    }
+  ],
+  
+  "webhook_endpoint": {
+    "description": "CRITICAL ENDPOINT - Receives TradingView webhooks and executes trades",
+    "route": "/api/unify/v1/webhook/{broker}",
+    "method": "POST",
+    "triggered_by": "external_tradingview_alert",
+    "params": {
+      "headers": {
+        "Authorization": "Bearer {api_key}",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "version": "unify.v1",
+        "source": "tradingview",
+        "intent": {
+          "broker": "string",
+          "side": "buy | sell",
+          "type": "market | limit | stop",
+          "symbol": "string",
+          "qty_mode": "risk_pct | fixed_qty | fixed_dollar",
+          "qty": "number",
+          "sl": {
+            "mode": "price | offset | rr",
+            "value": "number | string"
+          },
+          "tp": {
+            "mode": "price | offset | rr",
+            "value": "number | string"
+          },
+          "tag": "string (optional)"
+        },
+        "user_context": {
+          "account": "string",
+          "workspace": "string"
+        },
+        "ts": "timestamp"
+      }
+    },
+    "response": {
+      "success": "boolean",
+      "order_id": "string",
+      "message": "string",
+      "execution_time_ms": "number"
+    },
+    "backend_flow": [
+      "1. Extract API key from Authorization header",
+      "2. Validate API key and get account",
+      "3. Check account enabled status",
+      "4. Apply risk controls (max_daily_loss, trading_hours, etc.)",
+      "5. Execute trade via broker API",
+      "6. Increment user trades_count (for trial tracking)",
+      "7. Log webhook event in database",
+      "8. Return success or error response"
+    ],
+    "notes": "This is the most critical endpoint - entire webhook automation depends on it"
+  },
+  
+  "missing_backend_routes": [
+    "/api/export/trades - Export trade history as CSV/JSON",
+    "/api/calendar/events - News calendar for lockout feature",
+    "/api/accounts/{id}/ea_status - Check MT4/MT5 EA connection status",
+    "/api/strategies - Manage Fluxeo strategies (Pro/Elite plans)",
+    "/api/strategies/activate - Activate a Fluxeo strategy",
+    "/api/user/whitelabel - White-label configuration (Elite plan)",
+    "/api/analytics/benchmark - Performance vs market benchmark",
+    "WebSocket /ws/positions - Real-time position price updates"
+  ]
+}

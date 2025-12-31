@@ -1,0 +1,92 @@
+# Alert rules for Prometheus Alertmanager
+# Defines alerting rules for the trading engine
+
+groups:
+  - name: TradingEngineCritical
+    rules:
+      - alert: TradingEngineDown
+      for: 5m
+      labels:
+        severity: critical
+        service: trading-engine
+        instance: "{{ $labels.instance }}"
+      
+      - alert: DatabaseDown
+      for: 5m
+      labels:
+        severity: critical
+        service: database
+        instance: "{{ $labels.instance }}"
+      
+      - alert: HighErrorRate
+      for: 5m
+      labels:
+        severity: warning
+        service: trading-engine
+        instance: "{{ $labels.instance }}"
+      
+      - alert: DiskSpaceLow
+      for: 5m
+      labels:
+        severity: warning
+        service: trading-engine
+        instance: "{{ $labels.instance }}"
+      
+      - alert: MemoryUsageHigh
+      for: 5m
+      labels:
+        severity: warning
+        service: trading-engine
+        instance: "{{ $labels.instance }}"
+
+  - name: TradingEngineWarning
+    rules:
+      - alert: WebhookFailureRate
+      for: 10m
+      labels:
+        severity: warning
+        service: trading-engine
+        instance: "{{ $labels.instance }}"
+      
+      - alert: SlowResponseTime
+      for: 5m
+      labels:
+        severity: warning
+        service: trading-engine
+        instance: "{{ $labels.instance }}"
+
+  - name: TradingEngineInfo
+    rules:
+      - alert: NewUserRegistration
+      for: 0m
+      labels:
+        severity: info
+        service: trading-engine
+        instance: "{{ $labels.instance }}"
+      
+      - alert: SuccessfulTrade
+      for: 0m
+      labels:
+        severity: info
+        service: trading-engine
+        instance: "{{ $labels.instance }}"
+
+receivers:
+  - name: admin-email
+    email_configs:
+      - to: admin@tradingengine.com
+      from: alerts@tradingengine.com
+      smarthost: localhost
+      smtp_port: 587
+      smtp_auth_username: your-email@gmail.com
+      smtp_auth_password: your-app-password
+      smtp_require_tls: true
+
+# Inhibition rules
+inhibit_rules:
+  - name: SilentNotifications
+    source_match:
+      - severity: info
+    target_match:
+      - receiver: admin-email
+    equal: ['silenced']

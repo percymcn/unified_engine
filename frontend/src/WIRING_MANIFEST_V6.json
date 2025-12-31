@@ -1,0 +1,654 @@
+{
+  "manifest_version": 1,
+  "last_updated": "2025-10-19",
+  "description": "Complete API wiring specification for TradeFlow v6. Maps every UI component to its backend endpoints with auth, caching, and event publishing requirements.",
+  
+  "pages": [
+    {
+      "id": "Dashboard_Home",
+      "file": "components/Dashboard.tsx",
+      "description": "Main dashboard with overview, charts, and quick actions",
+      "widgets": [
+        {
+          "id": "DashboardOverview",
+          "bind": {
+            "GET /api/overview": "data"
+          },
+          "response": {
+            "total_pnl": "number",
+            "total_pnl_pct": "number",
+            "today_pnl": "number",
+            "today_trades": "number",
+            "win_rate": "number",
+            "active_positions": "number",
+            "total_trades": "number",
+            "largest_win": "number",
+            "largest_loss": "number",
+            "avg_win": "number",
+            "avg_loss": "number",
+            "sharpe_ratio": "number"
+          },
+          "auth": "bearer",
+          "cache": "5s",
+          "redisKey": "overview::<userId>",
+          "success": ["renderKPICards", "updateCharts"],
+          "error": ["toastError", "showSkeletonState"]
+        },
+        {
+          "id": "TrialBanner",
+          "bind": {
+            "GET /api/billing/status": "data.status",
+            "GET /api/billing/usage": "data.usage"
+          },
+          "auth": "bearer",
+          "cache": "30s",
+          "success": ["showBanner", "updateProgressBars"],
+          "error": ["hideBanner"]
+        }
+      ]
+    },
+
+    {
+      "id": "Positions_Page",
+      "file": "components/PositionsMonitor.tsx",
+      "description": "Real-time position monitoring with SL/TP modification",
+      "widgets": [
+        {
+          "id": "PositionsTable",
+          "bind": {
+            "GET /api/positions": "data.positions"
+          },
+          "response": {
+            "positions": "[{id, symbol, side, qty, avg_price, current_price, pnl, pnl_percent, broker, opened_at, stop_loss?, take_profit?, tag?}]"
+          },
+          "auth": "bearer",
+          "cache": "5s",
+          "redisKey": "pos::<userId>",
+          "success": ["renderTable", "enableCloseButtons"],
+          "error": ["toastError", "emptyState"],
+          "nats": []
+        },
+        {
+          "id": "ClosePositionButton",
+          "bind": {
+            "POST /api/orders/close": {
+              "body": {"position_id": "string"}
+            }
+          },
+          "auth": "bearer",
+          "cache": "disabled",
+          "success": ["toastSuccess", "refreshPositions", "updateOverview"],
+          "error": ["toastError"],
+          "nats": ["ai.trade.exec.order"]
+        },
+        {
+          "id": "ModifyPositionDialog",
+          "bind": {
+            "PUT /api/positions/{id}": {
+              "body": {"stop_loss": "number", "take_profit": "number"}
+            }
+          },
+          "auth": "bearer",
+          "success": ["toastSuccess", "closeDialog", "refreshPositions"],
+          "error": ["toastError"]
+        }
+      ]
+    },
+
+    {
+      "id": "Orders_Page",
+      "file": "components/OrdersManager.tsx",
+      "description": "Order management and history with filters",
+      "widgets": [
+        {
+          "id": "OrdersTable",
+          "bind": {
+            "GET /api/orders": {
+              "params": ["limit", "offset", "status", "symbol"]
+            }
+          },
+          "response": {
+            "orders": "[{id, symbol, side, type, qty, price?, status, broker, created_at, filled_at?}]"
+          },
+          "auth": "bearer",
+          "cache": "10s",
+          "redisKey": "orders::<userId>::<status>",
+          "success": ["renderTable", "enableActions"],
+          "error": ["toastError", "emptyState"]
+        },
+        {
+          "id": "DeleteOrderButton",
+          "bind": {
+            "DELETE /api/orders/{order_id}": {}
+          },
+          "auth": "bearer",
+          "success": ["toastSuccess", "removeFromTable"],
+          "error": ["toastError"]
+        }
+      ]
+    },
+
+    {
+      "id": "Analytics_Page",
+      "file": "components/AnalyticsPage.tsx",
+      "description": "Advanced analytics with charts and metrics",
+      "widgets": [
+        {
+          "id": "PnL_Report_Widget",
+          "bind": {
+            "GET /api/reports/pnl": {
+              "params": ["start_date", "end_date"]
+            }
+          },
+          "response": {
+            "start_date": "string",
+            "end_date": "string",
+            "total_pnl": "number",
+            "total_trades": "number",
+            "winning_trades": "number",
+            "losing_trades": "number",
+            "win_rate": "number",
+            "profit_factor": "number",
+            "daily_breakdown": "[{date, pnl, trades, volume}]"
+          },
+          "auth": "bearer",
+          "cache": "60s",
+          "success": ["renderChart", "updateMetrics"],
+          "error": ["toastError"]
+        },
+        {
+          "id": "Analytics_Metrics_Widget",
+          "bind": {
+            "GET /api/analytics/metrics": {
+              "params": ["start_date", "end_date", "broker"]
+            }
+          },
+          "auth": "bearer",
+          "cache": "60s",
+          "success": ["renderMetricsCards"],
+          "error": ["toastError"]
+        },
+        {
+          "id": "Trade_History_Widget",
+          "bind": {
+            "GET /api/analytics/trades": {
+              "params": ["start_date", "end_date"]
+            }
+          },
+          "auth": "bearer",
+          "cache": "30s",
+          "success": ["renderTradeList"],
+          "error": ["toastError"]
+        }
+      ]
+    },
+
+    {
+      "id": "Broker_Management",
+      "file": "components/AccountsManager.tsx",
+      "description": "Connect and manage broker accounts",
+      "widgets": [
+        {
+          "id": "Broker_Account_List",
+          "bind": {
+            "GET /api/user/brokers": "data.brokers"
+          },
+          "response": {
+            "brokers": "[{id, broker, email, server?, mode, status, balance, equity, margin_used, margin_available, created_at, last_sync?}]"
+          },
+          "auth": "bearer",
+          "cache": "10s",
+          "redisKey": "brokers::<userId>",
+          "success": ["renderAccounts", "enableActions"],
+          "error": ["toastError", "emptyState"]
+        },
+        {
+          "id": "Connect_Broker_Form",
+          "bind": {
+            "POST /register/{broker}": {
+              "body": {"email": "string", "password": "string", "server?": "string", "mode": "demo|live"}
+            }
+          },
+          "auth": "bearer",
+          "success": ["toastSuccess", "closeModal", "refreshBrokers", "publishNats"],
+          "error": ["toastError", "showValidationErrors"],
+          "nats": ["ai.hub.kpi.ingest"]
+        }
+      ]
+    },
+
+    {
+      "id": "Account_Selection_Page",
+      "file": "components/AccountSelectionPage.tsx",
+      "description": "Select and activate broker accounts",
+      "widgets": [
+        {
+          "id": "Sync_Results_Widget",
+          "bind": {
+            "GET /api/accounts/sync_results": "data.results"
+          },
+          "response": {
+            "results": "[{account_id, broker, status, positions_synced, orders_synced, balance_updated, errors[], synced_at}]"
+          },
+          "auth": "bearer",
+          "cache": "disabled",
+          "success": ["renderResults", "enableBulkActions"],
+          "error": ["toastError"]
+        },
+        {
+          "id": "Activate_Account_Button",
+          "bind": {
+            "POST /api/accounts/switch": {
+              "body": {"account_id": "string"}
+            }
+          },
+          "auth": "bearer",
+          "success": ["toastSuccess", "refreshDashboard", "navigate:/dashboard"],
+          "error": ["toastError"]
+        }
+      ]
+    },
+
+    {
+      "id": "Change_Account_Page",
+      "file": "components/ChangeAccountPage.tsx",
+      "description": "Switch between connected broker accounts",
+      "widgets": [
+        {
+          "id": "Account_Switcher",
+          "bind": {
+            "GET /api/user/brokers": "data.brokers",
+            "POST /api/accounts/switch": {"body": {"account_id": "string"}}
+          },
+          "auth": "bearer",
+          "success": ["toastSuccess", "navigate:/dashboard"],
+          "error": ["toastError"]
+        }
+      ]
+    },
+
+    {
+      "id": "Sync_Results_Page",
+      "file": "components/SyncResultsPage.tsx",
+      "description": "View and retry sync operations",
+      "widgets": [
+        {
+          "id": "Sync_Results_Table",
+          "bind": {
+            "GET /api/accounts/sync_results": "data.results"
+          },
+          "auth": "bearer",
+          "cache": "disabled",
+          "success": ["renderTable", "enableRetry"],
+          "error": ["toastError"]
+        },
+        {
+          "id": "Retry_Sync_Button",
+          "bind": {
+            "POST /api/accounts/sync/{id}": {}
+          },
+          "auth": "bearer",
+          "success": ["toastSuccess", "refreshResults"],
+          "error": ["toastError"]
+        }
+      ]
+    },
+
+    {
+      "id": "User_Settings",
+      "file": "components/TradingConfiguration.tsx + components/RiskControls.tsx",
+      "description": "User configuration and risk management",
+      "widgets": [
+        {
+          "id": "User_Config_Form",
+          "bind": {
+            "GET /api/user/config": "data",
+            "PUT /api/user/config": {"body": {"stop_loss_pct": "number", "take_profit_pct": "number", "position_size": "number", "max_daily_loss": "number", "max_daily_trades": "number", "allow_weekend_trading": "boolean"}}
+          },
+          "auth": "bearer",
+          "cache": "30s",
+          "success": ["toastSuccess", "updateForm"],
+          "error": ["toastError"]
+        },
+        {
+          "id": "Risk_Config_Form",
+          "bind": {
+            "GET /api/user/risk_config": "data",
+            "PUT /api/user/risk_config": {"body": {"max_risk_per_trade": "number", "max_drawdown": "number", "max_correlation": "number", "max_open_positions": "number", "emergency_stop_enabled": "boolean", "emergency_stop_loss": "number"}}
+          },
+          "auth": "bearer",
+          "cache": "30s",
+          "success": ["toastSuccess", "updateForm"],
+          "error": ["toastError"]
+        },
+        {
+          "id": "Emergency_Stop_Button",
+          "bind": {
+            "POST /api/user/emergency_stop": {}
+          },
+          "auth": "bearer",
+          "success": ["toastSuccess", "closeDialog", "refreshDashboard", "publishNats"],
+          "error": ["toastError"],
+          "nats": ["ai.ops.health.sweep"]
+        }
+      ]
+    },
+
+    {
+      "id": "Api_Keys_Page",
+      "file": "components/ApiKeyManager.tsx",
+      "description": "Generate and manage API keys for webhooks",
+      "widgets": [
+        {
+          "id": "API_Keys_List",
+          "bind": {
+            "GET /api/user/api_keys": "data.keys"
+          },
+          "response": {
+            "keys": "[{id, key, name, permissions[], created_at, last_used?, expires_at?}]"
+          },
+          "auth": "bearer",
+          "cache": "disabled",
+          "success": ["renderList", "enableActions"],
+          "error": ["toastError"]
+        },
+        {
+          "id": "Generate_API_Key_Button",
+          "bind": {
+            "POST /api/user/api_keys/generate": {
+              "body": {"name": "string", "permissions": "string[]"}
+            }
+          },
+          "auth": "bearer",
+          "success": ["toastSuccess", "showKeyModal", "refreshList"],
+          "error": ["toastError"]
+        },
+        {
+          "id": "Delete_API_Key_Button",
+          "bind": {
+            "DELETE /api/user/api_keys/{key_id}": {}
+          },
+          "auth": "bearer",
+          "success": ["toastSuccess", "removeFromList"],
+          "error": ["toastError"]
+        }
+      ]
+    },
+
+    {
+      "id": "Billing_Portal",
+      "file": "components/BillingPortal.tsx",
+      "description": "Subscription management and usage tracking",
+      "widgets": [
+        {
+          "id": "Billing_Status_Widget",
+          "bind": {
+            "GET /api/billing/status": "data.status"
+          },
+          "response": {
+            "status": "active|trialing|past_due|canceled|incomplete",
+            "plan": "starter|pro|elite",
+            "price_id": "string",
+            "current_period_end": "string",
+            "cancel_at_period_end": "boolean",
+            "trial_end?": "string",
+            "customer_id?": "string"
+          },
+          "auth": "bearer",
+          "cache": "30s",
+          "success": ["renderStatus", "enableActions"],
+          "error": ["toastError"]
+        },
+        {
+          "id": "Billing_Usage_Widget",
+          "bind": {
+            "GET /api/billing/usage": "data.usage"
+          },
+          "response": {
+            "trades_count": "number",
+            "trades_limit": "number",
+            "days_remaining?": "number",
+            "trial_trades_remaining?": "number",
+            "brokers_connected": "number",
+            "brokers_limit": "number",
+            "strategies_active": "number",
+            "strategies_limit": "number"
+          },
+          "auth": "bearer",
+          "cache": "10s",
+          "success": ["renderUsage", "updateProgressBars"],
+          "error": ["toastError"]
+        },
+        {
+          "id": "Checkout_Button",
+          "bind": {
+            "POST /api/billing/checkout": {
+              "body": {"price_id": "string", "success_url": "string", "cancel_url": "string"}
+            }
+          },
+          "auth": "bearer",
+          "success": ["redirectToStripe"],
+          "error": ["toastError"]
+        },
+        {
+          "id": "Cancel_Subscription_Button",
+          "bind": {
+            "POST /api/billing/cancel": {}
+          },
+          "auth": "bearer",
+          "success": ["toastSuccess", "refreshStatus"],
+          "error": ["toastError"]
+        }
+      ]
+    },
+
+    {
+      "id": "Logs_Viewer",
+      "file": "components/LogsViewer.tsx",
+      "description": "Webhook logs and debugging",
+      "widgets": [
+        {
+          "id": "Webhook_Logs_Table",
+          "bind": {
+            "GET /api/logs/webhooks": {
+              "params": ["limit", "offset"]
+            }
+          },
+          "response": {
+            "logs": "[{id, timestamp, method, path, status, payload, response, latency_ms, error?}]"
+          },
+          "auth": "bearer",
+          "cache": "disabled",
+          "success": ["renderTable", "enablePagination"],
+          "error": ["toastError"]
+        }
+      ]
+    },
+
+    {
+      "id": "Password_Reset_Page",
+      "file": "components/PasswordResetPage.tsx",
+      "description": "Password reset flow",
+      "widgets": [
+        {
+          "id": "Reset_Password_Form",
+          "bind": {
+            "POST /api/auth/reset-password": {
+              "body": {"email": "string"}
+            }
+          },
+          "auth": "none",
+          "success": ["toastSuccess", "showSuccessMessage", "navigate:/login"],
+          "error": ["toastError"]
+        }
+      ]
+    },
+
+    {
+      "id": "404_Error_Page",
+      "file": "components/NotFoundPage.tsx",
+      "description": "404 error page",
+      "widgets": []
+    }
+  ],
+
+  "endpoints_required": [
+    "GET /api/overview",
+    "GET /api/positions",
+    "GET /api/orders",
+    "POST /api/orders/close",
+    "DELETE /api/orders/{order_id}",
+    "GET /api/reports/pnl",
+    "GET /api/analytics/metrics",
+    "GET /api/analytics/trades",
+    "GET /api/user/brokers",
+    "POST /register/{broker}",
+    "GET /api/user/config",
+    "PUT /api/user/config",
+    "GET /api/user/risk_config",
+    "PUT /api/user/risk_config",
+    "POST /api/user/emergency_stop",
+    "GET /api/user/api_keys",
+    "POST /api/user/api_keys/generate",
+    "DELETE /api/user/api_keys/{key_id}",
+    "GET /api/billing/status",
+    "GET /api/billing/usage",
+    "POST /api/billing/checkout",
+    "POST /api/billing/cancel",
+    "GET /api/logs/webhooks",
+    "POST /api/accounts/switch",
+    "GET /api/accounts/sync_results",
+    "POST /api/accounts/sync/{id}",
+    "POST /api/auth/reset-password"
+  ],
+
+  "webhook_endpoints": [
+    {
+      "method": "POST",
+      "path": "/webhook",
+      "description": "TradingView webhook receiver (no UI, backend only)",
+      "headers": {
+        "X-API-Key": "required"
+      },
+      "body": {
+        "symbol": "string (e.g., 'ES')",
+        "action": "BUY|SELL",
+        "price": "number",
+        "sl": "number (stop loss)",
+        "tp": "number (take profit)",
+        "qty": "number (quantity)",
+        "tag": "string (strategy tag)"
+      },
+      "response": {
+        "success": "boolean",
+        "order_id": "string",
+        "message": "string"
+      }
+    }
+  ],
+
+  "events": [
+    {
+      "on": "closePosition.click",
+      "pub": "ai.trade.exec.order",
+      "payload": {
+        "op": "close",
+        "position_id": "string",
+        "user_id": "string",
+        "timestamp": "ISO8601"
+      }
+    },
+    {
+      "on": "registerBroker.success",
+      "pub": "ai.hub.kpi.ingest",
+      "payload": {
+        "event": "broker_connected",
+        "user_id": "string",
+        "broker": "string",
+        "timestamp": "ISO8601"
+      }
+    },
+    {
+      "on": "emergencyStop.confirm",
+      "pub": "ai.ops.health.sweep",
+      "payload": {
+        "op": "kill_switch",
+        "user_id": "string",
+        "timestamp": "ISO8601",
+        "positions_closed": "number"
+      }
+    }
+  ],
+
+  "guards": [
+    {
+      "id": "BillingGuard",
+      "condition": "billingStatus.status ∈ (past_due, canceled, incomplete)",
+      "action": "blockTradingButtons",
+      "message": "Reactivate billing to continue trading",
+      "affectedPages": ["Dashboard_Home", "Positions_Page", "Orders_Page"]
+    },
+    {
+      "id": "TrialGuard",
+      "condition": "billingStatus.status === trialing",
+      "action": "showTrialBanner",
+      "message": "X trades / Y days remaining in trial",
+      "affectedPages": ["Dashboard_Home"]
+    }
+  ],
+
+  "caching_strategy": {
+    "realtime": ["positions", "orders"],
+    "5s": ["overview", "analytics/trades"],
+    "30s": ["user/config", "risk_config", "billing/status"],
+    "60s": ["reports/pnl", "analytics/metrics"],
+    "disabled": ["api_keys", "logs", "sync_results"]
+  },
+
+  "export_plan": {
+    "description": "File structure for exporting React components",
+    "structure": {
+      "src/pages/Dashboard/": ["DashboardHome.tsx"],
+      "src/pages/Positions/": ["PositionsPage.tsx"],
+      "src/pages/Orders/": ["OrdersPage.tsx"],
+      "src/pages/Analytics/": ["AnalyticsPage.tsx"],
+      "src/pages/Accounts/": [
+        "BrokerManagement.tsx",
+        "AccountSelection.tsx",
+        "ChangeAccount.tsx",
+        "SyncResults.tsx"
+      ],
+      "src/pages/Settings/": ["UserSettings.tsx"],
+      "src/pages/ApiKeys/": ["ApiKeysPage.tsx"],
+      "src/pages/Billing/": ["BillingPortal.tsx"],
+      "src/pages/Logs/": ["LogsViewer.tsx"],
+      "src/pages/Auth/": ["PasswordReset.tsx"],
+      "src/components/modals/": [
+        "BrokerConnectionModal.tsx",
+        "ApiKeySuccessModal.tsx",
+        "EditAccountModal.tsx",
+        "ConfirmationDialog.tsx",
+        "EmergencyStopDialog.tsx"
+      ],
+      "src/components/widgets/": [
+        "KPICard.tsx",
+        "BrokerAccountCard.tsx",
+        "StatusBanner.tsx",
+        "ToastSuccess.tsx",
+        "ToastError.tsx",
+        "TrialBanner.tsx",
+        "BillingGuard.tsx"
+      ],
+      "src/components/charts/": [
+        "PnLLineChart.tsx",
+        "VolumeBarChart.tsx",
+        "BrokerPieChart.tsx"
+      ],
+      "src/utils/": [
+        "api-client-enhanced.ts",
+        "stripe-helpers.ts",
+        "nats-publisher.ts"
+      ]
+    }
+  }
+}

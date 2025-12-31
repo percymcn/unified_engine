@@ -1,0 +1,630 @@
+=============================================================
+EMPIRE TRADING HUB V5 - FIGMA UI PLAN & DATA BINDINGS
+=============================================================
+
+## OVERVIEW
+This document maps UI components to backend endpoints, Supabase tables,
+and Realtime channels. Use this as your development blueprint.
+
+=============================================================
+PAGE: DASHBOARD OVERVIEW
+=============================================================
+
+Component: DashboardOverview
+File: /components/DashboardOverview.tsx
+Status: ✅ Existing (needs enhancement)
+
+DATA SOURCES:
+  1. Supabase Realtime:
+     - Channel: positions:${userId}
+     - Table: positions
+     - Events: INSERT, UPDATE, DELETE
+     - Updates: Live P&L, position count
+
+  2. Supabase Realtime:
+     - Channel: orders:${userId}
+     - Table: orders
+     - Events: INSERT, UPDATE
+     - Updates: Active order count, recent fills
+
+  3. HTTP GET:
+     - Endpoint: /api/unify/v1/health
+     - Polling: Every 60 seconds
+     - Updates: Server health status
+
+  4. Supabase Query:
+     - Table: broker_accounts
+     - WHERE: user_id = current_user
+     - Fields: balance, equity
+     - Updates: Account value
+
+NEW SUB-COMPONENTS:
+  - RiskHeatmap (see below)
+  - EquityCurveChart (see below)
+  - DailyDrawdownChart (see below)
+
+LAYOUT:
+  Row 1: [Metrics Grid - 4 cards]
+    - Active Orders (count from orders WHERE status='PENDING')
+    - Open Positions (count from positions)
+    - Daily P&L (sum of unrealized_pnl from positions)
+    - Account Value (sum of equity from broker_accounts)
+
+  Row 2: [Health & Quick Actions]
+    - Server Health Badge (from /health endpoint)
+    - Quick Action Buttons (Sync, Test, Export, View Alerts)
+
+  Row 3: [Charts - 2 columns]
+    - Left: RiskHeatmap (position exposure)
+    - Right: EquityCurveChart (historical equity)
+
+  Row 4: [Recent Activity Table]
+    - Last 10 orders + positions (joined query)
+    - Real-time updates via Supabase Realtime
+
+=============================================================
+NEW COMPONENT: RISK HEATMAP
+=============================================================
+
+Component: RiskHeatmap
+File: /components/RiskHeatmap.tsx (NEW)
+Library: recharts (Treemap component)
+
+DATA SOURCE:
+  - Supabase Realtime: positions:${userId}
+  - Transform: Map positions to {name, size, pnl, color}
+  - size = qty * current_price (notional value)
+  - color = gradient from red (loss) → white (breakeven) → green (profit)
+
+PROPS:
+  - userId: string
+  - broker: 'tradelocker' | 'topstep' | 'truforex'
+
+INTERACTIONS:
+  - Hover: Show position details (symbol, qty, entry, P&L)
+  - Click: Navigate to PositionsMonitor filtered by symbol
+
+VISUAL:
+  - Treemap with blocks sized by notional exposure
+  - Color intensity based on unrealized_pnl_pct
+  - Labels show symbol + P&L amount
+
+=============================================================
+NEW COMPONENT: EQUITY CURVE CHART
+=============================================================
+
+Component: EquityCurveChart
+File: /components/EquityCurveChart.tsx (NEW)
+Library: recharts (LineChart component)
+
+DATA SOURCE:
+  - Supabase Table: equity_history
+  - WHERE: user_id = ${userId} AND broker = ${broker}
+  - ORDER BY: timestamp ASC
+  - Limit: Last 90 days
+
+  - Supabase Realtime:
+    - Channel: equity:${userId}:${broker}
+    - Events: INSERT
+    - Action: Append new data point
+
+PROPS:
+  - userId: string
+  - broker: 'tradelocker' | 'topstep' | 'truforex'
+
+CHART CONFIG:
+  - X-Axis: timestamp (formatted as MM/DD)
+  - Y-Axis: equity ($)
+  - Line 1: equity (solid, #00ffc2)
+  - Line 2: balance (dashed, #3b82f6)
+  - Reference Line: Starting balance (horizontal)
+
+INTERACTIONS:
+  - Hover: Tooltip showing timestamp, equity, balance, P&L
+  - Zoom: Date range picker (7d, 30d, 90d, All)
+
+=============================================================
+NEW COMPONENT: DAILY DRAWDOWN CHART
+=============================================================
+
+Component: DailyDrawdownChart
+File: /components/DailyDrawdownChart.tsx (NEW)
+Library: recharts (AreaChart component)
+
+DATA SOURCE:
+  - Supabase Table: equity_history
+  - WHERE: timestamp > NOW() - INTERVAL '1 day' AND user_id = ${userId}
+  - Calculate: drawdown = equity - max(equity) over window
+  - Max intraday loss
+
+PROPS:
+  - userId: string
+  - broker: 'tradelocker' | 'topstep' | 'truforex'
+
+CHART CONFIG:
+  - X-Axis: timestamp (HH:MM format)
+  - Y-Axis: drawdown ($, always negative or zero)
+  - Area: Red gradient (darker = larger drawdown)
+  - Reference Line: max_daily_loss from risk_settings (horizontal)
+
+ALERTS:
+  - Show warning banner if drawdown > 80% of max_daily_loss
+  - Turn red if max_daily_loss exceeded
+
+=============================================================
+PAGE: ACCOUNTS
+=============================================================
+
+Component: AccountsManager
+File: /components/AccountsManager.tsx
+Status: ✅ Existing (needs encryption)
+
+DATA SOURCES:
+  1. Supabase Table: broker_accounts
+     - SELECT WHERE user_id = ${userId}
+     - INSERT on registration
+     - UPDATE on sync
+
+  2. HTTP POST:
+     - Endpoint: /register (per broker)
+     - Body: broker credentials
+     - Response: api_key (to be stored in broker_accounts)
+
+ENCRYPTION:
+  - Before INSERT: encrypt(credentials) using /utils/encryption.ts
+  - Store in credentials_encrypted column
+  - Never expose plaintext credentials in UI
+
+ON REGISTRATION SUCCESS:
+  1. Display generated API key (once only)
+  2. Show "Next Steps" with link to Webhooks tab
+  3. INSERT into broker_accounts table
+  4. Emit NATS event: ai.user.key.created
+
+REALTIME UPDATES:
+  - Channel: broker_accounts:${userId}
+  - Events: UPDATE (balance, equity, last_sync)
+  - Action: Refresh account cards without full page reload
+
+=============================================================
+PAGE: WEBHOOKS
+=============================================================
+
+Component: WebhookTemplates
+File: /components/WebhookTemplates.tsx
+Status: ✅ Existing (needs HMAC signing)
+
+DATA SOURCES:
+  1. Supabase Table: broker_accounts
+     - SELECT api_key WHERE user_id = ${userId} AND broker = ${broker}
+     - Use to construct webhook URL
+
+  2. Generate:
+     - Webhook URL: https://api.empiretrading.io/api/unify/v1/webhook/${broker}
+     - Auth Header: Bearer ${api_key}
+     - Signing Secret: Extract from credentials_encrypted or generate new
+
+NEW FEATURES:
+  - Auto-inject api_key into all templates
+  - Generate HMAC signature for payload examples
+  - "Test" button → validate JSON + show order preview
+
+TEMPLATE CATEGORIES:
+  - Entries: Market Buy/Sell, Limit Entry, Stop Entry
+  - Exits: Partial Close, Close All
+  - Modifications: Set SL, Set TP, Trailing Stop
+
+COPY BUTTONS:
+  - [Copy URL] → Copies webhook URL
+  - [Copy Header] → Copies Authorization header
+  - [Copy Secret] → Copies signing secret
+  - [Copy JSON] → Copies template with placeholders
+
+=============================================================
+NEW COMPONENT: TEST ALERT PLAYGROUND
+=============================================================
+
+Component: TestAlertPlayground
+File: /components/TestAlertPlayground.tsx (NEW)
+
+DATA SOURCES:
+  - HTTP POST: /api/unify/v1/test-webhook (validation only, no execution)
+  - Request: WebhookEnvelope JSON
+  - Response: Validation errors OR parsed order
+
+LAYOUT:
+  - Left Panel: JSON editor (Textarea with syntax highlighting)
+  - Right Panel: Validation results + order preview
+
+VALIDATION STEPS:
+  1. Parse JSON (catch syntax errors)
+  2. Validate schema (check required fields)
+  3. Check broker constraints (min/max lot size)
+  4. Calculate position size (if risk-based)
+  5. Verify SL/TP values (within limits)
+
+ORDER PREVIEW:
+  - Entry Price: ${price or 'Market'}
+  - Stop Loss: ${sl.value} (${distance}% / ${pips} pips)
+  - Take Profit: ${tp.value} (${rr}R)
+  - Position Size: ${qty} lots / contracts
+  - Risk: $${risk_usd} (${risk_pct}%)
+  - Visual: Mini chart showing entry/SL/TP levels
+
+=============================================================
+PAGE: TRADING CONFIG
+=============================================================
+
+Component: TradingConfiguration
+File: /components/TradingConfiguration.tsx
+Status: ✅ Existing
+
+DATA SOURCES:
+  - Supabase Table: trading_config
+  - SELECT WHERE user_id = ${userId} AND broker = ${broker}
+  - UPDATE on save
+
+SLIDERS:
+  - Fixed Lot Size: 0.01 to 10.00 (step 0.01)
+  - Percentage Lot Size: 0.01% to 10.00% (step 0.01)
+  - SL Percentage: 0.01% to 10.00% (step 0.01)
+  - SL Pips: 0.1 to 200.0 (step 0.1)
+  - Trailing SL Distance: 0.01% to 5.00% (step 0.01)
+  - TP Percentage: 0.01% to 20.00% (step 0.01)
+  - TP Pips: 0.1 to 500.0 (step 0.1)
+  - Risk/Reward Ratio: 0.01:1 to 5.00:1 (step 0.01)
+  - Partial TP Percent: 1% to 99% (step 1)
+  - Partial TP Level: 0.01% to 5.00% (step 0.01)
+
+VALIDATION:
+  - Enforce broker-specific minimums (from broker_constraints_v5)
+  - Show error if below minimum
+  - Auto-adjust if above maximum
+
+=============================================================
+PAGE: RISK CONTROLS
+=============================================================
+
+Component: RiskControls
+File: /components/RiskControls.tsx
+Status: ✅ Existing
+
+DATA SOURCES:
+  - Supabase Table: risk_settings
+  - SELECT WHERE user_id = ${userId} AND broker = ${broker}
+  - UPDATE on save
+
+NEW SLIDER:
+  - Max Open Trades: 1 to 50 (step 1)
+  - Visual progress bar showing current open trades vs limit
+
+REALTIME UPDATES:
+  - Query positions table to get current open_trades count
+  - Update progress bars in "Risk Summary" section
+  - Flash red if limit exceeded
+
+=============================================================
+PAGE: ORDERS
+=============================================================
+
+Component: OrdersManager
+File: /components/OrdersManager.tsx
+Status: ✅ Existing (needs realtime)
+
+DATA SOURCES:
+  1. Supabase Table: orders
+     - SELECT WHERE user_id = ${userId} AND broker = ${broker}
+     - Filters: status, symbol, date range
+
+  2. Supabase Realtime:
+     - Channel: orders:${userId}
+     - Events: INSERT, UPDATE
+     - Action: Add new order or update status (FILLED, REJECTED)
+
+INTERACTIONS:
+  - Click order → Expand to show full details
+  - Cancel button (DELETE /api/unify/v1/order/${orderId})
+  - Filter by status, broker, symbol
+  - Search by tag or order ID
+
+ANIMATIONS:
+  - New order: Slide in from top with green flash
+  - Status change: Pulse animation on status badge
+  - Cancelled: Fade out with red flash
+
+=============================================================
+PAGE: POSITIONS
+=============================================================
+
+Component: PositionsMonitor
+File: /components/PositionsMonitor.tsx
+Status: ✅ Existing (needs realtime)
+
+DATA SOURCES:
+  1. Supabase Table: positions
+     - SELECT WHERE user_id = ${userId} AND broker = ${broker}
+
+  2. Supabase Realtime:
+     - Channel: positions:${userId}
+     - Events: UPDATE (unrealized_pnl, current_price)
+     - Action: Update P&L with animation
+
+REALTIME P&L UPDATES:
+  - Flash green on positive change
+  - Flash red on negative change
+  - Update every 1-5 seconds (from broker feeds)
+
+INTERACTIONS:
+  - Modify SL/TP: PUT /api/unify/v1/positions/${positionId}
+  - Close Position: DELETE /api/unify/v1/positions/${positionId}
+  - Filter by broker, symbol
+  - Sort by P&L, open time
+
+=============================================================
+PAGE: API KEYS
+=============================================================
+
+Component: ApiKeyManager
+File: /components/ApiKeyManager.tsx
+Status: ✅ Existing
+
+DATA SOURCES:
+  - Supabase Table: broker_accounts
+  - SELECT api_key, api_key_hash, created_at, last_sync
+
+ACTIONS:
+  - Rotate Key:
+    - PUT /api/unify/v1/keys/${id}/rotate
+    - Generate new api_key
+    - Hash with SHA-256
+    - UPDATE api_key_hash
+    - Emit NATS: ai.user.key.rotated
+
+  - Delete Key:
+    - DELETE FROM broker_accounts WHERE id = ${id}
+    - Emit NATS: ai.user.key.deleted
+
+SECURITY:
+  - Show api_key only ONCE (on creation)
+  - After that, show masked: "sk_live_abc...xyz"
+  - Toggle visibility with eye icon
+
+=============================================================
+PAGE: BILLING
+=============================================================
+
+Component: BillingPortal
+File: /components/BillingPortal.tsx
+Status: ✅ Existing (needs Stripe integration)
+
+DATA SOURCES:
+  1. Supabase Table: subscriptions
+     - SELECT WHERE user_id = ${userId}
+     - Fields: plan, status, trial_end, current_period_end
+
+  2. HTTP POST:
+     - /api/unify/v1/subscription/checkout (Stripe Checkout)
+     - /api/unify/v1/subscription/portal (Stripe Customer Portal)
+
+PLAN DISPLAY:
+  - Current: Show badge, next billing date, cancel option
+  - Available: Show 3 plan cards (Starter, Pro, Elite)
+  - Upgrade: Redirect to Stripe Checkout
+  - Manage: Redirect to Stripe Customer Portal
+
+USAGE TRACKING:
+  - Trades this month: COUNT orders WHERE timestamp > start_of_month
+  - Progress bar: trades_used / trades_allowed_per_plan
+
+TRIAL COUNTDOWN:
+  - If status = 'trialing': Show days remaining
+  - If trial_end < NOW(): Show "Trial Expired" + upgrade CTA
+
+=============================================================
+PAGE: ADMIN
+=============================================================
+
+Component: AdminPanel
+File: /components/AdminPanel.tsx
+Status: ✅ Existing (needs impersonation)
+
+DATA SOURCES:
+  - Supabase Table: profiles (admin bypasses RLS)
+  - SELECT * FROM profiles (all users)
+  - Aggregate queries for system stats
+
+ADMIN ACTIONS:
+  - View user details: SELECT * FROM profiles WHERE id = ${target_user_id}
+  - Impersonate user: Set JWT claim `impersonated_user_id`
+  - Suspend user: UPDATE profiles SET status = 'suspended'
+  - View logs: SELECT * FROM logs WHERE user_id = ${target_user_id}
+
+AUDIT TRAIL:
+  - INSERT INTO admin_actions (admin_user_id, action, target_user_id, details, ip_address)
+  - Emit NATS: ai.ops.admin.action
+
+SYSTEM STATS:
+  - Total users: COUNT(profiles)
+  - Active users: COUNT WHERE status = 'active'
+  - Total revenue: SUM(subscriptions.amount)
+  - Active trades: COUNT(positions)
+
+=============================================================
+PAGE: LOGS
+=============================================================
+
+Component: LogsViewer
+File: /components/LogsViewer.tsx
+Status: ✅ Existing (needs tail mode)
+
+DATA SOURCES:
+  1. Supabase Table: logs
+     - SELECT WHERE user_id = ${userId} ORDER BY timestamp DESC
+     - Filters: level, type, date range
+
+  2. Supabase Realtime (Tail Mode):
+     - Channel: logs:${userId}
+     - Events: INSERT
+     - Action: Append to bottom with auto-scroll
+
+FILTERS:
+  - Level: success, info, warning, error
+  - Type: order, position, webhook, risk, sync, auth
+  - Search: correlation_id, message text
+
+EXPORT:
+  - Button: "Export CSV"
+  - Download logs as CSV file
+
+=============================================================
+NEW COMPONENT: HEALTH STATUS BANNER
+=============================================================
+
+Component: HealthStatusBanner
+File: /components/HealthStatusBanner.tsx (NEW)
+Location: Top of App.tsx (above header)
+
+DATA SOURCES:
+  1. HTTP GET: /api/unify/v1/health
+     - Polling: Every 60 seconds
+     - Status: healthy, degraded, down
+
+  2. Supabase Realtime (optional):
+     - Channel: health:system (broadcast)
+     - Payload: {status, brokers, latency_ms}
+
+DISPLAY:
+  - Healthy: Green banner, checkmark icon, "All Systems Operational"
+  - Degraded: Yellow banner, alert icon, "Some Services Degraded" + details
+  - Down: Red banner, X icon, "System Unavailable" + details
+
+HIDE WHEN:
+  - Status = healthy (default, no banner)
+
+SHOW BROKER STATUS:
+  - TradeLocker: [green/yellow/red dot] operational/degraded/down
+  - Topstep: [green/yellow/red dot] operational/degraded/down
+  - TruForex: [green/yellow/red dot] operational/degraded/down
+
+=============================================================
+NEW COMPONENT: THEME TOGGLE
+=============================================================
+
+Component: ThemeToggle
+File: /components/ThemeToggle.tsx (NEW)
+Location: Header (top right, next to Settings)
+
+FUNCTIONALITY:
+  - Click to toggle between light and dark themes
+  - Update CSS :root variables
+  - Persist to localStorage
+  - Icon: Sun (light mode) / Moon (dark mode)
+
+CSS VARIABLE MAPPING:
+  - Dark Mode (default):
+    - --background: #002b36
+    - --foreground: #ffffff
+    - --card: #001f29
+    - --primary: #00ffc2
+
+  - Light Mode:
+    - --background: #ffffff
+    - --foreground: #002b36
+    - --card: #f3f4f6
+    - --primary: #0066cc
+
+=============================================================
+MOBILE RESPONSIVE BREAKPOINTS
+=============================================================
+
+BREAKPOINTS:
+  - Mobile: < 768px
+  - Tablet: 768px - 1024px
+  - Desktop: > 1024px
+
+MOBILE ADAPTATIONS:
+  1. Sidebar: Collapse to drawer (Sheet component)
+  2. Charts: Stack vertically (1 column)
+  3. Metric cards: 2x2 grid instead of 1x4
+  4. Tables: Horizontal scroll or card view
+  5. Sliders: Larger touch targets (48px min)
+
+TOUCH-FRIENDLY:
+  - Increase button padding
+  - Add ripple effect on tap
+  - Swipe gestures for navigation
+
+=============================================================
+PERFORMANCE OPTIMIZATION
+=============================================================
+
+1. LAZY LOADING:
+   - Code split each page component
+   - Load charts only when visible (Intersection Observer)
+
+2. DEBOUNCING:
+   - Slider onChange: Debounce 300ms before UPDATE
+   - Search inputs: Debounce 500ms
+
+3. PAGINATION:
+   - Orders table: 50 per page
+   - Positions table: 50 per page
+   - Logs table: 100 per page
+
+4. CACHING:
+   - Cache equity_history for 5 minutes
+   - Cache broker_accounts for 1 minute
+   - Invalidate on Realtime update
+
+5. VIRTUALIZATION:
+   - Use react-window for large log tables (> 1000 rows)
+
+=============================================================
+TESTING CHECKLIST
+=============================================================
+
+UI TESTS:
+  ☐ All components render without errors
+  ☐ Sliders update value display in real-time
+  ☐ Copy buttons show "Copied!" confirmation
+  ☐ Theme toggle switches CSS variables
+  ☐ Mobile drawer opens/closes smoothly
+  ☐ Charts render with mock data
+  ☐ Toast notifications appear on actions
+  ☐ Loading states show during API calls
+  ☐ Error states display helpful messages
+
+REALTIME TESTS:
+  ☐ Position P&L updates within 1 second
+  ☐ New orders appear in OrdersManager
+  ☐ Equity curve appends new data points
+  ☐ Health banner reflects status changes
+  ☐ Log tail mode auto-scrolls
+
+DATA BINDING TESTS:
+  ☐ Each component fetches from correct endpoint
+  ☐ RLS policies block unauthorized access
+  ☐ Admin can view all users' data
+  ☐ User sees only their own data
+
+=============================================================
+DEPLOYMENT NOTES
+=============================================================
+
+1. Environment Variables:
+   - NEXT_PUBLIC_SUPABASE_URL
+   - NEXT_PUBLIC_SUPABASE_ANON_KEY
+   - SUPABASE_SERVICE_ROLE_KEY (server-side only)
+
+2. Build Command:
+   npm run build
+
+3. Start Command:
+   npm start
+
+4. Vercel Deployment:
+   vercel --prod
+
+=============================================================
+END OF FIGMA UI PLAN
+=============================================================

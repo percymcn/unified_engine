@@ -1,0 +1,23 @@
+{
+  "name": "unified_engine_mcp",
+  "version": "1.0.0",
+  "description": "MCP connector for unified_engine",
+  "server": {
+    "url": "http://localhost:8000/mcp"
+  },
+  "tools": [
+    {
+      "name": "execute_action",
+      "description": "Execute action in unified_engine",
+      "parameters": {
+        "action": {"type": "string", "required": true},
+        "data": {"type": "object"}
+      }
+    },
+    {
+      "name": "get_status",
+      "description": "Get status of unified_engine",
+      "parameters": {}
+    }
+  ]
+}

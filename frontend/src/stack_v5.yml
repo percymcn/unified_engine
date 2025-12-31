@@ -1,0 +1,456 @@
+# =====================================================
+# Empire Trading Hub - Docker Swarm Stack V5
+# Enterprise-Grade Deployment Configuration
+# =====================================================
+
+version: "3.8"
+
+networks:
+  ai_bus:
+    driver: overlay
+    attachable: true
+  supabase_net:
+    driver: overlay
+    attachable: true
+  traefik_public:
+    external: true
+
+volumes:
+  redis_data:
+  postgres_data:
+  nats_data:
+
+secrets:
+  supabase_jwt_secret:
+    external: true
+  stripe_webhook_secret:
+    external: true
+  encryption_key:
+    external: true
+
+services:
+  # =====================================================
+  # TRAEFIK REVERSE PROXY
+  # =====================================================
+  traefik:
+    image: traefik:v2.10
+    command:
+      - --api.dashboard=true
+      - --providers.docker.swarmMode=true
+      - --providers.docker.exposedByDefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.letsencrypt.acme.email=admin@empiretrading.io
+      - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
+      - --certificatesresolvers.letsencrypt.acme.tlschallenge=true
+      - --metrics.prometheus=true
+      - --accesslog=true
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./letsencrypt:/letsencrypt
+    networks:
+      - traefik_public
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+
+  # =====================================================
+  # EMPIRE GATEWAY (API Gateway + UI)
+  # =====================================================
+  gateway:
+    image: empire/gateway:v5
+    environment:
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - NATS_URL=nats://nats:4222
+      - REDIS_URL=redis://redis:6379
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - STRIPE_WEBHOOK_SECRET_FILE=/run/secrets/stripe_webhook_secret
+      - ENCRYPTION_KEY_FILE=/run/secrets/encryption_key
+    secrets:
+      - stripe_webhook_secret
+      - encryption_key
+    networks:
+      - traefik_public
+      - ai_bus
+      - supabase_net
+    deploy:
+      mode: replicated
+      replicas: 3
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.gateway.rule=Host(`app.empiretrading.io`)"
+        - "traefik.http.routers.gateway.entrypoints=websecure"
+        - "traefik.http.routers.gateway.tls.certresolver=letsencrypt"
+        - "traefik.http.services.gateway.loadbalancer.server.port=3000"
+        - "traefik.http.middlewares.rate-limit.ratelimit.average=100"
+        - "traefik.http.middlewares.rate-limit.ratelimit.burst=200"
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+
+  # =====================================================
+  # TRADELOCKER BACKEND
+  # =====================================================
+  tradelocker:
+    image: empire/tradelocker:v4
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - NATS_URL=nats://nats:4222
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - ENCRYPTION_KEY_FILE=/run/secrets/encryption_key
+    secrets:
+      - encryption_key
+    networks:
+      - ai_bus
+      - supabase_net
+    deploy:
+      mode: replicated
+      replicas: 2
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.tradelocker.rule=Host(`api.empiretrading.io`) && PathPrefix(`/tradelocker`)"
+        - "traefik.http.routers.tradelocker.entrypoints=websecure"
+        - "traefik.http.routers.tradelocker.tls.certresolver=letsencrypt"
+        - "traefik.http.services.tradelocker.loadbalancer.server.port=8000"
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+
+  # =====================================================
+  # TOPSTEP (PROJECTX) BACKEND
+  # =====================================================
+  topstep:
+    image: empire/projectx:v4
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - NATS_URL=nats://nats:4222
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - TOPSTEP_API_BASE=https://api.topstepfx.com
+      - ENCRYPTION_KEY_FILE=/run/secrets/encryption_key
+    secrets:
+      - encryption_key
+    networks:
+      - ai_bus
+      - supabase_net
+    deploy:
+      mode: replicated
+      replicas: 2
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.topstep.rule=Host(`api.empiretrading.io`) && PathPrefix(`/topstep`)"
+        - "traefik.http.routers.topstep.entrypoints=websecure"
+        - "traefik.http.routers.topstep.tls.certresolver=letsencrypt"
+        - "traefik.http.services.topstep.loadbalancer.server.port=8000"
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+
+  # =====================================================
+  # TRUFOREX BACKEND (with Celery workers)
+  # =====================================================
+  truforex:
+    image: empire/truforex:v4
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - CELERY_BROKER=redis://redis:6379/0
+      - NATS_URL=nats://nats:4222
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - ENCRYPTION_KEY_FILE=/run/secrets/encryption_key
+    secrets:
+      - encryption_key
+    networks:
+      - ai_bus
+      - supabase_net
+    deploy:
+      mode: replicated
+      replicas: 2
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.truforex.rule=Host(`api.empiretrading.io`) && PathPrefix(`/truforex`)"
+        - "traefik.http.routers.truforex.entrypoints=websecure"
+        - "traefik.http.routers.truforex.tls.certresolver=letsencrypt"
+        - "traefik.http.services.truforex.loadbalancer.server.port=8000"
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+
+  truforex-celery:
+    image: empire/truforex:v4
+    command: celery -A app.celery worker --loglevel=info
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - CELERY_BROKER=redis://redis:6379/0
+      - NATS_URL=nats://nats:4222
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+    secrets:
+      - encryption_key
+    networks:
+      - ai_bus
+      - supabase_net
+    deploy:
+      mode: replicated
+      replicas: 3
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  # =====================================================
+  # NATS CLUSTER (Message Bus)
+  # =====================================================
+  nats-1:
+    image: nats:2.10-alpine
+    command:
+      - "-c"
+      - "/etc/nats/nats-server.conf"
+      - "--cluster_name"
+      - "empire_cluster"
+      - "--cluster"
+      - "nats://0.0.0.0:6222"
+      - "--routes"
+      - "nats://nats-2:6222,nats://nats-3:6222"
+    volumes:
+      - ./nats-config.conf:/etc/nats/nats-server.conf
+      - nats_data:/data
+    networks:
+      - ai_bus
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.nats-node == 1
+
+  nats-2:
+    image: nats:2.10-alpine
+    command:
+      - "-c"
+      - "/etc/nats/nats-server.conf"
+      - "--cluster_name"
+      - "empire_cluster"
+      - "--cluster"
+      - "nats://0.0.0.0:6222"
+      - "--routes"
+      - "nats://nats-1:6222,nats://nats-3:6222"
+    volumes:
+      - ./nats-config.conf:/etc/nats/nats-server.conf
+      - nats_data:/data
+    networks:
+      - ai_bus
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.nats-node == 2
+
+  nats-3:
+    image: nats:2.10-alpine
+    command:
+      - "-c"
+      - "/etc/nats/nats-server.conf"
+      - "--cluster_name"
+      - "empire_cluster"
+      - "--cluster"
+      - "nats://0.0.0.0:6222"
+      - "--routes"
+      - "nats://nats-1:6222,nats://nats-2:6222"
+    volumes:
+      - ./nats-config.conf:/etc/nats/nats-server.conf
+      - nats_data:/data
+    networks:
+      - ai_bus
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.nats-node == 3
+
+  # =====================================================
+  # REDIS (Cache & Queue)
+  # =====================================================
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes --maxmemory 2gb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - ai_bus
+    deploy:
+      mode: replicated
+      replicas: 1
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+
+  # =====================================================
+  # SUPABASE SERVICES (if self-hosting)
+  # =====================================================
+  # Note: For production, use Supabase Cloud or full self-hosted setup
+  # Minimal services shown here for reference
+  
+  supabase-kong:
+    image: kong:3.4-alpine
+    environment:
+      - KONG_DATABASE=off
+      - KONG_DECLARATIVE_CONFIG=/kong/kong.yml
+      - KONG_DNS_ORDER=LAST,A,CNAME
+      - KONG_PLUGINS=request-transformer,cors,key-auth,acl
+    volumes:
+      - ./supabase-kong.yml:/kong/kong.yml
+    networks:
+      - supabase_net
+      - traefik_public
+    deploy:
+      mode: replicated
+      replicas: 1
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.supabase.rule=Host(`supabase.empiretrading.io`)"
+        - "traefik.http.routers.supabase.entrypoints=websecure"
+        - "traefik.http.routers.supabase.tls.certresolver=letsencrypt"
+        - "traefik.http.services.supabase.loadbalancer.server.port=8000"
+
+  supabase-postgres:
+    image: supabase/postgres:15.1.0.117
+    environment:
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./supabase_schema_v5.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    networks:
+      - supabase_net
+    deploy:
+      mode: replicated
+      replicas: 1
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
+
+  supabase-realtime:
+    image: supabase/realtime:v2.25.35
+    environment:
+      - DB_HOST=supabase-postgres
+      - DB_PORT=5432
+      - DB_NAME=postgres
+      - DB_USER=postgres
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      - DB_SSL=false
+      - PORT=4000
+      - JWT_SECRET=${SUPABASE_JWT_SECRET}
+    networks:
+      - supabase_net
+    deploy:
+      mode: replicated
+      replicas: 2
+
+  # =====================================================
+  # HEALTH MONITOR (Custom service for ai.ops.health.sweep)
+  # =====================================================
+  health-monitor:
+    image: empire/health-monitor:v5
+    environment:
+      - NATS_URL=nats://nats:4222
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - CHECK_INTERVAL=60
+    networks:
+      - ai_bus
+      - supabase_net
+    deploy:
+      mode: replicated
+      replicas: 1
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+
+  # =====================================================
+  # PROMETHEUS (Metrics Collection)
+  # =====================================================
+  prometheus:
+    image: prom/prometheus:latest
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    networks:
+      - ai_bus
+      - traefik_public
+    deploy:
+      mode: replicated
+      replicas: 1
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.prometheus.rule=Host(`metrics.empiretrading.io`)"
+        - "traefik.http.routers.prometheus.entrypoints=websecure"
+        - "traefik.http.routers.prometheus.tls.certresolver=letsencrypt"
+        - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
+
+# =====================================================
+# DEPLOYMENT COMMANDS
+# =====================================================
+# 
+# 1. Initialize Swarm (if not already):
+#    docker swarm init
+#
+# 2. Create secrets:
+#    echo "your-jwt-secret" | docker secret create supabase_jwt_secret -
+#    echo "your-stripe-webhook-secret" | docker secret create stripe_webhook_secret -
+#    echo "your-encryption-key" | docker secret create encryption_key -
+#
+# 3. Label nodes for NATS cluster:
+#    docker node update --label-add nats-node=1 node1
+#    docker node update --label-add nats-node=2 node2
+#    docker node update --label-add nats-node=3 node3
+#
+# 4. Deploy stack:
+#    docker stack deploy -c stack_v5.yml empire
+#
+# 5. Scale services:
+#    docker service scale empire_gateway=5
+#    docker service scale empire_truforex-celery=5
+#
+# 6. View logs:
+#    docker service logs -f empire_gateway
+#
+# 7. Update service:
+#    docker service update --image empire/gateway:v5.1 empire_gateway
+#
+# 8. Remove stack:
+#    docker stack rm empire
+#
+# =====================================================

@@ -1,0 +1,381 @@
+@custom-variant dark (&:is(.dark *));
+
+/* ============================================
+   OCEAN THEME (Default) - Professional Deep Blue
+   ============================================ */
+:root,
+.theme-ocean {
+  --font-size: 16px;
+  --background: #001f29;
+  --foreground: #ffffff;
+  --card: #001f29;
+  --card-foreground: #ffffff;
+  --popover: #002b36;
+  --popover-foreground: #ffffff;
+  --primary: #0EA5E9;
+  --primary-foreground: #ffffff;
+  --secondary: #002b36;
+  --secondary-foreground: #ffffff;
+  --muted: #003545;
+  --muted-foreground: #94a3b8;
+  --accent: #0EA5E9;
+  --accent-foreground: #ffffff;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: #1e293b;
+  --input: #002b36;
+  --input-background: #002b36;
+  --switch-background: #334155;
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  --ring: #0EA5E9;
+  --chart-1: #0EA5E9;
+  --chart-2: #10b981;
+  --chart-3: #f59e0b;
+  --chart-4: #8b5cf6;
+  --chart-5: #ec4899;
+  --radius: 0.75rem;
+  --sidebar: #001f29;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #0EA5E9;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #002b36;
+  --sidebar-accent-foreground: #0EA5E9;
+  --sidebar-border: #1e293b;
+  --sidebar-ring: #0EA5E9;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --info: #0EA5E9;
+}
+
+/* ============================================
+   CYBERPUNK THEME - Neon Futuristic
+   ============================================ */
+.theme-cyberpunk {
+  --font-size: 16px;
+  --background: #0a0118;
+  --foreground: #00ffff;
+  --card: #1a0933;
+  --card-foreground: #00ffff;
+  --popover: #1a0933;
+  --popover-foreground: #00ffff;
+  --primary: #ff00ff;
+  --primary-foreground: #000000;
+  --secondary: #2a1245;
+  --secondary-foreground: #00ffff;
+  --muted: #1a0933;
+  --muted-foreground: #a855f7;
+  --accent: #ff00ff;
+  --accent-foreground: #000000;
+  --destructive: #ff0055;
+  --destructive-foreground: #ffffff;
+  --border: #a855f7;
+  --input: #1a0933;
+  --input-background: #1a0933;
+  --switch-background: #a855f7;
+  --font-weight-medium: 600;
+  --font-weight-normal: 400;
+  --ring: #ff00ff;
+  --chart-1: #ff00ff;
+  --chart-2: #00ffff;
+  --chart-3: #ffff00;
+  --chart-4: #ff0055;
+  --chart-5: #00ff88;
+  --radius: 0.25rem;
+  --sidebar: #0a0118;
+  --sidebar-foreground: #00ffff;
+  --sidebar-primary: #ff00ff;
+  --sidebar-primary-foreground: #000000;
+  --sidebar-accent: #2a1245;
+  --sidebar-accent-foreground: #ff00ff;
+  --sidebar-border: #a855f7;
+  --sidebar-ring: #ff00ff;
+  --success: #00ff88;
+  --warning: #ffff00;
+  --info: #00ffff;
+}
+
+/* Cyberpunk specific effects */
+.theme-cyberpunk * {
+  text-shadow: 0 0 2px rgba(255, 0, 255, 0.3);
+}
+
+.theme-cyberpunk .card,
+.theme-cyberpunk button,
+.theme-cyberpunk input {
+  box-shadow: 0 0 20px rgba(255, 0, 255, 0.1);
+}
+
+.theme-cyberpunk h1,
+.theme-cyberpunk h2,
+.theme-cyberpunk h3 {
+  background: linear-gradient(90deg, #ff00ff, #00ffff, #ff00ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 3s infinite;
+}
+
+@keyframes shimmer {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+/* ============================================
+   MINIMAL THEME - Clean Modern Light
+   ============================================ */
+.theme-minimal {
+  --font-size: 16px;
+  --background: #ffffff;
+  --foreground: #1a1a1a;
+  --card: #ffffff;
+  --card-foreground: #1a1a1a;
+  --popover: #ffffff;
+  --popover-foreground: #1a1a1a;
+  --primary: #0EA5E9;
+  --primary-foreground: #ffffff;
+  --secondary: #f8fafc;
+  --secondary-foreground: #1a1a1a;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --accent: #e0f2fe;
+  --accent-foreground: #0EA5E9;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: #e2e8f0;
+  --input: #ffffff;
+  --input-background: #f8fafc;
+  --switch-background: #cbd5e1;
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  --ring: #0EA5E9;
+  --chart-1: #0EA5E9;
+  --chart-2: #10b981;
+  --chart-3: #f59e0b;
+  --chart-4: #8b5cf6;
+  --chart-5: #ec4899;
+  --radius: 1rem;
+  --sidebar: #fafbfc;
+  --sidebar-foreground: #1a1a1a;
+  --sidebar-primary: #0EA5E9;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f1f5f9;
+  --sidebar-accent-foreground: #0EA5E9;
+  --sidebar-border: #e2e8f0;
+  --sidebar-ring: #0EA5E9;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --info: #0EA5E9;
+}
+
+/* Minimal specific effects */
+.theme-minimal .card {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.theme-minimal button:hover {
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* ============================================
+   THEME UTILITIES
+   ============================================ */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-input-background: var(--input-background);
+  --color-switch-background: var(--switch-background);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+}
+
+/**
+ * Base typography. This is not applied to elements which have an ancestor with a Tailwind text class.
+ */
+@layer base {
+  :where(:not(:has([class*=" text-"]), :not(:has([class^="text-"])))) {
+    h1 {
+      font-size: var(--text-2xl);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    h2 {
+      font-size: var(--text-xl);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    h3 {
+      font-size: var(--text-lg);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    h4 {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    p {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-normal);
+      line-height: 1.5;
+    }
+
+    label {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    button {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    input {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-normal);
+      line-height: 1.5;
+    }
+  }
+}
+
+html {
+  font-size: var(--font-size);
+}
+
+/* Smooth theme transitions */
+* {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-duration: 200ms;
+  transition-timing-function: ease-in-out;
+}
+
+/* Mobile Responsive Utilities */
+@layer utilities {
+  /* Touch-friendly minimum sizes */
+  .touch-target {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Prevent text selection on touch */
+  .touch-manipulation {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Safe area for notched devices */
+  @supports (padding: max(0px)) {
+    .safe-top {
+      padding-top: max(env(safe-area-inset-top), 1rem);
+    }
+    
+    .safe-bottom {
+      padding-bottom: max(env(safe-area-inset-bottom), 1rem);
+    }
+    
+    .safe-left {
+      padding-left: max(env(safe-area-inset-left), 1rem);
+    }
+    
+    .safe-right {
+      padding-right: max(env(safe-area-inset-right), 1rem);
+    }
+  }
+
+  /* Scrollable containers with momentum */
+  .scroll-smooth {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+}
+
+/* Mobile-specific adjustments */
+@media (max-width: 768px) {
+  :root {
+    --font-size: 14px;
+  }
+
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .grid {
+    gap: 1rem;
+  }
+
+  table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  button, a, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+@media (max-width: 375px) {
+  :root {
+    --font-size: 13px;
+  }
+
+  .px-4 {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  .hide-on-tiny {
+    display: none;
+  }
+}

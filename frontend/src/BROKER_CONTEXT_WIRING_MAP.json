@@ -1,0 +1,535 @@
+{
+  "system": "TradeFlow Dynamic Broker Switching",
+  "version": "1.0.0",
+  "lastUpdated": "2025-10-19",
+  "architecture": "Three-tier: Frontend → Server → Backend APIs",
+  
+  "brokers": {
+    "tradelocker": {
+      "name": "TradeLocker",
+      "icon": "📈",
+      "color": "#0EA5E9",
+      "apiBase": "https://unified.fluxeo.net/api/unify/v1/tradelocker",
+      "requiresEA": false,
+      "authMethod": "API_KEY"
+    },
+    "topstep": {
+      "name": "TopStep / ProjectX",
+      "icon": "🎯",
+      "color": "#10b981",
+      "apiBase": "https://unified.fluxeo.net/api/unify/v1/topstep",
+      "requiresEA": false,
+      "authMethod": "API_KEY"
+    },
+    "truforex": {
+      "name": "TruForex / MT4 / MT5",
+      "icon": "📊",
+      "color": "#f59e0b",
+      "apiBase": "https://unified.fluxeo.net/api/unify/v1/truforex",
+      "requiresEA": true,
+      "authMethod": "API_KEY"
+    }
+  },
+
+  "globalState": {
+    "context": "BrokerContext",
+    "location": "/contexts/BrokerContext.tsx",
+    "provider": "BrokerProvider",
+    "hook": "useBroker()",
+    "properties": {
+      "activeBroker": {
+        "type": "BrokerType | null",
+        "description": "Currently selected broker ID"
+      },
+      "activeBrokerAccount": {
+        "type": "BrokerAccount | null",
+        "description": "Full details of active broker account"
+      },
+      "connectedBrokers": {
+        "type": "BrokerAccount[]",
+        "description": "Array of all connected broker accounts"
+      },
+      "isLoading": {
+        "type": "boolean",
+        "description": "Initial context loading state"
+      },
+      "isSyncing": {
+        "type": "boolean",
+        "description": "Active data synchronization state"
+      }
+    },
+    "methods": {
+      "switchBroker": {
+        "signature": "(broker: BrokerType, accountId?: string) => Promise<void>",
+        "description": "Switch active broker and trigger data reload",
+        "dispatches": ["broker.switch"]
+      },
+      "refreshBrokerData": {
+        "signature": "() => Promise<void>",
+        "description": "Refresh data for active broker",
+        "dispatches": ["broker.refresh"]
+      },
+      "getApiBaseUrl": {
+        "signature": "() => string",
+        "description": "Get API base URL for active broker"
+      },
+      "addBrokerAccount": {
+        "signature": "(account: BrokerAccount) => void",
+        "description": "Add new broker account to connected list"
+      },
+      "removeBrokerAccount": {
+        "signature": "(broker: BrokerType, accountId: string) => void",
+        "description": "Remove broker account from connected list"
+      }
+    }
+  },
+
+  "events": {
+    "broker.switch": {
+      "dispatched_by": "BrokerContext.switchBroker()",
+      "payload": {
+        "broker": "BrokerType",
+        "accountId": "string",
+        "timestamp": "ISO 8601 string"
+      },
+      "triggers": [
+        "All component data refreshes",
+        "API base URL change",
+        "Settings reload",
+        "UI state update"
+      ]
+    },
+    "broker.refresh": {
+      "dispatched_by": "BrokerContext.refreshBrokerData()",
+      "payload": {
+        "broker": "BrokerType",
+        "timestamp": "ISO 8601 string"
+      },
+      "triggers": [
+        "Active broker data refresh",
+        "Balance update",
+        "Position list reload"
+      ]
+    },
+    "broker.sync.complete": {
+      "dispatched_by": "Components after successful data fetch",
+      "payload": {
+        "broker": "BrokerType",
+        "success": "boolean",
+        "timestamp": "ISO 8601 string"
+      },
+      "triggers": [
+        "Loading state clear",
+        "Success notification"
+      ]
+    }
+  },
+
+  "components": {
+    "BrokerSwitcher": {
+      "file": "/components/BrokerSwitcher.tsx",
+      "purpose": "Primary UI control for switching between brokers",
+      "wiring": {
+        "consumes": ["activeBroker", "connectedBrokers", "isSyncing"],
+        "dispatches": ["switchBroker()"],
+        "updates_on": ["broker.switch"],
+        "data_sources": []
+      },
+      "states": ["idle", "switching"],
+      "ui_locations": ["Header (Desktop)", "Mobile Sheet"]
+    },
+
+    "BrokerSyncIndicator": {
+      "file": "/components/BrokerSyncIndicator.tsx",
+      "purpose": "Visual feedback for broker sync operations",
+      "wiring": {
+        "consumes": ["activeBroker", "isSyncing"],
+        "dispatches": [],
+        "updates_on": ["broker.switch", "broker.refresh"],
+        "data_sources": []
+      },
+      "states": ["hidden", "syncing", "synced"],
+      "ui_locations": ["Fixed top-right overlay"]
+    },
+
+    "DashboardOverview": {
+      "file": "/components/DashboardOverview.tsx",
+      "purpose": "Main dashboard showing account summary",
+      "wiring": {
+        "consumes": ["activeBroker", "getApiBaseUrl()", "isSyncing"],
+        "dispatches": [],
+        "updates_on": ["broker.switch", "broker.refresh"],
+        "data_sources": [
+          {
+            "endpoint": "GET {baseAPI}/balance",
+            "depends_on": "activeBrokerId",
+            "refresh_interval": 30000
+          },
+          {
+            "endpoint": "GET {baseAPI}/account/summary",
+            "depends_on": "activeBrokerId",
+            "refresh_interval": 30000
+          },
+          {
+            "endpoint": "GET {baseAPI}/pnl/daily",
+            "depends_on": "activeBrokerId",
+            "refresh_interval": null
+          }
+        ]
+      },
+      "states": ["loading", "syncing", "success", "error"],
+      "isolated_per_broker": false
+    },
+
+    "PositionsMonitor": {
+      "file": "/components/PositionsMonitor.tsx",
+      "purpose": "Real-time position monitoring",
+      "wiring": {
+        "consumes": ["activeBroker", "getApiBaseUrl()", "isSyncing"],
+        "dispatches": [],
+        "updates_on": ["broker.switch", "broker.refresh", "position.update"],
+        "data_sources": [
+          {
+            "endpoint": "GET {baseAPI}/positions",
+            "depends_on": "activeBrokerId",
+            "refresh_interval": 5000
+          }
+        ]
+      },
+      "states": ["skeleton", "updating", "live", "error"],
+      "isolated_per_broker": false
+    },
+
+    "OrdersManager": {
+      "file": "/components/OrdersManager.tsx",
+      "purpose": "Manage pending and historical orders",
+      "wiring": {
+        "consumes": ["activeBroker", "getApiBaseUrl()", "isSyncing"],
+        "dispatches": ["order.cancelled"],
+        "updates_on": ["broker.switch", "broker.refresh"],
+        "data_sources": [
+          {
+            "endpoint": "GET {baseAPI}/orders",
+            "depends_on": "activeBrokerId",
+            "refresh_interval": 10000
+          },
+          {
+            "endpoint": "DELETE {baseAPI}/orders/{orderId}",
+            "depends_on": "activeBrokerId",
+            "method": "DELETE"
+          }
+        ]
+      },
+      "states": ["initial", "refreshing", "cancelling", "success", "error"],
+      "isolated_per_broker": false
+    },
+
+    "ApiKeyManager": {
+      "file": "/components/ApiKeyManager.tsx",
+      "purpose": "Manage API keys per broker",
+      "wiring": {
+        "consumes": ["activeBroker", "getApiBaseUrl()"],
+        "dispatches": [],
+        "updates_on": ["broker.switch"],
+        "data_sources": [
+          {
+            "endpoint": "GET {baseAPI}/api-keys",
+            "depends_on": "activeBrokerId",
+            "refresh_interval": null
+          },
+          {
+            "endpoint": "POST {baseAPI}/api-keys",
+            "depends_on": "activeBrokerId",
+            "method": "POST"
+          },
+          {
+            "endpoint": "DELETE {baseAPI}/api-keys/{keyId}",
+            "depends_on": "activeBrokerId",
+            "method": "DELETE"
+          }
+        ]
+      },
+      "states": ["loading", "success", "error"],
+      "isolated_per_broker": true,
+      "CRITICAL": "API keys are ISOLATED per broker - never shared"
+    },
+
+    "RiskControls": {
+      "file": "/components/RiskControls.tsx",
+      "purpose": "Configure risk management settings per broker",
+      "wiring": {
+        "consumes": ["activeBroker", "getApiBaseUrl()"],
+        "dispatches": [],
+        "updates_on": ["broker.switch"],
+        "data_sources": [
+          {
+            "endpoint": "GET {baseAPI}/risk-settings",
+            "depends_on": "activeBrokerId",
+            "refresh_interval": null
+          },
+          {
+            "endpoint": "PUT {baseAPI}/risk-settings",
+            "depends_on": "activeBrokerId",
+            "method": "PUT"
+          }
+        ]
+      },
+      "states": ["loading", "editing", "saving", "success", "error"],
+      "isolated_per_broker": true,
+      "CRITICAL": "Risk settings are ISOLATED per broker - each has independent config",
+      "settings_isolated": [
+        "max_position_size",
+        "risk_percentage",
+        "auto_close_rules",
+        "trailing_stop_config",
+        "daily_loss_limit",
+        "max_daily_trades"
+      ]
+    },
+
+    "TradingConfiguration": {
+      "file": "/components/TradingConfiguration.tsx",
+      "purpose": "Configure trading parameters per broker",
+      "wiring": {
+        "consumes": ["activeBroker", "getApiBaseUrl()"],
+        "dispatches": [],
+        "updates_on": ["broker.switch"],
+        "data_sources": [
+          {
+            "endpoint": "GET {baseAPI}/config",
+            "depends_on": "activeBrokerId",
+            "refresh_interval": null
+          },
+          {
+            "endpoint": "PUT {baseAPI}/config",
+            "depends_on": "activeBrokerId",
+            "method": "PUT"
+          }
+        ]
+      },
+      "states": ["loading", "editing", "saving", "success", "error"],
+      "isolated_per_broker": true,
+      "settings_isolated": [
+        "default_position_size",
+        "slippage_tolerance",
+        "execution_mode",
+        "order_type_preferences",
+        "stop_loss_offset",
+        "take_profit_offset"
+      ]
+    },
+
+    "WebhookTemplates": {
+      "file": "/components/WebhookTemplates.tsx",
+      "purpose": "Generate TradingView webhook URLs and templates",
+      "wiring": {
+        "consumes": ["activeBroker", "getApiBaseUrl()"],
+        "dispatches": [],
+        "updates_on": ["broker.switch"],
+        "data_sources": [
+          {
+            "endpoint": "GET {baseAPI}/webhooks/url",
+            "depends_on": "activeBrokerId",
+            "refresh_interval": null
+          }
+        ]
+      },
+      "states": ["loading", "success"],
+      "isolated_per_broker": true,
+      "CRITICAL": "Webhook URLs are UNIQUE per broker with broker-specific auth"
+    },
+
+    "AccountsManager": {
+      "file": "/components/AccountsManager.tsx",
+      "purpose": "Manage multiple accounts within a broker",
+      "wiring": {
+        "consumes": ["activeBroker", "getApiBaseUrl()"],
+        "dispatches": [],
+        "updates_on": ["broker.switch"],
+        "data_sources": [
+          {
+            "endpoint": "GET {baseAPI}/accounts",
+            "depends_on": "activeBrokerId",
+            "refresh_interval": null
+          }
+        ]
+      },
+      "states": ["loading", "success", "error"],
+      "isolated_per_broker": false,
+      "note": "Each broker can have multiple sub-accounts"
+    },
+
+    "AnalyticsPage": {
+      "file": "/components/AnalyticsPage.tsx",
+      "purpose": "Analytics and performance metrics",
+      "wiring": {
+        "consumes": ["activeBroker", "getApiBaseUrl()", "isSyncing"],
+        "dispatches": [],
+        "updates_on": ["broker.switch", "broker.refresh"],
+        "data_sources": [
+          {
+            "endpoint": "GET {baseAPI}/analytics/performance",
+            "depends_on": "activeBrokerId",
+            "refresh_interval": null
+          },
+          {
+            "endpoint": "GET {baseAPI}/analytics/trades",
+            "depends_on": "activeBrokerId",
+            "refresh_interval": null
+          },
+          {
+            "endpoint": "GET {baseAPI}/analytics/pnl",
+            "depends_on": "activeBrokerId",
+            "refresh_interval": null
+          }
+        ]
+      },
+      "states": ["skeleton", "loading", "success", "error"],
+      "isolated_per_broker": false
+    },
+
+    "LogsViewer": {
+      "file": "/components/LogsViewer.tsx",
+      "purpose": "View system and trade logs",
+      "wiring": {
+        "consumes": ["activeBroker", "getApiBaseUrl()"],
+        "dispatches": [],
+        "updates_on": ["broker.switch"],
+        "data_sources": [
+          {
+            "endpoint": "GET {baseAPI}/logs",
+            "depends_on": "activeBrokerId",
+            "refresh_interval": 15000
+          }
+        ]
+      },
+      "states": ["loading", "success", "error"],
+      "isolated_per_broker": false
+    },
+
+    "BillingPortal": {
+      "file": "/components/BillingPortal.tsx",
+      "purpose": "Manage subscription and billing",
+      "wiring": {
+        "consumes": [],
+        "dispatches": [],
+        "updates_on": [],
+        "data_sources": []
+      },
+      "states": ["loading", "success"],
+      "isolated_per_broker": false,
+      "note": "GLOBAL - does NOT depend on broker selection"
+    }
+  },
+
+  "data_isolation_rules": {
+    "ISOLATED_PER_BROKER": {
+      "description": "These settings MUST be isolated and never shared between brokers",
+      "components": [
+        "ApiKeyManager",
+        "RiskControls",
+        "TradingConfiguration",
+        "WebhookTemplates"
+      ],
+      "settings": [
+        "api_keys",
+        "risk_settings",
+        "trading_config",
+        "webhook_urls"
+      ],
+      "enforcement": "When switching brokers, these components MUST reload fresh data"
+    },
+    "SHARED_GLOBALLY": {
+      "description": "These settings are global and NOT affected by broker switching",
+      "components": [
+        "BillingPortal",
+        "UserProfile",
+        "ThemeSettings"
+      ],
+      "settings": [
+        "subscription_plan",
+        "payment_method",
+        "user_email",
+        "user_name",
+        "ui_theme",
+        "notification_preferences"
+      ]
+    }
+  },
+
+  "loading_states": {
+    "component_state_machine": {
+      "idle": "Component not loaded",
+      "loading": "Initial data fetch in progress",
+      "syncing": "Refreshing/updating existing data",
+      "success": "Data loaded successfully",
+      "error": "Failed to load data"
+    },
+    "ui_patterns": {
+      "skeleton": "Show skeleton loader during initial load or broker switch",
+      "spinner": "Show spinner for button actions (refresh, save, cancel)",
+      "toast": "Show toast notifications for success/error",
+      "inline_loading": "Show inline loading indicator for partial updates"
+    },
+    "transition_timing": {
+      "broker_switch": "300-600ms",
+      "data_refresh": "500-800ms",
+      "optimistic_update": "immediate + revert on error"
+    }
+  },
+
+  "api_integration": {
+    "base_url_resolution": {
+      "tradelocker": "https://unified.fluxeo.net/api/unify/v1/tradelocker",
+      "topstep": "https://unified.fluxeo.net/api/unify/v1/topstep",
+      "truforex": "https://unified.fluxeo.net/api/unify/v1/truforex"
+    },
+    "authentication": {
+      "method": "Bearer Token",
+      "header": "Authorization: Bearer {apiKey}",
+      "storage": "localStorage (per broker)"
+    },
+    "error_handling": {
+      "401": "Invalid/expired API key - prompt re-authentication",
+      "403": "Insufficient permissions - show upgrade prompt",
+      "404": "Resource not found - show friendly error",
+      "429": "Rate limit exceeded - show retry timer",
+      "500": "Server error - show retry button"
+    }
+  },
+
+  "testing_checklist": {
+    "broker_switching": [
+      "Switch from TradeLocker → TopStep",
+      "Switch from TopStep → TruForex",
+      "Switch from TruForex → TradeLocker",
+      "Verify all components reload data",
+      "Verify loading states appear",
+      "Verify correct API endpoints called"
+    ],
+    "data_isolation": [
+      "Set API key for TradeLocker",
+      "Switch to TopStep",
+      "Verify TopStep has different/no API key",
+      "Set risk settings for TopStep",
+      "Switch to TruForex",
+      "Verify TruForex has independent risk settings"
+    ],
+    "ui_states": [
+      "Test broker switch with no brokers connected",
+      "Test broker switch during active sync",
+      "Test manual refresh during broker switch",
+      "Test error handling during broker switch"
+    ]
+  },
+
+  "deployment_notes": {
+    "backend_readiness": "Mock backend currently enabled. Replace with real API calls when endpoints ready.",
+    "feature_flags": [],
+    "monitoring": [
+      "Track broker switch event frequency",
+      "Monitor API response times per broker",
+      "Alert on sync failures"
+    ]
+  }
+}

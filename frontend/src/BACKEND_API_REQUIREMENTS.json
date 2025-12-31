@@ -1,0 +1,1426 @@
+{
+  "meta": {
+    "app_name": "TradeFlow by Fluxeo",
+    "version": "v6.0",
+    "backend_url": "https://unified.fluxeo.net/api/unify/v1",
+    "generated_date": "2025-10-19",
+    "supported_brokers": ["tradelocker", "topstep", "truforex"],
+    "support_email": "support@fluxeo.net"
+  },
+  
+  "pricing_tiers": {
+    "starter": {
+      "price": 20,
+      "brokers_limit": 1,
+      "accounts_per_broker": 1,
+      "strategies_limit": 0,
+      "trial": "3 days or 100 trades"
+    },
+    "pro": {
+      "price": 40,
+      "brokers_limit": 2,
+      "accounts_per_broker": 2,
+      "strategies_limit": 1,
+      "trial": "3 days or 100 trades"
+    },
+    "elite": {
+      "price": 60,
+      "brokers_limit": 3,
+      "accounts_per_broker": 3,
+      "strategies_limit": 3,
+      "trial": "3 days or 100 trades"
+    }
+  },
+
+  "authentication": [
+    {
+      "screen": "Login Page",
+      "element": "Login Form",
+      "expected_backend_route": "POST /auth/login",
+      "inputs": ["email", "password"],
+      "action": "Authenticates user and returns JWT token",
+      "outputs": ["access_token", "user_id", "email", "name", "plan", "role"],
+      "notes": "Uses Supabase auth - supabase.auth.signInWithPassword()",
+      "error_states": ["Invalid credentials", "Account locked", "Email not verified"]
+    },
+    {
+      "screen": "Signup Page",
+      "element": "Signup Form",
+      "expected_backend_route": "POST /auth/signup",
+      "inputs": ["email", "password", "name"],
+      "action": "Creates new user account",
+      "outputs": ["user_id", "email", "name", "plan: 'trial'"],
+      "notes": "Uses Supabase auth - supabase.auth.admin.createUser() with email_confirm: true",
+      "error_states": ["Email already exists", "Weak password", "Invalid email format"]
+    },
+    {
+      "screen": "Password Reset Page",
+      "element": "Reset Form",
+      "expected_backend_route": "POST /auth/reset-password",
+      "inputs": ["email"],
+      "action": "Sends password reset email",
+      "outputs": ["success: boolean", "message"],
+      "notes": "Uses Supabase auth password reset flow",
+      "error_states": ["Email not found", "Too many requests"]
+    },
+    {
+      "screen": "Admin Login Page",
+      "element": "Admin Login Form",
+      "expected_backend_route": "POST /auth/admin/login",
+      "inputs": ["username", "password"],
+      "action": "Authenticates admin user with elevated permissions",
+      "outputs": ["access_token", "admin_role"],
+      "notes": "Currently hardcoded (admin/admin123) - needs secure backend validation",
+      "error_states": ["Invalid admin credentials"]
+    },
+    {
+      "screen": "All Pages",
+      "element": "Session Check",
+      "expected_backend_route": "GET /auth/session",
+      "inputs": ["Authorization: Bearer {token}"],
+      "action": "Validates active session and returns user data",
+      "outputs": ["user_id", "email", "name", "plan", "role", "is_admin"],
+      "notes": "Uses supabase.auth.getSession() - called on app load",
+      "error_states": ["Session expired", "Invalid token"]
+    },
+    {
+      "screen": "Dashboard Header",
+      "element": "Logout Button",
+      "expected_backend_route": "POST /auth/logout",
+      "inputs": ["Authorization: Bearer {token}"],
+      "action": "Invalidates user session",
+      "outputs": ["success: boolean"],
+      "notes": "Uses supabase.auth.signOut()",
+      "error_states": []
+    }
+  ],
+
+  "broker_registration_and_accounts": [
+    {
+      "screen": "Connect Broker Page / Accounts Manager",
+      "element": "TradeLocker Registration Form",
+      "expected_backend_route": "POST /register/tradelocker",
+      "inputs": [
+        "email",
+        "password",
+        "server",
+        "mode: 'demo' | 'live'"
+      ],
+      "action": "Registers TradeLocker account and generates API key",
+      "outputs": [
+        "id (account_id)",
+        "broker: 'tradelocker'",
+        "email",
+        "server",
+        "mode",
+        "status: 'active'",
+        "balance",
+        "equity",
+        "margin_used",
+        "margin_available",
+        "created_at",
+        "api_key (generated for webhooks)"
+      ],
+      "notes": "Must connect to TradeLocker API, validate credentials, store encrypted, return generated API key for TradingView webhooks",
+      "error_states": ["Invalid credentials", "Server not reachable", "Account already registered", "Tier limit reached"]
+    },
+    {
+      "screen": "Connect Broker Page / Accounts Manager",
+      "element": "Topstep (ProjectX) Registration Form",
+      "expected_backend_route": "POST /register/projectx",
+      "inputs": [
+        "email",
+        "password",
+        "mode: 'demo' | 'live'"
+      ],
+      "action": "Registers Topstep/ProjectX account and generates API key",
+      "outputs": [
+        "id (account_id)",
+        "broker: 'topstep'",
+        "email",
+        "mode",
+        "status: 'active'",
+        "balance",
+        "equity",
+        "created_at",
+        "api_key"
+      ],
+      "notes": "Connect to Topstep ProjectX API, return generated API key",
+      "error_states": ["Invalid credentials", "API connection failed", "Account already registered", "Tier limit reached"]
+    },
+    {
+      "screen": "Connect Broker Page / Accounts Manager",
+      "element": "TruForex (MT4/MT5) Registration Form",
+      "expected_backend_route": "POST /register/mtx",
+      "inputs": [
+        "email",
+        "password",
+        "platform: 'MT4' | 'MT5'",
+        "account_login",
+        "mode: 'demo' | 'live'"
+      ],
+      "action": "Registers MT4/MT5 account via TradeFlow EA",
+      "outputs": [
+        "id (account_id)",
+        "broker: 'truforex'",
+        "email",
+        "platform",
+        "account_login",
+        "mode",
+        "status: 'pending'",
+        "created_at",
+        "api_key",
+        "ea_installation_required: true"
+      ],
+      "notes": "Requires EA installation. Backend generates API key. EA must POST to /webhook/mtx with API key",
+      "error_states": ["Invalid credentials", "EA not installed", "Platform connection failed", "Tier limit reached"]
+    },
+    {
+      "screen": "Accounts Manager",
+      "element": "Get User Accounts",
+      "expected_backend_route": "GET /api/user/brokers",
+      "inputs": ["Authorization: Bearer {token}"],
+      "action": "Fetches all connected broker accounts for authenticated user",
+      "outputs": [
+        "Array<{",
+        "  id,",
+        "  broker,",
+        "  email,",
+        "  server?,",
+        "  mode,",
+        "  status,",
+        "  balance,",
+        "  equity,",
+        "  margin_used,",
+        "  margin_available,",
+        "  created_at,",
+        "  last_sync?,",
+        "  api_key",
+        "}>"
+      ],
+      "notes": "Admin users should see all accounts when isAdmin=true query param passed",
+      "error_states": ["No accounts found", "Authentication failed"]
+    },
+    {
+      "screen": "Accounts Manager",
+      "element": "Toggle Account Enable/Disable",
+      "expected_backend_route": "PATCH /api/accounts/{account_id}/toggle",
+      "inputs": [
+        "account_id (path param)",
+        "enabled: boolean"
+      ],
+      "action": "Enables or disables account for receiving trading signals",
+      "outputs": [
+        "account_id",
+        "enabled: boolean",
+        "message"
+      ],
+      "notes": "Disabled accounts should not receive webhook signals",
+      "error_states": ["Account not found", "Unauthorized"]
+    },
+    {
+      "screen": "Accounts Manager",
+      "element": "Refresh Account Button",
+      "expected_backend_route": "POST /api/accounts/sync/{account_id}",
+      "inputs": ["account_id (path param)"],
+      "action": "Manually syncs account data from broker API",
+      "outputs": [
+        "account_id",
+        "broker",
+        "status: 'success' | 'error' | 'partial'",
+        "positions_synced: number",
+        "orders_synced: number",
+        "balance_updated: boolean",
+        "errors: string[]",
+        "synced_at: timestamp"
+      ],
+      "notes": "Should update balance, equity, positions, orders, last_sync timestamp",
+      "error_states": ["Broker API unavailable", "Invalid credentials", "Rate limit exceeded"]
+    },
+    {
+      "screen": "Accounts Manager",
+      "element": "Delete Account Button",
+      "expected_backend_route": "DELETE /api/accounts/{account_id}",
+      "inputs": ["account_id (path param)"],
+      "action": "Permanently removes account from platform",
+      "outputs": [
+        "success: boolean",
+        "message"
+      ],
+      "notes": "Should cascade delete: positions, orders, API keys, webhooks associated with account",
+      "error_states": ["Account not found", "Active positions exist (warn user)", "Unauthorized"]
+    },
+    {
+      "screen": "Account Selection Page",
+      "element": "Switch Account",
+      "expected_backend_route": "POST /api/accounts/switch",
+      "inputs": [
+        "account_id"
+      ],
+      "action": "Sets active account for user session",
+      "outputs": [
+        "success: boolean",
+        "message",
+        "active_account_id"
+      ],
+      "notes": "Subsequent API calls use this account context unless otherwise specified",
+      "error_states": ["Account not found", "Account disabled", "Unauthorized"]
+    },
+    {
+      "screen": "Accounts Manager",
+      "element": "Edit Account Number",
+      "expected_backend_route": "PATCH /api/accounts/{account_id}",
+      "inputs": [
+        "account_id (path param)",
+        "account_number?: string",
+        "account_name?: string"
+      ],
+      "action": "Updates account metadata",
+      "outputs": [
+        "id",
+        "account_number",
+        "account_name",
+        "updated_at"
+      ],
+      "notes": "Allows users to edit displayed account number/name",
+      "error_states": ["Invalid format", "Unauthorized"]
+    },
+    {
+      "screen": "Sync Results Page",
+      "element": "View Sync History",
+      "expected_backend_route": "GET /api/accounts/sync_results",
+      "inputs": ["Authorization: Bearer {token}"],
+      "action": "Fetches recent account sync results",
+      "outputs": [
+        "Array<{",
+        "  account_id,",
+        "  broker,",
+        "  status,",
+        "  positions_synced,",
+        "  orders_synced,",
+        "  balance_updated,",
+        "  errors,",
+        "  synced_at",
+        "}>"
+      ],
+      "notes": "Shows last 50 sync operations",
+      "error_states": []
+    }
+  ],
+
+  "api_key_management": [
+    {
+      "screen": "Accounts Manager / API Key Manager",
+      "element": "Display API Key (auto-generated on account registration)",
+      "expected_backend_route": "Returned from /register/{broker}",
+      "inputs": [],
+      "action": "API key is automatically generated when account is registered",
+      "outputs": [
+        "api_key (unique per account)"
+      ],
+      "notes": "API key format: {broker}_{account_id_prefix}_{random}. Used in TradingView webhook Authorization header",
+      "error_states": []
+    },
+    {
+      "screen": "Accounts Manager",
+      "element": "Regenerate API Key Button",
+      "expected_backend_route": "POST /api/accounts/{account_id}/regenerate-api-key",
+      "inputs": ["account_id (path param)"],
+      "action": "Invalidates old API key and generates new one",
+      "outputs": [
+        "account_id",
+        "api_key (new)",
+        "regenerated_at"
+      ],
+      "notes": "Old API key becomes invalid immediately. Warn user to update TradingView webhooks",
+      "error_states": ["Account not found", "Unauthorized"]
+    },
+    {
+      "screen": "API Key Manager",
+      "element": "List All API Keys",
+      "expected_backend_route": "GET /api/user/api_keys",
+      "inputs": ["Authorization: Bearer {token}"],
+      "action": "Fetches all API keys for user (across all accounts)",
+      "outputs": [
+        "Array<{",
+        "  id,",
+        "  key (masked or full),",
+        "  name,",
+        "  permissions: string[],",
+        "  created_at,",
+        "  last_used?,",
+        "  expires_at?,",
+        "  account_id,",
+        "  broker",
+        "}>"
+      ],
+      "notes": "May include additional API keys beyond account keys (e.g., for custom integrations)",
+      "error_states": []
+    },
+    {
+      "screen": "API Key Manager",
+      "element": "Generate Custom API Key",
+      "expected_backend_route": "POST /api/user/api_keys/generate",
+      "inputs": [
+        "name: string",
+        "permissions: string[]",
+        "expires_at?: timestamp"
+      ],
+      "action": "Creates custom API key with specific permissions",
+      "outputs": [
+        "id",
+        "key (full - show once)",
+        "secret (full - show once)",
+        "name",
+        "permissions",
+        "created_at",
+        "expires_at?"
+      ],
+      "notes": "Secret shown only once. User must copy immediately",
+      "error_states": ["Invalid permissions", "Name already exists"]
+    },
+    {
+      "screen": "API Key Manager",
+      "element": "Delete API Key",
+      "expected_backend_route": "DELETE /api/user/api_keys/{key_id}",
+      "inputs": ["key_id (path param)"],
+      "action": "Revokes and deletes API key",
+      "outputs": [
+        "success: boolean",
+        "message"
+      ],
+      "notes": "Cannot delete account-linked API keys via this route (use regenerate instead)",
+      "error_states": ["Key not found", "Cannot delete account key", "Unauthorized"]
+    },
+    {
+      "screen": "Admin Accounts Viewer",
+      "element": "View All User API Keys (Admin)",
+      "expected_backend_route": "GET /api/admin/api_keys",
+      "inputs": [
+        "Authorization: Bearer {admin_token}",
+        "user_id? (optional filter)"
+      ],
+      "action": "Admin view of all API keys across all users",
+      "outputs": [
+        "Array<{",
+        "  id,",
+        "  key,",
+        "  user_id,",
+        "  user_email,",
+        "  account_id,",
+        "  broker,",
+        "  created_at,",
+        "  last_used?",
+        "}>"
+      ],
+      "notes": "Requires admin role",
+      "error_states": ["Unauthorized - not admin"]
+    }
+  ],
+
+  "webhook_templates_and_execution": [
+    {
+      "screen": "Webhook Templates",
+      "element": "Account Selector Dropdown",
+      "expected_backend_route": "GET /api/user/brokers",
+      "inputs": ["Authorization: Bearer {token}"],
+      "action": "Lists accounts to select for webhook template",
+      "outputs": [
+        "Array<{ account_id, account_name, broker, api_key }>"
+      ],
+      "notes": "User selects account, UI generates webhook URL and templates with that account's API key",
+      "error_states": ["No accounts connected"]
+    },
+    {
+      "screen": "Webhook Templates",
+      "element": "Webhook URL Display",
+      "expected_backend_route": "N/A (UI-generated)",
+      "inputs": [],
+      "action": "UI displays webhook endpoint URL",
+      "outputs": [
+        "webhook_url: 'https://unified.fluxeo.net/api/unify/v1/webhook/{broker}'"
+      ],
+      "notes": "URL is static per broker. API key in Authorization header identifies account",
+      "error_states": []
+    },
+    {
+      "screen": "Webhook Templates",
+      "element": "TradingView Alert JSON Templates",
+      "expected_backend_route": "N/A (UI-generated)",
+      "inputs": [],
+      "action": "UI provides pre-filled JSON templates for market buy, market sell, limit, stop orders",
+      "outputs": [
+        "JSON payload with:",
+        "  version: 'unify.v1',",
+        "  source: 'tradingview',",
+        "  intent: { broker, side, type, symbol, qty_mode, qty, sl, tp, tag },",
+        "  user_context: { account, workspace },",
+        "  ts"
+      ],
+      "notes": "User copies JSON into TradingView alert message. Uses TradingView variables like {{ticker}}, {{close}}, {{time}}",
+      "error_states": []
+    },
+    {
+      "screen": "TradingView Alert",
+      "element": "Incoming Webhook",
+      "expected_backend_route": "POST /api/unify/v1/webhook/{broker}",
+      "inputs": [
+        "Authorization: Bearer {api_key} (in header)",
+        "JSON payload: { version, source, intent, user_context, ts }"
+      ],
+      "action": "Receives TradingView alert, validates API key, identifies account, executes trade",
+      "outputs": [
+        "success: boolean",
+        "order_id",
+        "message",
+        "execution_time_ms"
+      ],
+      "notes": "CRITICAL ENDPOINT. Must validate API key, check account enabled, apply risk controls, execute trade via broker API, log event",
+      "error_states": [
+        "Invalid API key",
+        "Account disabled",
+        "Insufficient margin",
+        "Risk limits exceeded",
+        "Invalid symbol",
+        "Broker API error",
+        "Rate limit exceeded"
+      ]
+    },
+    {
+      "screen": "Webhook Templates",
+      "element": "Test Webhook Button",
+      "expected_backend_route": "POST /api/webhook/test",
+      "inputs": [
+        "webhook_url",
+        "api_key",
+        "test_payload"
+      ],
+      "action": "Sends test webhook to validate configuration",
+      "outputs": [
+        "success: boolean",
+        "response_status",
+        "response_body",
+        "latency_ms"
+      ],
+      "notes": "Should not execute actual trades. May send to /webhook/{broker} with test flag",
+      "error_states": ["Invalid webhook URL", "Authentication failed", "Timeout"]
+    },
+    {
+      "screen": "Logs Viewer",
+      "element": "Webhook Event History",
+      "expected_backend_route": "GET /api/webhooks/logs",
+      "inputs": [
+        "Authorization: Bearer {token}",
+        "limit?: number",
+        "offset?: number",
+        "status?: 'success' | 'error'",
+        "broker?: string"
+      ],
+      "action": "Fetches webhook execution history",
+      "outputs": [
+        "Array<{",
+        "  id,",
+        "  timestamp,",
+        "  method,",
+        "  path,",
+        "  status: number,",
+        "  payload: any,",
+        "  response: any,",
+        "  latency_ms,",
+        "  error?,",
+        "  broker,",
+        "  account_id",
+        "}>"
+      ],
+      "notes": "Paginated. Shows last 500 events by default",
+      "error_states": []
+    }
+  ],
+
+  "trading_and_orders": [
+    {
+      "screen": "Dashboard Overview / Positions Monitor",
+      "element": "Get Active Positions",
+      "expected_backend_route": "GET /api/positions",
+      "inputs": [
+        "Authorization: Bearer {token}",
+        "broker?: string (optional filter)"
+      ],
+      "action": "Fetches all open positions for user's accounts",
+      "outputs": [
+        "Array<{",
+        "  id,",
+        "  symbol,",
+        "  side: 'BUY' | 'SELL',",
+        "  qty,",
+        "  avg_price,",
+        "  current_price,",
+        "  pnl,",
+        "  pnl_percent,",
+        "  broker,",
+        "  account_id,",
+        "  opened_at,",
+        "  stop_loss?,",
+        "  take_profit?,",
+        "  tag?",
+        "}>"
+      ],
+      "notes": "Real-time or near-real-time. Admin users should see all positions when isAdmin=true",
+      "error_states": []
+    },
+    {
+      "screen": "Positions Monitor",
+      "element": "Close Position Button",
+      "expected_backend_route": "POST /api/orders/close",
+      "inputs": [
+        "position_id",
+        "close_qty?: number (partial close)"
+      ],
+      "action": "Closes position at market price",
+      "outputs": [
+        "success: boolean",
+        "pnl: number,",
+        "order_id,",
+        "message"
+      ],
+      "notes": "Should update position status, create corresponding order record, update account balance",
+      "error_states": ["Position not found", "Broker API error", "Partial close not supported by broker"]
+    },
+    {
+      "screen": "Orders Manager",
+      "element": "Get Orders",
+      "expected_backend_route": "GET /api/orders",
+      "inputs": [
+        "Authorization: Bearer {token}",
+        "limit?: number",
+        "offset?: number",
+        "status?: 'PENDING' | 'FILLED' | 'CANCELED' | 'REJECTED'",
+        "symbol?: string",
+        "broker?: string"
+      ],
+      "action": "Fetches orders with filtering and pagination",
+      "outputs": [
+        "Array<{",
+        "  id,",
+        "  symbol,",
+        "  side: 'BUY' | 'SELL',",
+        "  type: 'MARKET' | 'LIMIT' | 'STOP',",
+        "  qty,",
+        "  price?,",
+        "  filled_qty,",
+        "  avg_fill_price?,",
+        "  status,",
+        "  broker,",
+        "  account_id,",
+        "  created_at,",
+        "  filled_at?,",
+        "  tag?,",
+        "  reject_reason?",
+        "}>"
+      ],
+      "notes": "Paginated. Default limit 100. Admin users see all orders when isAdmin=true",
+      "error_states": []
+    },
+    {
+      "screen": "Orders Manager",
+      "element": "Cancel Order Button",
+      "expected_backend_route": "DELETE /api/orders/{order_id}",
+      "inputs": ["order_id (path param)"],
+      "action": "Cancels pending order",
+      "outputs": [
+        "success: boolean",
+        "message"
+      ],
+      "notes": "Can only cancel PENDING orders. Should call broker API to cancel",
+      "error_states": ["Order not found", "Order already filled", "Order already canceled", "Broker API error"]
+    },
+    {
+      "screen": "Dashboard Overview",
+      "element": "Get Overview Metrics",
+      "expected_backend_route": "GET /api/overview",
+      "inputs": [
+        "Authorization: Bearer {token}",
+        "broker?: string (optional)"
+      ],
+      "action": "Fetches aggregated dashboard metrics",
+      "outputs": [
+        "total_pnl,",
+        "total_pnl_pct,",
+        "today_pnl,",
+        "today_trades,",
+        "win_rate,",
+        "active_positions,",
+        "total_trades,",
+        "largest_win,",
+        "largest_loss,",
+        "avg_win,",
+        "avg_loss,",
+        "sharpe_ratio,",
+        "balance,",
+        "equity"
+      ],
+      "notes": "Aggregate across all user's accounts or filtered by broker",
+      "error_states": []
+    }
+  ],
+
+  "analytics_and_reporting": [
+    {
+      "screen": "Analytics Page",
+      "element": "Get P&L Report",
+      "expected_backend_route": "GET /api/reports/pnl",
+      "inputs": [
+        "Authorization: Bearer {token}",
+        "start_date: YYYY-MM-DD",
+        "end_date: YYYY-MM-DD",
+        "broker?: string"
+      ],
+      "action": "Generates P&L report for date range",
+      "outputs": [
+        "start_date,",
+        "end_date,",
+        "total_pnl,",
+        "total_trades,",
+        "winning_trades,",
+        "losing_trades,",
+        "win_rate,",
+        "profit_factor,",
+        "daily_breakdown: Array<{ date, pnl, trades, volume }>"
+      ],
+      "notes": "Used for charts and performance tracking",
+      "error_states": ["Invalid date range", "No data for period"]
+    },
+    {
+      "screen": "Analytics Page",
+      "element": "Get Analytics Metrics",
+      "expected_backend_route": "GET /api/analytics/metrics",
+      "inputs": [
+        "Authorization: Bearer {token}",
+        "start_date: YYYY-MM-DD",
+        "end_date: YYYY-MM-DD",
+        "broker?: string"
+      ],
+      "action": "Fetches detailed analytics metrics",
+      "outputs": [
+        "period,",
+        "broker?,",
+        "total_volume,",
+        "total_trades,",
+        "avg_trade_duration,",
+        "best_symbol,",
+        "worst_symbol,",
+        "best_day,",
+        "worst_day,",
+        "metrics_by_symbol: { trades, pnl, win_rate }"
+      ],
+      "notes": "Provides deep insights for strategy optimization",
+      "error_states": ["Invalid date range"]
+    },
+    {
+      "screen": "Analytics Page",
+      "element": "Get Trade History",
+      "expected_backend_route": "GET /api/analytics/trades",
+      "inputs": [
+        "Authorization: Bearer {token}",
+        "start_date: YYYY-MM-DD",
+        "end_date: YYYY-MM-DD",
+        "broker?: string",
+        "symbol?: string"
+      ],
+      "action": "Fetches individual trade records",
+      "outputs": [
+        "trades: Array<{",
+        "  id,",
+        "  symbol,",
+        "  side,",
+        "  entry_price,",
+        "  exit_price,",
+        "  qty,",
+        "  pnl,",
+        "  duration_minutes,",
+        "  opened_at,",
+        "  closed_at,",
+        "  broker,",
+        "  account_id,",
+        "  tag",
+        "}>"
+      ],
+      "notes": "Detailed trade-by-trade breakdown for analysis",
+      "error_states": []
+    }
+  ],
+
+  "risk_management": [
+    {
+      "screen": "Risk Controls",
+      "element": "Get Risk Configuration",
+      "expected_backend_route": "GET /api/user/risk_config",
+      "inputs": ["Authorization: Bearer {token}"],
+      "action": "Fetches user's risk management settings",
+      "outputs": [
+        "enabled: boolean,",
+        "risk_mode: 'fixed_qty' | 'risk_pct' | 'fixed_dollar',",
+        "max_daily_loss: number,",
+        "max_daily_loss_pct: number,",
+        "max_trades_per_day: number,",
+        "max_open_trades: number,",
+        "max_concurrent_positions: number,",
+        "max_risk_per_trade: number,",
+        "max_risk_per_trade_pct: number,",
+        "leverage_cap: number,",
+        "allowed_instruments: string[],",
+        "denied_instruments: string[],",
+        "trading_hours_enabled: boolean,",
+        "trading_hours_start: 'HH:MM',",
+        "trading_hours_end: 'HH:MM',",
+        "trading_hours_timezone: string,",
+        "news_lockout_enabled: boolean,",
+        "news_lockout_minutes: number,",
+        "emergency_stop_enabled: boolean,",
+        "emergency_stop_loss: number"
+      ],
+      "notes": "These settings are enforced on webhook execution",
+      "error_states": []
+    },
+    {
+      "screen": "Risk Controls",
+      "element": "Update Risk Configuration",
+      "expected_backend_route": "PUT /api/user/risk_config",
+      "inputs": [
+        "Authorization: Bearer {token}",
+        "Partial<RiskConfig> (any of the risk settings)"
+      ],
+      "action": "Updates risk management settings",
+      "outputs": [
+        "Updated RiskConfig object",
+        "message"
+      ],
+      "notes": "Validates settings (e.g., max_risk_per_trade_pct <= 100)",
+      "error_states": ["Invalid values", "Conflicting settings"]
+    },
+    {
+      "screen": "Risk Controls / Dashboard",
+      "element": "Emergency Stop Button",
+      "expected_backend_route": "POST /api/user/emergency_stop",
+      "inputs": ["Authorization: Bearer {token}"],
+      "action": "Immediately closes all open positions across all accounts",
+      "outputs": [
+        "success: boolean,",
+        "positions_closed: number,",
+        "total_pnl: number,",
+        "errors: string[]"
+      ],
+      "notes": "CRITICAL FEATURE. Should close at market price, disable future signals until re-enabled",
+      "error_states": ["No positions to close", "Partial failure (some positions couldn't close)"]
+    }
+  ],
+
+  "trading_configuration": [
+    {
+      "screen": "Trading Configuration",
+      "element": "Get Trading Config",
+      "expected_backend_route": "GET /api/user/config",
+      "inputs": ["Authorization: Bearer {token}"],
+      "action": "Fetches user's trading configuration",
+      "outputs": [
+        "stop_loss_pct: number (0.01% precision),",
+        "take_profit_pct: number (0.01% precision),",
+        "position_size: number,",
+        "max_daily_loss: number,",
+        "max_daily_trades: number,",
+        "allow_weekend_trading: boolean,",
+        "default_broker?: string,",
+        "slippage_tolerance: number"
+      ],
+      "notes": "Default values applied to trades unless overridden in webhook payload",
+      "error_states": []
+    },
+    {
+      "screen": "Trading Configuration",
+      "element": "Update Trading Config",
+      "expected_backend_route": "PUT /api/user/config",
+      "inputs": [
+        "Authorization: Bearer {token}",
+        "Partial<UserConfig>"
+      ],
+      "action": "Updates trading configuration",
+      "outputs": [
+        "Updated UserConfig object"
+      ],
+      "notes": "SL/TP sliders should support 0.01% precision",
+      "error_states": ["Invalid values"]
+    }
+  ],
+
+  "billing_and_subscription": [
+    {
+      "screen": "Billing Portal",
+      "element": "Get Billing Status",
+      "expected_backend_route": "GET /api/billing/status",
+      "inputs": ["Authorization: Bearer {token}"],
+      "action": "Fetches Stripe subscription status",
+      "outputs": [
+        "status: 'active' | 'trialing' | 'past_due' | 'canceled' | 'incomplete',",
+        "plan: 'starter' | 'pro' | 'elite',",
+        "price_id: string,",
+        "current_period_end: timestamp,",
+        "cancel_at_period_end: boolean,",
+        "trial_end?: timestamp,",
+        "customer_id?: string,",
+        "payment_method?: { last4, brand }"
+      ],
+      "notes": "Used to display current plan and billing info",
+      "error_states": ["No subscription found"]
+    },
+    {
+      "screen": "Billing Portal / Dashboard",
+      "element": "Get Billing Usage",
+      "expected_backend_route": "GET /api/billing/usage",
+      "inputs": ["Authorization: Bearer {token}"],
+      "action": "Fetches trial/plan usage stats",
+      "outputs": [
+        "trades_count: number,",
+        "trades_limit: number (100 for trial),",
+        "days_remaining?: number (3 for trial),",
+        "trial_trades_remaining?: number,",
+        "brokers_connected: number,",
+        "brokers_limit: number (based on plan),",
+        "strategies_active: number,",
+        "strategies_limit: number (based on plan)"
+      ],
+      "notes": "Trial ends when trades_count >= 100 OR days_remaining <= 0",
+      "error_states": []
+    },
+    {
+      "screen": "Billing Portal",
+      "element": "Subscribe to Plan Button",
+      "expected_backend_route": "POST /api/billing/checkout",
+      "inputs": [
+        "Authorization: Bearer {token}",
+        "price_id: string ('price_starter' | 'price_pro' | 'price_elite'),",
+        "success_url: string,",
+        "cancel_url: string"
+      ],
+      "action": "Creates Stripe checkout session",
+      "outputs": [
+        "url: string (Stripe checkout URL),",
+        "session_id: string"
+      ],
+      "notes": "Redirect user to checkout URL. Stripe handles payment, then redirects to success_url",
+      "error_states": ["Invalid price_id", "Stripe API error"]
+    },
+    {
+      "screen": "Billing Portal",
+      "element": "Manage Subscription Button",
+      "expected_backend_route": "POST /api/billing/portal",
+      "inputs": [
+        "Authorization: Bearer {token}",
+        "return_url: string"
+      ],
+      "action": "Creates Stripe customer portal session",
+      "outputs": [
+        "url: string (Stripe portal URL)"
+      ],
+      "notes": "User can update payment method, cancel subscription, view invoices",
+      "error_states": ["No customer found", "Stripe API error"]
+    },
+    {
+      "screen": "Billing Portal",
+      "element": "Cancel Subscription",
+      "expected_backend_route": "POST /api/billing/cancel",
+      "inputs": ["Authorization: Bearer {token}"],
+      "action": "Cancels subscription at period end",
+      "outputs": [
+        "success: boolean,",
+        "effective_date: timestamp"
+      ],
+      "notes": "Subscription remains active until current_period_end",
+      "error_states": ["No active subscription"]
+    },
+    {
+      "screen": "Billing Portal",
+      "element": "Upgrade/Downgrade Plan",
+      "expected_backend_route": "POST /api/billing/change_plan",
+      "inputs": [
+        "Authorization: Bearer {token}",
+        "new_price_id: string"
+      ],
+      "action": "Changes subscription plan",
+      "outputs": [
+        "success: boolean,",
+        "new_plan: string,",
+        "effective_date: timestamp,",
+        "proration_amount?: number"
+      ],
+      "notes": "Immediate upgrade, proration credit for downgrade",
+      "error_states": ["Invalid plan", "Same plan", "Stripe API error"]
+    },
+    {
+      "screen": "Backend (Stripe Webhook)",
+      "element": "Stripe Webhook Handler",
+      "expected_backend_route": "POST /api/billing/webhook",
+      "inputs": [
+        "Stripe-Signature header",
+        "Event payload (checkout.session.completed, customer.subscription.updated, etc.)"
+      ],
+      "action": "Handles Stripe webhook events to update database",
+      "outputs": [
+        "success: boolean"
+      ],
+      "notes": "CRITICAL: Update user plan in database on subscription events. Verify webhook signature",
+      "error_states": ["Invalid signature", "Unknown event type"]
+    }
+  ],
+
+  "admin_panel": [
+    {
+      "screen": "Admin Dashboard",
+      "element": "Get All Users",
+      "expected_backend_route": "GET /api/admin/users",
+      "inputs": [
+        "Authorization: Bearer {admin_token}",
+        "limit?: number",
+        "offset?: number",
+        "plan?: string",
+        "status?: string"
+      ],
+      "action": "Fetches all users for admin oversight",
+      "outputs": [
+        "Array<{",
+        "  id,",
+        "  email,",
+        "  name,",
+        "  plan,",
+        "  status,",
+        "  created_at,",
+        "  last_login,",
+        "  total_trades,",
+        "  total_pnl,",
+        "  brokers_connected,",
+        "  accounts_count",
+        "}>"
+      ],
+      "notes": "Requires admin role",
+      "error_states": ["Unauthorized - not admin"]
+    },
+    {
+      "screen": "Admin Dashboard",
+      "element": "Get Platform Stats",
+      "expected_backend_route": "GET /api/admin/stats",
+      "inputs": ["Authorization: Bearer {admin_token}"],
+      "action": "Fetches platform-wide metrics",
+      "outputs": [
+        "total_users,",
+        "active_users,",
+        "total_trades_today,",
+        "total_trades_all_time,",
+        "total_volume,",
+        "revenue_mrr,",
+        "users_by_plan: { starter, pro, elite },",
+        "brokers_connected: { tradelocker, topstep, truforex },",
+        "avg_trades_per_user,",
+        "system_health: { api_uptime, avg_latency }"
+      ],
+      "notes": "Dashboard overview for admin",
+      "error_states": ["Unauthorized - not admin"]
+    },
+    {
+      "screen": "Admin Dashboard",
+      "element": "Impersonate User",
+      "expected_backend_route": "POST /api/admin/impersonate",
+      "inputs": [
+        "Authorization: Bearer {admin_token}",
+        "user_id: string"
+      ],
+      "action": "Generates temporary access token for user account",
+      "outputs": [
+        "access_token: string (user token),",
+        "expires_at: timestamp"
+      ],
+      "notes": "Allows admin to view dashboard as user for debugging. Log all impersonation events",
+      "error_states": ["User not found", "Unauthorized - not admin"]
+    },
+    {
+      "screen": "Admin Accounts Viewer",
+      "element": "View All Broker Accounts",
+      "expected_backend_route": "GET /api/admin/accounts",
+      "inputs": [
+        "Authorization: Bearer {admin_token}",
+        "user_id?: string (optional filter)"
+      ],
+      "action": "Fetches all broker accounts across all users",
+      "outputs": [
+        "Array<{",
+        "  id,",
+        "  user_id,",
+        "  user_email,",
+        "  broker,",
+        "  account_id,",
+        "  status,",
+        "  balance,",
+        "  equity,",
+        "  api_key,",
+        "  created_at,",
+        "  last_sync",
+        "}>"
+      ],
+      "notes": "Allows admin oversight and debugging",
+      "error_states": ["Unauthorized - not admin"]
+    },
+    {
+      "screen": "Admin Panel",
+      "element": "System Logs",
+      "expected_backend_route": "GET /api/admin/logs",
+      "inputs": [
+        "Authorization: Bearer {admin_token}",
+        "level?: 'info' | 'warning' | 'error',",
+        "limit?: number",
+        "offset?: number"
+      ],
+      "action": "Fetches system-wide logs",
+      "outputs": [
+        "Array<{",
+        "  timestamp,",
+        "  level,",
+        "  message,",
+        "  context: any,",
+        "  user_id?,",
+        "  request_id?",
+        "}>"
+      ],
+      "notes": "For debugging and monitoring",
+      "error_states": ["Unauthorized - not admin"]
+    }
+  ],
+
+  "logs_and_monitoring": [
+    {
+      "screen": "Logs Viewer",
+      "element": "Get User Logs",
+      "expected_backend_route": "GET /api/logs",
+      "inputs": [
+        "Authorization: Bearer {token}",
+        "type?: 'webhook' | 'order' | 'system' | 'error',",
+        "broker?: string",
+        "limit?: number",
+        "offset?: number"
+      ],
+      "action": "Fetches user's activity logs",
+      "outputs": [
+        "Array<{",
+        "  id,",
+        "  timestamp,",
+        "  type,",
+        "  level: 'info' | 'warning' | 'error',",
+        "  message,",
+        "  details: any,",
+        "  broker?,",
+        "  account_id?",
+        "}>"
+      ],
+      "notes": "Paginated. Shows webhook events, order executions, errors",
+      "error_states": []
+    }
+  ],
+
+  "chatbot_support": [
+    {
+      "screen": "Dashboard Sidebar",
+      "element": "Support Chatbot",
+      "expected_backend_route": "POST /api/support/chat",
+      "inputs": [
+        "Authorization: Bearer {token}",
+        "message: string",
+        "conversation_id?: string"
+      ],
+      "action": "Sends message to AI support chatbot",
+      "outputs": [
+        "response: string,",
+        "conversation_id: string,",
+        "suggested_actions?: Array<{ label, action }>"
+      ],
+      "notes": "Optional feature. Can integrate with OpenAI/Claude API or provide canned responses",
+      "error_states": ["AI API error"]
+    }
+  ],
+
+  "notifications": [
+    {
+      "screen": "Dashboard Header",
+      "element": "Notifications Bell",
+      "expected_backend_route": "GET /api/notifications",
+      "inputs": [
+        "Authorization: Bearer {token}",
+        "unread?: boolean"
+      ],
+      "action": "Fetches user notifications",
+      "outputs": [
+        "Array<{",
+        "  id,",
+        "  type: 'info' | 'warning' | 'error' | 'success',",
+        "  title,",
+        "  message,",
+        "  read: boolean,",
+        "  created_at,",
+        "  action_url?",
+        "}>"
+      ],
+      "notes": "Alerts for: trial ending, risk limits hit, order rejections, etc.",
+      "error_states": []
+    },
+    {
+      "screen": "Dashboard Header",
+      "element": "Mark Notification Read",
+      "expected_backend_route": "PATCH /api/notifications/{id}/read",
+      "inputs": [
+        "Authorization: Bearer {token}",
+        "id (path param)"
+      ],
+      "action": "Marks notification as read",
+      "outputs": [
+        "success: boolean"
+      ],
+      "notes": "",
+      "error_states": ["Notification not found"]
+    }
+  ],
+
+  "onboarding": [
+    {
+      "screen": "Onboarding Plan Selection",
+      "element": "Select Plan",
+      "expected_backend_route": "N/A (client-side only until checkout)",
+      "inputs": [],
+      "action": "User selects plan, stored in context, redirects to connect broker or checkout",
+      "outputs": [],
+      "notes": "If trial, go directly to connect broker. If paid, create checkout session",
+      "error_states": []
+    }
+  ],
+
+  "password_and_settings": [
+    {
+      "screen": "Settings Dropdown",
+      "element": "Change Password",
+      "expected_backend_route": "POST /api/user/change_password",
+      "inputs": [
+        "Authorization: Bearer {token}",
+        "current_password: string",
+        "new_password: string"
+      ],
+      "action": "Updates user password",
+      "outputs": [
+        "success: boolean",
+        "message"
+      ],
+      "notes": "Requires current password for security",
+      "error_states": ["Incorrect current password", "Weak new password"]
+    },
+    {
+      "screen": "Settings Dropdown",
+      "element": "Update Profile",
+      "expected_backend_route": "PATCH /api/user/profile",
+      "inputs": [
+        "Authorization: Bearer {token}",
+        "name?: string",
+        "email?: string",
+        "timezone?: string"
+      ],
+      "action": "Updates user profile information",
+      "outputs": [
+        "Updated user object"
+      ],
+      "notes": "Email change may require verification",
+      "error_states": ["Email already exists", "Invalid email"]
+    }
+  ],
+
+  "theme_settings": [
+    {
+      "screen": "Settings Dropdown / Theme Selector",
+      "element": "Theme Selection",
+      "expected_backend_route": "N/A (localStorage)",
+      "inputs": [],
+      "action": "Stores theme preference in localStorage",
+      "outputs": [],
+      "notes": "Themes: ocean (default), cyberpunk, minimal. Client-side only",
+      "error_states": []
+    }
+  ],
+
+  "missing_or_unclear_endpoints": [
+    {
+      "description": "Real-time position price updates",
+      "potential_solution": "WebSocket /ws/positions or polling GET /api/positions every 5s",
+      "notes": "Current UI may need WebSocket support for live P&L updates"
+    },
+    {
+      "description": "News event calendar for lockout",
+      "potential_solution": "GET /api/calendar/events or integrate with external API",
+      "notes": "If news_lockout_enabled, need event data"
+    },
+    {
+      "description": "EA installation status check",
+      "potential_solution": "GET /api/accounts/{id}/ea_status",
+      "notes": "For MT4/MT5 accounts, check if EA is connected and sending heartbeats"
+    },
+    {
+      "description": "Fluxeo strategies management",
+      "potential_solution": "GET /api/strategies, POST /api/strategies/activate",
+      "notes": "Pro/Elite plans include Fluxeo strategies - need management UI and endpoints"
+    },
+    {
+      "description": "White-label configuration (Elite plan)",
+      "potential_solution": "GET /api/user/whitelabel, PUT /api/user/whitelabel",
+      "notes": "Elite plan includes white-label options - branding, custom domain, etc."
+    },
+    {
+      "description": "Export trade history",
+      "potential_solution": "GET /api/export/trades?format=csv|json|xlsx",
+      "notes": "Users may want to export for tax/analysis"
+    },
+    {
+      "description": "Performance benchmarking",
+      "potential_solution": "GET /api/analytics/benchmark",
+      "notes": "Compare user performance vs platform average or S&P 500"
+    }
+  ],
+
+  "endpoints_summary": {
+    "total_unique_endpoints": 70,
+    "critical_endpoints": [
+      "POST /api/unify/v1/webhook/{broker}",
+      "POST /register/{broker}",
+      "GET /api/positions",
+      "POST /api/orders/close",
+      "GET /api/user/brokers",
+      "POST /api/user/emergency_stop",
+      "GET /api/billing/status",
+      "GET /api/billing/usage",
+      "POST /api/billing/checkout"
+    ],
+    "endpoints_by_category": {
+      "authentication": 6,
+      "broker_registration_and_accounts": 10,
+      "api_key_management": 6,
+      "webhook_templates_and_execution": 4,
+      "trading_and_orders": 6,
+      "analytics_and_reporting": 3,
+      "risk_management": 3,
+      "trading_configuration": 2,
+      "billing_and_subscription": 8,
+      "admin_panel": 5,
+      "logs_and_monitoring": 2,
+      "chatbot_support": 1,
+      "notifications": 2,
+      "password_and_settings": 2,
+      "missing_or_unclear": 7
+    }
+  },
+
+  "data_flow_notes": {
+    "user_registration_to_first_trade": [
+      "1. POST /auth/signup → user_id",
+      "2. User selects plan (trial starts automatically)",
+      "3. POST /register/{broker} → account_id, api_key",
+      "4. User copies api_key into TradingView alert",
+      "5. TradingView sends POST /webhook/{broker} with Authorization: Bearer {api_key}",
+      "6. Backend validates API key, checks risk limits, executes trade",
+      "7. User sees position in GET /api/positions",
+      "8. User can close via POST /api/orders/close"
+    ],
+    "trial_to_paid_conversion": [
+      "1. GET /api/billing/usage → shows trial_trades_remaining or days_remaining",
+      "2. User clicks upgrade → POST /api/billing/checkout",
+      "3. Redirect to Stripe checkout",
+      "4. Stripe webhook POST /api/billing/webhook updates user plan in DB",
+      "5. User now has higher limits (brokers, accounts, strategies)"
+    ],
+    "webhook_execution_flow": [
+      "1. TradingView sends JSON to POST /webhook/{broker}",
+      "2. Backend extracts Authorization header → validates API key → identifies account",
+      "3. Check if account enabled (enabled: true)",
+      "4. Apply risk controls (GET /api/user/risk_config)",
+      "5. Execute trade via broker API (TradeLocker/Topstep/MT4 EA)",
+      "6. Create order record in DB",
+      "7. Log webhook event (GET /api/webhooks/logs)",
+      "8. Return success/error to TradingView"
+    ]
+  },
+
+  "ui_to_backend_matching": {
+    "covered_by_ui_and_backend": [
+      "User authentication (Supabase)",
+      "Broker registration (TradeLocker, Topstep, MT4/MT5)",
+      "Account management (list, toggle, delete, sync)",
+      "API key display and regeneration",
+      "Webhook templates (UI-generated)",
+      "Webhook execution (POST /webhook/{broker})",
+      "Position monitoring (GET /api/positions)",
+      "Order management (GET /api/orders, DELETE /api/orders/{id})",
+      "Close positions (POST /api/orders/close)",
+      "Risk configuration (GET/PUT /api/user/risk_config)",
+      "Trading configuration (GET/PUT /api/user/config)",
+      "Billing status and usage (GET /api/billing/*)",
+      "Emergency stop (POST /api/user/emergency_stop)",
+      "Analytics and reporting (GET /api/reports/*, GET /api/analytics/*)",
+      "Logs viewing (GET /api/webhooks/logs, GET /api/logs)",
+      "Admin panel (GET /api/admin/*)"
+    ],
+    "in_ui_but_missing_backend": [
+      "Real-time position price updates (needs WebSocket or polling)",
+      "EA heartbeat/status check for MT4/MT5",
+      "Fluxeo strategies activation/management",
+      "News calendar for lockout feature",
+      "Trade export (CSV/JSON)",
+      "Performance benchmarking vs market",
+      "White-label configuration (Elite plan)",
+      "Notification preferences management",
+      "Two-factor authentication setup",
+      "Session management (view active sessions, revoke)"
+    ],
+    "in_backend_but_not_used_by_ui": [
+      "May have additional internal admin endpoints",
+      "Rate limiting info",
+      "Broker API health checks",
+      "Audit trail endpoints"
+    ]
+  },
+
+  "recommended_backend_priorities": {
+    "phase_1_mvp_critical": [
+      "POST /auth/signup, POST /auth/login, POST /auth/logout",
+      "POST /register/tradelocker, POST /register/projectx, POST /register/mtx",
+      "GET /api/user/brokers",
+      "POST /api/unify/v1/webhook/{broker} (MOST CRITICAL)",
+      "GET /api/positions",
+      "POST /api/orders/close",
+      "GET /api/billing/status, GET /api/billing/usage",
+      "POST /api/billing/checkout, POST /api/billing/webhook (Stripe)"
+    ],
+    "phase_2_core_features": [
+      "GET /api/orders, DELETE /api/orders/{id}",
+      "POST /api/accounts/sync/{id}, GET /api/accounts/sync_results",
+      "POST /api/accounts/switch",
+      "PATCH /api/accounts/{id}/toggle",
+      "DELETE /api/accounts/{id}",
+      "POST /api/accounts/{id}/regenerate-api-key",
+      "GET/PUT /api/user/config, GET/PUT /api/user/risk_config",
+      "POST /api/user/emergency_stop",
+      "GET /api/webhooks/logs"
+    ],
+    "phase_3_analytics": [
+      "GET /api/overview",
+      "GET /api/reports/pnl",
+      "GET /api/analytics/metrics",
+      "GET /api/analytics/trades"
+    ],
+    "phase_4_admin_and_advanced": [
+      "GET /api/admin/users, GET /api/admin/stats, GET /api/admin/accounts",
+      "POST /api/admin/impersonate",
+      "GET /api/notifications, PATCH /api/notifications/{id}/read",
+      "GET /api/user/api_keys, POST /api/user/api_keys/generate, DELETE /api/user/api_keys/{id}",
+      "POST /api/billing/portal, POST /api/billing/cancel, POST /api/billing/change_plan"
+    ]
+  }
+}

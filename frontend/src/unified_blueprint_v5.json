@@ -1,0 +1,1060 @@
+{
+  "version": "Unified SaaS Blueprint v5 - Enterprise Grade",
+  "timestamp": "2025-10-14T00:00:00Z",
+  "platform": "Empire Trading Hub",
+  "architecture": "Three-tier with Supabase, NATS, and multi-broker integration",
+  
+  "unified_routes_v5": {
+    "api_gateway": {
+      "base_url": "/api/unify/v1",
+      "routes": [
+        {
+          "path": "/order",
+          "method": "POST",
+          "auth": "Bearer {api_key}",
+          "description": "Place order across any broker",
+          "request_schema": "OrderIntent",
+          "response_schema": "OrderResponse",
+          "rate_limit": "plan-based"
+        },
+        {
+          "path": "/order/{order_id}",
+          "method": "DELETE",
+          "auth": "Bearer {api_key}",
+          "description": "Cancel pending order",
+          "rate_limit": "plan-based"
+        },
+        {
+          "path": "/positions",
+          "method": "GET",
+          "auth": "Bearer {api_key}",
+          "description": "Get all open positions",
+          "query_params": ["broker", "symbol"],
+          "response_schema": "Position[]"
+        },
+        {
+          "path": "/positions/{position_id}",
+          "method": "PUT",
+          "auth": "Bearer {api_key}",
+          "description": "Modify position SL/TP",
+          "request_schema": "PositionUpdate"
+        },
+        {
+          "path": "/positions/{position_id}",
+          "method": "DELETE",
+          "auth": "Bearer {api_key}",
+          "description": "Close position"
+        },
+        {
+          "path": "/risk",
+          "method": "GET",
+          "auth": "Bearer {api_key}",
+          "description": "Get risk settings",
+          "response_schema": "RiskProfile"
+        },
+        {
+          "path": "/risk",
+          "method": "PUT",
+          "auth": "Bearer {api_key}",
+          "description": "Update risk settings",
+          "request_schema": "RiskProfile"
+        },
+        {
+          "path": "/webhook/{broker}",
+          "method": "POST",
+          "auth": "HMAC-SHA256",
+          "description": "TradingView webhook endpoint",
+          "request_schema": "WebhookEnvelope",
+          "response_schema": "WebhookResponse"
+        },
+        {
+          "path": "/health",
+          "method": "GET",
+          "auth": "none",
+          "description": "System health check",
+          "response": {
+            "status": "healthy|degraded|down",
+            "brokers": {
+              "tradelocker": "operational",
+              "topstep": "operational",
+              "truforex": "operational"
+            },
+            "latency_ms": 42
+          }
+        },
+        {
+          "path": "/metrics",
+          "method": "GET",
+          "auth": "none",
+          "description": "Prometheus metrics",
+          "format": "text/plain"
+        }
+      ]
+    },
+    
+    "legacy_broker_routes": {
+      "tradelocker": [
+        "/hub/order",
+        "/hub/order/close",
+        "/positions",
+        "/positions/update",
+        "/webhook/tradelocker",
+        "/dashboard/sync"
+      ],
+      "topstep": [
+        "/api/order/place",
+        "/api/order/closeContract",
+        "/api/position/update",
+        "/fetch_active_contracts",
+        "/projectx/thread/start"
+      ],
+      "truforex": [
+        "/mt4_signal",
+        "/mt5_signal",
+        "/tv_mt4_signal",
+        "/tv_mt5_signal",
+        "/execution_report",
+        "/positions_sync"
+      ],
+      "migration_strategy": "Route legacy endpoints to /api/unify/v1/* with deprecation headers"
+    }
+  },
+  
+  "supabase_schema_v5": {
+    "tables": [
+      {
+        "name": "profiles",
+        "description": "User profiles with plan tier",
+        "columns": [
+          {"name": "id", "type": "uuid", "primary_key": true, "default": "auth.uid()"},
+          {"name": "email", "type": "text", "unique": true, "not_null": true},
+          {"name": "name", "type": "text"},
+          {"name": "role", "type": "text", "default": "'user'", "check": "role IN ('admin', 'user', 'viewer')"},
+          {"name": "plan_tier", "type": "text", "default": "'starter'", "check": "plan_tier IN ('starter', 'pro', 'elite')"},
+          {"name": "trial_end", "type": "timestamptz"},
+          {"name": "totp_secret", "type": "text"},
+          {"name": "totp_enabled", "type": "boolean", "default": false},
+          {"name": "created_at", "type": "timestamptz", "default": "now()"},
+          {"name": "updated_at", "type": "timestamptz", "default": "now()"}
+        ],
+        "indexes": ["email", "role", "plan_tier"],
+        "rls_enabled": true,
+        "rls_policies": [
+          {
+            "name": "Users can view own profile",
+            "operation": "SELECT",
+            "check": "auth.uid() = id"
+          },
+          {
+            "name": "Users can update own profile",
+            "operation": "UPDATE",
+            "check": "auth.uid() = id"
+          },
+          {
+            "name": "Admins can view all profiles",
+            "operation": "SELECT",
+            "check": "auth.jwt() ->> 'role' = 'admin'"
+          }
+        ]
+      },
+      {
+        "name": "broker_accounts",
+        "description": "Connected broker accounts with encrypted credentials",
+        "columns": [
+          {"name": "id", "type": "uuid", "primary_key": true, "default": "gen_random_uuid()"},
+          {"name": "user_id", "type": "uuid", "references": "profiles(id)", "on_delete": "CASCADE"},
+          {"name": "broker", "type": "text", "not_null": true, "check": "broker IN ('tradelocker', 'topstep', 'truforex')"},
+          {"name": "account_name", "type": "text"},
+          {"name": "account_id", "type": "text"},
+          {"name": "api_key", "type": "text", "unique": true, "not_null": true},
+          {"name": "api_key_hash", "type": "text", "not_null": true},
+          {"name": "credentials_encrypted", "type": "text"},
+          {"name": "status", "type": "text", "default": "'connected'", "check": "status IN ('connected', 'disconnected', 'error')"},
+          {"name": "last_sync", "type": "timestamptz"},
+          {"name": "balance", "type": "numeric(15,2)"},
+          {"name": "equity", "type": "numeric(15,2)"},
+          {"name": "created_at", "type": "timestamptz", "default": "now()"},
+          {"name": "updated_at", "type": "timestamptz", "default": "now()"}
+        ],
+        "indexes": ["user_id", "broker", "api_key_hash"],
+        "rls_enabled": true,
+        "rls_policies": [
+          {
+            "name": "Users can view own accounts",
+            "operation": "SELECT",
+            "check": "auth.uid() = user_id"
+          },
+          {
+            "name": "Users can insert own accounts",
+            "operation": "INSERT",
+            "check": "auth.uid() = user_id"
+          },
+          {
+            "name": "Admins can view all accounts",
+            "operation": "SELECT",
+            "check": "auth.jwt() ->> 'role' = 'admin'"
+          }
+        ]
+      },
+      {
+        "name": "risk_settings",
+        "description": "Per-broker risk configuration",
+        "columns": [
+          {"name": "id", "type": "uuid", "primary_key": true, "default": "gen_random_uuid()"},
+          {"name": "user_id", "type": "uuid", "references": "profiles(id)", "on_delete": "CASCADE"},
+          {"name": "broker", "type": "text", "not_null": true},
+          {"name": "enabled", "type": "boolean", "default": true},
+          {"name": "max_daily_loss_usd", "type": "numeric(10,2)", "default": 500},
+          {"name": "max_daily_loss_pct", "type": "numeric(5,2)", "default": 2.0},
+          {"name": "max_trades_per_day", "type": "integer", "default": 10},
+          {"name": "max_open_trades", "type": "integer", "default": 5},
+          {"name": "max_concurrent_positions", "type": "integer", "default": 3},
+          {"name": "max_risk_per_trade_usd", "type": "numeric(10,2)", "default": 100},
+          {"name": "max_risk_per_trade_pct", "type": "numeric(5,2)", "default": 1.0},
+          {"name": "leverage_cap", "type": "numeric(5,2)", "default": 10.0},
+          {"name": "allowed_instruments", "type": "text[]"},
+          {"name": "denied_instruments", "type": "text[]"},
+          {"name": "created_at", "type": "timestamptz", "default": "now()"},
+          {"name": "updated_at", "type": "timestamptz", "default": "now()"}
+        ],
+        "unique_constraint": ["user_id", "broker"],
+        "rls_enabled": true
+      },
+      {
+        "name": "trading_config",
+        "description": "SL/TP/lot size configuration per broker",
+        "columns": [
+          {"name": "id", "type": "uuid", "primary_key": true, "default": "gen_random_uuid()"},
+          {"name": "user_id", "type": "uuid", "references": "profiles(id)", "on_delete": "CASCADE"},
+          {"name": "broker", "type": "text", "not_null": true},
+          {"name": "lot_size_mode", "type": "text", "default": "'fixed'"},
+          {"name": "fixed_lot_size", "type": "numeric(10,2)", "default": 0.01},
+          {"name": "percentage_lot_size", "type": "numeric(5,2)", "default": 1.0},
+          {"name": "sl_mode", "type": "text", "default": "'percentage'"},
+          {"name": "sl_percentage", "type": "numeric(5,2)", "default": 2.0},
+          {"name": "sl_pips", "type": "numeric(10,1)", "default": 20},
+          {"name": "use_trailing_sl", "type": "boolean", "default": false},
+          {"name": "trailing_sl_distance", "type": "numeric(5,2)", "default": 1.0},
+          {"name": "tp_mode", "type": "text", "default": "'percentage'"},
+          {"name": "tp_percentage", "type": "numeric(5,2)", "default": 4.0},
+          {"name": "tp_pips", "type": "numeric(10,1)", "default": 40},
+          {"name": "risk_reward_ratio", "type": "numeric(5,2)", "default": 2.0},
+          {"name": "use_partial_tp", "type": "boolean", "default": false},
+          {"name": "partial_tp_percent", "type": "integer", "default": 50},
+          {"name": "partial_tp_level", "type": "numeric(5,2)", "default": 1.5},
+          {"name": "created_at", "type": "timestamptz", "default": "now()"},
+          {"name": "updated_at", "type": "timestamptz", "default": "now()"}
+        ],
+        "unique_constraint": ["user_id", "broker"],
+        "rls_enabled": true
+      },
+      {
+        "name": "orders",
+        "description": "Order history across all brokers",
+        "columns": [
+          {"name": "id", "type": "uuid", "primary_key": true, "default": "gen_random_uuid()"},
+          {"name": "user_id", "type": "uuid", "references": "profiles(id)", "on_delete": "CASCADE"},
+          {"name": "broker_account_id", "type": "uuid", "references": "broker_accounts(id)"},
+          {"name": "broker", "type": "text", "not_null": true},
+          {"name": "broker_order_id", "type": "text"},
+          {"name": "symbol", "type": "text", "not_null": true},
+          {"name": "side", "type": "text", "not_null": true, "check": "side IN ('BUY', 'SELL')"},
+          {"name": "type", "type": "text", "not_null": true, "check": "type IN ('MARKET', 'LIMIT', 'STOP')"},
+          {"name": "qty", "type": "numeric(15,4)", "not_null": true},
+          {"name": "price", "type": "numeric(15,4)"},
+          {"name": "filled_qty", "type": "numeric(15,4)", "default": 0},
+          {"name": "avg_fill_price", "type": "numeric(15,4)"},
+          {"name": "status", "type": "text", "default": "'PENDING'", "check": "status IN ('PENDING', 'FILLED', 'REJECTED', 'CANCELLED')"},
+          {"name": "reject_reason", "type": "text"},
+          {"name": "tag", "type": "text"},
+          {"name": "timestamp", "type": "timestamptz", "default": "now()"},
+          {"name": "filled_at", "type": "timestamptz"}
+        ],
+        "indexes": ["user_id", "broker", "symbol", "status", "timestamp"],
+        "rls_enabled": true
+      },
+      {
+        "name": "positions",
+        "description": "Open positions across all brokers",
+        "columns": [
+          {"name": "id", "type": "uuid", "primary_key": true, "default": "gen_random_uuid()"},
+          {"name": "user_id", "type": "uuid", "references": "profiles(id)", "on_delete": "CASCADE"},
+          {"name": "broker_account_id", "type": "uuid", "references": "broker_accounts(id)"},
+          {"name": "broker", "type": "text", "not_null": true},
+          {"name": "broker_position_id", "type": "text"},
+          {"name": "symbol", "type": "text", "not_null": true},
+          {"name": "side", "type": "text", "not_null": true, "check": "side IN ('LONG', 'SHORT')"},
+          {"name": "qty", "type": "numeric(15,4)", "not_null": true},
+          {"name": "entry_price", "type": "numeric(15,4)", "not_null": true},
+          {"name": "current_price", "type": "numeric(15,4)"},
+          {"name": "unrealized_pnl", "type": "numeric(15,2)", "default": 0},
+          {"name": "unrealized_pnl_pct", "type": "numeric(10,4)", "default": 0},
+          {"name": "stop_loss", "type": "numeric(15,4)"},
+          {"name": "take_profit", "type": "numeric(15,4)"},
+          {"name": "tag", "type": "text"},
+          {"name": "open_time", "type": "timestamptz", "default": "now()"},
+          {"name": "updated_at", "type": "timestamptz", "default": "now()"}
+        ],
+        "indexes": ["user_id", "broker", "symbol", "open_time"],
+        "rls_enabled": true
+      },
+      {
+        "name": "logs",
+        "description": "System and trading logs",
+        "columns": [
+          {"name": "id", "type": "uuid", "primary_key": true, "default": "gen_random_uuid()"},
+          {"name": "user_id", "type": "uuid", "references": "profiles(id)", "on_delete": "CASCADE"},
+          {"name": "broker", "type": "text"},
+          {"name": "level", "type": "text", "not_null": true, "check": "level IN ('success', 'info', 'warning', 'error')"},
+          {"name": "type", "type": "text", "not_null": true, "check": "type IN ('order', 'position', 'webhook', 'risk', 'sync', 'auth')"},
+          {"name": "message", "type": "text", "not_null": true},
+          {"name": "details", "type": "jsonb"},
+          {"name": "correlation_id", "type": "text"},
+          {"name": "timestamp", "type": "timestamptz", "default": "now()"}
+        ],
+        "indexes": ["user_id", "level", "type", "timestamp", "correlation_id"],
+        "rls_enabled": true,
+        "retention": "90 days"
+      },
+      {
+        "name": "webhook_events",
+        "description": "Incoming webhook log",
+        "columns": [
+          {"name": "id", "type": "uuid", "primary_key": true, "default": "gen_random_uuid()"},
+          {"name": "user_id", "type": "uuid", "references": "profiles(id)"},
+          {"name": "broker", "type": "text"},
+          {"name": "source", "type": "text", "default": "'tradingview'"},
+          {"name": "payload", "type": "jsonb", "not_null": true},
+          {"name": "signature", "type": "text"},
+          {"name": "signature_valid", "type": "boolean"},
+          {"name": "processed", "type": "boolean", "default": false},
+          {"name": "processing_error", "type": "text"},
+          {"name": "order_id", "type": "uuid", "references": "orders(id)"},
+          {"name": "received_at", "type": "timestamptz", "default": "now()"},
+          {"name": "processed_at", "type": "timestamptz"}
+        ],
+        "indexes": ["user_id", "broker", "processed", "received_at"],
+        "rls_enabled": true,
+        "retention": "30 days"
+      },
+      {
+        "name": "subscriptions",
+        "description": "Stripe subscription tracking",
+        "columns": [
+          {"name": "id", "type": "uuid", "primary_key": true, "default": "gen_random_uuid()"},
+          {"name": "user_id", "type": "uuid", "references": "profiles(id)", "on_delete": "CASCADE", "unique": true},
+          {"name": "stripe_customer_id", "type": "text", "unique": true},
+          {"name": "stripe_subscription_id", "type": "text", "unique": true},
+          {"name": "plan", "type": "text", "not_null": true, "check": "plan IN ('starter', 'pro', 'elite')"},
+          {"name": "status", "type": "text", "not_null": true, "check": "status IN ('active', 'trialing', 'past_due', 'canceled')"},
+          {"name": "trial_end", "type": "timestamptz"},
+          {"name": "current_period_start", "type": "timestamptz"},
+          {"name": "current_period_end", "type": "timestamptz"},
+          {"name": "cancel_at_period_end", "type": "boolean", "default": false},
+          {"name": "created_at", "type": "timestamptz", "default": "now()"},
+          {"name": "updated_at", "type": "timestamptz", "default": "now()"}
+        ],
+        "indexes": ["user_id", "stripe_customer_id", "status"],
+        "rls_enabled": true
+      },
+      {
+        "name": "admin_actions",
+        "description": "Audit trail for admin operations",
+        "columns": [
+          {"name": "id", "type": "uuid", "primary_key": true, "default": "gen_random_uuid()"},
+          {"name": "admin_user_id", "type": "uuid", "references": "profiles(id)"},
+          {"name": "action", "type": "text", "not_null": true},
+          {"name": "target_user_id", "type": "uuid", "references": "profiles(id)"},
+          {"name": "target_resource", "type": "text"},
+          {"name": "details", "type": "jsonb"},
+          {"name": "ip_address", "type": "inet"},
+          {"name": "timestamp", "type": "timestamptz", "default": "now()"}
+        ],
+        "indexes": ["admin_user_id", "target_user_id", "timestamp"],
+        "rls_enabled": true,
+        "rls_policies": [
+          {
+            "name": "Only admins can view audit log",
+            "operation": "SELECT",
+            "check": "auth.jwt() ->> 'role' = 'admin'"
+          }
+        ]
+      },
+      {
+        "name": "equity_history",
+        "description": "Historical equity for charting",
+        "columns": [
+          {"name": "id", "type": "uuid", "primary_key": true, "default": "gen_random_uuid()"},
+          {"name": "user_id", "type": "uuid", "references": "profiles(id)", "on_delete": "CASCADE"},
+          {"name": "broker", "type": "text", "not_null": true},
+          {"name": "equity", "type": "numeric(15,2)", "not_null": true},
+          {"name": "balance", "type": "numeric(15,2)", "not_null": true},
+          {"name": "unrealized_pnl", "type": "numeric(15,2)", "default": 0},
+          {"name": "timestamp", "type": "timestamptz", "default": "now()"}
+        ],
+        "indexes": ["user_id", "broker", "timestamp"],
+        "rls_enabled": true
+      }
+    ],
+    
+    "functions": [
+      {
+        "name": "update_updated_at",
+        "language": "plpgsql",
+        "returns": "trigger",
+        "body": "BEGIN NEW.updated_at = now(); RETURN NEW; END;"
+      },
+      {
+        "name": "hash_api_key",
+        "language": "plpgsql",
+        "parameters": ["plaintext text"],
+        "returns": "text",
+        "body": "RETURN encode(digest(plaintext, 'sha256'), 'hex');"
+      },
+      {
+        "name": "verify_api_key",
+        "language": "plpgsql",
+        "parameters": ["plaintext text", "hash text"],
+        "returns": "boolean",
+        "body": "RETURN encode(digest(plaintext, 'sha256'), 'hex') = hash;"
+      }
+    ],
+    
+    "triggers": [
+      {
+        "table": "profiles",
+        "name": "update_profiles_updated_at",
+        "event": "BEFORE UPDATE",
+        "function": "update_updated_at()"
+      },
+      {
+        "table": "broker_accounts",
+        "name": "update_broker_accounts_updated_at",
+        "event": "BEFORE UPDATE",
+        "function": "update_updated_at()"
+      },
+      {
+        "table": "risk_settings",
+        "name": "update_risk_settings_updated_at",
+        "event": "BEFORE UPDATE",
+        "function": "update_updated_at()"
+      }
+    ]
+  },
+  
+  "security_policies_v5": {
+    "jwt_claims": {
+      "aud": "authenticated",
+      "role": "admin | user | viewer",
+      "plan_tier": "starter | pro | elite",
+      "user_id": "uuid",
+      "email": "string"
+    },
+    
+    "rls_enforcement": {
+      "default": "Users can only access their own data",
+      "admin_bypass": "Admins (role=admin) can SELECT across all users",
+      "viewer_restriction": "Viewers can SELECT but not INSERT/UPDATE/DELETE"
+    },
+    
+    "encryption": {
+      "broker_credentials": {
+        "algorithm": "AES-256-GCM",
+        "key_storage": "Supabase Vault or environment variable",
+        "rotation": "90 days or on-demand"
+      },
+      "webhook_secrets": {
+        "algorithm": "HMAC-SHA256",
+        "unique_per_workspace": true,
+        "stored_hashed": true
+      }
+    },
+    
+    "2fa_totp": {
+      "library": "@supabase/auth-js + speakeasy",
+      "qr_code_generation": "qrcode library",
+      "backup_codes": "10 single-use codes, bcrypt hashed",
+      "enforcement": "Optional per user, required for admins"
+    },
+    
+    "rate_limiting": {
+      "starter": "100 requests/min",
+      "pro": "500 requests/min",
+      "elite": "2000 requests/min",
+      "enforcement": "Supabase Edge Function or Traefik middleware"
+    }
+  },
+  
+  "nats_events_v5": {
+    "subjects": [
+      {
+        "name": "ai.trade.exec.request",
+        "description": "Order request received",
+        "publishers": ["webhook handler", "UI"],
+        "subscribers": ["order executor"],
+        "payload": {
+          "user_id": "uuid",
+          "broker": "string",
+          "order": "OrderIntent"
+        }
+      },
+      {
+        "name": "ai.trade.exec.order",
+        "description": "Order placed successfully",
+        "publishers": ["order executor"],
+        "subscribers": ["logs", "UI realtime"],
+        "payload": {
+          "user_id": "uuid",
+          "broker": "string",
+          "order_id": "uuid",
+          "status": "filled"
+        }
+      },
+      {
+        "name": "ai.trade.exec.reject",
+        "description": "Order rejected",
+        "publishers": ["order executor", "risk engine"],
+        "subscribers": ["logs", "UI realtime"],
+        "payload": {
+          "user_id": "uuid",
+          "broker": "string",
+          "reason": "string",
+          "details": "object"
+        }
+      },
+      {
+        "name": "ai.risk.blocked.trade",
+        "description": "Trade blocked by risk limits",
+        "publishers": ["risk engine"],
+        "subscribers": ["logs", "admin dashboard"],
+        "payload": {
+          "user_id": "uuid",
+          "broker": "string",
+          "reason": "max_daily_loss | max_trades | instrument_denied",
+          "limit_value": "number",
+          "current_value": "number"
+        }
+      },
+      {
+        "name": "ai.user.billing.status",
+        "description": "Subscription status changed",
+        "publishers": ["Stripe webhook handler"],
+        "subscribers": ["profiles table updater", "admin dashboard"],
+        "payload": {
+          "user_id": "uuid",
+          "plan": "starter | pro | elite",
+          "status": "active | trialing | past_due | canceled",
+          "trial_end": "timestamp"
+        }
+      },
+      {
+        "name": "ai.user.key.rotated",
+        "description": "API key rotated",
+        "publishers": ["API key manager"],
+        "subscribers": ["audit log", "admin dashboard"],
+        "payload": {
+          "user_id": "uuid",
+          "broker_account_id": "uuid",
+          "old_key_hash": "string",
+          "new_key_hash": "string",
+          "rotated_at": "timestamp"
+        }
+      },
+      {
+        "name": "ai.ops.health.sweep",
+        "description": "Health check completed",
+        "publishers": ["health monitor"],
+        "subscribers": ["UI health banner", "alerting"],
+        "payload": {
+          "status": "healthy | degraded | down",
+          "brokers": {
+            "tradelocker": "operational | degraded | down",
+            "topstep": "operational | degraded | down",
+            "truforex": "operational | degraded | down"
+          },
+          "latency_ms": "number",
+          "timestamp": "timestamp"
+        }
+      },
+      {
+        "name": "ai.log.error",
+        "description": "Critical error occurred",
+        "publishers": ["all services"],
+        "subscribers": ["alerting", "PagerDuty/Slack"],
+        "payload": {
+          "service": "string",
+          "error": "string",
+          "stack_trace": "string",
+          "user_id": "uuid (optional)",
+          "timestamp": "timestamp"
+        }
+      }
+    ]
+  },
+  
+  "figma_bindings_v5": {
+    "components": [
+      {
+        "component": "DashboardOverview",
+        "endpoints": [
+          "GET /api/unify/v1/positions (realtime)",
+          "GET /api/unify/v1/health",
+          "Supabase Realtime: positions:user_id",
+          "Supabase Realtime: health:system"
+        ],
+        "data_fields": [
+          "activeOrders (count)",
+          "openPositions (count)",
+          "dailyPnL (sum)",
+          "totalValue (broker_accounts.equity)",
+          "serverHealth (health.status)",
+          "recentActivity (orders + positions, last 10)"
+        ]
+      },
+      {
+        "component": "RiskHeatmap (NEW)",
+        "endpoints": [
+          "GET /api/unify/v1/positions",
+          "Supabase Realtime: positions:user_id"
+        ],
+        "visualization": "Treemap or grid with color intensity based on position size",
+        "data_fields": [
+          "symbol → size (qty * price)",
+          "unrealized_pnl → color (green/red gradient)",
+          "broker → grouping"
+        ]
+      },
+      {
+        "component": "EquityCurveChart (NEW)",
+        "endpoints": [
+          "SELECT * FROM equity_history WHERE user_id = $1 ORDER BY timestamp"
+        ],
+        "library": "recharts (LineChart)",
+        "data_fields": [
+          "timestamp → x-axis",
+          "equity → y-axis",
+          "broker → color-coded lines"
+        ]
+      },
+      {
+        "component": "DailyDrawdownChart (NEW)",
+        "endpoints": [
+          "SELECT * FROM equity_history WHERE timestamp > (now() - interval '1 day')"
+        ],
+        "library": "recharts (AreaChart)",
+        "data_fields": [
+          "timestamp → x-axis",
+          "(equity - max_equity_today) → y-axis (drawdown)",
+          "max_daily_loss threshold → reference line"
+        ]
+      },
+      {
+        "component": "AccountsManager",
+        "endpoints": [
+          "POST /register (per broker)",
+          "GET /api/unify/v1/accounts",
+          "Supabase: INSERT INTO broker_accounts"
+        ],
+        "data_fields": [
+          "broker_accounts (list)",
+          "generated_api_key (on registration)",
+          "balance, equity (from broker sync)"
+        ]
+      },
+      {
+        "component": "WebhookTemplates",
+        "endpoints": [
+          "GET /api/unify/v1/keys/{user_id}",
+          "Supabase: broker_accounts.api_key"
+        ],
+        "data_fields": [
+          "webhookUrl (auto-generated with api_key)",
+          "authHeader (Bearer {api_key})",
+          "signingSecret (HMAC key)",
+          "templates (JSON payloads)"
+        ]
+      },
+      {
+        "component": "TestAlertPlayground (NEW)",
+        "endpoints": [
+          "POST /api/unify/v1/test-webhook (validation only)"
+        ],
+        "features": [
+          "Parse TradingView JSON",
+          "Display extracted: symbol, side, qty, sl, tp",
+          "Visual preview: entry/SL/TP on mini chart",
+          "Validation errors highlighted"
+        ]
+      },
+      {
+        "component": "TradingConfiguration",
+        "endpoints": [
+          "GET /api/unify/v1/risk",
+          "PUT /api/unify/v1/risk",
+          "Supabase: trading_config table"
+        ],
+        "data_fields": [
+          "lot_size_mode, fixed_lot_size, percentage_lot_size",
+          "sl_mode, sl_percentage, sl_pips, trailing_sl",
+          "tp_mode, tp_percentage, tp_pips, risk_reward_ratio",
+          "partial_tp settings"
+        ]
+      },
+      {
+        "component": "RiskControls",
+        "endpoints": [
+          "GET /api/unify/v1/risk",
+          "PUT /api/unify/v1/risk",
+          "Supabase: risk_settings table"
+        ],
+        "data_fields": [
+          "max_daily_loss, max_trades_per_day, max_open_trades",
+          "max_concurrent_positions, leverage_cap",
+          "allowed/denied instruments, trading_hours"
+        ]
+      },
+      {
+        "component": "OrdersManager",
+        "endpoints": [
+          "GET /api/unify/v1/orders?user_id={user_id}&broker={broker}",
+          "DELETE /api/unify/v1/order/{order_id}",
+          "Supabase Realtime: orders:user_id"
+        ],
+        "data_fields": [
+          "orders (list with status, timestamp, filled_qty)"
+        ]
+      },
+      {
+        "component": "PositionsMonitor",
+        "endpoints": [
+          "GET /api/unify/v1/positions?user_id={user_id}&broker={broker}",
+          "PUT /api/unify/v1/positions/{position_id} (modify SL/TP)",
+          "DELETE /api/unify/v1/positions/{position_id} (close)",
+          "Supabase Realtime: positions:user_id"
+        ],
+        "data_fields": [
+          "positions (list with real-time unrealized_pnl)"
+        ]
+      },
+      {
+        "component": "ApiKeyManager",
+        "endpoints": [
+          "GET /api/unify/v1/keys",
+          "POST /api/unify/v1/keys (create)",
+          "PUT /api/unify/v1/keys/{id}/rotate",
+          "DELETE /api/unify/v1/keys/{id}",
+          "Supabase: broker_accounts.api_key"
+        ],
+        "data_fields": [
+          "api_keys (list with created_at, last_used)",
+          "webhook_secrets"
+        ]
+      },
+      {
+        "component": "BillingPortal",
+        "endpoints": [
+          "GET /api/unify/v1/subscription",
+          "POST /api/unify/v1/subscription/checkout (Stripe)",
+          "POST /api/unify/v1/subscription/portal (Stripe)",
+          "Supabase: subscriptions table"
+        ],
+        "data_fields": [
+          "current_plan, status, trial_end, next_billing_date",
+          "payment_method (from Stripe)",
+          "usage_stats (trades_used_this_month)"
+        ]
+      },
+      {
+        "component": "AdminPanel",
+        "endpoints": [
+          "GET /api/unify/v1/admin/users (all users)",
+          "PUT /api/unify/v1/admin/users/{id} (impersonate/suspend)",
+          "GET /api/unify/v1/admin/stats",
+          "Supabase: profiles (admin bypasses RLS)"
+        ],
+        "data_fields": [
+          "users (all), system_stats (total_users, total_revenue, active_trades)"
+        ]
+      },
+      {
+        "component": "LogsViewer",
+        "endpoints": [
+          "GET /api/unify/v1/logs?user_id={user_id}&level={level}&type={type}",
+          "Supabase Realtime: logs:user_id (tail mode)"
+        ],
+        "data_fields": [
+          "logs (list with level, type, message, details, correlation_id)"
+        ]
+      },
+      {
+        "component": "HealthStatusBanner (NEW)",
+        "endpoints": [
+          "GET /api/unify/v1/health",
+          "Supabase Realtime: health:system"
+        ],
+        "display": "Top banner with color: green (healthy), yellow (degraded), red (down)",
+        "data_fields": [
+          "status, brokers.{broker}.status, latency_ms"
+        ]
+      },
+      {
+        "component": "ThemeToggle (NEW)",
+        "endpoints": "none",
+        "action": "Toggle CSS :root variables between light/dark, persist to localStorage"
+      }
+    ]
+  },
+  
+  "monetization_v5": {
+    "plans": [
+      {
+        "id": "starter",
+        "name": "Starter",
+        "price_monthly": 29,
+        "price_annually": 290,
+        "trial_days": 3,
+        "features": {
+          "brokers": 1,
+          "trades_per_month": 100,
+          "api_rate_limit": "100 req/min",
+          "risk_controls": "basic",
+          "support": "email",
+          "webhooks": 1,
+          "accounts_per_broker": 1
+        }
+      },
+      {
+        "id": "pro",
+        "name": "Pro",
+        "price_monthly": 79,
+        "price_annually": 790,
+        "trial_days": 7,
+        "features": {
+          "brokers": 3,
+          "trades_per_month": "unlimited",
+          "api_rate_limit": "500 req/min",
+          "risk_controls": "advanced (heatmap, equity curve)",
+          "support": "priority email + chat",
+          "webhooks": "unlimited",
+          "accounts_per_broker": 5,
+          "2fa": true
+        },
+        "popular": true
+      },
+      {
+        "id": "elite",
+        "name": "Elite",
+        "price_monthly": 199,
+        "price_annually": 1990,
+        "trial_days": 14,
+        "features": {
+          "brokers": "unlimited",
+          "trades_per_month": "unlimited",
+          "api_rate_limit": "2000 req/min",
+          "risk_controls": "enterprise (custom rules, SOC-2 logs)",
+          "support": "dedicated account manager + phone",
+          "webhooks": "unlimited",
+          "accounts_per_broker": "unlimited",
+          "2fa": true,
+          "white_label": true,
+          "api_access": "full REST + WebSocket",
+          "sla": "99.9% uptime"
+        }
+      }
+    ],
+    
+    "revenue_projection": {
+      "baseline_v4": {
+        "arpu": 49,
+        "conversion_rate": 0.15,
+        "daily_revenue_per_100_signups": 7.35
+      },
+      "projected_v5": {
+        "weighted_arpu": 89,
+        "conversion_rate": 0.22,
+        "daily_revenue_per_100_signups": 19.58,
+        "uplift_percent": 166,
+        "drivers": [
+          "Tiered pricing captures high-value Elite segment",
+          "Improved onboarding + trial (3-14 days) increases conversions",
+          "Risk heatmap + equity curve = 35% upgrade to Pro",
+          "Multi-broker support = 15% upgrade to Elite"
+        ]
+      }
+    },
+    
+    "stripe_webhook_events": [
+      "customer.subscription.created",
+      "customer.subscription.updated",
+      "customer.subscription.deleted",
+      "invoice.payment_succeeded",
+      "invoice.payment_failed"
+    ]
+  },
+  
+  "json_schemas_v5": {
+    "OrderIntent": {
+      "type": "object",
+      "required": ["broker", "side", "type", "symbol", "qty_mode", "qty"],
+      "properties": {
+        "broker": {"type": "string", "enum": ["tradelocker", "topstep", "truforex"]},
+        "side": {"type": "string", "enum": ["buy", "sell"]},
+        "type": {"type": "string", "enum": ["market", "limit", "stop"]},
+        "symbol": {"type": "string"},
+        "qty_mode": {"type": "string", "enum": ["fixed_qty", "risk_usd", "risk_pct"]},
+        "qty": {"type": "number", "minimum": 0.01},
+        "price": {"type": "number"},
+        "sl": {
+          "type": "object",
+          "properties": {
+            "mode": {"enum": ["price", "offset", "atr", "rr"]},
+            "value": {"type": "number"}
+          }
+        },
+        "tp": {
+          "type": "object",
+          "properties": {
+            "mode": {"enum": ["price", "offset", "rr"]},
+            "value": {"type": "number"}
+          }
+        },
+        "trail": {
+          "type": "object",
+          "properties": {
+            "mode": {"enum": ["offset", "atr"]},
+            "value": {"type": "number"}
+          }
+        },
+        "tag": {"type": "string"}
+      }
+    },
+    
+    "RiskProfile": {
+      "type": "object",
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "max_daily_loss_usd": {"type": "number"},
+        "max_daily_loss_pct": {"type": "number"},
+        "max_trades_per_day": {"type": "integer"},
+        "max_open_trades": {"type": "integer"},
+        "max_concurrent_positions": {"type": "integer"},
+        "max_risk_per_trade_usd": {"type": "number"},
+        "max_risk_per_trade_pct": {"type": "number"},
+        "leverage_cap": {"type": "number"},
+        "allowed_instruments": {"type": "array", "items": {"type": "string"}},
+        "denied_instruments": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    
+    "WebhookEnvelope": {
+      "type": "object",
+      "required": ["version", "source", "intent", "ts"],
+      "properties": {
+        "version": {"type": "string", "enum": ["unify.v1"]},
+        "source": {"type": "string", "enum": ["tradingview", "api"]},
+        "intent": {"$ref": "#/definitions/OrderIntent"},
+        "user_context": {
+          "type": "object",
+          "properties": {
+            "account": {"type": "string"},
+            "workspace": {"type": "string"}
+          }
+        },
+        "ts": {"type": "string", "format": "date-time"},
+        "signature": {"type": "string"}
+      }
+    }
+  },
+  
+  "broker_constraints_v5": {
+    "tradelocker": {
+      "min_lot_size": 0.01,
+      "max_lot_size": 100,
+      "lot_step": 0.01,
+      "min_sl_distance_pct": 0.01,
+      "symbols": ["forex", "indices", "commodities"],
+      "leverage_max": 500
+    },
+    "topstep": {
+      "min_contracts": 1,
+      "max_contracts": 50,
+      "contract_step": 1,
+      "min_sl_distance_ticks": 1,
+      "symbols": ["ES", "NQ", "RTY", "YM", "GC", "CL"],
+      "leverage_max": 1,
+      "note": "Futures contracts, not lots"
+    },
+    "truforex": {
+      "min_lot_size": 0.01,
+      "max_lot_size": 100,
+      "lot_step": 0.01,
+      "unit_conversion": "0.01 lots = 1,000 units",
+      "min_sl_distance_pips": 0.1,
+      "symbols": ["forex", "metals", "crypto"],
+      "leverage_max": 500
+    }
+  },
+  
+  "deployment_stack_v5": {
+    "container_orchestration": "Docker Swarm or Kubernetes",
+    "reverse_proxy": "Traefik v2 with Let's Encrypt",
+    "services": [
+      {
+        "name": "empire-gateway",
+        "image": "empire/gateway:v5",
+        "replicas": 3,
+        "ports": ["80:80", "443:443"],
+        "env": ["SUPABASE_URL", "SUPABASE_ANON_KEY", "NATS_URL"]
+      },
+      {
+        "name": "tradelocker-backend",
+        "image": "empire/tradelocker:v4",
+        "replicas": 2,
+        "ports": ["8001:8000"],
+        "env": ["REDIS_URL", "NATS_URL", "SUPABASE_URL"]
+      },
+      {
+        "name": "topstep-backend",
+        "image": "empire/projectx:v4",
+        "replicas": 2,
+        "ports": ["8002:8000"],
+        "env": ["REDIS_URL", "NATS_URL", "SUPABASE_URL"]
+      },
+      {
+        "name": "truforex-backend",
+        "image": "empire/truforex:v4",
+        "replicas": 2,
+        "ports": ["8003:8000"],
+        "env": ["REDIS_URL", "NATS_URL", "SUPABASE_URL", "CELERY_BROKER"]
+      },
+      {
+        "name": "nats-cluster",
+        "image": "nats:2.10-alpine",
+        "replicas": 3,
+        "ports": ["4222:4222"],
+        "cluster": true
+      },
+      {
+        "name": "redis",
+        "image": "redis:7-alpine",
+        "replicas": 1,
+        "ports": ["6379:6379"],
+        "volumes": ["/data/redis:/data"]
+      },
+      {
+        "name": "supabase-kong",
+        "image": "supabase/kong:latest",
+        "ports": ["8000:8000"]
+      },
+      {
+        "name": "supabase-postgres",
+        "image": "supabase/postgres:15",
+        "ports": ["5432:5432"],
+        "volumes": ["/data/postgres:/var/lib/postgresql/data"]
+      }
+    ],
+    "networks": ["ai_bus", "supabase_net"],
+    "volumes": ["redis_data", "postgres_data"],
+    "secrets": ["supabase_jwt_secret", "stripe_webhook_secret", "encryption_key"]
+  }
+}

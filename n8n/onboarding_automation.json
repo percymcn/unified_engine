@@ -1,0 +1,44 @@
+{
+  "name": "User Onboarding Automation",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "start",
+      "name": "When User Signs Up",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "onboarding"
+    },
+    {
+      "parameters": {
+        "url": "http://backend:8000/api/auth/welcome-email",
+        "method": "POST"
+      },
+      "id": "send_welcome",
+      "name": "Send Welcome Email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://backend:8000/api/onboarding/setup",
+        "method": "POST"
+      },
+      "id": "setup_account",
+      "name": "Setup Account",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [650, 300]
+    }
+  ],
+  "connections": {
+    "When User Signs Up": {
+      "main": [[{"node": "Send Welcome Email", "type": "main", "index": 0}]]
+    },
+    "Send Welcome Email": {
+      "main": [[{"node": "Setup Account", "type": "main", "index": 0}]]
+    }
+  }
+}
