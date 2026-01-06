@@ -31,11 +31,16 @@ class EventEmitter:
         if not NATS_AVAILABLE:
             logger.info("NATS not available, using logging fallback")
             return
-        
+
         self.nats_url = nats_url or "nats://localhost:4222"
-        
+
         try:
-            self.nats_client = await nats.connect(self.nats_url)
+            # Try to connect with timeout to avoid blocking startup
+            import asyncio
+            self.nats_client = await asyncio.wait_for(
+                nats.connect(self.nats_url, max_reconnect_attempts=0),
+                timeout=3.0  # 3 second timeout
+            )
             self.nats_connected = True
             logger.info(f"Connected to NATS at {self.nats_url}")
         except Exception as e:
