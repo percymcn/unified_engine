@@ -46,15 +46,40 @@ services:
         reservations:
           memory: 128M
 
+  # NATS Message Bus
+  nats:
+    image: nats:2.10-alpine
+    command:
+      - "--cluster_name=trading"
+      - "--http_port=8223"
+    ports:
+      - "4223:4222"  # Client connections (external:internal)
+      - "8223:8223"  # HTTP monitoring
+    networks:
+      - unified-network
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
+
   # Main FastAPI Application
   api:
-    image: unified-engine/api:latest
+    image: 192.168.1.254:5000/unified-engine/api:latest
     build:
       context: .
       dockerfile: Dockerfile.stack
     environment:
       - DATABASE_URL=postgresql://trading_user:trading_password@postgres:5432/trading_db
       - REDIS_URL=redis://redis:6379/0
+      - NATS_URL=nats://nats:4222
       - SECRET_KEY=unified-secret-key-2024
       - ENVIRONMENT=production
     volumes:
@@ -63,11 +88,11 @@ services:
     networks:
       - unified-network
     deploy:
-      replicas: 2
+      replicas: 1
       placement:
-        constraints:
-          - node.hostname == pharma5
         max_replicas_per_node: 1
+        constraints:
+          - node.role == manager
       restart_policy:
         condition: on-failure
       resources:
@@ -75,15 +100,15 @@ services:
           memory: 512M
         reservations:
           memory: 256M
-      ports:
-        - target: 8000
-          published: 3012
-          protocol: tcp
-          mode: ingress
+    ports:
+      - target: 8000
+        published: 3012
+        protocol: tcp
+        mode: ingress
 
   # Celery Worker
   celery-worker:
-    image: unified-engine/api:latest
+    image: 192.168.1.254:5000/unified-engine/api:latest
     build:
       context: .
       dockerfile: Dockerfile.stack
@@ -101,10 +126,10 @@ services:
     networks:
       - unified-network
     deploy:
-      replicas: 2
+      replicas: 1
       placement:
         constraints:
-          - node.hostname == pharma5
+          - node.role == manager
       restart_policy:
         condition: on-failure
       resources:
@@ -115,7 +140,7 @@ services:
 
   # Celery Beat Scheduler
   celery-beat:
-    image: unified-engine/api:latest
+    image: 192.168.1.254:5000/unified-engine/api:latest
     build:
       context: .
       dockerfile: Dockerfile.stack
@@ -136,7 +161,7 @@ services:
       replicas: 1
       placement:
         constraints:
-          - node.hostname == pharma5
+          - node.role == manager
       restart_policy:
         condition: on-failure
       resources:
@@ -147,7 +172,7 @@ services:
 
   # Flower (Celery Monitoring)
   flower:
-    image: unified-engine/api:latest
+    image: 192.168.1.254:5000/unified-engine/api:latest
     build:
       context: .
       dockerfile: Dockerfile.stack
@@ -175,7 +200,7 @@ services:
 
   # React UI
   ui:
-    image: unified-engine/ui:latest
+    image: 192.168.1.254:5000/unified-engine/ui:latest
     build:
       context: ./ui
       dockerfile: Dockerfile
@@ -195,7 +220,7 @@ services:
 
   # Funnel Automation Service
   funnel-automation:
-    image: unified-engine/api:latest
+    image: 192.168.1.254:5000/unified-engine/api:latest
     build:
       context: .
       dockerfile: Dockerfile.stack
@@ -214,7 +239,7 @@ services:
       replicas: 1
       placement:
         constraints:
-          - node.hostname == pharma5
+          - node.role == manager
       restart_policy:
         condition: on-failure
       resources:
@@ -250,7 +275,7 @@ networks:
 
 configs:
   unified_nginx_conf:
-    name: unified_nginx_conf
+    name: unified_nginx_conf_v2
     external: true
 
 volumes:
