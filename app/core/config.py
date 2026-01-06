@@ -37,7 +37,10 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379"
     REDIS_CACHE_TTL: int = 3600
     REDIS_SESSION_TTL: int = 86400
-    
+
+    # NATS
+    NATS_URL: str = "nats://localhost:4222"
+
     # API
     API_V1_STR: str = "/api/v1"
     CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:8080"]

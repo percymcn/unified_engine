@@ -1,0 +1,8 @@
+HTTP/1.1 200 OK
+date: Sun, 04 Jan 2026 01:07:18 GMT
+server: uvicorn
+content-length: 150
+content-type: application/json
+x-process-time: 0.0010000000183936208
+
+{"status":"healthy","redis":"connected","brokers":{"mt4":true,"mt5":true,"tradelocker":false,"tradovate":true,"projectx":true},"timestamp":202386.602}

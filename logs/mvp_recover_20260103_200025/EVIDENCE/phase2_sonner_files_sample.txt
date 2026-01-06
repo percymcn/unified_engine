@@ -1,0 +1,243 @@
+# ui/src/components/AccountSelectionPage.tsx
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { Button } from './ui/button';
+import { Badge } from './ui/badge';
+import { Checkbox } from './ui/checkbox';
+import { Alert, AlertDescription } from './ui/alert';
+import { CheckCircle, AlertCircle, Loader2, ArrowLeft } from 'lucide-react';
+import { toast } from 'sonner@2.0.3';
+
+interface SyncedAccount {
+  id: string;
+  account_number: string;
+  account_type: 'demo' | 'live' | 'funded';
+  balance: number;
+  status: 'available' | 'in_use' | 'error';
+  broker: string;
+}
+
+interface AccountSelectionPageProps {
+  onComplete: () => void;
+  onBack: () => void;
+}
+
+export function AccountSelectionPage({ onComplete, onBack }: AccountSelectionPageProps) {
+  const [accounts, setAccounts] = useState<SyncedAccount[]>([]);
+  const [selectedAccounts, setSelectedAccounts] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(true);
+  const [activating, setActivating] = useState(false);
+
+  useEffect(() => {
+    fetchSyncedAccounts();
+  }, []);
+
+  const fetchSyncedAccounts = async () => {
+    setLoading(true);
+    try {
+      // Mock data - replace with real API call
+      const mockAccounts: SyncedAccount[] = [
+        {
+          id: '1',
+          account_number: 'PA-123456',
+          account_type: 'funded',
+          balance: 50000,
+          status: 'available',
+          broker: 'Topstep'
+        },
+        {
+          id: '2',
+          account_number: 'PA-789012',
+          account_type: 'funded',
+          balance: 150000,
+          status: 'available',
+          broker: 'Topstep'
+        },
+        {
+          id: '3',
+          account_number: 'PA-345678',
+          account_type: 'demo',
+          balance: 100000,
+          status: 'in_use',
+          broker: 'Topstep'
+        }
+      ];
+      
+      setTimeout(() => {
+        setAccounts(mockAccounts);
+        setLoading(false);
+      }, 800);
+    } catch (error) {
+      toast.error('Failed to load synced accounts');
+      setLoading(false);
+    }
+  };
+
+  const toggleAccountSelection = (accountId: string) => {
+    const newSelection = new Set(selectedAccounts);
+    if (newSelection.has(accountId)) {
+      newSelection.delete(accountId);
+    } else {
+      newSelection.add(accountId);
+    }
+    setSelectedAccounts(newSelection);
+  };
+
+  const handleActivateAccounts = async () => {
+    if (selectedAccounts.size === 0) {
+      toast.error('Please select at least one account');
+      return;
+    }
+
+    setActivating(true);
+    try {
+      // Replace with real API call
+      // await apiClient.post('/api/accounts/activate', {
+      //   account_ids: Array.from(selectedAccounts)
+      // });
+      
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      toast.success(`${selectedAccounts.size} account(s) activated successfully`);
+      onComplete();
+    } catch (error) {
+      toast.error('Failed to activate accounts');
+    } finally {
+      setActivating(false);
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'available':
+        return <Badge className="bg-green-100 text-green-700 border-green-200">Available</Badge>;
+      case 'in_use':
+        return <Badge className="bg-amber-100 text-amber-700 border-amber-200">In Use</Badge>;
+      case 'error':
+        return <Badge className="bg-red-100 text-red-700 border-red-200">Error</Badge>;
+      default:
+        return null;
+    }
+  };
+
+
+# ui/src/components/AccountsManager.tsx
+import { useState, useEffect } from 'react';
+import { Card, CardContent } from './ui/card';
+import { Button } from './ui/button';
+import { Badge } from './ui/badge';
+import { Switch } from './ui/switch';
+import { Plus, Trash2, RefreshCw, CheckCircle, Edit2, ChevronDown, ChevronUp } from 'lucide-react';
+import { useBroker, BrokerType, getBrokerDisplayName } from '../contexts/BrokerContext';
+import { useUser } from '../contexts/UserContext';
+import { toast } from 'sonner@2.0.3';
+import { cn } from './ui/utils';
+import { ApiKeyDisplay } from './ApiKeyDisplay';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
+
+interface Account {
+  id: string;
+  broker: BrokerType;
+  accountId: string;
+  accountName: string;
+  enabled: boolean;
+  connected: boolean;
+  lastSync?: string;
+  balance: number;
+  equity: number;
+  pnl: number;
+  pnlPercent: number;
+  apiKey?: string;  // Generated API key for this account
+}
+
+interface AccountsManagerProps {
+  broker: BrokerType;
+}
+
+export function AccountsManager({ broker }: AccountsManagerProps) {
+  const { connectedBrokers, addBrokerAccount, removeBrokerAccount, refreshBrokerData } = useBroker();
+  const { user } = useUser();
+  
+  // Filter accounts for the current broker
+  const brokerAccounts = connectedBrokers
+    .filter(acc => acc.broker === broker)
+    .map(acc => ({
+      id: acc.accountId,
+      broker: acc.broker,
+      accountId: acc.accountId,
+      accountName: acc.accountName,
+      enabled: acc.connected,
+      connected: acc.connected,
+      lastSync: acc.lastSync,
+      // Mock financial data - in production, fetch from backend
+      balance: Math.random() * 100000,
+      equity: Math.random() * 100000,
+      pnl: 0,
+      pnlPercent: 0,
+      // Generate mock API key - in production, this comes from backend after account registration
+      apiKey: `${broker}_${acc.accountId.slice(0, 8)}_${Math.random().toString(36).substring(2, 15)}`
+    }));
+
+  // Calculate P&L for each account
+  brokerAccounts.forEach(acc => {
+    acc.pnl = acc.equity - acc.balance;
+    acc.pnlPercent = (acc.pnl / acc.balance) * 100;
+  });
+
+  const [accounts, setAccounts] = useState<Account[]>(brokerAccounts);
+  const [isRefreshing, setIsRefreshing] = useState<string | null>(null);
+  const [expandedAccounts, setExpandedAccounts] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    setAccounts(brokerAccounts);
+  }, [connectedBrokers, broker]);
+
+  // Get tier limits
+  const tierLimits = {
+    trial: { brokers: 1, accounts: 1 },
+    starter: { brokers: 1, accounts: 1 },
+    pro: { brokers: 2, accounts: 2 },
+    elite: { brokers: 3, accounts: 3 }
+  };
+
+  const currentTier = user?.plan || 'trial';
+  const limit = tierLimits[currentTier as keyof typeof tierLimits] || tierLimits.trial;
+  const canAddMore = accounts.length < limit.accounts;
+
+  const handleAddAccount = () => {
+    if (!canAddMore) {
+      toast.error(`Upgrade to add more accounts. Current plan allows ${limit.accounts} account(s) per broker.`);
+      return;
+    }
+    // Navigate to connect broker page or open dialog
+    toast.info('Opening add account dialog...');
+  };
+
+  const handleToggle = async (accountId: string) => {
+    setAccounts(accounts.map(acc => 
+      acc.id === accountId ? { ...acc, enabled: !acc.enabled } : acc
+    ));
+    
+    const account = accounts.find(a => a.id === accountId);
+    toast.success(`${account?.accountName} ${!account?.enabled ? 'enabled' : 'disabled'}`);
+  };
+
+  const handleRefresh = async (accountId: string) => {
+    setIsRefreshing(accountId);
+    try {
+      await refreshBrokerData();
+      
+      // Update last sync time
+      setAccounts(accounts.map(acc =>
+        acc.id === accountId
+          ? { ...acc, lastSync: 'Just now' }
+          : acc
+      ));
+      
+      toast.success('Account data refreshed');
+    } catch (error) {
+      toast.error('Failed to refresh account');
+    } finally {
+      setIsRefreshing(null);
+    }
+  };
+

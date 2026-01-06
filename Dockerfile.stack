@@ -1,8 +1,8 @@
-FROM node:20-alpine as ui-build
+FROM node:20-alpine AS ui-build
 
 WORKDIR /app/ui
 COPY ui/package*.json ./
-RUN npm ci --only=production
+RUN npm install --legacy-peer-deps
 
 COPY ui/ ./
 RUN npm run build
@@ -25,7 +25,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Copy built UI
-COPY --from=ui-build /app/ui/dist ./static
+COPY --from=ui-build /app/ui/build ./static
 
 # Create necessary directories
 RUN mkdir -p logs data

@@ -1,0 +1,9 @@
+# unified_engine_stack_ui inspect
+192.168.1.254:5000/unified-engine/ui:latest
+# unified_engine_stack_ui ps
+ID                          NAME                            IMAGE                                         NODE      DESIRED STATE   CURRENT STATE                 ERROR                                       PORTS
+l7mxqifz7evkynxwoe8vorc5m   unified_engine_stack_ui.1       192.168.1.254:5000/unified-engine/ui:latest   pharma4   Running         Running 11 seconds ago                                                    
+b2qff9btoyxg6zopck5qxcrjp    \_ unified_engine_stack_ui.1   unified-engine/ui:latest                      pharma5   Shutdown        Shutdown 17 seconds ago                                                   
+352sd0kgxkvo1iak2n6kgp5rr    \_ unified_engine_stack_ui.1   unified-engine/ui:latest                      pharma5   Shutdown        Rejected 26 seconds ago       "No such image: unified-engine/ui:latest"   
+ou9bpecr9rkhz0cejkhtak3dr    \_ unified_engine_stack_ui.1   unified-engine/ui:latest                      pharma4   Shutdown        Rejected 55 seconds ago       "No such image: unified-engine/ui:latest"   
+ozugcsh043arp5gb1tkbuhyhp    \_ unified_engine_stack_ui.1   unified-engine/ui:latest                      pharma4   Shutdown        Rejected about a minute ago   "No such image: unified-engine/ui:latest"   

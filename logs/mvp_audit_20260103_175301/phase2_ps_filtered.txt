@@ -1,0 +1,271 @@
+    962 /usr/bin/redis-server 127.0.0.1:6379
+   1071 /usr/lib/postgresql/17/bin/postgres -D /var/lib/postgresql/17/main -c config_file=/etc/postgresql/17/main/postgresql.conf
+   1123 postgres: 17/main: checkpointer 
+   1124 postgres: 17/main: background writer 
+   1132 postgres: 17/main: walwriter 
+   1133 postgres: 17/main: autovacuum launcher 
+   1134 postgres: 17/main: logical replication launcher 
+   1236 /usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock
+   4076 redis-server *:6379
+   4107 postgres
+   4132 postgres
+   4180 redis-server *:6379
+   4321 node mcp-server.js
+   4406 /usr/local/bin/python3.9 /usr/local/bin/celery -A app.tasks.celery_app flower --port=5555
+   4421 /usr/bin/docker-proxy -proto tcp -host-ip 0.0.0.0 -host-port 6382 -container-ip 192.168.32.2 -container-port 6379 -use-listen-fd
+   4430 /usr/bin/docker-proxy -proto tcp -host-ip :: -host-port 6382 -container-ip 192.168.32.2 -container-port 6379 -use-listen-fd
+   4616 /usr/bin/docker-proxy -proto tcp -host-ip 0.0.0.0 -host-port 5433 -container-ip 172.22.0.2 -container-port 5432 -use-listen-fd
+   4624 /usr/bin/docker-proxy -proto tcp -host-ip :: -host-port 5433 -container-ip 172.22.0.2 -container-port 5432 -use-listen-fd
+   4833 /usr/local/bin/python3.11 /usr/local/bin/uvicorn api.main:app --host 0.0.0.0 --port 8000
+   4846 postgres
+   4925 registry serve /etc/docker/registry/config.yml
+   4995 /usr/local/bin/python3.11 /usr/local/bin/uvicorn main:app --host 0.0.0.0 --port 8893
+   5137 /usr/bin/docker-proxy -proto tcp -host-ip 0.0.0.0 -host-port 5432 -container-ip 172.19.0.2 -container-port 5432 -use-listen-fd
+   5146 /usr/bin/docker-proxy -proto tcp -host-ip :: -host-port 5432 -container-ip 172.19.0.2 -container-port 5432 -use-listen-fd
+   5183 /usr/bin/docker-proxy -proto tcp -host-ip 0.0.0.0 -host-port 3004 -container-ip 192.168.48.4 -container-port 3000 -use-listen-fd
+   5190 /usr/bin/docker-proxy -proto tcp -host-ip :: -host-port 3004 -container-ip 192.168.48.4 -container-port 3000 -use-listen-fd
+   5292 /usr/bin/docker-proxy -proto tcp -host-ip 0.0.0.0 -host-port 5101 -container-ip 172.26.0.2 -container-port 3000 -use-listen-fd
+   5300 /usr/bin/docker-proxy -proto tcp -host-ip :: -host-port 5101 -container-ip 172.26.0.2 -container-port 3000 -use-listen-fd
+   5329 /usr/bin/docker-proxy -proto tcp -host-ip 0.0.0.0 -host-port 8501 -container-ip 172.31.0.2 -container-port 8501 -use-listen-fd
+   5337 /usr/bin/docker-proxy -proto tcp -host-ip :: -host-port 8501 -container-ip 172.31.0.2 -container-port 8501 -use-listen-fd
+   5457 /usr/bin/docker-proxy -proto tcp -host-ip 0.0.0.0 -host-port 5555 -container-ip 172.19.0.3 -container-port 5555 -use-listen-fd
+   5466 /usr/bin/docker-proxy -proto tcp -host-ip :: -host-port 5555 -container-ip 172.19.0.3 -container-port 5555 -use-listen-fd
+   5476 node healthcheck.js
+   5484 /usr/bin/docker-proxy -proto tcp -host-ip 0.0.0.0 -host-port 8002 -container-ip 172.31.0.3 -container-port 8000 -use-listen-fd
+   5490 /usr/bin/docker-proxy -proto tcp -host-ip :: -host-port 8002 -container-ip 172.31.0.3 -container-port 8000 -use-listen-fd
+   5530 /usr/bin/docker-proxy -proto tcp -host-ip 0.0.0.0 -host-port 8893 -container-ip 172.28.0.2 -container-port 8893 -use-listen-fd
+   5538 /usr/bin/docker-proxy -proto tcp -host-ip :: -host-port 8893 -container-ip 172.28.0.2 -container-port 8893 -use-listen-fd
+   5619 /usr/bin/docker-proxy -proto tcp -host-ip 0.0.0.0 -host-port 5435 -container-ip 192.168.32.3 -container-port 5432 -use-listen-fd
+   5626 /usr/bin/docker-proxy -proto tcp -host-ip :: -host-port 5435 -container-ip 192.168.32.3 -container-port 5432 -use-listen-fd
+   5660 /usr/bin/docker-proxy -proto tcp -host-ip 0.0.0.0 -host-port 11434 -container-ip 192.168.48.5 -container-port 11434 -use-listen-fd
+   5666 /usr/bin/docker-proxy -proto tcp -host-ip :: -host-port 11434 -container-ip 192.168.48.5 -container-port 11434 -use-listen-fd
+   5686 /usr/bin/docker-proxy -proto tcp -host-ip 0.0.0.0 -host-port 5000 -container-ip 172.17.0.2 -container-port 5000 -use-listen-fd
+   5694 /usr/bin/docker-proxy -proto tcp -host-ip :: -host-port 5000 -container-ip 172.17.0.2 -container-port 5000 -use-listen-fd
+   5702 postgres: checkpointer 
+   5703 postgres: background writer 
+   5724 postgres: checkpointer 
+   5725 postgres: background writer 
+   5727 postgres: walwriter 
+   5728 postgres: autovacuum launcher 
+   5729 postgres: walwriter 
+   5730 postgres: logical replication launcher 
+   5731 postgres: autovacuum launcher 
+   5732 postgres: logical replication launcher 
+   5942 postgres: checkpointer 
+   5943 postgres: background writer 
+   5952 postgres: walwriter 
+   5953 postgres: autovacuum launcher 
+   5954 postgres: TimescaleDB Background Worker Launcher 
+   5955 postgres: logical replication launcher 
+   5962 postgres: TimescaleDB Background Worker Scheduler for database 16384 
+   5963 postgres: TimescaleDB Background Worker Scheduler for database 5 
+   6907 node /app/node_modules/.bin/react-scripts start
+   7027 /usr/local/bin/node /app/node_modules/react-scripts/scripts/start.js
+   9317 /usr/bin/docker-proxy -proto tcp -host-ip 0.0.0.0 -host-port 3010 -container-ip 172.21.0.2 -container-port 3000 -use-listen-fd
+   9323 /usr/bin/docker-proxy -proto tcp -host-ip :: -host-port 3010 -container-ip 172.21.0.2 -container-port 3000 -use-listen-fd
+   9348 sh -c node dist/server.js
+   9349 node dist/server.js
+  12615 tini -- /docker-entrypoint.sh
+  12657 registry serve /etc/docker/registry/config.yml
+  12948 node /usr/local/bin/n8n
+  14289 redis-server *:6379
+  14346 postgres
+  14624 postgres
+  14919 sh -c      apt-get update && apt-get install -y docker.io &&     pip install fastapi uvicorn redis docker requests psycopg2-binary pydantic python-multipart aiofiles &&     cd /home/pharma5/fluxempire_master_api &&     python3 app.py   
+  15023 redis-server *:6379
+  15131 redis-server *:6379
+  15296 sh -c      echo 'server { listen 80; root /usr/share/nginx/html; index index.html; location / { try_files $uri $uri/ /index.html; } }' > /etc/nginx/conf.d/default.conf &&     nginx -g 'daemon off;'   
+  15502 postgres
+  15743 postgres: checkpointer 
+  15744 postgres: background writer 
+  15746 postgres: walwriter 
+  15747 postgres: autovacuum launcher 
+  15748 postgres: logical replication launcher 
+  16469 postgres: checkpointer 
+  16470 postgres: background writer 
+  16474 postgres: walwriter 
+  16475 postgres: autovacuum launcher 
+  16476 postgres: logical replication launcher 
+  16542 nginx: master process nginx -g daemon off;
+  16610 nginx: worker process
+  16611 nginx: worker process
+  16612 nginx: worker process
+  16613 nginx: worker process
+  17196 nginx: master process nginx -g daemon off;
+  17261 nginx: master process nginx -g daemon off;
+  17350 nginx: master process nginx -g daemon off;
+  17415 nginx: master process nginx -g daemon off;
+  17510 postgres: checkpointer 
+  17511 postgres: background writer 
+  17514 postgres: walwriter 
+  17515 postgres: autovacuum launcher 
+  17516 postgres: logical replication launcher 
+  17557 nginx: master process nginx -g daemon off;
+  17689 nginx: master process nginx -g daemon off;
+  17721 nginx: worker process
+  17722 nginx: worker process
+  17723 nginx: worker process
+  17724 nginx: worker process
+  17756 nginx: master process nginx -g daemon off;
+  18039 nginx: master process nginx -g daemon off;
+  18046 nginx: worker process
+  18047 nginx: worker process
+  18048 nginx: worker process
+  18049 nginx: worker process
+  18121 nginx: master process nginx -g daemon off;
+  18191 nginx: master process nginx -g daemon off;
+  18447 nginx: worker process
+  18470 nginx: worker process
+  18471 nginx: worker process
+  18472 nginx: worker process
+  18473 nginx: worker process
+  18542 nginx: master process nginx -g daemon off;
+  18890 nginx: worker process
+  18891 nginx: worker process
+  18892 nginx: worker process
+  18893 nginx: worker process
+  18976 nginx: worker process
+  18977 nginx: worker process
+  18978 nginx: worker process
+  18979 nginx: worker process
+  18980 nginx: worker process
+  18981 nginx: worker process
+  18982 nginx: worker process
+  18983 nginx: worker process
+  19102 nginx: worker process
+  19103 nginx: worker process
+  19104 nginx: worker process
+  19105 nginx: worker process
+  19335 node index.js
+  19380 nginx: master process nginx -g daemon off;
+  19431 nginx: worker process
+  19432 nginx: worker process
+  19433 nginx: worker process
+  19434 nginx: worker process
+  19537 nginx: master process nginx -g daemon off;
+  19729 nginx: worker process
+  19730 nginx: worker process
+  19731 nginx: worker process
+  19732 nginx: worker process
+  19739 nginx: worker process
+  19740 nginx: worker process
+  19743 nginx: worker process
+  19747 nginx: worker process
+  19944 postgres
+  20264 /bin/node_exporter
+  20389 grafana server --homepath=/usr/share/grafana --config=/etc/grafana/grafana.ini --packaging=docker cfg:default.log.mode=console cfg:default.paths.data=/var/lib/grafana cfg:default.paths.logs=/var/log/grafana cfg:default.paths.plugins=/var/lib/grafana/plugins cfg:default.paths.provisioning=/etc/grafana/provisioning
+  20901 nginx: worker process
+  20902 nginx: worker process
+  20903 nginx: worker process
+  20904 nginx: worker process
+  21077 nginx: worker process
+  21078 nginx: worker process
+  21079 nginx: worker process
+  21080 nginx: worker process
+  21378 nginx: master process nginx -g daemon off;
+  21434 postgres: checkpointer 
+  21435 postgres: background writer 
+  21456 postgres: walwriter 
+  21457 postgres: autovacuum launcher 
+  21458 postgres: logical replication launcher 
+  21770 nginx: worker process
+  21771 nginx: worker process
+  21772 nginx: worker process
+  21773 nginx: worker process
+  26268 nginx: master process nginx -g daemon off;
+  27812 nginx: worker process
+  27813 nginx: worker process
+  27814 nginx: worker process
+  27815 nginx: worker process
+  28243 nginx: master process nginx -g daemon off;
+  29687 /usr/local/bin/python3.11 /usr/local/bin/uvicorn api.main:app --host 0.0.0.0 --port 8000
+  29799 /usr/local/bin/python3.11 /usr/local/bin/uvicorn api.main:app --host 0.0.0.0 --port 8000
+  30160 nginx: worker process
+  30161 nginx: worker process
+  30167 nginx: worker process
+  30168 nginx: worker process
+  35933 /usr/local/bin/python3.11 /usr/local/bin/uvicorn main:app --host 0.0.0.0 --port 3101
+  36132 /usr/local/bin/python3.11 /usr/local/bin/uvicorn main:app --host 0.0.0.0 --port 3101
+  36655 node mcp-server.js
+  37871 node healthcheck.js
+  39537 nginx: master process nginx -g daemon off;
+  41806 nginx: worker process
+ 213598 /usr/local/bin/python3.11 /usr/local/bin/celery -A app.celery_app worker --loglevel=info
+ 216869 /usr/local/bin/python3.11 /usr/local/bin/celery -A app.celery_app worker --loglevel=info
+ 216871 /usr/local/bin/python3.11 /usr/local/bin/celery -A app.celery_app worker --loglevel=info
+ 216872 /usr/local/bin/python3.11 /usr/local/bin/celery -A app.celery_app worker --loglevel=info
+ 216873 /usr/local/bin/python3.11 /usr/local/bin/celery -A app.celery_app worker --loglevel=info
+ 743785 /home/pharma5/.opencode/bin/opencode run /home/pharma5/.local/share/opencode/bin/node_modules/pyright/dist/pyright-langserver.js --stdio
+ 753755 /home/pharma5/.opencode/bin/opencode run /home/pharma5/.local/share/opencode/bin/node_modules/bash-language-server/out/cli.js start
+ 817662 redis-server *:6379
+ 817892 grafana server --homepath=/usr/share/grafana --config=/etc/grafana/grafana.ini --packaging=docker cfg:default.log.mode=console cfg:default.paths.data=/var/lib/grafana cfg:default.paths.logs=/var/log/grafana cfg:default.paths.plugins=/var/lib/grafana/plugins cfg:default.paths.provisioning=/etc/grafana/provisioning
+ 817966 redis-server *:6379
+ 818500 redis-server *:6379
+ 818542 redis-server *:6379
+ 818768 postgres
+ 818807 redis-server *:6379
+ 818847 postgres
+ 818923 postgres
+ 820833 postgres: checkpointer 
+ 820834 postgres: background writer 
+ 820968 postgres: walwriter 
+ 820969 postgres: autovacuum launcher 
+ 820970 postgres: logical replication launcher 
+ 821139 postgres: checkpointer 
+ 821140 postgres: background writer 
+ 821152 postgres: walwriter 
+ 821153 postgres: autovacuum launcher 
+ 821154 postgres: logical replication launcher 
+ 821261 postgres: checkpointer 
+ 821262 postgres: background writer 
+ 821290 postgres: walwriter 
+ 821292 postgres: autovacuum launcher 
+ 821305 postgres: logical replication launcher 
+ 826463 nginx: master process nginx -g daemon off;
+ 827411 nginx: worker process
+ 827412 nginx: worker process
+ 827413 nginx: worker process
+ 827414 nginx: worker process
+ 827765 nginx: master process nginx -g daemon off;
+ 828506 nginx: worker process
+ 828507 nginx: worker process
+ 828508 nginx: worker process
+ 828509 nginx: worker process
+ 901439 node /usr/local/bin/codex
+ 901638 /usr/local/lib/node_modules/@openai/codex/vendor/aarch64-unknown-linux-musl/codex/codex
+ 947036 redis-server *:6379
+ 947247 /usr/bin/docker-proxy -proto tcp -host-ip 0.0.0.0 -host-port 27017 -container-ip 172.23.0.2 -container-port 27017 -use-listen-fd
+ 947253 /usr/bin/docker-proxy -proto tcp -host-ip :: -host-port 27017 -container-ip 172.23.0.2 -container-port 27017 -use-listen-fd
+ 947462 /usr/bin/docker-proxy -proto tcp -host-ip 0.0.0.0 -host-port 6380 -container-ip 172.23.0.3 -container-port 6379 -use-listen-fd
+ 947470 /usr/bin/docker-proxy -proto tcp -host-ip :: -host-port 6380 -container-ip 172.23.0.3 -container-port 6379 -use-listen-fd
+ 951691 /bin/bash -c -l source /home/pharma5/.claude/shell-snapshots/snapshot-bash-1767468305567-p1m6a0.sh && { shopt -u extglob || setopt NO_EXTENDED_GLOB; } 2>/dev/null || true && eval 'cd /home/pharma5/ai-telemarketing-platform/backend && MONGODB_URI=mongodb://localhost:27017/ai_telemarketing REDIS_HOST=localhost REDIS_PORT=6379 PORT=5002 npm start > /tmp/backend.log 2>&1 & echo "Backend started with PID: $!" sleep 5 tail -20 /tmp/backend.log' \< /dev/null && pwd -P >| /tmp/claude-6ec9-cwd
+ 954493 sh -c node dist/server.js
+ 954495 node dist/server.js
+ 982247 sh -c vite --port 4001 --host
+ 982248 node /home/pharma5/ai-telemarketing-platform/frontend/node_modules/.bin/vite --port 4001 --host
+ 982518 /home/pharma5/ai-telemarketing-platform/frontend/node_modules/@esbuild/linux-arm64/bin/esbuild --service=0.21.5 --ping
+ 983303 sh -c vite --port 4001 --host
+ 983304 node /home/pharma5/ai-telemarketing-platform/frontend/node_modules/.bin/vite --port 4001 --host
+ 983373 /home/pharma5/ai-telemarketing-platform/frontend/node_modules/@esbuild/linux-arm64/bin/esbuild --service=0.21.5 --ping
+ 993396 node /home/pharma5/fluxeo-tms/node_modules/.bin/next dev
+1009076 node /usr/local/bin/codex
+1009151 /usr/local/lib/node_modules/@openai/codex/vendor/aarch64-unknown-linux-musl/codex/codex
+1015606 tini -- /docker-entrypoint.sh
+1015661 /usr/bin/docker-proxy -proto tcp -host-ip 0.0.0.0 -host-port 5679 -container-ip 192.168.48.2 -container-port 5678 -use-listen-fd
+1015673 /usr/bin/docker-proxy -proto tcp -host-ip :: -host-port 5679 -container-ip 192.168.48.2 -container-port 5678 -use-listen-fd
+1015736 node /usr/local/bin/n8n
+1018013 /usr/local/bin/python3.9 /usr/local/bin/celery -A app.tasks.celery_app worker --loglevel=info
+1021252 /usr/local/bin/python3.9 /usr/local/bin/celery -A app.tasks.celery_app worker --loglevel=info
+1021258 /usr/local/bin/python3.9 /usr/local/bin/celery -A app.tasks.celery_app worker --loglevel=info
+1021262 /usr/local/bin/python3.9 /usr/local/bin/celery -A app.tasks.celery_app worker --loglevel=info
+1021264 /usr/local/bin/python3.9 /usr/local/bin/celery -A app.tasks.celery_app worker --loglevel=info
+1022038 /usr/local/bin/python3.11 /usr/local/bin/uvicorn api.main:app --host 0.0.0.0 --port 8000
+1022822 sh -c npm install && node index.js
+1022882 sh -c npm install && node index.js
+1023107 /usr/local/bin/python3.11 /usr/local/bin/uvicorn main:app --host 0.0.0.0 --port 8003
+1024310 sh -c npm install && node index.js
+1024841 /bin/bash -lc ps -eo pid,cmd | rg -i "(uvicorn|gunicorn|node|vite|nginx|redis|postgres|celery|fastapi|python.*app\.main|docker|swarm|traefik)" | tee /home/pharma5/unified_engine/logs/mvp_audit_20260103_175301/phase2_ps_filtered.txt
+1024847 rg -i (uvicorn|gunicorn|node|vite|nginx|redis|postgres|celery|fastapi|python.*app\.main|docker|swarm|traefik)
+3008316 tini -- /docker-entrypoint.sh
+3009538 node /usr/local/bin/n8n
+3019426 node --disallow-code-generation-from-strings --disable-proto=delete /usr/local/lib/node_modules/n8n/node_modules/.pnpm/@n8n+task-runner@file+packages+@n8n+task-runner_@opentelemetry+api@1.9.0_@opentelemetry_eb51b38615a039445701c88b088f88d0/node_modules/@n8n/task-runner/dist/start.js

@@ -1,0 +1,5 @@
+# id
+uid=1000(pharma5) gid=1003(pharma5) groups=1003(pharma5),4(adm),20(dialout),24(cdrom),27(sudo),29(audio),44(video),46(plugdev),60(games),100(users),107(netdev),989(docker),991(render),995(input),1000(gpio),1001(spi),1002(i2c)
+# ls /var/run/docker.sock
+srw-rw---- 1 root docker 0 Jan  1 11:54 /var/run/docker.sock
+# ls /run/user/1000/docker.sock

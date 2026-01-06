@@ -1,0 +1,14 @@
+# unified_engine_stack_api inspect
+[{"Protocol":"tcp","TargetPort":8000,"PublishedPort":3012,"PublishMode":"ingress"}]
+
+# unified_engine_stack_ui inspect
+[{"Protocol":"tcp","TargetPort":80,"PublishedPort":3411,"PublishMode":"ingress"}]
+
+# unified_engine_stack_nginx inspect
+null
+
+# trading_api inspect
+null
+
+# trading_ui inspect
+null

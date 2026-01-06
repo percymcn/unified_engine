@@ -1,153 +1,104 @@
-# Quick Start Guide - Running UI Locally
+# TradeFlow MVP - Quick Start Guide
 
-## Prerequisites
+**Status:** 85% Complete - 2 fixes needed before production
 
-- Node.js 18+ and npm
-- Python 3.9+
-- PostgreSQL 12+
-- Redis 6+
+---
 
-## Step-by-Step Setup
+## ⚡ TL;DR - What You Need to Do
 
-### 1. Backend Setup (Terminal 1)
-
+### Step 1: Fix UI Build (5 minutes)
 ```bash
-# Navigate to project
-cd /home/pharma5/unified_engine
-
-# Activate virtual environment
-source venv/bin/activate
-
-# Install dependencies (if not already installed)
-pip install -r requirements.txt
-
-# Set up environment variables
-cp .env.example .env
-# Edit .env with your database credentials
-
-# Initialize database
-alembic upgrade head
-
-# Start backend server (with automatic port finding)
-python run_backend.py
-
-# Or use specific port:
-# PORT=8000 python run_backend.py
-
-# Or use traditional method:
-# uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-✅ Backend will automatically find a free port starting from 8000  
-📚 API Docs: `http://localhost:<PORT>/docs`  
-💡 The assigned port will be displayed in the console output
-
-### 2. Frontend Setup (Terminal 2)
-
-```bash
-# Navigate to UI directory
 cd /home/pharma5/unified_engine/ui
-
-# Install dependencies
-npm install
-
-# Create environment file (optional)
-# Note: Backend port will be auto-detected if using run_backend.py
-echo "VITE_API_BASE_URL=http://localhost:8000" > .env.local
-
-# Start development server (with automatic port finding)
-npm run dev:free
-
-# Or use specific port:
-# PORT=3000 npm run dev:free
-
-# Or use traditional method:
-# npm run dev
+npm install --legacy-peer-deps
+cd ..
+docker build -t unified-engine/ui:latest ./ui
 ```
 
-✅ Frontend will automatically find a free port starting from 3000  
-💡 The assigned port will be displayed in the console output
+### Step 2: Fix Docker Swarm (10 minutes)
+**Option A (Recommended):** Edit `docker-stack.yml` and replace all `./logs:/app/logs` and `./data:/app/data` with named volumes
 
-### 3. Verify Setup
-
+**OR Option B (Quick):** Force everything to run on pharma5:
 ```bash
-# Check backend health (use the port shown in console output)
-# Example: curl http://localhost:8000/health
-# Or if backend found port 8001: curl http://localhost:8001/health
-
-# Check frontend (use the port shown in console output)
-# Example: Open http://localhost:3000 in browser
-# Or if frontend found port 3001: Open http://localhost:3001
+# Add to ALL services in docker-stack.yml under deploy.placement.constraints:
+- node.hostname == pharma5
 ```
 
-💡 **Note:** Both backend and frontend will display their assigned ports in the console.  
-💡 **Tip:** The frontend will automatically connect to the backend port shown in the backend console.
-
-## Using Docker (Alternative)
-
+### Step 3: Deploy Services (5 minutes)
 ```bash
-# Start all services
-docker-compose up -d
-
-# View logs
-docker-compose logs -f api
-
-# Stop services
-docker-compose down
+cd /home/pharma5/unified_engine
+docker service scale unified_engine_stack_celery-worker=2
+docker service scale unified_engine_stack_celery-beat=1
+docker service scale unified_engine_stack_flower=1
+docker service scale unified_engine_stack_ui=1
+docker service scale unified_engine_stack_nginx=1
 ```
 
-## Troubleshooting
-
-### Backend won't start
-- Check PostgreSQL is running: `sudo systemctl status postgresql`
-- Check Redis is running: `redis-cli ping`
-- Verify `.env` file has correct database URL
-
-### Frontend won't start
-- Clear node_modules: `rm -rf node_modules && npm install`
-- Check port 3000 is available: `lsof -i :3000`
-- Verify backend is running (check console for assigned port)
-- If using `dev:free`, ensure scripts/find-port.js is executable: `chmod +x ui/scripts/find-port.js`
-
-### Database errors
-- Run migrations: `alembic upgrade head`
-- Check database exists: `psql -l | grep trading_db`
-
-## Enterprise Features
-
-### Analytics Dashboard
-Access the analytics dashboard at `/analytics` (requires admin or premium subscription):
-- User signups over time
-- Subscription distribution
-- Revenue statistics
-- API usage metrics
-
-### Dark Mode
-Toggle dark/light mode using the theme switcher in the top bar.
-
-### Notifications
-- Real-time in-app notifications via WebSocket
-- Email notifications (configure SMTP in `.env`)
-- Notification preferences in user settings
-
-### Docker Deployment
+### Step 4: Verify (2 minutes)
 ```bash
-# Start all services with Docker
-docker-compose -f docker-compose.prod.yml up -d
-
-# View logs
-docker-compose -f docker-compose.prod.yml logs -f
+curl http://192.168.1.254:3012/health
+curl http://192.168.1.254:3411
+docker service ls | grep unified_engine_stack
 ```
 
-## Next Steps
+---
 
-1. Create a user account via API or admin script
-2. Login through the UI
-3. Access analytics dashboard (admin/premium)
-4. Configure notification preferences
-5. Add your first broker account
-6. Start trading!
+## 📊 Current Status
 
-For detailed setup, see [SETUP_GUIDE.md](./SETUP_GUIDE.md)  
-For deployment options, see [DEPLOYMENT.md](./DEPLOYMENT.md)  
-For enterprise features, see [ENTERPRISE_FEATURES_COMPLETE.md](./ENTERPRISE_FEATURES_COMPLETE.md)
+| Component | Status | Action Needed |
+|-----------|--------|---------------|
+| Backend API | ✅ Working | None |
+| Database | ✅ Working | None |
+| Redis | ✅ Working | None |
+| Migrations | ✅ Applied | None |
+| Frontend UI | ❌ Failed Build | Fix npm deps |
+| Celery Workers | ❌ Not Running | Fix Swarm placement |
+| Flower Monitor | ❌ Not Running | Fix Swarm placement |
+
+---
+
+## 🔗 Service URLs (After Fixes)
+
+- API: http://192.168.1.254:3012
+- API Docs: http://192.168.1.254:3012/docs
+- Health: http://192.168.1.254:3012/health
+- Frontend: http://192.168.1.254:3411
+- Nginx: http://192.168.1.254:3013
+- Flower: http://192.168.1.254:5558
+
+---
+
+## 📖 Full Documentation
+
+For detailed instructions, see:
+- `MANUAL_STEPS_REQUIRED.md` - Complete manual steps guide
+- `RALPH_LOOP_COMPLETION_SUMMARY.md` - Full automation summary
+- `deploy.sh` - Automated deployment script
+
+---
+
+## ❓ Quick Troubleshooting
+
+**UI won't build?**
+```bash
+cd ui
+rm -rf node_modules package-lock.json
+npm cache clean --force
+npm install --legacy-peer-deps
+```
+
+**Services won't start?**
+```bash
+docker service logs unified_engine_stack_celery-worker
+docker service ps unified_engine_stack_celery-worker --no-trunc
+```
+
+**Need to restart everything?**
+```bash
+docker stack rm unified_engine_stack
+sleep 10
+docker stack deploy -c docker-stack.yml unified_engine_stack
+```
+
+---
+
+**Total Time to Production:** ~20 minutes if you follow the steps above

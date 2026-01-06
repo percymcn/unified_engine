@@ -1,0 +1,400 @@
+On branch main
+Your branch is up to date with 'origin/main'.
+
+Changes not staged for commit:
+  (use "git add/rm <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   .claude/settings.local.json
+	modified:   Dockerfile.stack
+	modified:   QUICK_START.md
+	modified:   deploy.sh
+	modified:   docker-stack.yml
+	deleted:    frontend/.env.example
+	deleted:    frontend/.gitignore
+	deleted:    frontend/.npmrc
+	deleted:    frontend/PROJECT_STATUS.md
+	deleted:    frontend/README.md
+	deleted:    frontend/SETUP.md
+	deleted:    frontend/index-debug.html
+	deleted:    frontend/index-standalone.html
+	deleted:    frontend/index.html
+	deleted:    frontend/package-lock.json
+	deleted:    frontend/package.json
+	deleted:    frontend/src/ACCESSIBILITY_COMPLIANCE.md
+	deleted:    frontend/src/ACCESSIBILITY_FIXES.md
+	deleted:    frontend/src/ACCOUNT_MANAGEMENT_GUIDE.md
+	deleted:    frontend/src/API_KEY_MANAGEMENT_IMPLEMENTATION.md
+	deleted:    frontend/src/API_SAMPLE_PAYLOADS_V6.md
+	deleted:    frontend/src/ARCHITECTURE_VISUAL_V6.md
+	deleted:    frontend/src/AUDIT_V5_GAPS.md
+	deleted:    frontend/src/AUTH_IMPLEMENTATION_GUIDE.md
+	deleted:    frontend/src/App.tsx
+	deleted:    frontend/src/Attributions.md
+	deleted:    frontend/src/BACKEND_API_REQUIREMENTS.json
+	deleted:    frontend/src/BACKEND_API_REQUIREMENTS_GUIDE.md
+	deleted:    frontend/src/BACKEND_ENDPOINTS_CHECKLIST.md
+	deleted:    frontend/src/BACKEND_HTML_INTEGRATION_COMPLETE.md
+	deleted:    frontend/src/BACKEND_INTEGRATION_GUIDE.md
+	deleted:    frontend/src/BRANDING_UPDATE_TRADEFLOW.md
+	deleted:    frontend/src/BROKER_ARCHITECTURE_VISUAL.md
+	deleted:    frontend/src/BROKER_CONTEXT_WIRING_MAP.json
+	deleted:    frontend/src/BROKER_NAVIGATION_BAR_GUIDE.md
+	deleted:    frontend/src/BROKER_SWITCHING_QUICKSTART.md
+	deleted:    frontend/src/CHATBOT_VISUAL_DEMO.md
+	deleted:    frontend/src/COMPLETE_SYSTEM_OVERVIEW.md
+	deleted:    frontend/src/COMPLETE_V6_IMPLEMENTATION_GUIDE.md
+	deleted:    frontend/src/COMPONENT_HIERARCHY_MAP.md
+	deleted:    frontend/src/DYNAMIC_BROKER_IMPLEMENTATION_SUMMARY.md
+	deleted:    frontend/src/DYNAMIC_BROKER_WIRING_GUIDE.md
+	deleted:    frontend/src/DYNAMIC_PLAN_FIX.md
+	deleted:    frontend/src/ERRORS_FIXED.md
+	deleted:    frontend/src/FIGMA_ENTERPRISE_CHECKLIST.md
+	deleted:    frontend/src/FINAL_TESTING_CHECKLIST.md
+	deleted:    frontend/src/FUNCTIONS_FIXED_SUMMARY.md
+	deleted:    frontend/src/IMPLEMENTATION_PRIORITY_V5.md
+	deleted:    frontend/src/INTEGRATION_COMPLETE_SUMMARY.md
+	deleted:    frontend/src/INTEGRATION_FINAL_SUMMARY.md
+	deleted:    frontend/src/LOCAL_SETUP_GUIDE.md
+	deleted:    frontend/src/MASTER_INDEX_V6_BROKER_SWITCHING.md
+	deleted:    frontend/src/MIGRATION_V5_TO_V6.md
+	deleted:    frontend/src/MOBILE_RESPONSIVE_GUIDE.md
+	deleted:    frontend/src/MOCK_VS_REAL_BACKEND.md
+	deleted:    frontend/src/PLAN_DISPLAY_TEST.md
+	deleted:    frontend/src/PRICING_V5_TRADEFLOW.md
+	deleted:    frontend/src/PUBLIC_VS_ADMIN_GUIDE.md
+	deleted:    frontend/src/QUICK_FUNCTION_REFERENCE.md
+	deleted:    frontend/src/QUICK_INTEGRATION_GUIDE.md
+	deleted:    frontend/src/QUICK_START.md
+	deleted:    frontend/src/QUICK_START_V6.md
+	deleted:    frontend/src/QUICK_START_V6_ENHANCED.md
+	deleted:    frontend/src/README_BROKER_SWITCHING.md
+	deleted:    frontend/src/README_V5_ENTERPRISE.md
+	deleted:    frontend/src/README_V6.md
+	deleted:    frontend/src/START_HERE.md
+	deleted:    frontend/src/START_HERE_BACKEND_ANALYSIS.md
+	deleted:    frontend/src/START_HERE_BROKER_SWITCHING.md
+	deleted:    frontend/src/START_HERE_INTEGRATION_COMPLETE.md
+	deleted:    frontend/src/START_HERE_V6.md
+	deleted:    frontend/src/START_HERE_V6_FINAL.md
+	deleted:    frontend/src/SUPPORT_CHATBOT_GUIDE.md
+	deleted:    frontend/src/SYSTEM_ARCHITECTURE_DIAGRAM.md
+	deleted:    frontend/src/TESTING_CHECKLIST.md
+	deleted:    frontend/src/TEST_ALL_FUNCTIONS.md
+	deleted:    frontend/src/THEME_SYSTEM_GUIDE.md
+	deleted:    frontend/src/UI_COMPLETE_SPECIFICATION.json
+	deleted:    frontend/src/USER_JOURNEY_MAP.md
+	deleted:    frontend/src/V5_DELIVERABLES_SUMMARY.md
+	deleted:    frontend/src/V6_DELIVERABLES_COMPLETE.md
+	deleted:    frontend/src/V6_UPGRADE_SUMMARY.md
+	deleted:    frontend/src/VISUAL_ARCHITECTURE_MAP.md
+	deleted:    frontend/src/VISUAL_INTEGRATION_GUIDE.md
+	deleted:    frontend/src/WIRING_MANIFEST_V6.json
+	deleted:    frontend/src/WORKING_FUNCTIONS_GUIDE.md
+	deleted:    frontend/src/components/AccountSelectionPage.tsx
+	deleted:    frontend/src/components/AccountsManager.tsx
+	deleted:    frontend/src/components/AdminAccountsViewer.tsx
+	deleted:    frontend/src/components/AdminDashboard.tsx
+	deleted:    frontend/src/components/AdminLoginPage.tsx
+	deleted:    frontend/src/components/AdminPanel.tsx
+	deleted:    frontend/src/components/AnalyticsPage.tsx
+	deleted:    frontend/src/components/AnimatedBackground.tsx
+	deleted:    frontend/src/components/ApiKeyDisplay.tsx
+	deleted:    frontend/src/components/ApiKeyManager.tsx
+	deleted:    frontend/src/components/BillingGuard.tsx
+	deleted:    frontend/src/components/BillingPortal.tsx
+	deleted:    frontend/src/components/BrokerContextDiagram.tsx
+	deleted:    frontend/src/components/BrokerDataSyncDemo.tsx
+	deleted:    frontend/src/components/BrokerNavigationBar.tsx
+	deleted:    frontend/src/components/BrokerSwitcher.tsx
+	deleted:    frontend/src/components/BrokerSyncIndicator.tsx
+	deleted:    frontend/src/components/BrokerTestPanel.tsx
+	deleted:    frontend/src/components/ChangeAccountPage.tsx
+	deleted:    frontend/src/components/Chatbot.tsx
+	deleted:    frontend/src/components/ConnectBrokerPage.tsx
+	deleted:    frontend/src/components/Dashboard.tsx
+	deleted:    frontend/src/components/DashboardOverview.tsx
+	deleted:    frontend/src/components/EmergencyStopDialog.tsx
+	deleted:    frontend/src/components/LandingPage.tsx
+	deleted:    frontend/src/components/LoginPage.tsx
+	deleted:    frontend/src/components/LogsViewer.tsx
+	deleted:    frontend/src/components/NotFoundPage.tsx
+	deleted:    frontend/src/components/OnboardingPlanSelection.tsx
+	deleted:    frontend/src/components/OrdersManager.tsx
+	deleted:    frontend/src/components/PasswordResetPage.tsx
+	deleted:    frontend/src/components/PositionsMonitor.tsx
+	deleted:    frontend/src/components/QuickActionsPanel.tsx
+	deleted:    frontend/src/components/RiskControls.tsx
+	deleted:    frontend/src/components/SettingsDropdown.tsx
+	deleted:    frontend/src/components/SignupPage.tsx
+	deleted:    frontend/src/components/SyncResultsPage.tsx
+	deleted:    frontend/src/components/ThemeSelector.tsx
+	deleted:    frontend/src/components/TradeFlowLogo.tsx
+	deleted:    frontend/src/components/TradeLockerLogo.tsx
+	deleted:    frontend/src/components/TradingConfiguration.tsx
+	deleted:    frontend/src/components/TrialBanner.tsx
+	deleted:    frontend/src/components/WebhookTemplates.tsx
+	deleted:    frontend/src/components/figma/ImageWithFallback.tsx
+	deleted:    frontend/src/components/ui/accordion.tsx
+	deleted:    frontend/src/components/ui/alert-dialog.tsx
+	deleted:    frontend/src/components/ui/alert.tsx
+	deleted:    frontend/src/components/ui/aspect-ratio.tsx
+	deleted:    frontend/src/components/ui/avatar.tsx
+	deleted:    frontend/src/components/ui/badge.tsx
+	deleted:    frontend/src/components/ui/breadcrumb.tsx
+	deleted:    frontend/src/components/ui/button.tsx
+	deleted:    frontend/src/components/ui/calendar.tsx
+	deleted:    frontend/src/components/ui/card.tsx
+	deleted:    frontend/src/components/ui/carousel.tsx
+	deleted:    frontend/src/components/ui/chart.tsx
+	deleted:    frontend/src/components/ui/checkbox.tsx
+	deleted:    frontend/src/components/ui/collapsible.tsx
+	deleted:    frontend/src/components/ui/command.tsx
+	deleted:    frontend/src/components/ui/context-menu.tsx
+	deleted:    frontend/src/components/ui/dialog.tsx
+	deleted:    frontend/src/components/ui/drawer.tsx
+	deleted:    frontend/src/components/ui/dropdown-menu.tsx
+	deleted:    frontend/src/components/ui/form.tsx
+	deleted:    frontend/src/components/ui/hover-card.tsx
+	deleted:    frontend/src/components/ui/input-otp.tsx
+	deleted:    frontend/src/components/ui/input.tsx
+	deleted:    frontend/src/components/ui/label.tsx
+	deleted:    frontend/src/components/ui/menubar.tsx
+	deleted:    frontend/src/components/ui/navigation-menu.tsx
+	deleted:    frontend/src/components/ui/pagination.tsx
+	deleted:    frontend/src/components/ui/popover.tsx
+	deleted:    frontend/src/components/ui/progress.tsx
+	deleted:    frontend/src/components/ui/radio-group.tsx
+	deleted:    frontend/src/components/ui/resizable.tsx
+	deleted:    frontend/src/components/ui/scroll-area.tsx
+	deleted:    frontend/src/components/ui/select.tsx
+	deleted:    frontend/src/components/ui/separator.tsx
+	deleted:    frontend/src/components/ui/sheet.tsx
+	deleted:    frontend/src/components/ui/sidebar.tsx
+	deleted:    frontend/src/components/ui/skeleton.tsx
+	deleted:    frontend/src/components/ui/slider.tsx
+	deleted:    frontend/src/components/ui/sonner.tsx
+	deleted:    frontend/src/components/ui/switch.tsx
+	deleted:    frontend/src/components/ui/table.tsx
+	deleted:    frontend/src/components/ui/tabs.tsx
+	deleted:    frontend/src/components/ui/textarea.tsx
+	deleted:    frontend/src/components/ui/toggle-group.tsx
+	deleted:    frontend/src/components/ui/toggle.tsx
+	deleted:    frontend/src/components/ui/tooltip.tsx
+	deleted:    frontend/src/components/ui/use-mobile.ts
+	deleted:    frontend/src/components/ui/utils.ts
+	deleted:    frontend/src/contexts/BrokerContext.tsx
+	deleted:    frontend/src/contexts/ThemeContext.tsx
+	deleted:    frontend/src/contexts/UserContext.tsx
+	deleted:    frontend/src/figma_v5_ui_plan.txt
+	deleted:    frontend/src/guidelines/Guidelines.md
+	deleted:    frontend/src/index.css
+	deleted:    frontend/src/main.tsx
+	deleted:    frontend/src/openapi_v5.yaml
+	deleted:    frontend/src/stack_v5.yml
+	deleted:    frontend/src/styles/globals.css
+	deleted:    frontend/src/supabase/functions/server/index.tsx
+	deleted:    frontend/src/supabase/functions/server/kv_store.tsx
+	deleted:    frontend/src/supabase_schema_v5.sql
+	deleted:    frontend/src/unified_blueprint_v5.json
+	deleted:    frontend/src/utils/api-client-enhanced.ts
+	deleted:    frontend/src/utils/api-client.ts
+	deleted:    frontend/src/utils/mock-backend.ts
+	deleted:    frontend/src/utils/mock-data.ts
+	deleted:    frontend/src/utils/stripe-helpers.ts
+	deleted:    frontend/src/utils/supabase/info.tsx
+	deleted:    frontend/vite.config.backup.ts
+	deleted:    frontend/vite.config.ts
+	modified:   requirements.txt
+	modified:   ui/Dockerfile
+	modified:   ui/nginx.conf
+	modified:   ui/package-lock.json
+	modified:   ui/package.json
+	deleted:    ui/scripts/find-port.js
+	deleted:    ui/src/App.jsx
+	deleted:    ui/src/components/analytics/APIUsageChart.jsx
+	deleted:    ui/src/components/analytics/DashboardStats.jsx
+	deleted:    ui/src/components/analytics/RevenueChart.jsx
+	deleted:    ui/src/components/analytics/SubscriptionDistribution.jsx
+	deleted:    ui/src/components/analytics/UserSignupsChart.jsx
+	modified:   ui/src/index.css
+	deleted:    ui/src/index.jsx
+	deleted:    ui/src/pages/Accounts.jsx
+	deleted:    ui/src/pages/Admin.jsx
+	deleted:    ui/src/pages/Analytics.jsx
+	deleted:    ui/src/pages/Apply.jsx
+	deleted:    ui/src/pages/Dashboard.jsx
+	deleted:    ui/src/pages/FreeGuide.jsx
+	deleted:    ui/src/pages/Launchpad.jsx
+	deleted:    ui/src/pages/Positions.jsx
+	deleted:    ui/src/pages/PremiumOffer.jsx
+	deleted:    ui/src/pages/Signals.jsx
+	deleted:    ui/src/pages/Trades.jsx
+	deleted:    ui/src/pages/VSL.jsx
+	deleted:    ui/src/theme/theme.js
+	deleted:    ui/src/utils/api.js
+	deleted:    ui/vite.config.js
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	.env.secrets
+	GAP_ANALYSIS.md
+	INTEGRATION_REPORT.md
+	MANUAL_STEPS_REQUIRED.md
+	NEXT_STEPS.md
+	PORT_ALLOCATION.md
+	RALPH_LOOP_COMPLETION_SUMMARY.md
+	README_FIRST.txt
+	alembic.ini
+	alembic/env.py
+	alembic/versions/002_add_strategy_support_manual.py
+	app_spec.txt
+	broker_sdks/tradelocker-python/
+	harness-takeover-log.txt
+	logs/
+	nginx-reverse-proxy.conf
+	ui.old.backup/
+	ui/.dockerignore
+	ui/.env.example
+	ui/.gitignore
+	ui/.npmrc
+	ui/PROJECT_STATUS.md
+	ui/README.md
+	ui/SETUP.md
+	ui/index-debug.html
+	ui/index-standalone.html
+	ui/index.html
+	ui/src/ACCESSIBILITY_COMPLIANCE.md
+	ui/src/ACCESSIBILITY_FIXES.md
+	ui/src/ACCOUNT_MANAGEMENT_GUIDE.md
+	ui/src/API_KEY_MANAGEMENT_IMPLEMENTATION.md
+	ui/src/API_SAMPLE_PAYLOADS_V6.md
+	ui/src/ARCHITECTURE_VISUAL_V6.md
+	ui/src/AUDIT_V5_GAPS.md
+	ui/src/AUTH_IMPLEMENTATION_GUIDE.md
+	ui/src/App.tsx
+	ui/src/Attributions.md
+	ui/src/BACKEND_API_REQUIREMENTS.json
+	ui/src/BACKEND_API_REQUIREMENTS_GUIDE.md
+	ui/src/BACKEND_ENDPOINTS_CHECKLIST.md
+	ui/src/BACKEND_HTML_INTEGRATION_COMPLETE.md
+	ui/src/BACKEND_INTEGRATION_GUIDE.md
+	ui/src/BRANDING_UPDATE_TRADEFLOW.md
+	ui/src/BROKER_ARCHITECTURE_VISUAL.md
+	ui/src/BROKER_CONTEXT_WIRING_MAP.json
+	ui/src/BROKER_NAVIGATION_BAR_GUIDE.md
+	ui/src/BROKER_SWITCHING_QUICKSTART.md
+	ui/src/CHATBOT_VISUAL_DEMO.md
+	ui/src/COMPLETE_SYSTEM_OVERVIEW.md
+	ui/src/COMPLETE_V6_IMPLEMENTATION_GUIDE.md
+	ui/src/COMPONENT_HIERARCHY_MAP.md
+	ui/src/DYNAMIC_BROKER_IMPLEMENTATION_SUMMARY.md
+	ui/src/DYNAMIC_BROKER_WIRING_GUIDE.md
+	ui/src/DYNAMIC_PLAN_FIX.md
+	ui/src/ERRORS_FIXED.md
+	ui/src/FIGMA_ENTERPRISE_CHECKLIST.md
+	ui/src/FINAL_TESTING_CHECKLIST.md
+	ui/src/FUNCTIONS_FIXED_SUMMARY.md
+	ui/src/IMPLEMENTATION_PRIORITY_V5.md
+	ui/src/INTEGRATION_COMPLETE_SUMMARY.md
+	ui/src/INTEGRATION_FINAL_SUMMARY.md
+	ui/src/LOCAL_SETUP_GUIDE.md
+	ui/src/MASTER_INDEX_V6_BROKER_SWITCHING.md
+	ui/src/MIGRATION_V5_TO_V6.md
+	ui/src/MOBILE_RESPONSIVE_GUIDE.md
+	ui/src/MOCK_VS_REAL_BACKEND.md
+	ui/src/PLAN_DISPLAY_TEST.md
+	ui/src/PRICING_V5_TRADEFLOW.md
+	ui/src/PUBLIC_VS_ADMIN_GUIDE.md
+	ui/src/QUICK_FUNCTION_REFERENCE.md
+	ui/src/QUICK_INTEGRATION_GUIDE.md
+	ui/src/QUICK_START.md
+	ui/src/QUICK_START_V6.md
+	ui/src/QUICK_START_V6_ENHANCED.md
+	ui/src/README_BROKER_SWITCHING.md
+	ui/src/README_V5_ENTERPRISE.md
+	ui/src/README_V6.md
+	ui/src/START_HERE.md
+	ui/src/START_HERE_BACKEND_ANALYSIS.md
+	ui/src/START_HERE_BROKER_SWITCHING.md
+	ui/src/START_HERE_INTEGRATION_COMPLETE.md
+	ui/src/START_HERE_V6.md
+	ui/src/START_HERE_V6_FINAL.md
+	ui/src/SUPPORT_CHATBOT_GUIDE.md
+	ui/src/SYSTEM_ARCHITECTURE_DIAGRAM.md
+	ui/src/TESTING_CHECKLIST.md
+	ui/src/TEST_ALL_FUNCTIONS.md
+	ui/src/THEME_SYSTEM_GUIDE.md
+	ui/src/UI_COMPLETE_SPECIFICATION.json
+	ui/src/USER_JOURNEY_MAP.md
+	ui/src/V5_DELIVERABLES_SUMMARY.md
+	ui/src/V6_DELIVERABLES_COMPLETE.md
+	ui/src/V6_UPGRADE_SUMMARY.md
+	ui/src/VISUAL_ARCHITECTURE_MAP.md
+	ui/src/VISUAL_INTEGRATION_GUIDE.md
+	ui/src/WIRING_MANIFEST_V6.json
+	ui/src/WORKING_FUNCTIONS_GUIDE.md
+	ui/src/components/AccountSelectionPage.tsx
+	ui/src/components/AccountsManager.tsx
+	ui/src/components/AdminAccountsViewer.tsx
+	ui/src/components/AdminDashboard.tsx
+	ui/src/components/AdminLoginPage.tsx
+	ui/src/components/AdminPanel.tsx
+	ui/src/components/AnalyticsPage.tsx
+	ui/src/components/AnimatedBackground.tsx
+	ui/src/components/ApiKeyDisplay.tsx
+	ui/src/components/ApiKeyManager.tsx
+	ui/src/components/BillingGuard.tsx
+	ui/src/components/BillingPortal.tsx
+	ui/src/components/BrokerContextDiagram.tsx
+	ui/src/components/BrokerDataSyncDemo.tsx
+	ui/src/components/BrokerNavigationBar.tsx
+	ui/src/components/BrokerSwitcher.tsx
+	ui/src/components/BrokerSyncIndicator.tsx
+	ui/src/components/BrokerTestPanel.tsx
+	ui/src/components/ChangeAccountPage.tsx
+	ui/src/components/Chatbot.tsx
+	ui/src/components/ConnectBrokerPage.tsx
+	ui/src/components/Dashboard.tsx
+	ui/src/components/DashboardOverview.tsx
+	ui/src/components/EmergencyStopDialog.tsx
+	ui/src/components/LandingPage.tsx
+	ui/src/components/LoginPage.tsx
+	ui/src/components/LogsViewer.tsx
+	ui/src/components/NotFoundPage.tsx
+	ui/src/components/OnboardingPlanSelection.tsx
+	ui/src/components/OrdersManager.tsx
+	ui/src/components/PasswordResetPage.tsx
+	ui/src/components/PositionsMonitor.tsx
+	ui/src/components/QuickActionsPanel.tsx
+	ui/src/components/RiskControls.tsx
+	ui/src/components/SettingsDropdown.tsx
+	ui/src/components/SignupPage.tsx
+	ui/src/components/SyncResultsPage.tsx
+	ui/src/components/ThemeSelector.tsx
+	ui/src/components/TradeFlowLogo.tsx
+	ui/src/components/TradeLockerLogo.tsx
+	ui/src/components/TradingConfiguration.tsx
+	ui/src/components/TrialBanner.tsx
+	ui/src/components/WebhookTemplates.tsx
+	ui/src/components/figma/
+	ui/src/components/ui/
+	ui/src/contexts/
+	ui/src/figma_v5_ui_plan.txt
+	ui/src/guidelines/
+	ui/src/main.tsx
+	ui/src/openapi_v5.yaml
+	ui/src/stack_v5.yml
+	ui/src/styles/
+	ui/src/supabase/
+	ui/src/supabase_schema_v5.sql
+	ui/src/unified_blueprint_v5.json
+	ui/src/utils/api-client-enhanced.ts
+	ui/src/utils/api-client.ts
+	ui/src/utils/mock-backend.ts
+	ui/src/utils/mock-data.ts
+	ui/src/utils/stripe-helpers.ts
+	ui/src/utils/supabase/
+	ui/vite.config.backup.ts
+	ui/vite.config.ts
+
+no changes added to commit (use "git add" and/or "git commit -a")

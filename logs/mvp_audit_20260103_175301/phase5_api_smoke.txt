@@ -1,0 +1,36 @@
+# http://127.0.0.1:3012/test
+HTTP/1.1 404 Not Found
+date: Sat, 03 Jan 2026 23:01:57 GMT
+server: uvicorn
+content-length: 22
+content-type: application/json
+x-process-time: 0.0029999999969732016
+
+{"detail":"Not Found"}
+# http://127.0.0.1:3012/status
+HTTP/1.1 404 Not Found
+date: Sat, 03 Jan 2026 23:01:57 GMT
+server: uvicorn
+content-length: 22
+content-type: application/json
+x-process-time: 0.003999999986262992
+
+{"detail":"Not Found"}
+# http://127.0.0.1:3012/healthz
+HTTP/1.1 404 Not Found
+date: Sat, 03 Jan 2026 23:01:57 GMT
+server: uvicorn
+content-length: 22
+content-type: application/json
+x-process-time: 0.0009999999892897904
+
+{"detail":"Not Found"}
+# http://127.0.0.1:3012/metrics
+HTTP/1.1 200 OK
+date: Sat, 03 Jan 2026 23:01:57 GMT
+server: uvicorn
+content-length: 302
+content-type: application/json
+x-process-time: 0.003999999986262992
+
+{"websocket_connections":0,"signal_queue_size":0,"brokers":{"mt4":{"connected":{},"type":"mt4"},"mt5":{"connected":{},"type":"mt5"},"tradelocker":{"connected":{},"type":"tradelocker"},"tradovate":{"connected":{},"type":"tradovate"},"projectx":{"connected":{},"type":"projectx"}},"timestamp":194866.202}

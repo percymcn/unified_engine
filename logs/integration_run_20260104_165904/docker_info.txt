@@ -1,0 +1,92 @@
+Client: Docker Engine - Community
+ Version:    29.0.2
+ Context:    default
+ Debug Mode: false
+ Plugins:
+  buildx: Docker Buildx (Docker Inc.)
+    Version:  v0.30.0
+    Path:     /usr/libexec/docker/cli-plugins/docker-buildx
+  compose: Docker Compose (Docker Inc.)
+    Version:  v2.40.3
+    Path:     /usr/libexec/docker/cli-plugins/docker-compose
+  model: Docker Model Runner (Docker Inc.)
+    Version:  v1.0.1
+    Path:     /usr/libexec/docker/cli-plugins/docker-model
+
+Server:
+ Containers: 18844
+  Running: 77
+  Paused: 0
+  Stopped: 18767
+ Images: 161
+ Server Version: 29.0.2
+ Storage Driver: overlayfs
+  driver-type: io.containerd.snapshotter.v1
+ Logging Driver: json-file
+ Cgroup Driver: systemd
+ Cgroup Version: 2
+ Plugins:
+  Volume: local
+  Network: bridge host ipvlan macvlan null overlay
+  Log: awslogs fluentd gcplogs gelf journald json-file local splunk syslog
+ CDI spec directories:
+  /etc/cdi
+  /var/run/cdi
+ Swarm: active
+  NodeID: flla138qjkkra5e6rbjk4i40w
+  Is Manager: true
+  ClusterID: zjna9oo3xcss3rryd8i2hqt4w
+  Managers: 1
+  Nodes: 2
+  Default Address Pool: 10.0.0.0/8  
+  SubnetSize: 24
+  Data Path Port: 4789
+  Orchestration:
+   Task History Retention Limit: 5
+  Raft:
+   Snapshot Interval: 10000
+   Number of Old Snapshots to Retain: 0
+   Heartbeat Tick: 1
+   Election Tick: 10
+  Dispatcher:
+   Heartbeat Period: 5 seconds
+  CA Configuration:
+   Expiry Duration: 3 months
+   Force Rotate: 0
+  Autolock Managers: false
+  Root Rotation In Progress: false
+  Node Address: 192.168.1.254
+  Manager Addresses:
+   192.168.1.254:2377
+ Runtimes: io.containerd.runc.v2 runc
+ Default Runtime: runc
+ Init Binary: docker-init
+ containerd version: fcd43222d6b07379a4be9786bda52438f0dd16a1
+ runc version: v1.3.3-0-gd842d771
+ init version: de40ad0
+ Security Options:
+  apparmor
+  seccomp
+   Profile: builtin
+  cgroupns
+ Kernel Version: 6.17.0-1006-raspi
+ Operating System: Ubuntu 25.10
+ OSType: linux
+ Architecture: aarch64
+ CPUs: 4
+ Total Memory: 7.748GiB
+ Name: pharma5
+ ID: 5f313e07-68b9-4b0c-983f-eb55f45596e8
+ Docker Root Dir: /var/lib/docker
+ Debug Mode: false
+ Experimental: false
+ Insecure Registries:
+  192.168.1.254:5000
+  pharma5:5000
+  127.0.0.0/8
+  ::1/128
+ Live Restore Enabled: false
+ Firewall Backend: iptables
+
+WARNING: No memory limit support
+WARNING: No swap limit support

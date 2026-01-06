@@ -1,0 +1,9 @@
+# trading_ui inspect
+192.168.1.254:5000/unified-engine/ui:latest
+# trading_ui ps
+ID                          NAME               IMAGE                                         NODE      DESIRED STATE   CURRENT STATE             ERROR                                                                  PORTS
+uhc9x4z5fvvfuq6foj5b5f05a   trading_ui.1       192.168.1.254:5000/unified-engine/ui:latest   pharma4   Running         Running 6 seconds ago                                                                            
+x6i5rr4hh2vyq2ek6yn0h7mcf    \_ trading_ui.1   unified-engine/ui:latest                      pharma4   Shutdown        Rejected 14 seconds ago   "node is missing network attachments, ip addresses may be exhausted"   
+um54fo1zvafavysamccbh3wvi    \_ trading_ui.1   unified-engine/ui:latest                      pharma5   Shutdown        Rejected 25 seconds ago   "No such image: unified-engine/ui:latest"                              
+o5fbhap6hwhavfdjncvq01d9v    \_ trading_ui.1   unified-engine/ui:latest                      pharma5   Shutdown        Rejected 41 seconds ago   "No such image: unified-engine/ui:latest"                              
+e8gne3l1vaz8786ii921q0lvn    \_ trading_ui.1   unified-engine/ui:latest                      pharma4   Shutdown        Rejected 46 seconds ago   "No such image: unified-engine/ui:latest"                              

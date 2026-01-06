@@ -18,7 +18,20 @@
       "Bash(sudo rm:*)",
       "Bash(mkdir:*)",
       "Bash(kill:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(sudo netstat:*)",
+      "Bash(netstat:*)",
+      "Bash(ss:*)",
+      "Bash(ls:*)",
+      "Bash(bash:*)",
+      "Bash(find:*)",
+      "Bash(DATABASE_URL=\"postgresql://trading_user:trading_password@localhost:5432/trading_db\" python3:*)",
+      "Bash(DATABASE_URL=\"postgresql://trading_user:trading_password@localhost:5432/trading_db\" python3 -m alembic:*)",
+      "Skill(ralph-wiggum:ralph-loop)",
+      "Bash(cat:*)",
+      "Bash(npm run build:*)",
+      "Bash(pkill -f \"docker pull 192.168.1.254:5000/unified-engine/ui:latest\")",
+      "Bash(tee:*)"
     ],
     "deny": [],
     "ask": []

@@ -1,0 +1,9 @@
+{
+  "timestamp": "2026-01-05T21-06-11.239675",
+  "stage": "fixing",
+  "step_name": "session_1",
+  "project_dir": "/home/pharma5/unified_engine",
+  "rolled_back": true,
+  "rollback_reason": "Session 1 exception: Control request timeout: initialize",
+  "rollback_time": "2026-01-05T21:07:14.883828"
+}

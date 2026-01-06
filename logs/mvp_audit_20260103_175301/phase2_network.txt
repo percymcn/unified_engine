@@ -1,0 +1,3 @@
+# ip -br a
+# ip route
+# hostname -I

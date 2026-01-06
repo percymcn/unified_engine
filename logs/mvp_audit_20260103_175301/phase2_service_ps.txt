@@ -1,0 +1,49 @@
+# unified_engine_stack_ui
+ID                          NAME                            IMAGE                      NODE      DESIRED STATE   CURRENT STATE                 ERROR                                       PORTS
+erx0gb4visreuxgt6mrsh9crm   unified_engine_stack_ui.1       unified-engine/ui:latest   pharma4   Running         Preparing 22 seconds ago                                                  
+xwj3im7oi36ctug01pwvsx38b    \_ unified_engine_stack_ui.1   unified-engine/ui:latest   pharma4   Shutdown        Rejected 23 seconds ago       "No such image: unified-engine/ui:latest"   
+pgqdv26pc8a2goftaoknhfo11    \_ unified_engine_stack_ui.1   unified-engine/ui:latest   pharma4   Shutdown        Rejected about a minute ago   "No such image: unified-engine/ui:latest"   
+mrqg7hxp7vhr4u5yg167n5j4z    \_ unified_engine_stack_ui.1   unified-engine/ui:latest   pharma4   Shutdown        Rejected about a minute ago   "No such image: unified-engine/ui:latest"   
+4a9x4ws63vbheikzc7u6bcker    \_ unified_engine_stack_ui.1   unified-engine/ui:latest   pharma5   Shutdown        Rejected about a minute ago   "No such image: unified-engine/ui:latest"   
+
+# unified_engine_stack_api
+ID                          NAME                             IMAGE                       NODE      DESIRED STATE   CURRENT STATE           ERROR                                                                                                        PORTS
+wz1tdp6lfo6xsuvxsyt49ny89   unified_engine_stack_api.1       unified-engine/api:latest   pharma5   Shutdown        Complete 26 hours ago                                                                                                                
+6wcvndan98t2wizxb7668nq5u    \_ unified_engine_stack_api.1   unified-engine/api:latest   pharma4   Shutdown        Rejected 2 days ago     "invalid mount config for type "bind": bind source path does not exist: /home/pharma5/unified_engine/data"   
+q5whmgm26q4p681v76wj554hd    \_ unified_engine_stack_api.1   unified-engine/api:latest   pharma4   Shutdown        Rejected 2 days ago     "invalid mount config for type "bind": bind source path does not exist: /home/pharma5/unified_engine/data"   
+dydc5yqhq0j8mh7b71tum3du3    \_ unified_engine_stack_api.1   unified-engine/api:latest   pharma4   Shutdown        Rejected 2 days ago     "invalid mount config for type "bind": bind source path does not exist: /home/pharma5/unified_engine/data"   
+r350zvanoo0ktqp785rfl0rcm    \_ unified_engine_stack_api.1   unified-engine/api:latest   pharma5   Shutdown        Shutdown 2 days ago                                                                                                                  
+eertk8qn9vc3bdledxkd9lwpu   unified_engine_stack_api.2       unified-engine/api:latest   pharma5   Running         Running 26 hours ago                                                                                                                 
+qxa8vmydm122gcje3mo9a7ezl    \_ unified_engine_stack_api.2   unified-engine/api:latest   pharma4   Shutdown        Rejected 26 hours ago   "invalid mount config for type "bind": bind source path does not exist: /home/pharma5/unified_engine/data"   
+wfq02dizualm3udywlcfndk85    \_ unified_engine_stack_api.2   unified-engine/api:latest   pharma4   Shutdown        Rejected 26 hours ago   "invalid mount config for type "bind": bind source path does not exist: /home/pharma5/unified_engine/data"   
+z2wyw64i4k2apzdm6zh846csi    \_ unified_engine_stack_api.2   unified-engine/api:latest   pharma4   Shutdown        Rejected 26 hours ago   "node is missing network attachments, ip addresses may be exhausted"                                         
+1kv2xjr8j233jcndv1i7z07bf    \_ unified_engine_stack_api.2   unified-engine/api:latest   pharma4   Shutdown        Rejected 26 hours ago   "invalid mount config for type "bind": bind source path does not exist: /home/pharma5/unified_engine/data"   
+
+# unified_engine_stack_nginx
+ID                          NAME                               IMAGE                                                                                  NODE      DESIRED STATE   CURRENT STATE               ERROR                                                                  PORTS
+vrw135tk8gn7i9io77rakoa4h   unified_engine_stack_nginx.1       nginx:alpine@sha256:289decab414250121a93c3f1b8316b9c69906de3a4993757c424cb964169ad42   pharma5   Running         Preparing 13 seconds ago                                                                           
+5z3dov4lkoyy0oj4shi3m24k8    \_ unified_engine_stack_nginx.1   nginx:alpine@sha256:289decab414250121a93c3f1b8316b9c69906de3a4993757c424cb964169ad42   pharma5   Shutdown        Failed 14 seconds ago       "task: non-zero exit (1)"                                              
+1fn98vqdha80szhhxrwi2894c    \_ unified_engine_stack_nginx.1   nginx:alpine@sha256:289decab414250121a93c3f1b8316b9c69906de3a4993757c424cb964169ad42   pharma4   Shutdown        Rejected 57 seconds ago     "node is missing network attachments, ip addresses may be exhausted"   
+9l4hcrlioxx0ktugfo8besm43    \_ unified_engine_stack_nginx.1   nginx:alpine@sha256:289decab414250121a93c3f1b8316b9c69906de3a4993757c424cb964169ad42   pharma4   Shutdown        Failed about a minute ago   "task: non-zero exit (1)"                                              
+t4eokiyszim02h9cbfbr62lk4    \_ unified_engine_stack_nginx.1   nginx:alpine@sha256:289decab414250121a93c3f1b8316b9c69906de3a4993757c424cb964169ad42   pharma4   Shutdown        Failed about a minute ago   "task: non-zero exit (1)"                                              
+
+# trading_ui
+ID                          NAME               IMAGE                      NODE      DESIRED STATE   CURRENT STATE                 ERROR                                       PORTS
+uq2wnhtl3kibcvsx21ugyl5jq   trading_ui.1       unified-engine/ui:latest   pharma4   Running         Rejected 5 seconds ago        "No such image: unified-engine/ui:latest"   
+plag8zp7xzsta0ak35iuaq3gl    \_ trading_ui.1   unified-engine/ui:latest   pharma5   Shutdown        Rejected 41 seconds ago       "No such image: unified-engine/ui:latest"   
+q7okzib04t3t1gyq5r057lhye    \_ trading_ui.1   unified-engine/ui:latest   pharma5   Shutdown        Rejected 54 seconds ago       "No such image: unified-engine/ui:latest"   
+u0nag3a4zxc4vvrvz3ry8gdaa    \_ trading_ui.1   unified-engine/ui:latest   pharma5   Shutdown        Rejected about a minute ago   "No such image: unified-engine/ui:latest"   
+miukr5zp3bfd7svbyqighwlbn    \_ trading_ui.1   unified-engine/ui:latest   pharma4   Shutdown        Rejected about a minute ago   "No such image: unified-engine/ui:latest"   
+
+# trading_api
+ID                          NAME                IMAGE                       NODE      DESIRED STATE   CURRENT STATE           ERROR                                                                                                        PORTS
+x3499zje0nbm256jkhm3w9f63   trading_api.1       unified-engine/api:latest   pharma5   Running         Running 26 hours ago                                                                                                                 
+j2scxbqqzz41vfmha8f2h5wzv    \_ trading_api.1   unified-engine/api:latest   pharma4   Shutdown        Rejected 26 hours ago   "invalid mount config for type "bind": bind source path does not exist: /home/pharma5/unified_engine/logs"   
+wnaxnm0pioimasjwtolper1qr    \_ trading_api.1   unified-engine/api:latest   pharma4   Shutdown        Rejected 26 hours ago   "invalid mount config for type "bind": bind source path does not exist: /home/pharma5/unified_engine/logs"   
+w7tt76e9osy9dp34vi8agsmpe    \_ trading_api.1   unified-engine/api:latest   pharma4   Shutdown        Rejected 26 hours ago   "invalid mount config for type "bind": bind source path does not exist: /home/pharma5/unified_engine/logs"   
+irwwp43x54mr456jzz7jtk5lx    \_ trading_api.1   unified-engine/api:latest   pharma4   Shutdown        Rejected 26 hours ago   "invalid mount config for type "bind": bind source path does not exist: /home/pharma5/unified_engine/logs"   
+sbzmq0tudoxth1kqfpj5td0cr   trading_api.2       unified-engine/api:latest   pharma5   Shutdown        Complete 26 hours ago                                                                                                                
+b6vmjhnu5dwmyiq3toc1tvotd    \_ trading_api.2   unified-engine/api:latest   pharma4   Shutdown        Rejected 2 days ago     "invalid mount config for type "bind": bind source path does not exist: /home/pharma5/unified_engine/logs"   
+q7yn1n63fax3nu1lp67qz5j9l    \_ trading_api.2   unified-engine/api:latest   pharma4   Shutdown        Rejected 2 days ago     "invalid mount config for type "bind": bind source path does not exist: /home/pharma5/unified_engine/logs"   
+fi4joc0b6pc85hxspj3elcwqn    \_ trading_api.2   unified-engine/api:latest   pharma5   Shutdown        Shutdown 2 days ago                                                                                                                  
+rd4bza9uuoaingav8vpmbyqh2    \_ trading_api.2   unified-engine/api:latest   pharma5   Shutdown        Shutdown 2 days ago                                                                                                                  

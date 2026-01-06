@@ -1,0 +1,15 @@
+total 80
+drwx------  4 pharma5 pharma5 4096 Jan  3 20:23 .
+drwxr-xr-x 27 pharma5 pharma5 4096 Jan  3 20:23 ..
+-rw-r--r--  1 pharma5 pharma5   42 Dec 11 00:33 .npmrc
+drwx------  4 pharma5 pharma5 4096 Jan  3 20:23 Enterprise-Ready SaaS Upgrade (5)
+-rw-rw-r--  1 pharma5 pharma5 6678 Dec 11 00:38 PROJECT_STATUS.md
+-rw-r--r--  1 pharma5 pharma5 9353 Dec 11 00:34 README.md
+-rw-rw-r--  1 pharma5 pharma5 5286 Dec 11 00:38 SETUP.md
+-rw-rw-r--  1 pharma5 pharma5 1617 Dec 28 19:35 index-debug.html
+-rw-rw-r--  1 pharma5 pharma5 4990 Dec 28 19:38 index-standalone.html
+-rw-r--r--  1 pharma5 pharma5 4990 Dec 28 19:39 index.html
+-rw-r--r--  1 pharma5 pharma5 2661 Dec 11 00:34 package.json
+drwx------  7 pharma5 pharma5 4096 Jan  3 20:23 src
+-rw-r--r--  1 pharma5 pharma5 3122 Dec 28 19:31 vite.config.backup.ts
+-rw-rw-r--  1 pharma5 pharma5  431 Dec 28 19:37 vite.config.ts

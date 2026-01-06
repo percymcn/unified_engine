@@ -1,0 +1,46 @@
+# http://127.0.0.1:3012/
+HTTP/1.1 200 OK
+date: Sat, 03 Jan 2026 23:00:54 GMT
+server: uvicorn
+content-length: 132
+content-type: application/json
+x-process-time: 0.0040000000153668225
+
+{"name":"Unified Trading Engine","version":"1.0.0","status":"running","environment":"production","docs":null,"timestamp":194803.252}
+# http://127.0.0.1:3411/
+
+# http://127.0.0.1:5558/
+
+# http://127.0.0.1:3013/
+
+# http://127.0.0.1:8000/
+HTTP/1.1 200 OK
+date: Sat, 03 Jan 2026 23:00:55 GMT
+server: uvicorn
+content-length: 61
+content-type: application/json
+
+{"message":"FluxEmpire Master Control API","version":"1.0.0"}
+# http://192.168.1.254:3012/
+HTTP/1.1 200 OK
+date: Sat, 03 Jan 2026 23:00:55 GMT
+server: uvicorn
+content-length: 132
+content-type: application/json
+x-process-time: 0.0009999999892897904
+
+{"name":"Unified Trading Engine","version":"1.0.0","status":"running","environment":"production","docs":null,"timestamp":194803.614}
+# http://192.168.1.254:3411/
+
+# http://192.168.1.254:5558/
+
+# http://192.168.1.254:3013/
+
+# http://192.168.1.254:8000/
+HTTP/1.1 200 OK
+date: Sat, 03 Jan 2026 23:00:55 GMT
+server: uvicorn
+content-length: 61
+content-type: application/json
+
+{"message":"FluxEmpire Master Control API","version":"1.0.0"}

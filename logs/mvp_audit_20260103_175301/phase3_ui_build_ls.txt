@@ -1,0 +1,12 @@
+# ls -la ui/build
+total 16
+drwxrwxr-x 3 pharma5 pharma5 4096 Dec 31 00:02 .
+drwxr-xr-x 5 pharma5 pharma5 4096 Jan  3 13:42 ..
+drwxrwxr-x 2 pharma5 pharma5 4096 Dec 31 00:02 assets
+-rw-rw-r-- 1 pharma5 pharma5  451 Dec 31 00:02 index.html
+# ls -la ui/build/assets
+total 1528
+drwxrwxr-x 2 pharma5 pharma5    4096 Dec 31 00:02 .
+drwxrwxr-x 3 pharma5 pharma5    4096 Dec 31 00:02 ..
+-rw-rw-r-- 1 pharma5 pharma5 1448406 Dec 31 00:02 index-B14dObpT.js
+-rw-rw-r-- 1 pharma5 pharma5  101453 Dec 31 00:02 index-BmwJxra2.css

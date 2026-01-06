@@ -1,0 +1,11 @@
+# nginx endpoint ports
+null
+
+# nginx networks
+[{"Target":"6w3gwetz66hr9i60ksd5r90so","Aliases":["nginx"]}]
+
+# ui networks
+[{"Target":"6w3gwetz66hr9i60ksd5r90so","Aliases":["ui"]}]
+
+# api networks
+[{"Target":"6w3gwetz66hr9i60ksd5r90so","Aliases":["api"]}]

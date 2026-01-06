@@ -1,0 +1,125 @@
+# UI root
+HTTP/1.1 200 OK
+Server: nginx/1.29.3
+Date: Sun, 04 Jan 2026 02:11:07 GMT
+Content-Type: text/html
+Content-Length: 4990
+Last-Modified: Sat, 03 Jan 2026 18:58:08 GMT
+Connection: keep-alive
+ETag: "695966c0-137e"
+Accept-Ranges: bytes
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TradeFlow - Unified Trading Platform</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        function App() {
+            const [message, setMessage] = useState('Loading TradeFlow...');
+            const [env, setEnv] = useState('unknown');
+
+            useEffect(() => {
+                setMessage('✅ TradeFlow SaaS Platform is Running!');
+                setEnv('Development (React Standalone)');
+            }, []);
+
+            return React.createElement('div', {
+                style: {
+                    padding: '40px',
+                    fontFamily: 'Arial, sans-serif',
+                    maxWidth: '800px',
+                    margin: '0 auto',
+                    backgroundColor: '#f5f5f5',
+                    borderRadius: '8px',
+                    boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
+
+# UI asset check
+HTTP/1.1 200 OK
+Server: nginx/1.29.3
+Date: Sun, 04 Jan 2026 02:11:07 GMT
+Content-Type: text/html
+Content-Length: 4990
+Last-Modified: Sat, 03 Jan 2026 18:58:08 GMT
+Connection: keep-alive
+ETag: "695966c0-137e"
+Accept-Ranges: bytes
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TradeFlow - Unified Trading Platform</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script type="text/babel">
+
+# NGINX root
+HTTP/1.1 200 OK
+Server: nginx/1.29.4
+Date: Sun, 04 Jan 2026 02:11:07 GMT
+Content-Type: text/html
+Content-Length: 4990
+Connection: keep-alive
+Last-Modified: Sat, 03 Jan 2026 18:58:08 GMT
+ETag: "695966c0-137e"
+Accept-Ranges: bytes
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TradeFlow - Unified Trading Platform</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        function App() {
+            const [message, setMessage] = useState('Loading TradeFlow...');
+            const [env, setEnv] = useState('unknown');
+
+            useEffect(() => {
+                setMessage('✅ TradeFlow SaaS Platform is Running!');
+                setEnv('Development (React Standalone)');
+            }, []);
+
+            return React.createElement('div', {
+                style: {
+                    padding: '40px',
+                    fontFamily: 'Arial, sans-serif',
+                    maxWidth: '800px',
+                    margin: '0 auto',
+                    backgroundColor: '#f5f5f5',
+                    borderRadius: '8px',
+                    boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
+
+# NGINX API proxy
+HTTP/1.1 404 Not Found
+Server: nginx/1.29.4
+Date: Sun, 04 Jan 2026 02:11:07 GMT
+Content-Type: application/json
+Content-Length: 22
+Connection: keep-alive
+x-process-time: 0.0029999999969732016
+
+{"detail":"Not Found"}
+# API health
+HTTP/1.1 200 OK
+date: Sun, 04 Jan 2026 02:11:07 GMT
+server: uvicorn
+content-length: 150
+content-type: application/json
+x-process-time: 0.004999999975552782
+
+{"status":"healthy","redis":"connected","brokers":{"mt4":true,"mt5":true,"tradelocker":false,"tradovate":true,"projectx":true},"timestamp":206215.898}

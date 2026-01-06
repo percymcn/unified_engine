@@ -70,3 +70,11 @@ Thumbs.db
 tmp/
 temp/
 *.tmp
+
+# Harness and large data files
+.harness_checkpoints/
+REPO_FILE_INDEX.tsv
+REPO_SIGNAL_MAP.txt
+*.audit.log
+harness*.log
+ralph*.log

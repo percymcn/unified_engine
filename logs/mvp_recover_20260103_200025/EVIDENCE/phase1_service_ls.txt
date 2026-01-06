@@ -1,0 +1,22 @@
+zq6mvewytole   credit-repair_api                                 replicated   1/1                    192.168.1.254:5000/credit-repair-api:latest        *:8006->8000/tcp
+k8f045cuyw0j   credit-repair_celery-beat                         replicated   1/1                    192.168.1.254:5000/credit-repair-api:latest        
+xyx5ynrid6sy   credit-repair_celery-worker                       replicated   2/2                    192.168.1.254:5000/credit-repair-api:latest        
+lpj4eww9ai7u   fluxempire-master-api                             replicated   1/1                    python:3.11-slim                                   *:8000->8000/tcp
+y2angx8ztp7s   invoice_ai_v2_api                                 replicated   2/2                    invoice-ai-api:latest                              *:8088->8000/tcp
+ftqugc6ladjg   nichehunter_nichehunter-api                       replicated   0/1                    pharma5:5000/nichehunter-api:latest                *:8001->8001/tcp
+i85k6d316m3b   swamp-tours-stack_swamptours-api                  replicated   0/1                    pharma5:5000/swamptours-api:latest                 *:8004->8004/tcp
+fdbcp3ghugbx   trading_api                                       replicated   1/2 (max 1 per node)   unified-engine/api:latest                          
+l27aye9rmqgv   trading_celery-beat                               replicated   0/1                    unified-engine/api:latest                          
+1gba5ii6qrpj   trading_celery-worker                             replicated   0/2                    unified-engine/api:latest                          
+5ekjqa7lhm8i   trading_flower                                    replicated   0/1                    unified-engine/api:latest                          
+zvo4qifsu39x   trading_funnel-automation                         replicated   0/1                    unified-engine/api:latest                          
+udxtvy5gb7eh   trading_ui                                        replicated   1/1                    192.168.1.254:5000/unified-engine/ui:latest        
+r8i1hjoyrh9h   unified_engine_stack_api                          replicated   1/2 (max 1 per node)   unified-engine/api:latest                          *:3012->8000/tcp
+vsz9f4v6kai7   unified_engine_stack_celery-beat                  replicated   0/1                    unified-engine/api:latest                          
+bjkmgppkxw2r   unified_engine_stack_celery-worker                replicated   0/2                    unified-engine/api:latest                          
+l4lwl9g0f4ac   unified_engine_stack_flower                       replicated   0/1                    unified-engine/api:latest                          *:5558->5555/tcp
+vf410cnw0iwk   unified_engine_stack_funnel-automation            replicated   0/1                    unified-engine/api:latest                          
+fuvxij47wqa2   unified_engine_stack_nginx                        replicated   1/1                    nginx:alpine                                       *:3013->80/tcp
+ix1l87ayrbw1   unified_engine_stack_postgres                     replicated   1/1                    postgres:15                                        
+dy9bga65wxfo   unified_engine_stack_redis                        replicated   1/1                    redis:7-alpine                                     
+khwxrkp3fb9r   unified_engine_stack_ui                           replicated   1/1                    192.168.1.254:5000/unified-engine/ui:latest        *:3411->80/tcp

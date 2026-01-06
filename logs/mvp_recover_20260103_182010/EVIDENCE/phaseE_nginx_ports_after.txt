@@ -1,0 +1,10 @@
+# nginx ports
+[{"Protocol":"tcp","TargetPort":80,"PublishedPort":3013,"PublishMode":"ingress"}]
+
+# nginx ps
+ID                          NAME                               IMAGE                                                                                  NODE      DESIRED STATE   CURRENT STATE             ERROR                       PORTS
+hxmc22lbjd8kr5x978dup0fnv   unified_engine_stack_nginx.1       nginx:alpine@sha256:289decab414250121a93c3f1b8316b9c69906de3a4993757c424cb964169ad42   pharma4   Running         Running 16 seconds ago                                
+01xlnxk1smpj7nsbfbb6xy5ek    \_ unified_engine_stack_nginx.1   nginx:alpine@sha256:289decab414250121a93c3f1b8316b9c69906de3a4993757c424cb964169ad42   pharma4   Shutdown        Shutdown 18 seconds ago                               
+xp9i1u72nad3ai9grkt1wh9hy    \_ unified_engine_stack_nginx.1   nginx:alpine@sha256:289decab414250121a93c3f1b8316b9c69906de3a4993757c424cb964169ad42   pharma5   Shutdown        Shutdown 4 minutes ago                                
+nro74oo29bf9kych59ndapfvq    \_ unified_engine_stack_nginx.1   nginx:alpine@sha256:289decab414250121a93c3f1b8316b9c69906de3a4993757c424cb964169ad42   pharma4   Shutdown        Failed 14 minutes ago     "task: non-zero exit (1)"   
+8mmawoo4u0xzrlvp0i7ef3ivs    \_ unified_engine_stack_nginx.1   nginx:alpine@sha256:289decab414250121a93c3f1b8316b9c69906de3a4993757c424cb964169ad42   pharma5   Shutdown        Failed 14 minutes ago     "task: non-zero exit (1)"   

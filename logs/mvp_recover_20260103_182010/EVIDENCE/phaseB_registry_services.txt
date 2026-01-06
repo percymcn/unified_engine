@@ -1,0 +1,2 @@
+# docker service ls | egrep -i 'registry|reg'
+6xgb8stg8an4   registry                                          replicated   1/1                    registry:2                                         *:5000->5000/tcp

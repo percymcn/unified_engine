@@ -1,0 +1,133 @@
+# unified_engine_stack_api ps
+ID                          NAME                             IMAGE                       NODE      DESIRED STATE   CURRENT STATE           ERROR                                                                                                        PORTS
+wz1tdp6lfo6xsuvxsyt49ny89   unified_engine_stack_api.1       unified-engine/api:latest   pharma5   Shutdown        Complete 28 hours ago                                                                                                                
+6wcvndan98t2wizxb7668nq5u    \_ unified_engine_stack_api.1   unified-engine/api:latest   pharma4   Shutdown        Rejected 2 days ago     "invalid mount config for type "bind": bind source path does not exist: /home/pharma5/unified_engine/data"   
+q5whmgm26q4p681v76wj554hd    \_ unified_engine_stack_api.1   unified-engine/api:latest   pharma4   Shutdown        Rejected 2 days ago     "invalid mount config for type "bind": bind source path does not exist: /home/pharma5/unified_engine/data"   
+dydc5yqhq0j8mh7b71tum3du3    \_ unified_engine_stack_api.1   unified-engine/api:latest   pharma4   Shutdown        Rejected 2 days ago     "invalid mount config for type "bind": bind source path does not exist: /home/pharma5/unified_engine/data"   
+r350zvanoo0ktqp785rfl0rcm    \_ unified_engine_stack_api.1   unified-engine/api:latest   pharma5   Shutdown        Shutdown 2 days ago                                                                                                                  
+eertk8qn9vc3bdledxkd9lwpu   unified_engine_stack_api.2       unified-engine/api:latest   pharma5   Running         Running 28 hours ago                                                                                                                 
+qxa8vmydm122gcje3mo9a7ezl    \_ unified_engine_stack_api.2   unified-engine/api:latest   pharma4   Shutdown        Rejected 28 hours ago   "invalid mount config for type "bind": bind source path does not exist: /home/pharma5/unified_engine/data"   
+wfq02dizualm3udywlcfndk85    \_ unified_engine_stack_api.2   unified-engine/api:latest   pharma4   Shutdown        Rejected 28 hours ago   "invalid mount config for type "bind": bind source path does not exist: /home/pharma5/unified_engine/data"   
+z2wyw64i4k2apzdm6zh846csi    \_ unified_engine_stack_api.2   unified-engine/api:latest   pharma4   Shutdown        Rejected 28 hours ago   "node is missing network attachments, ip addresses may be exhausted"                                         
+1kv2xjr8j233jcndv1i7z07bf    \_ unified_engine_stack_api.2   unified-engine/api:latest   pharma4   Shutdown        Rejected 28 hours ago   "invalid mount config for type "bind": bind source path does not exist: /home/pharma5/unified_engine/data"   
+
+# unified_engine_stack_api logs
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:37178 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:57400 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:51708 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:43902 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:39192 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:55766 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:43198 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:50104 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:47730 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:56868 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:45604 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:35728 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:55156 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:41588 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:45856 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:52554 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:49038 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:58222 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:58376 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:56024 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:34250 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:42262 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:57844 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:60836 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:55974 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:36174 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:46194 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:53274 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:43054 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:45936 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:40522 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:52892 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:53304 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:42036 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:35900 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:42538 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:36158 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:56110 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:39654 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:40012 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:37332 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:41488 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:38422 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:59912 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:42412 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:38636 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:59286 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:50050 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:34654 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:60430 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:57094 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:39936 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:40942 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:50452 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:44558 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:34434 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:45696 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:57194 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:43920 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:42780 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:41000 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:46156 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:56530 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:51842 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:53638 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:34068 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:35202 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:59084 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:42458 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:50568 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:48904 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:43584 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:50152 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:45224 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:43458 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:57412 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:33626 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:59106 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:44946 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:53104 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:45588 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:56652 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:46210 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:50738 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:42764 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:53490 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:48764 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:54872 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:55260 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:52544 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:53518 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:57448 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:59058 - "GET /health HTTP/1.1" 503 Service Unavailable
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:39296 - "GET /health HTTP/1.1" 503 Service Unavailable
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:59438 - "GET /health HTTP/1.1" 503 Service Unavailable
+unified_engine_stack_api.1.r350zvanoo0k@pharma5    | INFO:     127.0.0.1:45762 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.r350zvanoo0k@pharma5    | INFO:     127.0.0.1:42836 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.r350zvanoo0k@pharma5    | INFO:     127.0.0.1:47782 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.r350zvanoo0k@pharma5    | INFO:     127.0.0.1:39876 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.r350zvanoo0k@pharma5    | INFO:     127.0.0.1:48554 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.r350zvanoo0k@pharma5    | INFO:     127.0.0.1:48316 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.r350zvanoo0k@pharma5    | INFO:     127.0.0.1:56626 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.r350zvanoo0k@pharma5    | INFO:     127.0.0.1:48944 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.r350zvanoo0k@pharma5    | INFO:     127.0.0.1:44738 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.r350zvanoo0k@pharma5    | INFO:     127.0.0.1:45298 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.r350zvanoo0k@pharma5    | INFO:     127.0.0.1:57126 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.r350zvanoo0k@pharma5    | INFO:     127.0.0.1:34768 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.r350zvanoo0k@pharma5    | INFO:     127.0.0.1:39852 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.r350zvanoo0k@pharma5    | INFO:     127.0.0.1:45326 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.r350zvanoo0k@pharma5    | INFO:     127.0.0.1:34442 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.r350zvanoo0k@pharma5    | INFO:     127.0.0.1:44750 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.r350zvanoo0k@pharma5    | INFO:     127.0.0.1:34024 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.r350zvanoo0k@pharma5    | INFO:     127.0.0.1:34626 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.r350zvanoo0k@pharma5    | INFO:     127.0.0.1:37728 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.r350zvanoo0k@pharma5    | INFO:     127.0.0.1:37616 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.r350zvanoo0k@pharma5    | INFO:     127.0.0.1:42520 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.r350zvanoo0k@pharma5    | INFO:     127.0.0.1:32814 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.r350zvanoo0k@pharma5    | INFO:     127.0.0.1:45664 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.r350zvanoo0k@pharma5    | INFO:     127.0.0.1:60306 - "GET /health HTTP/1.1" 503 Service Unavailable

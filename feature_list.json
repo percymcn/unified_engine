@@ -1,0 +1,1141 @@
+[
+  {
+    "category": "Infrastructure - Docker Services",
+    "description": "Verify PostgreSQL database service is running and healthy",
+    "steps": [
+      "Run: docker service ls | grep postgres",
+      "Verify replicas shows 1/1",
+      "Run: docker service ps trading_postgres",
+      "Verify Current State is Running"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Infrastructure - Docker Services",
+    "description": "Verify Redis cache service is running and healthy",
+    "steps": [
+      "Run: docker service ls | grep redis",
+      "Verify replicas shows 1/1",
+      "Run: docker exec -it $(docker ps -q -f name=trading_redis) redis-cli ping",
+      "Verify response is PONG"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Infrastructure - Docker Services",
+    "description": "Verify API service is running without health check failures",
+    "steps": [
+      "Run: docker service ls | grep 'trading_api'",
+      "Verify replicas shows 1/1 (not 0/1)",
+      "Run: docker service ps trading_api --no-trunc",
+      "Verify no 'exit 137' or 'unhealthy' errors"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Infrastructure - Docker Services",
+    "description": "Verify UI service is running and accessible",
+    "steps": [
+      "Run: docker service ls | grep 'trading_ui'",
+      "Verify replicas shows 1/1",
+      "Run: curl -I http://192.168.1.254:3411",
+      "Verify HTTP 200 response"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Infrastructure - Docker Services",
+    "description": "Verify Nginx reverse proxy is running",
+    "steps": [
+      "Run: docker service ls | grep nginx",
+      "Verify replicas shows 1/1",
+      "Run: curl -I http://192.168.1.254:3013",
+      "Verify service responds"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Infrastructure - Docker Services",
+    "description": "Verify Celery worker service is running",
+    "steps": [
+      "Run: docker service ls | grep celery-worker",
+      "Verify replicas shows at least 1/1 (not 0/1)",
+      "Run: docker service ps trading_celery-worker",
+      "Verify Current State is Running (not Complete or Shutdown)"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Infrastructure - Docker Services",
+    "description": "Verify Celery beat scheduler is running",
+    "steps": [
+      "Run: docker service ls | grep celery-beat",
+      "Verify replicas shows 1/1 (not 0/1)",
+      "Run: docker service ps trading_celery-beat",
+      "Verify Current State is Running"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Infrastructure - Docker Services",
+    "description": "Verify Flower monitoring service is running",
+    "steps": [
+      "Run: docker service ls | grep flower",
+      "Verify replicas shows 1/1 (not 0/1)",
+      "Run: curl -I http://192.168.1.254:5558",
+      "Verify HTTP response (Flower UI)"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Infrastructure - Docker Services",
+    "description": "Verify NATS service is either running or gracefully handled",
+    "steps": [
+      "Run: docker service ls | grep nats",
+      "If NATS exists, verify it's running",
+      "If NATS doesn't exist, check API logs for graceful NATS fallback",
+      "Verify API doesn't crash due to NATS connection"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Infrastructure - Docker Services",
+    "description": "Verify funnel-automation service is running without crashes",
+    "steps": [
+      "Run: docker service ls | grep funnel-automation",
+      "Verify replicas shows 1/1 (not 0/1)",
+      "Run: docker service ps trading_funnel-automation",
+      "Verify no crash loop (exit 1) or ModuleNotFoundError for aiohttp"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Infrastructure - Database",
+    "description": "Verify PostgreSQL database accepts connections",
+    "steps": [
+      "Run: docker exec -it $(docker ps -q -f name=trading_postgres) psql -U trading_user -d trading_db -c 'SELECT 1'",
+      "Verify query returns 1",
+      "Check for no connection errors"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Infrastructure - Database",
+    "description": "Verify database has core tables created",
+    "steps": [
+      "Run: docker exec -it $(docker ps -q -f name=trading_postgres) psql -U trading_user -d trading_db -c '\\dt'",
+      "Verify tables exist: users, accounts, positions, trades, signals",
+      "Verify tables exist: api_keys, strategies, account_strategies, webhook_logs"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Infrastructure - Redis",
+    "description": "Verify Redis is accessible from API container",
+    "steps": [
+      "Run: docker exec -it $(docker ps -q -f name=trading_api) python -c \"import redis; r=redis.from_url('redis://redis:6379/0'); print(r.ping())\"",
+      "Verify output is True",
+      "Check for no connection errors"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Infrastructure - Network",
+    "description": "Verify Docker overlay network exists and is attachable",
+    "steps": [
+      "Run: docker network ls | grep trading_unified-network",
+      "Verify network exists with overlay driver",
+      "Run: docker network inspect trading_unified-network",
+      "Verify Attachable is true"
+    ],
+    "passes": false
+  },
+  {
+    "category": "API Health & Connectivity",
+    "description": "Verify main health endpoint is accessible and returns healthy status",
+    "steps": [
+      "Run: curl -f http://192.168.1.254:3012/health",
+      "Verify HTTP 200 response",
+      "Verify JSON response contains 'status': 'healthy'",
+      "Verify 'redis': 'connected' in response"
+    ],
+    "passes": false
+  },
+  {
+    "category": "API Health & Connectivity",
+    "description": "Verify healthz endpoint for Kubernetes-style health checks",
+    "steps": [
+      "Run: curl -f http://192.168.1.254:3012/healthz",
+      "Verify HTTP 200 response",
+      "Verify response indicates service is ready"
+    ],
+    "passes": false
+  },
+  {
+    "category": "API Health & Connectivity",
+    "description": "Verify detailed status endpoint",
+    "steps": [
+      "Run: curl http://192.168.1.254:3012/status",
+      "Verify HTTP 200 response",
+      "Verify JSON contains broker statuses",
+      "Verify database connection status"
+    ],
+    "passes": false
+  },
+  {
+    "category": "API Health & Connectivity",
+    "description": "Verify OpenAPI documentation is accessible",
+    "steps": [
+      "Run: curl -I http://192.168.1.254:3012/docs",
+      "Verify HTTP 200 response",
+      "Open browser to http://192.168.1.254:3012/docs",
+      "Verify Swagger UI loads with API endpoints"
+    ],
+    "passes": false
+  },
+  {
+    "category": "API Health & Connectivity",
+    "description": "Verify ReDoc documentation is accessible",
+    "steps": [
+      "Run: curl -I http://192.168.1.254:3012/redoc",
+      "Verify HTTP 200 response",
+      "Open browser to http://192.168.1.254:3012/redoc",
+      "Verify ReDoc UI loads"
+    ],
+    "passes": false
+  },
+  {
+    "category": "API Health & Connectivity",
+    "description": "Verify OpenAPI JSON schema is accessible",
+    "steps": [
+      "Run: curl http://192.168.1.254:3012/openapi.json",
+      "Verify HTTP 200 response",
+      "Verify valid JSON response",
+      "Verify contains 'paths' and 'components' objects"
+    ],
+    "passes": false
+  },
+  {
+    "category": "API Health & Connectivity",
+    "description": "Verify CORS headers are properly configured",
+    "steps": [
+      "Run: curl -H 'Origin: http://192.168.1.254:3411' -I http://192.168.1.254:3012/health",
+      "Verify Access-Control-Allow-Origin header present",
+      "Verify CORS allows frontend origin"
+    ],
+    "passes": false
+  },
+  {
+    "category": "API Health & Connectivity",
+    "description": "Verify API is accessible through Nginx reverse proxy",
+    "steps": [
+      "Run: curl -f http://192.168.1.254:3013/api/health",
+      "Verify Nginx proxies request to trading_api:8000",
+      "Verify HTTP 200 response"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Authentication",
+    "description": "Verify user registration endpoint is functional",
+    "steps": [
+      "Run: curl -X POST http://192.168.1.254:3012/api/v1/auth/register -H 'Content-Type: application/json' -d '{\"email\":\"test@test.com\",\"password\":\"Test123!\"}'",
+      "Verify HTTP 200 or 201 response",
+      "Verify response contains user object or success message",
+      "Check for no database errors"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Authentication",
+    "description": "Verify user login endpoint returns JWT token",
+    "steps": [
+      "Create test user via registration endpoint",
+      "Run: curl -X POST http://192.168.1.254:3012/api/v1/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"test@test.com\",\"password\":\"Test123!\"}'",
+      "Verify HTTP 200 response",
+      "Verify response contains 'access_token' field",
+      "Verify token is valid JWT format"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Authentication",
+    "description": "Verify JWT token authentication works for protected endpoints",
+    "steps": [
+      "Obtain JWT token from login endpoint",
+      "Run: curl -H 'Authorization: Bearer <token>' http://192.168.1.254:3012/api/v1/auth/me",
+      "Verify HTTP 200 response",
+      "Verify response contains user information"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Authentication",
+    "description": "Verify token refresh endpoint extends session",
+    "steps": [
+      "Obtain JWT token from login",
+      "Run: curl -X POST http://192.168.1.254:3012/api/v1/auth/refresh -H 'Authorization: Bearer <token>'",
+      "Verify HTTP 200 response",
+      "Verify new token is returned",
+      "Verify new token has extended expiration"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Authentication",
+    "description": "Verify logout endpoint invalidates session",
+    "steps": [
+      "Login and obtain token",
+      "Run: curl -X POST http://192.168.1.254:3012/api/v1/auth/logout -H 'Authorization: Bearer <token>'",
+      "Verify HTTP 200 response",
+      "Attempt to use token on protected endpoint",
+      "Verify token is rejected (HTTP 401)"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Authentication",
+    "description": "Verify protected endpoints reject requests without authentication",
+    "steps": [
+      "Run: curl http://192.168.1.254:3012/api/v1/accounts",
+      "Verify HTTP 401 Unauthorized response",
+      "Verify error message indicates missing authentication"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Authentication",
+    "description": "Verify API key generation creates valid keys",
+    "steps": [
+      "Login and obtain JWT token",
+      "Run: curl -X POST 'http://192.168.1.254:3012/api/v1/api-keys?name=TestKey' -H 'Authorization: Bearer <token>'",
+      "Verify HTTP 200 or 201 response",
+      "Verify response contains api_key field",
+      "Verify key is hashed in database"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Authentication",
+    "description": "Verify API key can be used for authentication",
+    "steps": [
+      "Generate API key via endpoint",
+      "Run: curl -H 'X-API-Key: <generated_key>' http://192.168.1.254:3012/api/v1/accounts",
+      "Verify HTTP 200 response",
+      "Verify API key authentication works as alternative to JWT"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Broker Integration - MT4",
+    "description": "Verify MT4 broker executor is initialized",
+    "steps": [
+      "Run: curl http://192.168.1.254:3012/health",
+      "Verify response contains 'brokers' object",
+      "Verify 'mt4' is true",
+      "Check API logs for MT4 initialization success"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Broker Integration - MT5",
+    "description": "Verify MT5 broker executor is initialized",
+    "steps": [
+      "Run: curl http://192.168.1.254:3012/health",
+      "Verify 'mt5' is true in brokers object",
+      "Check API logs for MT5 initialization success"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Broker Integration - TradeLocker",
+    "description": "Verify TradeLocker broker executor is configured and healthy",
+    "steps": [
+      "Verify TRADELOCKER_API_URL exists in .env",
+      "Verify TRADELOCKER_API_KEY exists in .env",
+      "Run: curl http://192.168.1.254:3012/health",
+      "Verify 'tradelocker' is true (currently false - Issue #6)"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Broker Integration - TradeLocker",
+    "description": "Verify TradeLocker SDK is present and functional",
+    "steps": [
+      "Verify broker_sdks/tradelocker-python/ directory exists",
+      "Check for required SDK files",
+      "Verify SDK can be imported in Python",
+      "Test basic SDK functionality"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Broker Integration - Tradovate",
+    "description": "Verify Tradovate broker executor is initialized",
+    "steps": [
+      "Run: curl http://192.168.1.254:3012/health",
+      "Verify 'tradovate' is true in brokers object",
+      "Check API logs for Tradovate initialization"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Broker Integration - ProjectX",
+    "description": "Verify ProjectX broker executor is initialized",
+    "steps": [
+      "Run: curl http://192.168.1.254:3012/health",
+      "Verify 'projectx' is true in brokers object",
+      "Check API logs for ProjectX initialization"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Broker Integration - General",
+    "description": "Verify broker account creation endpoint works",
+    "steps": [
+      "Login and obtain token",
+      "Run: curl -X POST http://192.168.1.254:3012/api/v1/accounts -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"broker\":\"mt5\",\"account_id\":\"12345\",\"credentials\":{...}}'",
+      "Verify HTTP 200 or 201 response",
+      "Verify account is created in database"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Broker Integration - General",
+    "description": "Verify broker account listing endpoint returns accounts",
+    "steps": [
+      "Create test broker account",
+      "Run: curl http://192.168.1.254:3012/api/v1/accounts -H 'Authorization: Bearer <token>'",
+      "Verify HTTP 200 response",
+      "Verify list contains created account"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Trading Operations - Signals",
+    "description": "Verify signal creation endpoint accepts trading signals",
+    "steps": [
+      "Login and obtain token",
+      "Create broker account",
+      "Run: curl -X POST http://192.168.1.254:3012/api/v1/signals -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"symbol\":\"EURUSD\",\"action\":\"buy\",\"quantity\":1}'",
+      "Verify HTTP 200 or 201 response",
+      "Verify signal is created in database"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Trading Operations - Signals",
+    "description": "Verify signal execution processes trading signals",
+    "steps": [
+      "Create test signal",
+      "Run: curl -X POST http://192.168.1.254:3012/api/v1/signals/{signal_id}/execute -H 'Authorization: Bearer <token>'",
+      "Verify HTTP 200 response",
+      "Verify signal status changes to executed",
+      "Verify trade is created"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Trading Operations - Signals",
+    "description": "Verify signal history endpoint returns past signals",
+    "steps": [
+      "Create multiple test signals",
+      "Run: curl http://192.168.1.254:3012/api/v1/signals -H 'Authorization: Bearer <token>'",
+      "Verify HTTP 200 response",
+      "Verify list contains all created signals",
+      "Verify signals are ordered by timestamp"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Trading Operations - Positions",
+    "description": "Verify open positions endpoint lists active positions",
+    "steps": [
+      "Execute signal to create position",
+      "Run: curl http://192.168.1.254:3012/api/v1/positions -H 'Authorization: Bearer <token>'",
+      "Verify HTTP 200 response",
+      "Verify list contains open position",
+      "Verify position details are accurate"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Trading Operations - Positions",
+    "description": "Verify position close endpoint closes positions",
+    "steps": [
+      "Create open position",
+      "Run: curl -X POST http://192.168.1.254:3012/api/v1/positions/{position_id}/close -H 'Authorization: Bearer <token>'",
+      "Verify HTTP 200 response",
+      "Verify position status changes to closed",
+      "Verify trade record is created"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Trading Operations - Trades",
+    "description": "Verify trade history endpoint returns completed trades",
+    "steps": [
+      "Execute and close position to create trade",
+      "Run: curl http://192.168.1.254:3012/api/v1/trades -H 'Authorization: Bearer <token>'",
+      "Verify HTTP 200 response",
+      "Verify trade appears in history",
+      "Verify P&L is calculated"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Trading Operations - Orders",
+    "description": "Verify order management endpoint handles pending orders",
+    "steps": [
+      "Create pending order via API",
+      "Run: curl http://192.168.1.254:3012/api/v1/orders -H 'Authorization: Bearer <token>'",
+      "Verify HTTP 200 response",
+      "Verify order appears in list",
+      "Verify order can be cancelled"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Webhooks - TradingView",
+    "description": "Verify TradingView webhook receiver accepts alerts",
+    "steps": [
+      "Run: curl -X POST http://192.168.1.254:3012/api/v1/webhook-signals/tradingview -H 'Content-Type: application/json' -d '{\"symbol\":\"EURUSD\",\"action\":\"buy\",\"strategy\":\"test\"}'",
+      "Verify HTTP 200 response",
+      "Verify webhook is logged in webhook_logs table",
+      "Verify signal is created from webhook"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Webhooks - TrailHacker",
+    "description": "Verify TrailHacker webhook receiver accepts signals",
+    "steps": [
+      "Run: curl -X POST http://192.168.1.254:3012/api/v1/webhook-signals/trailhacker -H 'Content-Type: application/json' -d '{\"ticker\":\"EURUSD\",\"order\":\"buy\"}'",
+      "Verify HTTP 200 response",
+      "Verify webhook is logged",
+      "Verify signal is created"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Webhooks - Logging",
+    "description": "Verify webhook logs are stored and retrievable",
+    "steps": [
+      "Send test webhook",
+      "Run: curl http://192.168.1.254:3012/api/v1/webhooks -H 'Authorization: Bearer <token>'",
+      "Verify HTTP 200 response",
+      "Verify webhook log entry exists",
+      "Verify log contains request payload and timestamp"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Webhooks - Validation",
+    "description": "Verify webhook endpoints validate payload format",
+    "steps": [
+      "Run: curl -X POST http://192.168.1.254:3012/api/v1/webhook-signals/tradingview -H 'Content-Type: application/json' -d '{\"invalid\":\"payload\"}'",
+      "Verify HTTP 400 Bad Request response",
+      "Verify error message describes validation failure"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Strategy Management - Registry",
+    "description": "Verify strategy registry lists available strategies",
+    "steps": [
+      "Run: curl http://192.168.1.254:3012/api/strategies -H 'Authorization: Bearer <token>'",
+      "Verify HTTP 200 response",
+      "Verify list contains strategy definitions",
+      "Verify each strategy has name, version, description"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Strategy Management - Enable/Disable",
+    "description": "Verify strategy can be enabled for account",
+    "steps": [
+      "Create broker account",
+      "Run: curl -X POST http://192.168.1.254:3012/api/strategies/{strategy_id}/enable -H 'Authorization: Bearer <token>' -d '{\"account_id\":1}'",
+      "Verify HTTP 200 response",
+      "Verify account_strategies record is created",
+      "Verify strategy is marked as enabled"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Strategy Management - Enable/Disable",
+    "description": "Verify strategy can be disabled for account",
+    "steps": [
+      "Enable strategy for account",
+      "Run: curl -X POST http://192.168.1.254:3012/api/strategies/{strategy_id}/disable -H 'Authorization: Bearer <token>' -d '{\"account_id\":1}'",
+      "Verify HTTP 200 response",
+      "Verify strategy is marked as disabled",
+      "Verify strategy stops executing"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Strategy Management - Execution",
+    "description": "Verify manual strategy execution endpoint runs strategy",
+    "steps": [
+      "Enable strategy for account",
+      "Run: curl -X POST http://192.168.1.254:3012/api/v1/strategy-execution/run -H 'Authorization: Bearer <token>' -d '{\"strategy_id\":1,\"account_id\":1}'",
+      "Verify HTTP 200 response",
+      "Verify strategy executes",
+      "Verify trades are created if conditions met"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Strategy Management - Stats",
+    "description": "Verify strategy statistics endpoint returns performance metrics",
+    "steps": [
+      "Execute strategy multiple times",
+      "Run: curl http://192.168.1.254:3012/api/strategies/{strategy_id}/stats -H 'Authorization: Bearer <token>'",
+      "Verify HTTP 200 response",
+      "Verify stats include: total_trades, win_rate, total_pnl, avg_pnl"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Background Tasks - Celery Worker",
+    "description": "Verify Celery worker processes tasks from queue",
+    "steps": [
+      "Run: docker exec -it $(docker ps -q -f name=celery-worker) celery -A app.tasks.celery_app inspect active",
+      "Verify command succeeds",
+      "Submit test task via API",
+      "Verify task appears in active or completed tasks"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Background Tasks - Celery Beat",
+    "description": "Verify Celery beat scheduler is scheduling periodic tasks",
+    "steps": [
+      "Run: docker exec -it $(docker ps -q -f name=celery-beat) celery -A app.tasks.celery_app inspect scheduled",
+      "Verify scheduled tasks list is returned",
+      "Verify periodic tasks are scheduled (strategy execution, health checks)"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Background Tasks - Flower",
+    "description": "Verify Flower monitoring UI is accessible",
+    "steps": [
+      "Open browser to http://192.168.1.254:5558",
+      "Login with credentials: admin / Unified2024!",
+      "Verify Flower dashboard loads",
+      "Verify worker list is shown",
+      "Verify task list is accessible"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Background Tasks - Periodic Execution",
+    "description": "Verify periodic strategy execution runs on schedule",
+    "steps": [
+      "Enable periodic strategy execution via endpoint",
+      "Wait for configured interval (check Celery beat logs)",
+      "Verify strategy executes automatically",
+      "Verify tasks appear in Flower dashboard"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Frontend - UI Loading",
+    "description": "Verify React frontend loads without errors",
+    "steps": [
+      "Open browser to http://192.168.1.254:3411",
+      "Open browser DevTools Console",
+      "Verify no JavaScript errors",
+      "Verify page renders components",
+      "Verify no 404 errors for static assets"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Frontend - Routing",
+    "description": "Verify frontend routing works for all pages",
+    "steps": [
+      "Navigate to http://192.168.1.254:3411/login",
+      "Verify login page loads",
+      "Navigate to /dashboard, /accounts, /positions",
+      "Verify each page loads correctly",
+      "Verify SPA routing works without page reloads"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Frontend - Login Page",
+    "description": "Verify login page renders and submits credentials",
+    "steps": [
+      "Open http://192.168.1.254:3411/login",
+      "Fill email and password fields",
+      "Click login button",
+      "Open Network tab, verify POST to /api/v1/auth/login",
+      "Verify response is handled correctly"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Frontend - Dashboard",
+    "description": "Verify dashboard page loads and displays data",
+    "steps": [
+      "Login to application",
+      "Navigate to /dashboard",
+      "Verify dashboard components render",
+      "Verify API calls are made to fetch data",
+      "Verify data is displayed in UI (accounts, positions, trades)"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Frontend - Broker Connection",
+    "description": "Verify broker connection flow works in UI",
+    "steps": [
+      "Login to application",
+      "Navigate to /connect-broker or accounts page",
+      "Click 'Add Broker' or similar button",
+      "Fill broker connection form",
+      "Submit form",
+      "Verify API call to POST /api/v1/accounts",
+      "Verify success message or redirect"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Frontend - Positions Monitor",
+    "description": "Verify positions page displays open positions",
+    "steps": [
+      "Create test position via API",
+      "Login to UI and navigate to /positions",
+      "Verify positions table or list renders",
+      "Verify position details are displayed",
+      "Verify close position button works"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Frontend-Backend Integration",
+    "description": "Verify frontend API client is configured with correct base URL",
+    "steps": [
+      "Open browser to http://192.168.1.254:3411",
+      "Open Network tab",
+      "Trigger any API call (login, fetch data)",
+      "Verify request URL starts with http://192.168.1.254:3012 or correct API URL",
+      "Verify requests are not going to localhost:3012"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Frontend-Backend Integration",
+    "description": "Verify authentication flow works end-to-end",
+    "steps": [
+      "Open UI login page",
+      "Enter valid credentials and submit",
+      "Verify POST to /api/v1/auth/login succeeds",
+      "Verify JWT token is stored (localStorage or cookie)",
+      "Verify redirect to dashboard",
+      "Verify subsequent API calls include Authorization header"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Frontend-Backend Integration",
+    "description": "Verify dashboard fetches live data from backend",
+    "steps": [
+      "Login to UI",
+      "Open Network tab",
+      "Navigate to dashboard",
+      "Verify API calls to /api/v1/accounts, /api/v1/positions, /api/v1/trades",
+      "Verify responses contain real data (not mocks)",
+      "Verify data is rendered in UI"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Frontend-Backend Integration",
+    "description": "Verify broker account creation from UI creates backend record",
+    "steps": [
+      "Login to UI",
+      "Navigate to broker connection page",
+      "Fill and submit broker form",
+      "Verify POST to /api/v1/accounts in Network tab",
+      "Query database for created account record",
+      "Verify account exists in database with correct data"
+    ],
+    "passes": false
+  },
+  {
+    "category": "WebSocket - Connection",
+    "description": "Verify WebSocket endpoint accepts connections",
+    "steps": [
+      "Install wscat: npm install -g wscat",
+      "Run: wscat -c ws://192.168.1.254:3012/ws",
+      "Verify connection establishes (Connected message)",
+      "Verify no immediate disconnection",
+      "Send test message and verify no errors"
+    ],
+    "passes": false
+  },
+  {
+    "category": "WebSocket - Real-time Updates",
+    "description": "Verify WebSocket sends position updates in real-time",
+    "steps": [
+      "Connect to WebSocket endpoint",
+      "In another terminal, execute signal to create position",
+      "Verify WebSocket receives message about new position",
+      "Verify message contains position details"
+    ],
+    "passes": false
+  },
+  {
+    "category": "WebSocket - Frontend Integration",
+    "description": "Verify frontend UI updates in real-time via WebSocket",
+    "steps": [
+      "Login to UI and navigate to positions page",
+      "Open browser console to check WebSocket connection",
+      "Execute signal via API or webhook",
+      "Verify positions page updates without refresh",
+      "Verify WebSocket message is logged in console"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Database - Migrations",
+    "description": "Verify Alembic migrations are applied to database",
+    "steps": [
+      "Run: docker exec -it $(docker ps -q -f name=trading_api) alembic current",
+      "Verify output shows migration 001_add_strategy_support",
+      "Verify no 'No current revision' message"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Database - Schema",
+    "description": "Verify api_keys table exists with correct schema",
+    "steps": [
+      "Run: docker exec -it $(docker ps -q -f name=trading_postgres) psql -U trading_user -d trading_db -c '\\d api_keys'",
+      "Verify table exists",
+      "Verify columns: id, user_id, name, key_hash, created_at, revoked_at"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Database - Schema",
+    "description": "Verify strategies table exists with correct schema",
+    "steps": [
+      "Run: docker exec -it $(docker ps -q -f name=trading_postgres) psql -U trading_user -d trading_db -c '\\d strategies'",
+      "Verify table exists",
+      "Verify columns: id, name, version, description, source_code, created_at"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Database - Schema",
+    "description": "Verify account_strategies table exists for strategy enable/disable",
+    "steps": [
+      "Run: docker exec -it $(docker ps -q -f name=trading_postgres) psql -U trading_user -d trading_db -c '\\d account_strategies'",
+      "Verify table exists",
+      "Verify columns: id, account_id, strategy_id, enabled, created_at"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Database - CRUD",
+    "description": "Verify database INSERT operations work",
+    "steps": [
+      "Create test user via registration endpoint",
+      "Query database: SELECT * FROM users WHERE email='test@test.com'",
+      "Verify user record exists",
+      "Verify password is hashed (not plaintext)"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Database - CRUD",
+    "description": "Verify database SELECT queries return correct data",
+    "steps": [
+      "Create test data via API endpoints",
+      "Query API to retrieve data",
+      "Compare API response with direct database query",
+      "Verify data matches"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Database - CRUD",
+    "description": "Verify database UPDATE operations work",
+    "steps": [
+      "Create test account via API",
+      "Update account via PUT endpoint",
+      "Query database to verify update",
+      "Verify updated_at timestamp changes"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Database - CRUD",
+    "description": "Verify database DELETE operations work",
+    "steps": [
+      "Create test signal via API",
+      "Delete signal via DELETE endpoint",
+      "Query database to verify deletion",
+      "Verify record is removed or soft-deleted"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Monitoring - Flower Dashboard",
+    "description": "Verify Flower dashboard shows worker statistics",
+    "steps": [
+      "Open http://192.168.1.254:5558",
+      "Login to Flower",
+      "Navigate to workers tab",
+      "Verify worker nodes are listed",
+      "Verify worker stats: active, completed, failed tasks"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Monitoring - Logs",
+    "description": "Verify application logs are accessible and structured",
+    "steps": [
+      "Run: docker service logs trading_api --tail 50",
+      "Verify logs are readable",
+      "Verify log level, timestamp, message format",
+      "Check for no excessive ERROR or WARNING messages"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Monitoring - Metrics",
+    "description": "Verify Prometheus metrics endpoint exposes metrics",
+    "steps": [
+      "Run: curl http://192.168.1.254:3012/metrics",
+      "Verify HTTP 200 response",
+      "Verify metrics in Prometheus format",
+      "Verify metrics include: request_count, request_duration, etc."
+    ],
+    "passes": false
+  },
+  {
+    "category": "Error Handling - Invalid Requests",
+    "description": "Verify API returns 400 Bad Request for invalid payloads",
+    "steps": [
+      "Run: curl -X POST http://192.168.1.254:3012/api/v1/signals -H 'Authorization: Bearer <token>' -d '{\"invalid\":true}'",
+      "Verify HTTP 400 response",
+      "Verify error message describes validation failure"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Error Handling - Authentication",
+    "description": "Verify API returns 401 Unauthorized for missing token",
+    "steps": [
+      "Run: curl http://192.168.1.254:3012/api/v1/accounts",
+      "Verify HTTP 401 response",
+      "Verify error message: 'Not authenticated' or similar"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Error Handling - Not Found",
+    "description": "Verify API returns 404 Not Found for non-existent resources",
+    "steps": [
+      "Run: curl http://192.168.1.254:3012/api/v1/signals/999999 -H 'Authorization: Bearer <token>'",
+      "Verify HTTP 404 response",
+      "Verify error message indicates resource not found"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Error Handling - Server Errors",
+    "description": "Verify API returns 500 Internal Server Error gracefully",
+    "steps": [
+      "Trigger server error (database disconnect, etc.)",
+      "Verify HTTP 500 response",
+      "Verify error message doesn't expose sensitive details",
+      "Verify error is logged for debugging"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Error Handling - NATS Graceful Fallback",
+    "description": "Verify application continues to function if NATS is unavailable",
+    "steps": [
+      "Check API logs for NATS connection messages",
+      "If NATS connection fails, verify API still starts",
+      "Verify events are logged instead of sent to NATS",
+      "Verify no crash or startup failure due to NATS"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Security - Password Hashing",
+    "description": "Verify user passwords are hashed with bcrypt",
+    "steps": [
+      "Create test user via registration",
+      "Query database: SELECT password FROM users WHERE email='test@test.com'",
+      "Verify password field contains bcrypt hash (starts with $2b$)",
+      "Verify password is not stored in plaintext"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Security - API Key Hashing",
+    "description": "Verify API keys are hashed before storage",
+    "steps": [
+      "Generate API key via endpoint",
+      "Save returned API key",
+      "Query database: SELECT key_hash FROM api_keys",
+      "Verify key_hash is hashed (not plaintext)",
+      "Verify plaintext key is not in database"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Security - JWT Secret",
+    "description": "Verify JWT tokens are signed with secret key",
+    "steps": [
+      "Verify SECRET_KEY is set in .env",
+      "Generate JWT token via login",
+      "Decode JWT header (don't verify signature yet)",
+      "Attempt to create fake token with different secret",
+      "Verify fake token is rejected by API"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Security - HTTPS/TLS",
+    "description": "Verify sensitive endpoints enforce HTTPS (if configured)",
+    "steps": [
+      "Check nginx configuration for HTTPS redirect",
+      "Attempt to access sensitive endpoint via HTTP",
+      "Verify redirect to HTTPS or secure headers present",
+      "Verify no sensitive data in HTTP responses if HTTPS not configured"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Security - Secrets Management",
+    "description": "Verify .env file is not committed to git and contains secrets",
+    "steps": [
+      "Run: cat .gitignore | grep .env",
+      "Verify .env is in .gitignore",
+      "Run: git status --ignored | grep .env",
+      "Verify .env is not tracked",
+      "Verify SECRET_KEY, database passwords are in .env"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Security - CORS Configuration",
+    "description": "Verify CORS only allows specific origins",
+    "steps": [
+      "Run: curl -H 'Origin: http://malicious.com' -I http://192.168.1.254:3012/health",
+      "Verify Access-Control-Allow-Origin is restricted (not '*')",
+      "Verify only trusted origins are allowed"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Dependencies - Python Requirements",
+    "description": "Verify aiohttp is added to requirements.txt",
+    "steps": [
+      "Run: cat requirements.txt | grep aiohttp",
+      "Verify aiohttp==3.9.1 or similar is present",
+      "Verify no ModuleNotFoundError for aiohttp in logs"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Dependencies - Python Requirements",
+    "description": "Verify all required packages are in requirements.txt",
+    "steps": [
+      "Run: docker exec -it $(docker ps -q -f name=trading_api) pip list",
+      "Verify key packages installed: fastapi, sqlalchemy, redis, celery, pydantic",
+      "Compare with requirements.txt",
+      "Verify no critical packages missing"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Deployment - Image Build",
+    "description": "Verify API Docker image builds without errors",
+    "steps": [
+      "Run: docker build -t test-api -f Dockerfile.stack .",
+      "Verify build completes successfully",
+      "Verify no build errors or warnings",
+      "Verify image size is reasonable (<2GB)"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Deployment - Image Build",
+    "description": "Verify UI Docker image builds without errors",
+    "steps": [
+      "Run: cd ui && docker build -t test-ui .",
+      "Verify build completes successfully",
+      "Verify npm install succeeds",
+      "Verify npm run build succeeds",
+      "Verify image size is reasonable (<200MB)"
+    ],
+    "passes": false
+  },
+  {
+    "category": "Deployment - Stack Deploy",
+    "description": "Verify Docker stack deploys all services",
+    "steps": [
+      "Run: docker stack deploy -c docker-stack.yml trading",
+      "Verify command succeeds",
+      "Wait 60 seconds for services to start",
+      "Run: docker service ls | grep trading",
+      "Verify all services show 1/1 or 2/2 replicas (not 0/1)"
+    ],
+    "passes": false
+  },
+  {
+    "category": "End-to-End - Full Trade Flow",
+    "description": "Execute complete trade flow: signal creation to position close",
+    "steps": [
+      "Register user via API",
+      "Login and obtain JWT token",
+      "Create broker account",
+      "Create trading signal",
+      "Execute signal to open position",
+      "Verify position appears in /api/v1/positions",
+      "Close position",
+      "Verify trade appears in /api/v1/trades with P&L"
+    ],
+    "passes": false
+  },
+  {
+    "category": "End-to-End - Webhook to Trade",
+    "description": "Execute webhook-to-trade flow from external signal",
+    "steps": [
+      "Create and enable broker account",
+      "Send TradingView webhook: POST /api/v1/webhook-signals/tradingview",
+      "Verify webhook is logged",
+      "Verify signal is created from webhook",
+      "Verify signal auto-executes or is ready for execution",
+      "Verify position is opened on broker"
+    ],
+    "passes": false
+  },
+  {
+    "category": "End-to-End - Strategy Execution",
+    "description": "Execute full strategy flow: enable, run, disable",
+    "steps": [
+      "Create broker account",
+      "List available strategies",
+      "Enable strategy for account",
+      "Manually run strategy execution",
+      "Verify strategy logic executes",
+      "Verify trades are created if conditions met",
+      "Disable strategy",
+      "Verify strategy stops executing"
+    ],
+    "passes": false
+  }
+]

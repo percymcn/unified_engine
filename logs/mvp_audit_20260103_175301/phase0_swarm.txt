@@ -1,0 +1,140 @@
+# docker node ls
+ID                            HOSTNAME   STATUS    AVAILABILITY   MANAGER STATUS   ENGINE VERSION
+yr0ka4whg0rotv5w1joqei00x     pharma4    Ready     Active                          27.5.1
+flla138qjkkra5e6rbjk4i40w *   pharma5    Ready     Active         Leader           29.0.2
+# docker service ls
+ID             NAME                                              MODE         REPLICAS               IMAGE                                              PORTS
+7n33bs0ataah   ai-employee-stack_ai-employee-engine              replicated   0/2                    pharma5:5000/ai-employee-engine:latest             *:8003->8003/tcp
+s98yyh3w8rlq   ai-employee-stack_nats                            replicated   1/1                    nats:2.10-alpine                                   *:4224->4222/tcp, *:8224->8222/tcp
+jkmsnhwuputu   ai-employee-stack_postgres                        replicated   1/1                    postgres:15-alpine                                 
+4q8ji83ajwyy   ai-employee-stack_redis                           replicated   1/1                    redis:7-alpine                                     *:6381->6379/tcp
+ghp90y76q1xs   ai-factory_backend                                replicated   0/1                    pharma5:5000/fluxeo-ai_factory:latest              *:3009->8000/tcp
+vyx4jk1die09   app-factory_backend                               replicated   0/1                    pharma5:5000/fluxeo-ai_factory:latest              *:3008->8000/tcp
+wa6jlwy94ori   automated-money-system_automated-money-backend    replicated   2/2                    pharma5:5000/automated-money-system:latest         *:8002->8000/tcp
+fmlud02cc668   automated-money-system_automated-money-frontend   replicated   1/1                    automated-money-system/frontend:latest             *:4463->3000/tcp
+soz2v9ad7rtm   automated-money-system_backend                    replicated   0/2                    pharma5:5000/automated-money-system:latest         *:3007->8000/tcp
+p47hvu2oc04l   automated-money-system_celery-beat                replicated   0/1                    pharma5:5000/automated-money-system:latest         
+ilnvsmuftpv2   automated-money-system_celery-worker              replicated   0/2                    pharma5:5000/automated-money-system:latest         
+wz3kx15i7w57   automated-money-system_flower                     replicated   0/1                    pharma5:5000/automated-money-system:latest         *:5556->5556/tcp
+uo6x00uo5o39   automated-money-system_grafana                    replicated   1/1                    grafana/grafana:latest                             *:3002->3000/tcp
+a4e746dmdhb2   automated-money-system_nginx                      replicated   0/0                    nginx:alpine                                       *:80->80/tcp, *:443->443/tcp
+99fc1h19f62x   automated-money-system_postgres                   replicated   1/1                    postgres:15-alpine                                 
+vjpzwz0inite   automated-money-system_redis                      replicated   1/1                    redis:7-alpine                                     
+zq6mvewytole   credit-repair_api                                 replicated   1/1                    192.168.1.254:5000/credit-repair-api:latest        *:8006->8000/tcp
+k8f045cuyw0j   credit-repair_celery-beat                         replicated   1/1                    192.168.1.254:5000/credit-repair-api:latest        
+xyx5ynrid6sy   credit-repair_celery-worker                       replicated   2/2                    192.168.1.254:5000/credit-repair-api:latest        
+suuuxew1vknz   credit-repair_frontend                            replicated   1/1                    192.168.1.254:5000/credit-repair-frontend:latest   *:3000->80/tcp
+6f6iep0sv0bu   credit-repair_postgres                            replicated   1/1                    postgres:15-alpine                                 
+ngr2dcdifqdv   credit-repair_redis                               replicated   1/1                    redis:7-alpine                                     
+3q550r0v3znn   empire-brain_backend                              replicated   0/1                    empire-brain:latest                                *:3301->8000/tcp
+j3gjlyabnxxg   empire-monitoring_alertmanager                    replicated   0/0                    prom/alertmanager:latest                           *:9093->9093/tcp
+9t065mrw310g   empire-monitoring_grafana                         replicated   1/1                    grafana/grafana:latest                             *:3001->3000/tcp
+r67wpcfgzspl   empire-monitoring_node-exporter                   global       2/2                    prom/node-exporter:latest                          *:9100->9100/tcp
+pjtz21y4a2xq   empire-monitoring_prometheus                      replicated   0/0                    prom/prometheus:latest                             *:9090->9090/tcp
+nhnl68wiwdmy   empire-training_ollama                            replicated   0/0                    ollama/ollama:latest                               *:11434->11434/tcp
+ywtdltsgq9gm   empire-training_openwebui                         replicated   0/0                    ghcr.io/open-webui/open-webui:main                 *:3003->8080/tcp
+adcvh0sge4us   empire-training_rag-worker                        replicated   0/0                    python:3.11-slim                                   
+8kpoez8aadpq   flowstate-ai_postgres                             replicated   1/1                    postgres:15-alpine                                 
+pver3um4ol27   flowstate-ai_redis                                replicated   1/1                    redis:7-alpine                                     
+4k7uas9u7g61   flowstate-ai_worker                               replicated   0/2                    pharma5:5000/flowstate-ai-backend:latest           
+jw6p5otd54y6   flowstate-stack_backend                           replicated   0/0                    flowstate-ai-backend:latest                        
+lp1oba37xxl9   flowstate-stack_nats                              replicated   1/1                    nats:2.10-alpine                                   *:4222->4222/tcp, *:8222->8222/tcp
+inj2ei14m7k2   flowstate-stack_postgres                          replicated   1/1                    postgres:15-alpine                                 
+b0i5empqofc2   flowstate-stack_redis                             replicated   1/1                    redis:7-alpine                                     
+mpyovonnskj8   flowstate-stack_worker                            replicated   0/0                    flowstate-ai-backend:latest                        
+lpj4eww9ai7u   fluxempire-master-api                             replicated   1/1                    python:3.11-slim                                   *:8000->8000/tcp
+4v7zwt1hwc6g   fluxeo-empire_caddy                               replicated   1/1                    caddy:2-alpine                                     
+bad3rhr4u774   fluxeo-empire_cloudflared                         replicated   0/1                    cloudflare/cloudflared:latest                      
+3n7zuf680c96   fluxeo-empire_cloudflared-ssh                     replicated   0/1                    cloudflare/cloudflared:latest                      
+knr9idgdao9g   fluxeo-empire_dashboard                           replicated   1/1                    nginx:alpine                                       
+w4zzi47rnxey   fluxeo-empire_demo-content                        replicated   1/1                    nginx:alpine                                       
+4c3mvvugocg8   fluxeo-empire_demo-cs                             replicated   1/1                    nginx:alpine                                       
+i2v3e9heli91   fluxeo-empire_demo-dev                            replicated   1/1                    nginx:alpine                                       
+ihp2ha88azq0   fluxeo-empire_demo-finance                        replicated   1/1                    nginx:alpine                                       
+diwa0yykb6rl   fluxeo-empire_demo-legal                          replicated   1/1                    nginx:alpine                                       
+xm560p2kzy25   fluxeo-empire_n8n                                 replicated   1/1                    n8nio/n8n:latest                                   
+i2hryyhsk8jw   fluxeo-empire_nats                                replicated   1/1                    nats:2.10-alpine                                   
+q27rxeap659f   fluxeo-empire_nats-bridge                         replicated   1/1                    node:20-alpine                                     
+5x4yv2sjli0i   fluxeo-empire_redis                               replicated   1/1                    redis:7-alpine                                     
+0wf5kg2kmda8   fluxeo-empire_telegram-bot                        replicated   0/1                    node:20-alpine                                     
+tcwd37zsxq7j   fluxeo-mcp-server                                 replicated   1/1                    pharma5:5000/mcp-server:latest                     *:5100->3000/tcp
+2p9ikakwb7sl   fluxeo_caddy                                      replicated   1/1                    caddy:2-alpine                                     
+vxrhhho3axub   fluxeo_cloudflared                                replicated   1/1                    cloudflare/cloudflared:latest                      
+ah2ne9wxhaz0   fluxeo_cloudflared-ssh                            replicated   0/1                    cloudflare/cloudflared:latest                      
+xslra14jcp1y   fluxeo_dashboard                                  replicated   0/2 (max 1 per node)   nginx:alpine                                       
+iprv3pybz7r9   fluxeo_demo-content                               replicated   1/1                    nginx:alpine                                       
+ui5kxlnhg387   fluxeo_demo-cs                                    replicated   1/1                    nginx:alpine                                       
+ocr603gz0zlc   fluxeo_demo-dev                                   replicated   1/1                    nginx:alpine                                       
+mvdikbdta846   fluxeo_demo-finance                               replicated   1/1                    nginx:alpine                                       
+cz1vcw5hgboh   fluxeo_demo-legal                                 replicated   1/1                    nginx:alpine                                       
+xvdwfvqm69sd   fluxeo_n8n                                        replicated   1/1                    n8nio/n8n:latest                                   *:5678->5678/tcp, *:6888->6888/tcp
+ra19llb3687c   fluxeo_nats                                       replicated   0/1                    nats:2.10-alpine                                   
+dyahz2uzzrst   fluxeo_nats-bridge                                replicated   1/1                    node:20-alpine                                     
+151azje4q2ie   fluxeo_redis                                      replicated   1/1                    redis:7-alpine                                     
+pup84e08l78h   fluxeo_telegram-bot                               replicated   0/1                    node:20-alpine                                     
+k5s3ugeezsdh   freight-dispatch_backend                          replicated   0/2                    pharma5:5000/freight-dispatch:latest               *:3004->8000/tcp
+q469qmf6r6fv   industry-intelligence_backend                     replicated   0/1                    fluxeo-industry-intelligence-system:latest         *:3302->8000/tcp
+y2angx8ztp7s   invoice_ai_v2_api                                 replicated   2/2                    invoice-ai-api:latest                              *:8088->8000/tcp
+6wgdfz5fy4wh   invoice_ai_v2_frontend                            replicated   1/1                    invoice-ai-frontend:latest                         *:8080->80/tcp
+fb3c563oq151   invoice_ai_v2_minio                               replicated   1/1                    minio/minio:latest                                 *:9000-9001->9000-9001/tcp
+rtxg83zhkg3r   invoice_ai_v2_nats                                replicated   1/1                    nats:2.10-alpine                                   
+l8287p3voh0i   invoice_ai_v2_postgres                            replicated   1/1                    postgres:15-alpine                                 
+tohm067rrl0s   invoice_ai_v2_worker-approve                      replicated   2/2                    invoice-ai-worker:latest                           
+ytyvrtf8drk0   invoice_ai_v2_worker-classify                     replicated   2/2                    invoice-ai-worker:latest                           
+pji3nltbforq   invoice_ai_v2_worker-ingest                       replicated   2/2                    invoice-ai-worker:latest                           
+4o0fn8virl2p   invoice_ai_v2_worker-learn                        replicated   1/1                    invoice-ai-worker:latest                           
+13rpx38lak3k   invoice_ai_v2_worker-parse                        replicated   3/3                    invoice-ai-worker:latest                           
+98kvplwnaz08   invoice_ai_v2_worker-post                         replicated   2/2                    invoice-ai-worker:latest                           
+bya094bf94tx   master-dashboard_backend                          replicated   2/2                    pharma5:5000/master-dashboard-backend:latest       *:3101->3101/tcp
+qxwd1usihn8l   master-dashboard_frontend                         replicated   1/1                    nginx:alpine                                       *:3100->80/tcp
+unl4qvt3iamy   master-dashboard_master-dashboard                 replicated   1/1                    nginx:alpine                                       *:8888->80/tcp
+w91a0ysct3x5   mc-dashboard                                      replicated   1/1                    nginx:alpine                                       *:8889->80/tcp
+n8sc8olgsy8g   mcp-server_backend                                replicated   0/1                    pharma5:5000/mcp-server:latest                     *:3300->8000/tcp
+ftqugc6ladjg   nichehunter_nichehunter-api                       replicated   0/1                    pharma5:5000/nichehunter-api:latest                *:8001->8001/tcp
+cubmrw710qv3   nichehunter_nichehunter-dashboard                 replicated   2/2                    nginx:alpine                                       *:3005->80/tcp
+z83myw9cacop   real-estate-sniper_real-estate-sniper             replicated   0/1                    python:3.11-slim                                   *:8005->8000/tcp
+6xgb8stg8an4   registry                                          replicated   1/1                    registry:2                                         *:5000->5000/tcp
+i85k6d316m3b   swamp-tours-stack_swamptours-api                  replicated   0/1                    pharma5:5000/swamptours-api:latest                 *:8004->8004/tcp
+lugxf3jtfqr8   temp-migration-task                               replicated   0/1                    temp-migration:latest                              
+fdbcp3ghugbx   trading_api                                       replicated   1/2 (max 1 per node)   unified-engine/api:latest                          
+l27aye9rmqgv   trading_celery-beat                               replicated   0/1                    unified-engine/api:latest                          
+1gba5ii6qrpj   trading_celery-worker                             replicated   0/2                    unified-engine/api:latest                          
+5ekjqa7lhm8i   trading_flower                                    replicated   0/1                    unified-engine/api:latest                          
+zvo4qifsu39x   trading_funnel-automation                         replicated   0/1                    unified-engine/api:latest                          
+yw2r6zn7aeje   trading_nginx                                     replicated   0/1                    nginx:alpine                                       
+mq99ioraifbx   trading_postgres                                  replicated   1/1                    postgres:15                                        
+d9ayiwwx2vnw   trading_redis                                     replicated   1/1                    redis:7-alpine                                     
+udxtvy5gb7eh   trading_ui                                        replicated   0/1                    unified-engine/ui:latest                           
+r8i1hjoyrh9h   unified_engine_stack_api                          replicated   1/2 (max 1 per node)   unified-engine/api:latest                          *:3012->8000/tcp
+vsz9f4v6kai7   unified_engine_stack_celery-beat                  replicated   0/1                    unified-engine/api:latest                          
+bjkmgppkxw2r   unified_engine_stack_celery-worker                replicated   0/2                    unified-engine/api:latest                          
+l4lwl9g0f4ac   unified_engine_stack_flower                       replicated   0/1                    unified-engine/api:latest                          *:5558->5555/tcp
+vf410cnw0iwk   unified_engine_stack_funnel-automation            replicated   0/1                    unified-engine/api:latest                          
+fuvxij47wqa2   unified_engine_stack_nginx                        replicated   0/1                    nginx:alpine                                       
+ix1l87ayrbw1   unified_engine_stack_postgres                     replicated   1/1                    postgres:15                                        
+dy9bga65wxfo   unified_engine_stack_redis                        replicated   1/1                    redis:7-alpine                                     
+khwxrkp3fb9r   unified_engine_stack_ui                           replicated   0/1                    unified-engine/ui:latest                           *:3411->80/tcp
+# docker stack ls
+NAME                     SERVICES
+ai-employee-stack        3
+ai-factory               1
+app-factory              1
+automated-money-system   10
+credit-repair            6
+empire-brain             1
+empire-monitoring        4
+empire-training          3
+flowstate-ai             3
+flowstate-stack          5
+fluxeo                   13
+fluxeo-empire            14
+freight-dispatch         1
+industry-intelligence    1
+invoice_ai_v2            11
+master-dashboard         3
+mcp-server               1
+nichehunter              2
+real-estate-sniper       1
+swamp-tours-stack        1
+trading                  9
+unified_engine_stack     9

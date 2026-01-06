@@ -1,0 +1,18 @@
+# http://127.0.0.1:3012/health
+HTTP/1.1 200 OK
+date: Sat, 03 Jan 2026 23:01:05 GMT
+server: uvicorn
+content-length: 150
+content-type: application/json
+x-process-time: 0.0020000000076834112
+
+{"status":"healthy","redis":"connected","brokers":{"mt4":true,"mt5":true,"tradelocker":false,"tradovate":true,"projectx":true},"timestamp":194814.024}
+# http://192.168.1.254:3012/health
+HTTP/1.1 200 OK
+date: Sat, 03 Jan 2026 23:01:05 GMT
+server: uvicorn
+content-length: 150
+content-type: application/json
+x-process-time: 0.001999999978579581
+
+{"status":"healthy","redis":"connected","brokers":{"mt4":true,"mt5":true,"tradelocker":false,"tradovate":true,"projectx":true},"timestamp":194814.047}

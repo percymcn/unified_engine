@@ -1,0 +1,10 @@
+ID             NAME                                     MODE         REPLICAS               IMAGE                                          PORTS
+r8i1hjoyrh9h   unified_engine_stack_api                 replicated   1/2 (max 1 per node)   192.168.1.254:5000/unified-engine/api:latest   *:3012->8000/tcp
+vsz9f4v6kai7   unified_engine_stack_celery-beat         replicated   0/1                    unified-engine/api:latest                      
+bjkmgppkxw2r   unified_engine_stack_celery-worker       replicated   0/2                    unified-engine/api:latest                      
+l4lwl9g0f4ac   unified_engine_stack_flower              replicated   0/1                    unified-engine/api:latest                      *:5558->5555/tcp
+vf410cnw0iwk   unified_engine_stack_funnel-automation   replicated   0/1                    unified-engine/api:latest                      
+fuvxij47wqa2   unified_engine_stack_nginx               replicated   1/1                    nginx:alpine                                   *:3013->80/tcp
+ix1l87ayrbw1   unified_engine_stack_postgres            replicated   1/1                    postgres:15                                    
+dy9bga65wxfo   unified_engine_stack_redis               replicated   1/1                    redis:7-alpine                                 
+khwxrkp3fb9r   unified_engine_stack_ui                  replicated   1/1                    192.168.1.254:5000/unified-engine/ui:latest    *:3411->80/tcp

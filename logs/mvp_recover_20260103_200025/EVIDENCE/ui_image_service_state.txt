@@ -1,0 +1,17 @@
+# UI image digest
+sha256:6b91672632bb753c28255a83433d0bfce0ffe936b2e144603f2dd3cccd80b4a6
+
+# ui services
+ID                          NAME                            IMAGE                                         NODE      DESIRED STATE   CURRENT STATE             ERROR                                       PORTS
+yjjffseprk6d86vtsk7j2xuk8   unified_engine_stack_ui.1       192.168.1.254:5000/unified-engine/ui:latest   pharma4   Running         Running 5 minutes ago                                                 
+mp5vtqdc2ntwnz09s8erkcvyf    \_ unified_engine_stack_ui.1   192.168.1.254:5000/unified-engine/ui:latest   pharma4   Shutdown        Shutdown 5 minutes ago                                                
+l7mxqifz7evkynxwoe8vorc5m    \_ unified_engine_stack_ui.1   192.168.1.254:5000/unified-engine/ui:latest   pharma4   Shutdown        Shutdown 31 minutes ago                                               
+b2qff9btoyxg6zopck5qxcrjp    \_ unified_engine_stack_ui.1   unified-engine/ui:latest                      pharma5   Shutdown        Shutdown 2 hours ago                                                  
+352sd0kgxkvo1iak2n6kgp5rr    \_ unified_engine_stack_ui.1   unified-engine/ui:latest                      pharma5   Shutdown        Rejected 2 hours ago      "No such image: unified-engine/ui:latest"   
+
+ID                          NAME               IMAGE                                         NODE      DESIRED STATE   CURRENT STATE            ERROR                                                                  PORTS
+x4takrmrbs8qzfmaxew6br10w   trading_ui.1       192.168.1.254:5000/unified-engine/ui:latest   pharma4   Running         Running 4 minutes ago                                                                           
+uhc9x4z5fvvfuq6foj5b5f05a    \_ trading_ui.1   192.168.1.254:5000/unified-engine/ui:latest   pharma4   Shutdown        Shutdown 4 minutes ago                                                                          
+x6i5rr4hh2vyq2ek6yn0h7mcf    \_ trading_ui.1   unified-engine/ui:latest                      pharma4   Shutdown        Rejected 2 hours ago     "node is missing network attachments, ip addresses may be exhausted"   
+um54fo1zvafavysamccbh3wvi    \_ trading_ui.1   unified-engine/ui:latest                      pharma5   Shutdown        Rejected 2 hours ago     "No such image: unified-engine/ui:latest"                              
+o5fbhap6hwhavfdjncvq01d9v    \_ trading_ui.1   unified-engine/ui:latest                      pharma5   Shutdown        Rejected 2 hours ago     "No such image: unified-engine/ui:latest"                              

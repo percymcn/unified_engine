@@ -1,0 +1,388 @@
+# git status
+## main...origin/main
+ M .claude/settings.local.json
+ M QUICK_START.md
+ M deploy.sh
+ D frontend/.env.example
+ D frontend/.gitignore
+ D frontend/.npmrc
+ D frontend/PROJECT_STATUS.md
+ D frontend/README.md
+ D frontend/SETUP.md
+ D frontend/index-debug.html
+ D frontend/index-standalone.html
+ D frontend/index.html
+ D frontend/package-lock.json
+ D frontend/package.json
+ D frontend/src/ACCESSIBILITY_COMPLIANCE.md
+ D frontend/src/ACCESSIBILITY_FIXES.md
+ D frontend/src/ACCOUNT_MANAGEMENT_GUIDE.md
+ D frontend/src/API_KEY_MANAGEMENT_IMPLEMENTATION.md
+ D frontend/src/API_SAMPLE_PAYLOADS_V6.md
+ D frontend/src/ARCHITECTURE_VISUAL_V6.md
+ D frontend/src/AUDIT_V5_GAPS.md
+ D frontend/src/AUTH_IMPLEMENTATION_GUIDE.md
+ D frontend/src/App.tsx
+ D frontend/src/Attributions.md
+ D frontend/src/BACKEND_API_REQUIREMENTS.json
+ D frontend/src/BACKEND_API_REQUIREMENTS_GUIDE.md
+ D frontend/src/BACKEND_ENDPOINTS_CHECKLIST.md
+ D frontend/src/BACKEND_HTML_INTEGRATION_COMPLETE.md
+ D frontend/src/BACKEND_INTEGRATION_GUIDE.md
+ D frontend/src/BRANDING_UPDATE_TRADEFLOW.md
+ D frontend/src/BROKER_ARCHITECTURE_VISUAL.md
+ D frontend/src/BROKER_CONTEXT_WIRING_MAP.json
+ D frontend/src/BROKER_NAVIGATION_BAR_GUIDE.md
+ D frontend/src/BROKER_SWITCHING_QUICKSTART.md
+ D frontend/src/CHATBOT_VISUAL_DEMO.md
+ D frontend/src/COMPLETE_SYSTEM_OVERVIEW.md
+ D frontend/src/COMPLETE_V6_IMPLEMENTATION_GUIDE.md
+ D frontend/src/COMPONENT_HIERARCHY_MAP.md
+ D frontend/src/DYNAMIC_BROKER_IMPLEMENTATION_SUMMARY.md
+ D frontend/src/DYNAMIC_BROKER_WIRING_GUIDE.md
+ D frontend/src/DYNAMIC_PLAN_FIX.md
+ D frontend/src/ERRORS_FIXED.md
+ D frontend/src/FIGMA_ENTERPRISE_CHECKLIST.md
+ D frontend/src/FINAL_TESTING_CHECKLIST.md
+ D frontend/src/FUNCTIONS_FIXED_SUMMARY.md
+ D frontend/src/IMPLEMENTATION_PRIORITY_V5.md
+ D frontend/src/INTEGRATION_COMPLETE_SUMMARY.md
+ D frontend/src/INTEGRATION_FINAL_SUMMARY.md
+ D frontend/src/LOCAL_SETUP_GUIDE.md
+ D frontend/src/MASTER_INDEX_V6_BROKER_SWITCHING.md
+ D frontend/src/MIGRATION_V5_TO_V6.md
+ D frontend/src/MOBILE_RESPONSIVE_GUIDE.md
+ D frontend/src/MOCK_VS_REAL_BACKEND.md
+ D frontend/src/PLAN_DISPLAY_TEST.md
+ D frontend/src/PRICING_V5_TRADEFLOW.md
+ D frontend/src/PUBLIC_VS_ADMIN_GUIDE.md
+ D frontend/src/QUICK_FUNCTION_REFERENCE.md
+ D frontend/src/QUICK_INTEGRATION_GUIDE.md
+ D frontend/src/QUICK_START.md
+ D frontend/src/QUICK_START_V6.md
+ D frontend/src/QUICK_START_V6_ENHANCED.md
+ D frontend/src/README_BROKER_SWITCHING.md
+ D frontend/src/README_V5_ENTERPRISE.md
+ D frontend/src/README_V6.md
+ D frontend/src/START_HERE.md
+ D frontend/src/START_HERE_BACKEND_ANALYSIS.md
+ D frontend/src/START_HERE_BROKER_SWITCHING.md
+ D frontend/src/START_HERE_INTEGRATION_COMPLETE.md
+ D frontend/src/START_HERE_V6.md
+ D frontend/src/START_HERE_V6_FINAL.md
+ D frontend/src/SUPPORT_CHATBOT_GUIDE.md
+ D frontend/src/SYSTEM_ARCHITECTURE_DIAGRAM.md
+ D frontend/src/TESTING_CHECKLIST.md
+ D frontend/src/TEST_ALL_FUNCTIONS.md
+ D frontend/src/THEME_SYSTEM_GUIDE.md
+ D frontend/src/UI_COMPLETE_SPECIFICATION.json
+ D frontend/src/USER_JOURNEY_MAP.md
+ D frontend/src/V5_DELIVERABLES_SUMMARY.md
+ D frontend/src/V6_DELIVERABLES_COMPLETE.md
+ D frontend/src/V6_UPGRADE_SUMMARY.md
+ D frontend/src/VISUAL_ARCHITECTURE_MAP.md
+ D frontend/src/VISUAL_INTEGRATION_GUIDE.md
+ D frontend/src/WIRING_MANIFEST_V6.json
+ D frontend/src/WORKING_FUNCTIONS_GUIDE.md
+ D frontend/src/components/AccountSelectionPage.tsx
+ D frontend/src/components/AccountsManager.tsx
+ D frontend/src/components/AdminAccountsViewer.tsx
+ D frontend/src/components/AdminDashboard.tsx
+ D frontend/src/components/AdminLoginPage.tsx
+ D frontend/src/components/AdminPanel.tsx
+ D frontend/src/components/AnalyticsPage.tsx
+ D frontend/src/components/AnimatedBackground.tsx
+ D frontend/src/components/ApiKeyDisplay.tsx
+ D frontend/src/components/ApiKeyManager.tsx
+ D frontend/src/components/BillingGuard.tsx
+ D frontend/src/components/BillingPortal.tsx
+ D frontend/src/components/BrokerContextDiagram.tsx
+ D frontend/src/components/BrokerDataSyncDemo.tsx
+ D frontend/src/components/BrokerNavigationBar.tsx
+ D frontend/src/components/BrokerSwitcher.tsx
+ D frontend/src/components/BrokerSyncIndicator.tsx
+ D frontend/src/components/BrokerTestPanel.tsx
+ D frontend/src/components/ChangeAccountPage.tsx
+ D frontend/src/components/Chatbot.tsx
+ D frontend/src/components/ConnectBrokerPage.tsx
+ D frontend/src/components/Dashboard.tsx
+ D frontend/src/components/DashboardOverview.tsx
+ D frontend/src/components/EmergencyStopDialog.tsx
+ D frontend/src/components/LandingPage.tsx
+ D frontend/src/components/LoginPage.tsx
+ D frontend/src/components/LogsViewer.tsx
+ D frontend/src/components/NotFoundPage.tsx
+ D frontend/src/components/OnboardingPlanSelection.tsx
+ D frontend/src/components/OrdersManager.tsx
+ D frontend/src/components/PasswordResetPage.tsx
+ D frontend/src/components/PositionsMonitor.tsx
+ D frontend/src/components/QuickActionsPanel.tsx
+ D frontend/src/components/RiskControls.tsx
+ D frontend/src/components/SettingsDropdown.tsx
+ D frontend/src/components/SignupPage.tsx
+ D frontend/src/components/SyncResultsPage.tsx
+ D frontend/src/components/ThemeSelector.tsx
+ D frontend/src/components/TradeFlowLogo.tsx
+ D frontend/src/components/TradeLockerLogo.tsx
+ D frontend/src/components/TradingConfiguration.tsx
+ D frontend/src/components/TrialBanner.tsx
+ D frontend/src/components/WebhookTemplates.tsx
+ D frontend/src/components/figma/ImageWithFallback.tsx
+ D frontend/src/components/ui/accordion.tsx
+ D frontend/src/components/ui/alert-dialog.tsx
+ D frontend/src/components/ui/alert.tsx
+ D frontend/src/components/ui/aspect-ratio.tsx
+ D frontend/src/components/ui/avatar.tsx
+ D frontend/src/components/ui/badge.tsx
+ D frontend/src/components/ui/breadcrumb.tsx
+ D frontend/src/components/ui/button.tsx
+ D frontend/src/components/ui/calendar.tsx
+ D frontend/src/components/ui/card.tsx
+ D frontend/src/components/ui/carousel.tsx
+ D frontend/src/components/ui/chart.tsx
+ D frontend/src/components/ui/checkbox.tsx
+ D frontend/src/components/ui/collapsible.tsx
+ D frontend/src/components/ui/command.tsx
+ D frontend/src/components/ui/context-menu.tsx
+ D frontend/src/components/ui/dialog.tsx
+ D frontend/src/components/ui/drawer.tsx
+ D frontend/src/components/ui/dropdown-menu.tsx
+ D frontend/src/components/ui/form.tsx
+ D frontend/src/components/ui/hover-card.tsx
+ D frontend/src/components/ui/input-otp.tsx
+ D frontend/src/components/ui/input.tsx
+ D frontend/src/components/ui/label.tsx
+ D frontend/src/components/ui/menubar.tsx
+ D frontend/src/components/ui/navigation-menu.tsx
+ D frontend/src/components/ui/pagination.tsx
+ D frontend/src/components/ui/popover.tsx
+ D frontend/src/components/ui/progress.tsx
+ D frontend/src/components/ui/radio-group.tsx
+ D frontend/src/components/ui/resizable.tsx
+ D frontend/src/components/ui/scroll-area.tsx
+ D frontend/src/components/ui/select.tsx
+ D frontend/src/components/ui/separator.tsx
+ D frontend/src/components/ui/sheet.tsx
+ D frontend/src/components/ui/sidebar.tsx
+ D frontend/src/components/ui/skeleton.tsx
+ D frontend/src/components/ui/slider.tsx
+ D frontend/src/components/ui/sonner.tsx
+ D frontend/src/components/ui/switch.tsx
+ D frontend/src/components/ui/table.tsx
+ D frontend/src/components/ui/tabs.tsx
+ D frontend/src/components/ui/textarea.tsx
+ D frontend/src/components/ui/toggle-group.tsx
+ D frontend/src/components/ui/toggle.tsx
+ D frontend/src/components/ui/tooltip.tsx
+ D frontend/src/components/ui/use-mobile.ts
+ D frontend/src/components/ui/utils.ts
+ D frontend/src/contexts/BrokerContext.tsx
+ D frontend/src/contexts/ThemeContext.tsx
+ D frontend/src/contexts/UserContext.tsx
+ D frontend/src/figma_v5_ui_plan.txt
+ D frontend/src/guidelines/Guidelines.md
+ D frontend/src/index.css
+ D frontend/src/main.tsx
+ D frontend/src/openapi_v5.yaml
+ D frontend/src/stack_v5.yml
+ D frontend/src/styles/globals.css
+ D frontend/src/supabase/functions/server/index.tsx
+ D frontend/src/supabase/functions/server/kv_store.tsx
+ D frontend/src/supabase_schema_v5.sql
+ D frontend/src/unified_blueprint_v5.json
+ D frontend/src/utils/api-client-enhanced.ts
+ D frontend/src/utils/api-client.ts
+ D frontend/src/utils/mock-backend.ts
+ D frontend/src/utils/mock-data.ts
+ D frontend/src/utils/stripe-helpers.ts
+ D frontend/src/utils/supabase/info.tsx
+ D frontend/vite.config.backup.ts
+ D frontend/vite.config.ts
+ M ui/Dockerfile
+ D ui/nginx.conf
+ M ui/package-lock.json
+ M ui/package.json
+ D ui/scripts/find-port.js
+ D ui/src/App.jsx
+ D ui/src/components/analytics/APIUsageChart.jsx
+ D ui/src/components/analytics/DashboardStats.jsx
+ D ui/src/components/analytics/RevenueChart.jsx
+ D ui/src/components/analytics/SubscriptionDistribution.jsx
+ D ui/src/components/analytics/UserSignupsChart.jsx
+ M ui/src/index.css
+ D ui/src/index.jsx
+ D ui/src/pages/Accounts.jsx
+ D ui/src/pages/Admin.jsx
+ D ui/src/pages/Analytics.jsx
+ D ui/src/pages/Apply.jsx
+ D ui/src/pages/Dashboard.jsx
+ D ui/src/pages/FreeGuide.jsx
+ D ui/src/pages/Launchpad.jsx
+ D ui/src/pages/Positions.jsx
+ D ui/src/pages/PremiumOffer.jsx
+ D ui/src/pages/Signals.jsx
+ D ui/src/pages/Trades.jsx
+ D ui/src/pages/VSL.jsx
+ D ui/src/theme/theme.js
+ D ui/src/utils/api.js
+ D ui/vite.config.js
+?? GAP_ANALYSIS.md
+?? MANUAL_STEPS_REQUIRED.md
+?? NEXT_STEPS.md
+?? PORT_ALLOCATION.md
+?? RALPH_LOOP_COMPLETION_SUMMARY.md
+?? README_FIRST.txt
+?? alembic.ini
+?? alembic/env.py
+?? alembic/versions/002_add_strategy_support_manual.py
+?? broker_sdks/tradelocker-python/
+?? logs/
+?? nginx-reverse-proxy.conf
+?? ui.old.backup/
+?? ui/.env.example
+?? ui/.gitignore
+?? ui/.npmrc
+?? ui/PROJECT_STATUS.md
+?? ui/README.md
+?? ui/SETUP.md
+?? ui/index-debug.html
+?? ui/index-standalone.html
+?? ui/index.html
+?? ui/src/ACCESSIBILITY_COMPLIANCE.md
+?? ui/src/ACCESSIBILITY_FIXES.md
+?? ui/src/ACCOUNT_MANAGEMENT_GUIDE.md
+?? ui/src/API_KEY_MANAGEMENT_IMPLEMENTATION.md
+?? ui/src/API_SAMPLE_PAYLOADS_V6.md
+?? ui/src/ARCHITECTURE_VISUAL_V6.md
+?? ui/src/AUDIT_V5_GAPS.md
+?? ui/src/AUTH_IMPLEMENTATION_GUIDE.md
+?? ui/src/App.tsx
+?? ui/src/Attributions.md
+?? ui/src/BACKEND_API_REQUIREMENTS.json
+?? ui/src/BACKEND_API_REQUIREMENTS_GUIDE.md
+?? ui/src/BACKEND_ENDPOINTS_CHECKLIST.md
+?? ui/src/BACKEND_HTML_INTEGRATION_COMPLETE.md
+?? ui/src/BACKEND_INTEGRATION_GUIDE.md
+?? ui/src/BRANDING_UPDATE_TRADEFLOW.md
+?? ui/src/BROKER_ARCHITECTURE_VISUAL.md
+?? ui/src/BROKER_CONTEXT_WIRING_MAP.json
+?? ui/src/BROKER_NAVIGATION_BAR_GUIDE.md
+?? ui/src/BROKER_SWITCHING_QUICKSTART.md
+?? ui/src/CHATBOT_VISUAL_DEMO.md
+?? ui/src/COMPLETE_SYSTEM_OVERVIEW.md
+?? ui/src/COMPLETE_V6_IMPLEMENTATION_GUIDE.md
+?? ui/src/COMPONENT_HIERARCHY_MAP.md
+?? ui/src/DYNAMIC_BROKER_IMPLEMENTATION_SUMMARY.md
+?? ui/src/DYNAMIC_BROKER_WIRING_GUIDE.md
+?? ui/src/DYNAMIC_PLAN_FIX.md
+?? ui/src/ERRORS_FIXED.md
+?? ui/src/FIGMA_ENTERPRISE_CHECKLIST.md
+?? ui/src/FINAL_TESTING_CHECKLIST.md
+?? ui/src/FUNCTIONS_FIXED_SUMMARY.md
+?? ui/src/IMPLEMENTATION_PRIORITY_V5.md
+?? ui/src/INTEGRATION_COMPLETE_SUMMARY.md
+?? ui/src/INTEGRATION_FINAL_SUMMARY.md
+?? ui/src/LOCAL_SETUP_GUIDE.md
+?? ui/src/MASTER_INDEX_V6_BROKER_SWITCHING.md
+?? ui/src/MIGRATION_V5_TO_V6.md
+?? ui/src/MOBILE_RESPONSIVE_GUIDE.md
+?? ui/src/MOCK_VS_REAL_BACKEND.md
+?? ui/src/PLAN_DISPLAY_TEST.md
+?? ui/src/PRICING_V5_TRADEFLOW.md
+?? ui/src/PUBLIC_VS_ADMIN_GUIDE.md
+?? ui/src/QUICK_FUNCTION_REFERENCE.md
+?? ui/src/QUICK_INTEGRATION_GUIDE.md
+?? ui/src/QUICK_START.md
+?? ui/src/QUICK_START_V6.md
+?? ui/src/QUICK_START_V6_ENHANCED.md
+?? ui/src/README_BROKER_SWITCHING.md
+?? ui/src/README_V5_ENTERPRISE.md
+?? ui/src/README_V6.md
+?? ui/src/START_HERE.md
+?? ui/src/START_HERE_BACKEND_ANALYSIS.md
+?? ui/src/START_HERE_BROKER_SWITCHING.md
+?? ui/src/START_HERE_INTEGRATION_COMPLETE.md
+?? ui/src/START_HERE_V6.md
+?? ui/src/START_HERE_V6_FINAL.md
+?? ui/src/SUPPORT_CHATBOT_GUIDE.md
+?? ui/src/SYSTEM_ARCHITECTURE_DIAGRAM.md
+?? ui/src/TESTING_CHECKLIST.md
+?? ui/src/TEST_ALL_FUNCTIONS.md
+?? ui/src/THEME_SYSTEM_GUIDE.md
+?? ui/src/UI_COMPLETE_SPECIFICATION.json
+?? ui/src/USER_JOURNEY_MAP.md
+?? ui/src/V5_DELIVERABLES_SUMMARY.md
+?? ui/src/V6_DELIVERABLES_COMPLETE.md
+?? ui/src/V6_UPGRADE_SUMMARY.md
+?? ui/src/VISUAL_ARCHITECTURE_MAP.md
+?? ui/src/VISUAL_INTEGRATION_GUIDE.md
+?? ui/src/WIRING_MANIFEST_V6.json
+?? ui/src/WORKING_FUNCTIONS_GUIDE.md
+?? ui/src/components/AccountSelectionPage.tsx
+?? ui/src/components/AccountsManager.tsx
+?? ui/src/components/AdminAccountsViewer.tsx
+?? ui/src/components/AdminDashboard.tsx
+?? ui/src/components/AdminLoginPage.tsx
+?? ui/src/components/AdminPanel.tsx
+?? ui/src/components/AnalyticsPage.tsx
+?? ui/src/components/AnimatedBackground.tsx
+?? ui/src/components/ApiKeyDisplay.tsx
+?? ui/src/components/ApiKeyManager.tsx
+?? ui/src/components/BillingGuard.tsx
+?? ui/src/components/BillingPortal.tsx
+?? ui/src/components/BrokerContextDiagram.tsx
+?? ui/src/components/BrokerDataSyncDemo.tsx
+?? ui/src/components/BrokerNavigationBar.tsx
+?? ui/src/components/BrokerSwitcher.tsx
+?? ui/src/components/BrokerSyncIndicator.tsx
+?? ui/src/components/BrokerTestPanel.tsx
+?? ui/src/components/ChangeAccountPage.tsx
+?? ui/src/components/Chatbot.tsx
+?? ui/src/components/ConnectBrokerPage.tsx
+?? ui/src/components/Dashboard.tsx
+?? ui/src/components/DashboardOverview.tsx
+?? ui/src/components/EmergencyStopDialog.tsx
+?? ui/src/components/LandingPage.tsx
+?? ui/src/components/LoginPage.tsx
+?? ui/src/components/LogsViewer.tsx
+?? ui/src/components/NotFoundPage.tsx
+?? ui/src/components/OnboardingPlanSelection.tsx
+?? ui/src/components/OrdersManager.tsx
+?? ui/src/components/PasswordResetPage.tsx
+?? ui/src/components/PositionsMonitor.tsx
+?? ui/src/components/QuickActionsPanel.tsx
+?? ui/src/components/RiskControls.tsx
+?? ui/src/components/SettingsDropdown.tsx
+?? ui/src/components/SignupPage.tsx
+?? ui/src/components/SyncResultsPage.tsx
+?? ui/src/components/ThemeSelector.tsx
+?? ui/src/components/TradeFlowLogo.tsx
+?? ui/src/components/TradeLockerLogo.tsx
+?? ui/src/components/TradingConfiguration.tsx
+?? ui/src/components/TrialBanner.tsx
+?? ui/src/components/WebhookTemplates.tsx
+?? ui/src/components/figma/
+?? ui/src/components/ui/
+?? ui/src/contexts/
+?? ui/src/figma_v5_ui_plan.txt
+?? ui/src/guidelines/
+?? ui/src/main.tsx
+?? ui/src/openapi_v5.yaml
+?? ui/src/stack_v5.yml
+?? ui/src/styles/
+?? ui/src/supabase/
+?? ui/src/supabase_schema_v5.sql
+?? ui/src/unified_blueprint_v5.json
+?? ui/src/utils/api-client-enhanced.ts
+?? ui/src/utils/api-client.ts
+?? ui/src/utils/mock-backend.ts
+?? ui/src/utils/mock-data.ts
+?? ui/src/utils/stripe-helpers.ts
+?? ui/src/utils/supabase/
+?? ui/vite.config.backup.ts
+?? ui/vite.config.ts
+# branch
+main
+# last 5 commits
+4852edd add: broker SDKs
+da54fce init: baseline commit from pharma5

@@ -66,7 +66,7 @@ async def lifespan(app: FastAPI):
         logger.info("✅ Redis connected")
         
         # Initialize event emitter (NATS or logging fallback)
-        await event_emitter.initialize()
+        await event_emitter.initialize(settings.NATS_URL)
         logger.info("✅ Event emitter initialized")
         
         # Initialize signal processor and broker connections
@@ -221,9 +221,11 @@ async def health_check():
             except:
                 broker_status[name] = False
         
-        # Overall health
-        is_healthy = redis_status and any(broker_status.values())
-        
+        # Overall health - Redis is required, brokers are optional
+        # If no brokers configured, that's OK. If brokers are configured, at least one should be connected.
+        brokers_ok = len(broker_status) == 0 or any(broker_status.values())
+        is_healthy = redis_status and brokers_ok
+
         return JSONResponse(
             status_code=200 if is_healthy else 503,
             content={

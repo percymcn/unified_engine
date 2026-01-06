@@ -1,0 +1,4 @@
+=== Testing UI on port 3411 ===
+HTTP 000=== Testing API on port 3012 ===
+HTTP 000=== Testing nginx on port 3013 ===
+HTTP 000

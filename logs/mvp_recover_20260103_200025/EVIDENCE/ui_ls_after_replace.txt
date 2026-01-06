@@ -1,0 +1,20 @@
+total 296
+drwx------   5 pharma5 pharma5   4096 Jan  3 21:48 .
+drwxr-xr-x  27 pharma5 pharma5   4096 Jan  3 20:23 ..
+-rw-rw-r--   1 pharma5 pharma5    833 Dec 11 00:34 .env.example
+-rw-rw-r--   1 pharma5 pharma5    875 Dec 11 00:34 .env.local
+-rw-rw-r--   1 pharma5 pharma5    812 Dec 11 00:34 .gitignore
+-rw-r--r--   1 pharma5 pharma5     42 Dec 11 00:33 .npmrc
+-rw-rw-r--   1 pharma5 pharma5   6678 Dec 11 00:38 PROJECT_STATUS.md
+-rw-r--r--   1 pharma5 pharma5   9353 Dec 11 00:34 README.md
+-rw-rw-r--   1 pharma5 pharma5   5286 Dec 11 00:38 SETUP.md
+drwxrwxr-x   3 pharma5 pharma5   4096 Jan  3 21:52 build
+-rw-rw-r--   1 pharma5 pharma5   1617 Dec 28 19:35 index-debug.html
+-rw-rw-r--   1 pharma5 pharma5   4990 Dec 28 19:38 index-standalone.html
+-rw-r--r--   1 pharma5 pharma5    323 Jan  3 20:52 index.html
+drwxrwxr-x 123 pharma5 pharma5   4096 Jan  3 21:49 node_modules
+-rw-rw-r--   1 pharma5 pharma5 204930 Jan  3 21:48 package-lock.json
+-rw-r--r--   1 pharma5 pharma5   2661 Dec 11 00:34 package.json
+drwxr-xr-x   8 pharma5 pharma5   4096 Jan  3 21:50 src
+-rw-r--r--   1 pharma5 pharma5   3122 Dec 28 19:31 vite.config.backup.ts
+-rw-rw-r--   1 pharma5 pharma5    431 Dec 28 19:37 vite.config.ts

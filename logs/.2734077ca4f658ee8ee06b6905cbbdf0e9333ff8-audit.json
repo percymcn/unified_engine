@@ -1,0 +1,20 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 14
+    },
+    "auditLog": "/home/pharma5/unified_engine/logs/.2734077ca4f658ee8ee06b6905cbbdf0e9333ff8-audit.json",
+    "files": [
+        {
+            "date": 1767660311621,
+            "name": "/home/pharma5/unified_engine/logs/mcp-puppeteer-2026-01-05.log",
+            "hash": "6019be6435bbc74ed4765b8833585df56169e787ae630b302ffa032ec970d061"
+        },
+        {
+            "date": 1767676688746,
+            "name": "/home/pharma5/unified_engine/logs/mcp-puppeteer-2026-01-06.log",
+            "hash": "c1ae029edecb0ae5aa0aa33eef28abba551e5dbae4d933855d70db064a81df6f"
+        }
+    ],
+    "hashType": "sha256"
+}

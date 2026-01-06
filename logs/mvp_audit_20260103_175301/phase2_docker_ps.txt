@@ -1,0 +1,99 @@
+CONTAINER ID   IMAGE                                          NAMES                                                                                 PORTS
+ff59aea2232f   pharma5:5000/freight-dispatch:latest           freight-dispatch_backend.1.6g2wbmnns0cp44h0tqapfc81i                                  8000/tcp
+37768c863c4a   pharma5:5000/flowstate-ai-backend:latest       flowstate-ai_worker.2.ou5zb18kwhhq08by9w18tivvf                                       8000/tcp
+264a4835f1a3   redis:7-alpine                                 ai-telemarketing-redis                                                                0.0.0.0:6380->6379/tcp, [::]:6380->6379/tcp
+f76edb594e7c   mongo:7                                        ai-telemarketing-mongodb                                                              0.0.0.0:27017->27017/tcp, [::]:27017->27017/tcp
+7813e2996fec   192.168.1.254:5000/credit-repair-api:latest    credit-repair_celery-worker.2.jd3eck54adrkg6eciuzhmspj8                               8000/tcp
+5f49a0a983e5   pharma5:5000/automated-money-system:latest     automated-money-system_automated-money-backend.1.a25owqem4svrcmo19e81onshd            80/tcp, 3000/tcp
+b4d7bbd7d501   pharma5:5000/automated-money-system:latest     automated-money-system_automated-money-backend.2.3sc4b7cah89ir6w0f4p24lr7d            80/tcp, 3000/tcp
+085ca6bf737d   unified-engine/api:latest                      trading_api.1.x3499zje0nbm256jkhm3w9f63                                               8000/tcp
+adc65285b6cb   unified-engine/api:latest                      unified_engine_stack_api.2.eertk8qn9vc3bdledxkd9lwpu                                  8000/tcp
+160308fa714f   postgres:15-alpine                             ai-employee-stack_postgres.1.dq78uj7d2cgugd4mzaku5wdz9                                5432/tcp
+decc2f674a60   nats:2.10-alpine                               fluxeo-empire_nats.1.znqdex7qx26p74ui5bqxsa6la                                        4222/tcp, 6222/tcp, 8222/tcp
+38610e215b4f   postgres:15                                    trading_postgres.1.6at1nqdkao0aql6789eu4fzou                                          5432/tcp
+3ad67aef3ca1   postgres:15                                    unified_engine_stack_postgres.1.4qxizzy33xx2xshg0xto8v3ny                             5432/tcp
+599655afd74e   redis:7-alpine                                 flowstate-ai_redis.1.uohhfqek3sycy2jmx7u4072wb                                        6379/tcp
+4bde1ae34ed2   redis:7-alpine                                 fluxeo_redis.1.pkdf7snm7ep1q0yz6tlbzxcdp                                              6379/tcp
+9ad31d364ce3   redis:7-alpine                                 trading_redis.1.62y37yo0kgky360np9ojgg3yn                                             6379/tcp
+41756729bc25   redis:7-alpine                                 fluxeo-empire_redis.1.wsotq1yo6ukq62nujbjc414gt                                       6379/tcp
+371a46bad92f   redis:7-alpine                                 unified_engine_stack_redis.1.rrr8vhlu7trr9gux8j6xoght7                                6379/tcp
+c8ff169a63c6   grafana/grafana:latest                         automated-money-system_grafana.1.ii31d9zyikeryk4xqznmke52a                            3000/tcp
+ff404724d8c9   n8nio/n8n:latest                               fluxeo-empire_n8n.1.kgpjptanjqq99zk5ummu40d98                                         5678/tcp
+a7ffe47afde8   nginx:alpine                                   master-dashboard_frontend.1.ibnzodpxyjqsib3zwz3a73s0n                                 80/tcp
+bc32baf94de7   pharma5:5000/master-dashboard-backend:latest   master-dashboard_backend.2.kr0bw4piquyqyb4emlez5z36s                                  3101/tcp
+45c3578df49c   pharma5:5000/master-dashboard-backend:latest   master-dashboard_backend.1.kzf53hqrt95804jgl5amlf93w                                  3101/tcp
+631aff4a1d6e   pharma5:5000/mcp-server:latest                 fluxeo-mcp-server.1.mm8k34narmnct8x926cm8ifq6                                         3000/tcp
+1a2b22014c8c   invoice-ai-api:latest                          invoice_ai_v2_api.1.eqgc13ziyyxsgk0kdzjzi0gbd                                         8000/tcp
+568a09e3a2c5   invoice-ai-api:latest                          invoice_ai_v2_api.2.z9oqzar1htjywh39n5gyih726                                         8000/tcp
+9ef20e95f853   invoice-ai-worker:latest                       invoice_ai_v2_worker-ingest.1.mkxbjfj35xyoq3v5cuh4htm6q                               
+5a67c1be88cd   automated-money-system/frontend:latest         automated-money-system_automated-money-frontend.1.zzretv92t2w2uzfiizsmhfonx           80/tcp, 3000/tcp
+74c8a772e698   invoice-ai-worker:latest                       invoice_ai_v2_worker-parse.2.fzkcnb19rlhfvyxrmex3klbsc                                
+77eba47ea8da   invoice-ai-worker:latest                       invoice_ai_v2_worker-approve.1.nng8clckzqesxp65a1ex7scsh                              
+cbed7f229745   invoice-ai-worker:latest                       invoice_ai_v2_worker-parse.3.uxkb9pi1c2lumsqejd1ed1xny                                
+e7b7976eff97   invoice-ai-worker:latest                       invoice_ai_v2_worker-learn.1.nsrqt1jat6horp9ss94fgdjri                                
+2c54734cce38   invoice-ai-worker:latest                       invoice_ai_v2_worker-post.2.cm1oyf5iymam2eoulf4ezc5yd                                 
+371b990dbaf1   invoice-ai-worker:latest                       invoice_ai_v2_worker-classify.2.pqn6qrne9xfuwsginqrr3k1ie                             
+c271865732a9   invoice-ai-worker:latest                       invoice_ai_v2_worker-ingest.2.fwfwjh67qgfr4lpuytugiaajq                               
+8a0c862503c4   invoice-ai-worker:latest                       invoice_ai_v2_worker-approve.2.ncjt8h2j3axprdz67ceuua7av                              
+8847996c6cbd   invoice-ai-worker:latest                       invoice_ai_v2_worker-parse.1.u0jl8f4ldmn724nvj8in6hok8                                
+86d2b88f76b1   invoice-ai-worker:latest                       invoice_ai_v2_worker-post.1.2rw7f6pmat9j3cdck9e0uamau                                 
+3720a860d0e9   invoice-ai-worker:latest                       invoice_ai_v2_worker-classify.1.ozzwnxym9xcziak1pvf4n5j5b                             
+f2bc3475d092   invoice-ai-frontend:latest                     invoice_ai_v2_frontend.1.wf1ua43x83iisoqvm3m5j73qw                                    80/tcp
+4f4509834cca   grafana/grafana:latest                         empire-monitoring_grafana.1.ztxmluuee1kbvqz91txjgcjhg                                 3000/tcp
+1e436a2a15e8   prom/node-exporter:latest                      empire-monitoring_node-exporter.flla138qjkkra5e6rbjk4i40w.3w2bifcbqil02llh1zm53qby3   9100/tcp
+ecc5bbb17c68   postgres:15-alpine                             automated-money-system_postgres.1.v2c7szvieeaiuzpidyyhwgxhj                           5432/tcp
+ba1ec5e97ecb   nginx:alpine                                   nichehunter_nichehunter-dashboard.2.lwfsfonnah4qhya7d9gngonij                         80/tcp
+8fedf412804d   nginx:alpine                                   nichehunter_nichehunter-dashboard.1.pscoo52a9rc0cz2fdwpqaahl5                         80/tcp
+d7721e3c8d67   node:20-alpine                                 fluxeo-empire_nats-bridge.1.xt7djh3fqiys8bxa78wyolwzj                                 
+81ea87521697   caddy:2-alpine                                 fluxeo-empire_caddy.1.s2vh0uk2c84sx8xl5k6yxg37k                                       80/tcp, 443/tcp, 2019/tcp, 443/udp
+1d971c13d53f   caddy:2-alpine                                 fluxeo_caddy.1.if3lvtl26anx6sxa1l66tewg8                                              80/tcp, 443/tcp, 2019/tcp, 443/udp
+3229a8cde63f   nginx:alpine                                   fluxeo-empire_demo-content.1.r9vqwu12zlooqcl2fdsnaxgs5                                80/tcp
+88bd00aa8942   nginx:alpine                                   fluxeo-empire_demo-dev.1.z2gf4wsrpzcjpxm5mzouew9rj                                    80/tcp
+3b67fedecb6d   nginx:alpine                                   fluxeo_demo-cs.1.69khlkjsrcveas1cfgfavwuj7                                            80/tcp
+9e9f193fa968   nginx:alpine                                   fluxeo_demo-finance.1.k0wlm47q7v9w8vh21bi7vxgbv                                       80/tcp
+e35e42a3a588   cloudflare/cloudflared:latest                  fluxeo_cloudflared.1.fdo3evnxkvs76awyvzpw77poq                                        
+1e2f390b5184   nginx:alpine                                   fluxeo-empire_demo-finance.1.ji4gd750ann06xja5ykfm2tkq                                80/tcp
+1294018147d6   nginx:alpine                                   master-dashboard_master-dashboard.1.oegx6ng54mtq8ezbm9p21l26r                         80/tcp
+4b8983b441b5   nginx:alpine                                   fluxeo-empire_demo-cs.1.r2mxi4alp1qb41mm1spmciseg                                     80/tcp
+b83f0d2c4f22   nginx:alpine                                   fluxeo_demo-legal.1.4jstpnhr8giqhtjybwnh10501                                         80/tcp
+0de266bfc4db   nginx:alpine                                   fluxeo-empire_demo-legal.1.sow54w9otwppzzv0tc6ylnji7                                  80/tcp
+4c7e62916685   nginx:alpine                                   fluxeo_demo-content.1.2kd8bld9ondjkeivh7nen8th8                                       80/tcp
+25fd09731e7a   nginx:alpine                                   fluxeo_demo-dev.1.fi0bp2gl4ntr6oz0vepdveg85                                           80/tcp
+ef4599a0608d   nginx:alpine                                   fluxeo-empire_dashboard.2.wsa1tjvb2kwzfpxf17k7letm9                                   80/tcp
+091e07f9e450   postgres:15-alpine                             flowstate-ai_postgres.1.tv9390hty9prt63fbl5du0ijb                                     5432/tcp
+0e280cbb867d   minio/minio:latest                             invoice_ai_v2_minio.1.5oebsi416fyh6j3qh92y4d9dd                                       9000/tcp
+f1b4c9f42e9a   nginx:alpine                                   mc-dashboard.1.osf2q0b0yizv86zb43eqymdns                                              80/tcp
+aaf5e309ac61   redis:7-alpine                                 flowstate-stack_redis.1.vhqq9ge3cg1pso7gm6jnqqz4f                                     6379/tcp
+b498b8845fec   redis:7-alpine                                 ai-employee-stack_redis.1.oud31uroy6gxd3a7bvqf7uoo2                                   6379/tcp
+15ad2e2ac098   python:3.11-slim                               fluxempire-master-api.1.o8tdihzpbkrda5bt0y7aldgm3                                     
+999aaf47a1ae   nats:2.10-alpine                               ai-employee-stack_nats.1.xqrkh5cl1zxni2eet7eyg4v7y                                    4222/tcp, 6222/tcp, 8222/tcp
+75dfa6569d63   nats:2.10-alpine                               flowstate-stack_nats.1.9abuptjt25k7cvnjh5fpfuimk                                      4222/tcp, 6222/tcp, 8222/tcp
+69a261665fae   postgres:15-alpine                             flowstate-stack_postgres.1.mrpfhvq5qh9uuvxj8cfzhquzv                                  5432/tcp
+803420facb06   postgres:15-alpine                             invoice_ai_v2_postgres.1.ikpb02aepe6fhoxmk0gscd88j                                    5432/tcp
+48c9c37c57fb   redis:7-alpine                                 automated-money-system_redis.1.k2xc21h5htfzh242z9ahxiwb0                              6379/tcp
+346e57faf558   nats:2.10-alpine                               invoice_ai_v2_nats.1.gzf8hffobhsszpnl8lgbh79hp                                        4222/tcp, 6222/tcp, 8222/tcp
+b6d1d1c1e954   n8nio/n8n:latest                               fluxeo_n8n.1.c39ifgqn5v6l08q6c17pemocq                                                5678/tcp
+c1299010c476   registry:2                                     registry.1.x84yxbb8z7q9ilnbmbbkziws9                                                  5000/tcp
+ca968847f5c8   puppeteer-mcp-server-puppeteer-mcp-server      puppeteer-mcp-server                                                                  0.0.0.0:3010->3000/tcp, [::]:3010->3000/tcp
+bf7f892105aa   9be600d28fa5                                   fluxeo-freight-worker-matching                                                        
+5ae05cbedb7b   037350be209a                                   fluxeo-freight-worker-fraud                                                           
+e4b14d970add   ai-finance-assistant-backend                   ai-finance-backend                                                                    0.0.0.0:8003->8000/tcp, [::]:8003->8000/tcp
+2db93f37f416   ollama/ollama:latest                           ai-finance-ollama                                                                     0.0.0.0:11434->11434/tcp, [::]:11434->11434/tcp
+16f616e645e9   ai-finance-assistant-frontend                  ai-finance-frontend                                                                   0.0.0.0:3004->3000/tcp, [::]:3004->3000/tcp
+d9b1b29872c4   n8nio/n8n:latest                               ai-finance-n8n                                                                        0.0.0.0:5679->5678/tcp, [::]:5679->5678/tcp
+d2d69c5820cf   redis:7-alpine                                 securepharma-redis                                                                    0.0.0.0:6382->6379/tcp, [::]:6382->6379/tcp
+b0615213e076   timescale/timescaledb:latest-pg15              securepharma-postgres                                                                 0.0.0.0:5435->5432/tcp, [::]:5435->5432/tcp
+2385fba274b8   industry-intelligence-system-api               industry-intelligence-api                                                             0.0.0.0:8002->8000/tcp, [::]:8002->8000/tcp
+ac060f863e6a   industry-intelligence-system-dashboard         industry-intelligence-dashboard                                                       0.0.0.0:8501->8501/tcp, [::]:8501->8501/tcp
+05ac3b632530   fluxeo-stealth-core-stealth-core               fluxeo-stealth-core-stealth-core-1                                                    0.0.0.0:8893->8893/tcp, [::]:8893->8893/tcp
+f3de225da814   fluxeo-mcp-server:latest                       fluxeo-mcp-server                                                                     0.0.0.0:5101->3000/tcp, [::]:5101->3000/tcp
+cc2e249ceee7   registry:2                                     registry                                                                              0.0.0.0:5000->5000/tcp, [::]:5000->5000/tcp
+098d0c684ef0   nats:2.10-alpine                               ai_employee_engine-nats-1                                                             
+45cce8786485   postgres:16-alpine                             postgres                                                                              0.0.0.0:5433->5432/tcp, [::]:5433->5432/tcp
+5b0df6704e7f   nichehunter-api                                nichehunter-api                                                                       
+eaa6aea5420e   unified_engine-api                             unified_trading_api                                                                   
+a43030e65d54   unified_engine-celery                          unified_trading_celery                                                                8000/tcp
+4b0f186b0645   unified_engine-flower                          unified_trading_flower                                                                0.0.0.0:5555->5555/tcp, [::]:5555->5555/tcp, 8000/tcp
+85d74912370c   postgres:15                                    unified_trading_db                                                                    0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp
+cdf792547408   redis:7-alpine                                 unified_trading_redis                                                                 
+b3d29405b4cf   cloudflare/cloudflared:latest                  cloudflared-ssh                                                                       

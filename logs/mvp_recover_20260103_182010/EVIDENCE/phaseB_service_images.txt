@@ -1,0 +1,2 @@
+UI image=unified-engine/ui:latest
+trading_ui image=unified-engine/ui:latest

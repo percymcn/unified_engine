@@ -1,0 +1,52 @@
+# phase2_service_logs.txt
+# unified_engine_stack_nginx logs
+unified_engine_stack_nginx.1.t4eokiyszim0@pharma4    | /docker-entrypoint.sh: /docker-entrypoint.d/ is not empty, will attempt to perform configuration
+unified_engine_stack_nginx.1.t4eokiyszim0@pharma4    | /docker-entrypoint.sh: Looking for shell scripts in /docker-entrypoint.d/
+unified_engine_stack_nginx.1.t4eokiyszim0@pharma4    | /docker-entrypoint.sh: Launching /docker-entrypoint.d/10-listen-on-ipv6-by-default.sh
+unified_engine_stack_nginx.1.t4eokiyszim0@pharma4    | 10-listen-on-ipv6-by-default.sh: info: Getting the checksum of /etc/nginx/conf.d/default.conf
+unified_engine_stack_nginx.1.t4eokiyszim0@pharma4    | 10-listen-on-ipv6-by-default.sh: info: Enabled listen on IPv6 in /etc/nginx/conf.d/default.conf
+unified_engine_stack_nginx.1.t4eokiyszim0@pharma4    | /docker-entrypoint.sh: Sourcing /docker-entrypoint.d/15-local-resolvers.envsh
+unified_engine_stack_nginx.1.t4eokiyszim0@pharma4    | /docker-entrypoint.sh: Launching /docker-entrypoint.d/20-envsubst-on-templates.sh
+unified_engine_stack_nginx.1.t4eokiyszim0@pharma4    | /docker-entrypoint.sh: Launching /docker-entrypoint.d/30-tune-worker-processes.sh
+unified_engine_stack_nginx.1.t4eokiyszim0@pharma4    | /docker-entrypoint.sh: Configuration complete; ready for start up
+unified_engine_stack_nginx.1.9l4hcrlioxx0@pharma4    | /docker-entrypoint.sh: /docker-entrypoint.d/ is not empty, will attempt to perform configuration
+unified_engine_stack_nginx.1.9l4hcrlioxx0@pharma4    | /docker-entrypoint.sh: Looking for shell scripts in /docker-entrypoint.d/
+unified_engine_stack_nginx.1.9l4hcrlioxx0@pharma4    | /docker-entrypoint.sh: Launching /docker-entrypoint.d/10-listen-on-ipv6-by-default.sh
+unified_engine_stack_nginx.1.9l4hcrlioxx0@pharma4    | 10-listen-on-ipv6-by-default.sh: info: Getting the checksum of /etc/nginx/conf.d/default.conf
+unified_engine_stack_nginx.1.9l4hcrlioxx0@pharma4    | 10-listen-on-ipv6-by-default.sh: info: Enabled listen on IPv6 in /etc/nginx/conf.d/default.conf
+unified_engine_stack_nginx.1.9l4hcrlioxx0@pharma4    | /docker-entrypoint.sh: Sourcing /docker-entrypoint.d/15-local-resolvers.envsh
+unified_engine_stack_nginx.1.9l4hcrlioxx0@pharma4    | /docker-entrypoint.sh: Launching /docker-entrypoint.d/20-envsubst-on-templates.sh
+unified_engine_stack_nginx.1.9l4hcrlioxx0@pharma4    | /docker-entrypoint.sh: Launching /docker-entrypoint.d/30-tune-worker-processes.sh
+unified_engine_stack_nginx.1.9l4hcrlioxx0@pharma4    | /docker-entrypoint.sh: Configuration complete; ready for start up
+unified_engine_stack_nginx.1.5z3dov4lkoyy@pharma5    | /docker-entrypoint.sh: /docker-entrypoint.d/ is not empty, will attempt to perform configuration
+unified_engine_stack_nginx.1.5z3dov4lkoyy@pharma5    | /docker-entrypoint.sh: Looking for shell scripts in /docker-entrypoint.d/
+unified_engine_stack_nginx.1.5z3dov4lkoyy@pharma5    | /docker-entrypoint.sh: Launching /docker-entrypoint.d/10-listen-on-ipv6-by-default.sh
+unified_engine_stack_nginx.1.5z3dov4lkoyy@pharma5    | 10-listen-on-ipv6-by-default.sh: info: Getting the checksum of /etc/nginx/conf.d/default.conf
+unified_engine_stack_nginx.1.5z3dov4lkoyy@pharma5    | 10-listen-on-ipv6-by-default.sh: info: Enabled listen on IPv6 in /etc/nginx/conf.d/default.conf
+unified_engine_stack_nginx.1.5z3dov4lkoyy@pharma5    | /docker-entrypoint.sh: Sourcing /docker-entrypoint.d/15-local-resolvers.envsh
+unified_engine_stack_nginx.1.5z3dov4lkoyy@pharma5    | /docker-entrypoint.sh: Launching /docker-entrypoint.d/20-envsubst-on-templates.sh
+unified_engine_stack_nginx.1.5z3dov4lkoyy@pharma5    | /docker-entrypoint.sh: Launching /docker-entrypoint.d/30-tune-worker-processes.sh
+unified_engine_stack_nginx.1.5z3dov4lkoyy@pharma5    | /docker-entrypoint.sh: Configuration complete; ready for start up
+
+# unified_engine_stack_api logs
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:54736 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:57600 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:33388 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:43836 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:44824 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:34512 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:51816 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:60106 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:49714 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:45630 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:40962 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.2.eertk8qn9vc3@pharma5    | INFO:     127.0.0.1:37660 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:54872 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:55260 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:52544 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:53518 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:57448 - "GET /health HTTP/1.1" 200 OK
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:59058 - "GET /health HTTP/1.1" 503 Service Unavailable
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:39296 - "GET /health HTTP/1.1" 503 Service Unavailable
+unified_engine_stack_api.1.wz1tdp6lfo6x@pharma5    | INFO:     127.0.0.1:59438 - "GET /health HTTP/1.1" 503 Service Unavailable
+unified_engine_stack_api.1.r350zvanoo0k@pharma5    | INFO:     127.0.0.1:60306 - "GET /health HTTP/1.1" 503 Service Unavailable

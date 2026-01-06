@@ -1,0 +1,20 @@
+Usage: codex [OPTIONS] [PROMPT]
+       codex [OPTIONS] <COMMAND> [ARGS]
+
+For more information, try '--help'.
+
+Run: /usr/local/bin/codex auth login to authenticate
+[2026-01-06 00:16:00] Provider gemini-cli preflight failed: Gemini CLI version check failed (exit code -1): Command timed out after 60.0s
+[2026-01-06 00:41:26] Session 1 completed: TodoWrite: {'todos': [{'content': 'Restart PostgreSQL service', 'activeForm': 'Restarting PostgreSQL
+[2026-01-06 00:53:28] Harness started in target mode
+[2026-01-06 00:54:21] Provider codex preflight failed: Codex authentication failed (exit code 2). Stderr: error: unrecognized subcommand 'status'
+
+  tip: a similar subcommand exists: 'a'
+
+Usage: codex [OPTIONS] [PROMPT]
+       codex [OPTIONS] <COMMAND> [ARGS]
+
+For more information, try '--help'.
+
+Run: /usr/local/bin/codex auth login to authenticate
+[2026-01-06 00:55:22] Provider gemini-cli preflight failed: Gemini CLI version check failed (exit code -1): Command timed out after 60.0s

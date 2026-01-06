@@ -1,0 +1,2 @@
+# ip -br a
+# hostname -I

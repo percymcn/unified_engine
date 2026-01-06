@@ -1,0 +1,10 @@
+# docker ps unified_engine
+adc65285b6cb unified-engine/api:latest unified_engine_stack_api.2.eertk8qn9vc3bdledxkd9lwpu 8000/tcp
+3ad67aef3ca1 postgres:15 unified_engine_stack_postgres.1.4qxizzy33xx2xshg0xto8v3ny 5432/tcp
+371a46bad92f redis:7-alpine unified_engine_stack_redis.1.rrr8vhlu7trr9gux8j6xoght7 6379/tcp
+# docker ps unified_trading
+eaa6aea5420e unified_engine-api unified_trading_api 
+a43030e65d54 unified_engine-celery unified_trading_celery 8000/tcp
+4b0f186b0645 unified_engine-flower unified_trading_flower 0.0.0.0:5555->5555/tcp, [::]:5555->5555/tcp, 8000/tcp
+85d74912370c postgres:15 unified_trading_db 0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp
+cdf792547408 redis:7-alpine unified_trading_redis 

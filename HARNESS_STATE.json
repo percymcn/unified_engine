@@ -1,0 +1,13 @@
+{
+  "run_id": "2026-01-06T00:56:42.603620",
+  "mode": "target",
+  "stage": "fixing",
+  "last_completed_step": "starting_session_1",
+  "last_file_touched": "",
+  "last_command_run": "",
+  "last_agent_message": "",
+  "progress": {
+    "passing": 0,
+    "total": 101
+  }
+}
