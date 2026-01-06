@@ -605,3 +605,82 @@ Git Commit: c77d300
 - Analysis and fix: 30 min
 - Docker build ongoing: 10+ min
 
+
+---
+
+# Session Update - 2026-01-06 06:55 UTC
+**Session Type:** Infrastructure Fix - NATS Configuration
+**Duration:** ~2 hours
+**Status:** Partial Progress - Code Fixed, Docker Image Rebuild Needed
+
+## Problem Identified
+
+The API service was failing to start with "unhealthy container" errors. Investigation revealed:
+- API was attempting to connect to NATS at `localhost:4222`
+- Should have been connecting to `nats://nats:4222` (Docker service name)
+- Even though `docker-stack.yml` set `NATS_URL=nats://nats:4222`, the application code wasn't reading it
+
+## Root Cause
+1. `app/core/config.py` was missing `NATS_URL` configuration setting
+2. `app/main.py` wasn't passing NATS_URL parameter to event_emitter.initialize()
+3. event_emitter was defaulting to `localhost:4222` instead of using the environment variable
+
+## Fixes Applied (Commit d1d0919)
+1. ✅ Added `NATS_URL` setting to `app/core/config.py`
+2. ✅ Updated `app/main.py` to pass `settings.NATS_URL` to event emitter
+3. ✅ Improved `.dockerignore` to exclude large files (7.2MB REPO_FILE_INDEX.tsv, 2.7MB .harness_checkpoints/)
+
+## Progress This Session
+- ✅ Identified root cause of API startup failure
+- ✅ Fixed NATS_URL configuration in code
+- ✅ Committed fixes (commit d1d0919)
+- ✅ Improved build performance by updating .dockerignore
+- ⏳ Docker image rebuild initiated but too slow to complete in session (30+ minutes)
+
+## Docker Build Challenges
+- Initial build took 30+ minutes due to 16.82MB build context
+- Build got stuck on COPY step for 30 minutes
+- Updated `.dockerignore` to exclude large unnecessary files
+- Next build should be significantly faster
+
+## Current State
+**Infrastructure Services:** 6/10 running
+- ✅ postgres (1/1)
+- ✅ redis (1/1)  
+- ✅ nats (1/1)
+- ✅ ui (1/1)
+- ✅ nginx (1/1)
+- ❌ api (0/1) - needs image rebuild with new code
+- ❌ celery-worker, celery-beat, flower, funnel-automation (0/1) - waiting for API
+
+## Next Session Must Do
+**CRITICAL: Rebuild Docker Image**
+
+```bash
+cd /home/pharma5/unified_engine
+docker build -t 192.168.1.254:5000/unified-engine/api:latest -f Dockerfile.stack .
+docker service update --force trading_api
+```
+
+After the rebuild, the API should:
+- Connect to NATS successfully at `nats://nats:4222`
+- Start accepting requests
+- Pass health checks
+- Enable dependent services to start
+
+## Tests Status
+- **Current:** 0/101 passing
+- **Expected after fix:** 10-20 infrastructure tests should pass
+
+## Files Modified
+- `app/core/config.py` - Added NATS_URL setting
+- `app/main.py` - Pass NATS_URL to event emitter  
+- `.dockerignore` - Exclude large files
+- `CURRENT_STATUS.md` - Updated with detailed status
+
+## Git Commits
+- `d1d0919` - Fix NATS_URL configuration (NEEDS DOCKER REBUILD)
+- `a7efc2c` - Add current status documentation
+- `e1fa80f` - Add NATS service to docker-stack.yml  
+- `c77d300` - Fix NATS connection timeout
+
