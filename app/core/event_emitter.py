@@ -33,31 +33,48 @@ class EventEmitter:
             self.nats_connected = False
             return
 
-        self.nats_url = nats_url or "nats://nats:4222"
+        # CRITICAL: If NATS_URL is None or empty, skip NATS entirely
+        if not nats_url or nats_url.strip() == "":
+            logger.info("NATS_URL not provided, using logging fallback")
+            self.nats_connected = False
+            return
+
+        self.nats_url = nats_url
         logger.info(f"Attempting to connect to NATS at {self.nats_url}...")
 
+        # CRITICAL FIX: Use a task that can be cancelled, with hard timeout
+        import asyncio
+        
         try:
-            # Try to connect with aggressive timeout to avoid blocking startup
-            import asyncio
-            # Use shorter timeout and explicit connection parameters
-            self.nats_client = await asyncio.wait_for(
+            # Create the connection task
+            connect_task = asyncio.create_task(
                 nats.connect(
                     self.nats_url,
                     max_reconnect_attempts=0,  # No retries
-                    connect_timeout=2,  # 2 second connection timeout
+                    connect_timeout=1,  # 1 second connection timeout
                     allow_reconnect=False,  # Disable reconnection
                     verbose=False  # Reduce logging noise
-                ),
-                timeout=2.0  # 2 second overall timeout
+                )
             )
-            self.nats_connected = True
-            logger.info(f"✅ Connected to NATS at {self.nats_url}")
-        except asyncio.TimeoutError:
-            logger.warning(f"⚠️  NATS connection timed out after 2 seconds at {self.nats_url}")
-            logger.warning("⚠️  Continuing without NATS - events will be logged instead")
-            self.nats_connected = False
-            self.nats_client = None
-        except Exception as e:
+            
+            # Wait with hard timeout - this WILL cancel the task on timeout
+            try:
+                self.nats_client = await asyncio.wait_for(connect_task, timeout=1.5)
+                self.nats_connected = True
+                logger.info(f"✅ Connected to NATS at {self.nats_url}")
+            except asyncio.TimeoutError:
+                # CRITICAL: Cancel the task to stop NATS client retries
+                connect_task.cancel()
+                try:
+                    await connect_task  # Wait for cancellation
+                except asyncio.CancelledError:
+                    pass
+                logger.warning(f"⚠️  NATS connection timed out after 1.5 seconds at {self.nats_url}")
+                logger.warning("⚠️  Continuing without NATS - events will be logged instead")
+                self.nats_connected = False
+                self.nats_client = None
+        except (ConnectionRefusedError, OSError, Exception) as e:
+            # Catch ALL exceptions including connection errors
             logger.warning(f"⚠️  Failed to connect to NATS at {self.nats_url}: {type(e).__name__}: {e}")
             logger.warning("⚠️  Continuing without NATS - events will be logged instead")
             self.nats_connected = False

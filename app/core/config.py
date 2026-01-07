@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     REDIS_SESSION_TTL: int = 86400
 
     # NATS
-    NATS_URL: str = "nats://nats:4222"
+    NATS_URL: Optional[str] = None  # Set to None to disable NATS, or provide URL to enable
 
     # API
     API_V1_STR: str = "/api/v1"

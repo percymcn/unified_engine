@@ -67,12 +67,19 @@ async def lifespan(app: FastAPI):
         
         # Initialize event emitter (NATS or logging fallback)
         # This is non-blocking and will gracefully fall back to logging if NATS fails
+        # CRITICAL: Add hard timeout at this level too to prevent hanging
         try:
-            await event_emitter.initialize(settings.NATS_URL)
+            await asyncio.wait_for(
+                event_emitter.initialize(settings.NATS_URL),
+                timeout=2.0  # Hard 2 second timeout - MUST complete or fail
+            )
             if event_emitter.nats_connected:
                 logger.info("✅ Event emitter initialized with NATS")
             else:
                 logger.info("✅ Event emitter initialized (logging fallback mode)")
+        except asyncio.TimeoutError:
+            logger.warning("⚠️  Event emitter initialization timed out, continuing without NATS")
+            logger.info("✅ Event emitter initialized (logging fallback mode)")
         except Exception as e:
             # Should never happen since initialize() catches all exceptions, but just in case
             logger.warning(f"⚠️  Event emitter initialization had unexpected error: {e}")

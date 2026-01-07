@@ -79,7 +79,8 @@ services:
     environment:
       - DATABASE_URL=postgresql://trading_user:trading_password@postgres:5432/trading_db
       - REDIS_URL=redis://redis:6379/0
-      - NATS_URL=nats://nats:4222
+      # NATS_URL disabled temporarily - will be re-enabled once connection issue is resolved
+      # - NATS_URL=nats://nats:4222
       - SECRET_KEY=unified-secret-key-2024
       - ENVIRONMENT=production
     volumes:
