@@ -1,0 +1,4 @@
+{
+  "head": "6abb5fd0a7e2194f6d625cab316c7cb082d2ec6f",
+  "status": "M HARNESS_LAST_RUN.txt\n M HARNESS_STATE.json\n M RUN_STATE.json\n M logs/.2734077ca4f658ee8ee06b6905cbbdf0e9333ff8-audit.json\n?? .harness_checkpoints/2026-01-06T02-01-17.921657/\n?? .harness_checkpoints/2026-01-06T02-01-31.215132/\n?? .harness_checkpoints/2026-01-07T00-14-36.692601/"
+}

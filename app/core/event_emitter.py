@@ -32,7 +32,7 @@ class EventEmitter:
             logger.info("NATS not available, using logging fallback")
             return
 
-        self.nats_url = nats_url or "nats://localhost:4222"
+        self.nats_url = nats_url or "nats://nats:4222"
 
         try:
             # Try to connect with timeout to avoid blocking startup

@@ -4,7 +4,7 @@ Supports all broker configurations and environment settings
 """
 import os
 from typing import Optional, List, Dict, Any
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import field_validator
 from functools import lru_cache
 
@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     REDIS_SESSION_TTL: int = 86400
 
     # NATS
-    NATS_URL: str = "nats://localhost:4222"
+    NATS_URL: str = "nats://nats:4222"
 
     # API
     API_V1_STR: str = "/api/v1"
@@ -155,11 +155,11 @@ class Settings(BaseSettings):
             raise ValueError("SECRET_KEY must be changed in production")
         return v
     
-    model_config = {
-        "env_file": ".env",
-        "case_sensitive": True,
-        "extra": "ignore"
-    }
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=True,
+        extra="ignore"
+    )
         
     @property
     def is_production(self) -> bool:
