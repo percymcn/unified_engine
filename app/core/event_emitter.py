@@ -27,25 +27,41 @@ class EventEmitter:
         self.nats_url = None
         
     async def initialize(self, nats_url: Optional[str] = None):
-        """Initialize NATS connection if available"""
+        """Initialize NATS connection if available - non-blocking, graceful fallback"""
         if not NATS_AVAILABLE:
-            logger.info("NATS not available, using logging fallback")
+            logger.info("NATS library not available, using logging fallback")
+            self.nats_connected = False
             return
 
         self.nats_url = nats_url or "nats://nats:4222"
+        logger.info(f"Attempting to connect to NATS at {self.nats_url}...")
 
         try:
-            # Try to connect with timeout to avoid blocking startup
+            # Try to connect with aggressive timeout to avoid blocking startup
             import asyncio
+            # Use shorter timeout and explicit connection parameters
             self.nats_client = await asyncio.wait_for(
-                nats.connect(self.nats_url, max_reconnect_attempts=0),
-                timeout=3.0  # 3 second timeout
+                nats.connect(
+                    self.nats_url,
+                    max_reconnect_attempts=0,  # No retries
+                    connect_timeout=2,  # 2 second connection timeout
+                    allow_reconnect=False,  # Disable reconnection
+                    verbose=False  # Reduce logging noise
+                ),
+                timeout=2.0  # 2 second overall timeout
             )
             self.nats_connected = True
-            logger.info(f"Connected to NATS at {self.nats_url}")
-        except Exception as e:
-            logger.warning(f"Failed to connect to NATS: {e}, using logging fallback")
+            logger.info(f"✅ Connected to NATS at {self.nats_url}")
+        except asyncio.TimeoutError:
+            logger.warning(f"⚠️  NATS connection timed out after 2 seconds at {self.nats_url}")
+            logger.warning("⚠️  Continuing without NATS - events will be logged instead")
             self.nats_connected = False
+            self.nats_client = None
+        except Exception as e:
+            logger.warning(f"⚠️  Failed to connect to NATS at {self.nats_url}: {type(e).__name__}: {e}")
+            logger.warning("⚠️  Continuing without NATS - events will be logged instead")
+            self.nats_connected = False
+            self.nats_client = None
     
     async def emit(self, subject: str, event_type: str, data: Dict[str, Any]):
         """Emit an event to NATS or log it"""

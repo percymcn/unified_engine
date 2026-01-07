@@ -66,8 +66,17 @@ async def lifespan(app: FastAPI):
         logger.info("✅ Redis connected")
         
         # Initialize event emitter (NATS or logging fallback)
-        await event_emitter.initialize(settings.NATS_URL)
-        logger.info("✅ Event emitter initialized")
+        # This is non-blocking and will gracefully fall back to logging if NATS fails
+        try:
+            await event_emitter.initialize(settings.NATS_URL)
+            if event_emitter.nats_connected:
+                logger.info("✅ Event emitter initialized with NATS")
+            else:
+                logger.info("✅ Event emitter initialized (logging fallback mode)")
+        except Exception as e:
+            # Should never happen since initialize() catches all exceptions, but just in case
+            logger.warning(f"⚠️  Event emitter initialization had unexpected error: {e}")
+            logger.info("✅ Event emitter initialized (logging fallback mode)")
         
         # Initialize signal processor and broker connections
         await signal_processor.initialize()
