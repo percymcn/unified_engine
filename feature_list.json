@@ -8,7 +8,7 @@
       "Run: docker service ps trading_postgres",
       "Verify Current State is Running"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "Infrastructure - Docker Services",
@@ -19,7 +19,7 @@
       "Run: docker exec -it $(docker ps -q -f name=trading_redis) redis-cli ping",
       "Verify response is PONG"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "Infrastructure - Docker Services",
@@ -30,7 +30,7 @@
       "Run: docker service ps trading_api --no-trunc",
       "Verify no 'exit 137' or 'unhealthy' errors"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "Infrastructure - Docker Services",
@@ -41,7 +41,7 @@
       "Run: curl -I http://192.168.1.254:3411",
       "Verify HTTP 200 response"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "Infrastructure - Docker Services",
@@ -52,7 +52,7 @@
       "Run: curl -I http://192.168.1.254:3013",
       "Verify service responds"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "Infrastructure - Docker Services",
@@ -96,7 +96,7 @@
       "If NATS doesn't exist, check API logs for graceful NATS fallback",
       "Verify API doesn't crash due to NATS connection"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "Infrastructure - Docker Services",
@@ -137,7 +137,7 @@
       "Verify output is True",
       "Check for no connection errors"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "Infrastructure - Network",
@@ -148,7 +148,7 @@
       "Run: docker network inspect trading_unified-network",
       "Verify Attachable is true"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "API Health & Connectivity",
@@ -159,7 +159,7 @@
       "Verify JSON response contains 'status': 'healthy'",
       "Verify 'redis': 'connected' in response"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "API Health & Connectivity",
@@ -169,7 +169,7 @@
       "Verify HTTP 200 response",
       "Verify response indicates service is ready"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "API Health & Connectivity",
@@ -180,7 +180,7 @@
       "Verify JSON contains broker statuses",
       "Verify database connection status"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "API Health & Connectivity",
