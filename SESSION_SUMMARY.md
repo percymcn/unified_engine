@@ -684,3 +684,24 @@ After the rebuild, the API should:
 - `e1fa80f` - Add NATS service to docker-stack.yml  
 - `c77d300` - Fix NATS connection timeout
 
+
+---
+
+## Session: 2026-01-07 18:12 UTC
+**Focus:** Infrastructure Testing & Fixes (FIX_PLAN.md Issues #1-#2)
+
+### Progress Summary
+**Tests Passing:** 11/101 (up from 0/101)
+**Critical Issues Addressed:** 2
+
+### Work Completed
+1. Added aiohttp dependency to requirements.txt
+2. Enabled NATS_URL in docker-stack.yml
+3. Verified 11 infrastructure tests now passing
+4. Committed changes (2 commits)
+
+### Next Session Must Do
+1. Wait for/complete Docker build with aiohttp
+2. Update funnel-automation service
+3. Fix celery services to run persistently
+4. Target: 20-30 tests passing
