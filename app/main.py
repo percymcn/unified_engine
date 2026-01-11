@@ -20,6 +20,10 @@ from app.services.signal_processor import signal_processor
 from app.cache.redis_client import redis_client
 from app.db.database import engine, Base
 
+# Import models so SQLAlchemy can create tables
+# This must be imported before Base.metadata.create_all()
+from app.models import models, enhanced_models  # noqa: F401
+
 # Router imports
 from app.routers.auth import router as auth_router
 from app.routers.accounts import router as accounts_router
