@@ -2,12 +2,12 @@
 Comprehensive Database Models for Unified Trading Engine
 """
 from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text, JSON, Enum
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import enum
 
-Base = declarative_base()
+# Import Base from the centralized database module
+from app.db.database import Base
 
 
 class BrokerType(enum.Enum):
