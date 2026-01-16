@@ -19,6 +19,16 @@
             "date": 1767762876035,
             "name": "/home/pharma5/unified_engine/logs/mcp-puppeteer-2026-01-07.log",
             "hash": "8c8dde37396fb6738d51f0458d1c4e8a722fbb0827690c7b70945d28ed9363dc"
+        },
+        {
+            "date": 1767853490982,
+            "name": "/home/pharma5/unified_engine/logs/mcp-puppeteer-2026-01-08.log",
+            "hash": "56764cd316dbb255e62f6097d55605c729ef1dc430dfd04c2e64a3410c868ef1"
+        },
+        {
+            "date": 1768105393317,
+            "name": "/home/pharma5/unified_engine/logs/mcp-puppeteer-2026-01-10.log",
+            "hash": "cb3918c1098eef35bfcd37bea079c0b31127c24790faa715988fd182ad87921f"
         }
     ],
     "hashType": "sha256"

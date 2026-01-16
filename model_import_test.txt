@@ -1,0 +1,13 @@
+Traceback (most recent call last):
+  File "<string>", line 10, in <module>
+ImportError: cannot import name 'Base' from 'app.core.database' (/app/app/core/database.py)
+Testing imports...
+❌ app.core.database.Base - FAILED
+✅ Models directory exists: ['__pycache__', 'enhanced_models.py', 'database_models.py', 'pydantic_schemas.py', 'models.py', 'schemas.py']
+✅ app.models.models - OK
+✅ app.models.enhanced_models - OK
+  Found module: app.models.database_models
+  Found module: app.models.enhanced_models
+  Found module: app.models.models
+  Found module: app.models.pydantic_schemas
+  Found module: app.models.schemas

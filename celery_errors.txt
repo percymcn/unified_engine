@@ -1,0 +1,46 @@
+trading_celery-worker.1.jrid7op2i7kv@pharma5    | /usr/local/lib/python3.9/site-packages/celery/platforms.py:829: SecurityWarning: You're running the worker with superuser privileges: this is
+trading_celery-worker.1.jrid7op2i7kv@pharma5    | absolutely not recommended!
+trading_celery-worker.1.jrid7op2i7kv@pharma5    | 
+trading_celery-worker.1.jrid7op2i7kv@pharma5    | Please specify a different user using the --uid option.
+trading_celery-worker.1.jrid7op2i7kv@pharma5    | 
+trading_celery-worker.1.jrid7op2i7kv@pharma5    | User information: uid=0 euid=0 gid=0 egid=0
+trading_celery-worker.1.jrid7op2i7kv@pharma5    | 
+trading_celery-worker.1.jrid7op2i7kv@pharma5    |   warnings.warn(SecurityWarning(ROOT_DISCOURAGED.format(
+trading_celery-worker.1.jrid7op2i7kv@pharma5    |  
+trading_celery-worker.1.jrid7op2i7kv@pharma5    |  -------------- celery@d89ac38c4c2c v5.3.4 (emerald-rush)
+trading_celery-worker.1.jrid7op2i7kv@pharma5    | --- ***** ----- 
+trading_celery-worker.1.jrid7op2i7kv@pharma5    | -- ******* ---- Linux-6.17.0-1006-raspi-aarch64-with-glibc2.41 2026-01-11 06:56:33
+trading_celery-worker.1.jrid7op2i7kv@pharma5    | - *** --- * --- 
+trading_celery-worker.1.jrid7op2i7kv@pharma5    | - ** ---------- [config]
+trading_celery-worker.1.jrid7op2i7kv@pharma5    | - ** ---------- .> app:         unified_trading:0xffffa8d9f640
+trading_celery-worker.1.jrid7op2i7kv@pharma5    | - ** ---------- .> transport:   redis://redis:6379/0
+trading_celery-worker.1.jrid7op2i7kv@pharma5    | - ** ---------- .> results:     redis://redis:6379/0
+trading_celery-worker.1.jrid7op2i7kv@pharma5    | - *** --- * --- .> concurrency: 2 (prefork)
+trading_celery-worker.1.jrid7op2i7kv@pharma5    | -- ******* ---- .> task events: OFF (enable -E to monitor tasks in this worker)
+trading_celery-worker.1.jrid7op2i7kv@pharma5    | --- ***** ----- 
+trading_celery-worker.1.jrid7op2i7kv@pharma5    |  -------------- [queues]
+trading_celery-worker.1.jrid7op2i7kv@pharma5    |                 .> celery           exchange=celery(direct) key=celery
+trading_celery-worker.1.jrid7op2i7kv@pharma5    |                 
+trading_celery-worker.1.jrid7op2i7kv@pharma5    | 
+trading_celery-worker.1.jrid7op2i7kv@pharma5    | [tasks]
+trading_celery-worker.1.jrid7op2i7kv@pharma5    |   . app.tasks.trading_tasks.process_trade
+trading_celery-worker.1.jrid7op2i7kv@pharma5    |   . app.tasks.trading_tasks.sync_positions
+trading_celery-worker.1.jrid7op2i7kv@pharma5    | 
+trading_celery-worker.1.jrid7op2i7kv@pharma5    | [2026-01-11 06:56:36,111: WARNING/MainProcess] /usr/local/lib/python3.9/site-packages/celery/worker/consumer/consumer.py:507: CPendingDeprecationWarning: The broker_connection_retry configuration setting will no longer determine
+trading_celery-worker.1.jrid7op2i7kv@pharma5    | whether broker connection retries are made during startup in Celery 6.0 and above.
+trading_celery-worker.1.jrid7op2i7kv@pharma5    | If you wish to retain the existing behavior for retrying connections on startup,
+trading_celery-worker.1.jrid7op2i7kv@pharma5    | you should set broker_connection_retry_on_startup to True.
+trading_celery-worker.1.jrid7op2i7kv@pharma5    |   warnings.warn(
+trading_celery-worker.1.jrid7op2i7kv@pharma5    | 
+trading_celery-worker.1.jrid7op2i7kv@pharma5    | [2026-01-11 06:56:36,917: INFO/MainProcess] Connected to redis://redis:6379/0
+trading_celery-worker.1.jrid7op2i7kv@pharma5    | [2026-01-11 06:56:36,918: WARNING/MainProcess] /usr/local/lib/python3.9/site-packages/celery/worker/consumer/consumer.py:507: CPendingDeprecationWarning: The broker_connection_retry configuration setting will no longer determine
+trading_celery-worker.1.jrid7op2i7kv@pharma5    | whether broker connection retries are made during startup in Celery 6.0 and above.
+trading_celery-worker.1.jrid7op2i7kv@pharma5    | If you wish to retain the existing behavior for retrying connections on startup,
+trading_celery-worker.1.jrid7op2i7kv@pharma5    | you should set broker_connection_retry_on_startup to True.
+trading_celery-worker.1.jrid7op2i7kv@pharma5    |   warnings.warn(
+trading_celery-worker.1.jrid7op2i7kv@pharma5    | 
+trading_celery-worker.1.jrid7op2i7kv@pharma5    | [2026-01-11 06:56:36,924: INFO/MainProcess] mingle: searching for neighbors
+trading_celery-worker.1.jrid7op2i7kv@pharma5    | [2026-01-11 06:56:38,164: INFO/MainProcess] mingle: all alone
+trading_celery-worker.1.jrid7op2i7kv@pharma5    | [2026-01-11 06:56:38,267: INFO/MainProcess] celery@d89ac38c4c2c ready.
+trading_celery-worker.1.jrid7op2i7kv@pharma5    | 
+trading_celery-worker.1.jrid7op2i7kv@pharma5    | worker: Warm shutdown (MainProcess)

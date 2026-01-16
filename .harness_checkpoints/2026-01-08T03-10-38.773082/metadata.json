@@ -1,0 +1,9 @@
+{
+  "timestamp": "2026-01-08T03-10-38.773082",
+  "stage": "fixing",
+  "step_name": "session_326",
+  "project_dir": "/home/pharma5/unified_engine",
+  "rolled_back": true,
+  "rollback_reason": "Session 326 error: provider_not_ready",
+  "rollback_time": "2026-01-08T03:10:39.886468"
+}

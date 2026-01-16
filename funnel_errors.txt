@@ -1,0 +1,20 @@
+trading_funnel-automation.1.3zdbmupxu0l4@pharma5    | Traceback (most recent call last):
+trading_funnel-automation.1.3zdbmupxu0l4@pharma5    |   File "<string>", line 1, in <module>
+trading_funnel-automation.1.vy793w80is8g@pharma5    | Traceback (most recent call last):
+trading_funnel-automation.1.vy793w80is8g@pharma5    |   File "<string>", line 1, in <module>
+trading_funnel-automation.1.vy793w80is8g@pharma5    |   File "/app/app/services/funnel_automation.py", line 11, in <module>
+trading_funnel-automation.1.vy793w80is8g@pharma5    |     import aioredis
+trading_funnel-automation.1.vy793w80is8g@pharma5    | ModuleNotFoundError: No module named 'aioredis'
+trading_funnel-automation.1.dj8d3iwxb2ya@pharma5    | Traceback (most recent call last):
+trading_funnel-automation.1.dj8d3iwxb2ya@pharma5    |   File "<string>", line 1, in <module>
+trading_funnel-automation.1.dj8d3iwxb2ya@pharma5    |   File "/app/app/services/funnel_automation.py", line 11, in <module>
+trading_funnel-automation.1.dj8d3iwxb2ya@pharma5    |     import aioredis
+trading_funnel-automation.1.dj8d3iwxb2ya@pharma5    | ModuleNotFoundError: No module named 'aioredis'
+trading_funnel-automation.1.mcanm0pgd3oa@pharma5    | Traceback (most recent call last):
+trading_funnel-automation.1.mcanm0pgd3oa@pharma5    |   File "<string>", line 1, in <module>
+trading_funnel-automation.1.mcanm0pgd3oa@pharma5    |   File "/app/app/services/funnel_automation.py", line 11, in <module>
+trading_funnel-automation.1.mcanm0pgd3oa@pharma5    |     import aioredis
+trading_funnel-automation.1.mcanm0pgd3oa@pharma5    | ModuleNotFoundError: No module named 'aioredis'
+trading_funnel-automation.1.3zdbmupxu0l4@pharma5    |   File "/app/app/services/funnel_automation.py", line 11, in <module>
+trading_funnel-automation.1.3zdbmupxu0l4@pharma5    |     import aioredis
+trading_funnel-automation.1.3zdbmupxu0l4@pharma5    | ModuleNotFoundError: No module named 'aioredis'

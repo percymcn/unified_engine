@@ -1,13 +1,52 @@
 {
-  "run_id": "2026-01-07T18:08:55.227804",
+  "run_id": "2026-01-10T23:43:39.984814",
   "mode": "target",
   "stage": "fixing",
-  "last_completed_step": "infrastructure_testing_session_2",
-  "last_file_touched": "feature_list.json",
-  "last_command_run": "git commit",
-  "last_agent_message": "Verified 11 infrastructure tests passing, added aiohttp dependency",
+  "last_completed_step": "session_3_failed",
+  "last_file_touched": "",
+  "last_command_run": "provider_not_ready",
+  "last_agent_message": "",
   "progress": {
     "passing": 11,
     "total": 101
+  },
+  "last_provider_error": "No provider/client available",
+  "provider_chain": [
+    "claude-code",
+    "codex",
+    "gemini-cli",
+    "cursor"
+  ],
+  "failed_providers": {
+    "codex": {
+      "reason": "Preflight failed: Codex authentication failed (exit code 2). Stderr: error: unrecognized subcommand 'status'\n\n  tip: a similar subcommand exists: 'a'\n\nUsage: codex [OPTIONS] [PROMPT]\n       codex [OPTIONS] <COMMAND> [ARGS]\n\nFor more information, try '--help'.\n\nRun: /usr/local/bin/codex auth login to authenticate",
+      "timestamp": "2026-01-10T23:19:45.542683"
+    },
+    "gemini-cli": {
+      "reason": "Preflight failed: Gemini CLI version check failed (exit code -1): Command timed out after 60.0s",
+      "timestamp": "2026-01-10T23:20:46.277989"
+    }
+  },
+  "providers": {
+    "claude-code": {
+      "successes": 5,
+      "failures": 0,
+      "last_latency_ms": 946467.6229953766,
+      "avg_latency_ms": 1335137.3082839488,
+      "last_error_type": "",
+      "canary_passed": true,
+      "auth_mode": "unknown",
+      "last_used_at": "2026-01-10T23:39:11.440881"
+    },
+    "cursor": {
+      "successes": 0,
+      "failures": 0,
+      "last_latency_ms": 0,
+      "avg_latency_ms": 0,
+      "last_error_type": "",
+      "canary_passed": false,
+      "auth_mode": "unknown",
+      "last_used_at": ""
+    }
   }
 }

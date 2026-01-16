@@ -1,0 +1,4 @@
+{
+  "head": "1de8f6a69735f0f4450f730c7dc62299eb06cb4f",
+  "status": "M HARNESS_LAST_RUN.txt\n M HARNESS_STATE.json\n M RUN_STATE.json\n M claude-progress.txt\n M logs/.2734077ca4f658ee8ee06b6905cbbdf0e9333ff8-audit.json\n?? .harness_checkpoints/2026-01-07T18-08-54.715905/\n?? .harness_checkpoints/2026-01-07T18-51-39.205777/\n?? .harness_checkpoints/2026-01-07T18-51-47.766121/\n?? .harness_checkpoints/2026-01-08T01-24-21.255046/\n?? .harness_checkpoints/2026-01-08T02-25-50.488227/\n?? .harness_checkpoints/2026-01-08T02-26-08.477064/\n?? .harness_checkpoints/2026-01-08T02-26-17.376847/\n?? .harness_checkpoints/2026-01-08T02-26-25.202946/\n?? .harness_checkpoints/2026-01-08T02-26-33.804061/\n?? .harness_checkpoints/2026-01-08T02-26-43.158240/"
+}

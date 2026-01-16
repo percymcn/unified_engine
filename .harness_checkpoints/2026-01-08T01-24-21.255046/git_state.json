@@ -1,0 +1,4 @@
+{
+  "head": "1de8f6a69735f0f4450f730c7dc62299eb06cb4f",
+  "status": "M HARNESS_LAST_RUN.txt\n M HARNESS_STATE.json\n M RUN_STATE.json\n?? .harness_checkpoints/2026-01-07T18-08-54.715905/\n?? .harness_checkpoints/2026-01-07T18-51-39.205777/\n?? .harness_checkpoints/2026-01-07T18-51-47.766121/\n?? .harness_checkpoints/2026-01-08T01-24-21.255046/"
+}

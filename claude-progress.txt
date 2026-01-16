@@ -1,14 +1,24 @@
 # Unified Trading Engine - Progress Report
-Last Updated: 2026-01-07 23:50 UTC
+Last Updated: 2026-01-08 02:26 UTC
 
 ## CURRENT STATUS: 11/101 Tests Passing ✅
 
-### Session Summary (2026-01-07 18:12-23:50 UTC)
-**Accomplishments:**
-- Fixed Critical Issue #2: Added aiohttp dependency (funnel-automation crash)
-- Enabled NATS_URL configuration in docker-stack.yml
-- Verified 11 infrastructure tests now passing
-- Made 4 git commits with all changes
+### Session Summary (2026-01-08 01:28-02:26)
+**Current Task:** Docker image rebuild in progress (52+ minutes elapsed, ONGOING)
+**Reason:** Adding aiohttp==3.9.1 dependency to fix funnel-automation service
+**Status:** Build is VERY SLOW - stuck on stage #16 (COPY . .) for extended period
+
+**Session Actions:**
+1. Oriented to project status - confirmed TARGET-PROJECT mode
+2. Identified critical blockers:
+   - funnel-automation: ModuleNotFoundError for aiohttp (CRITICAL #2 from FIX_PLAN)
+   - celery-worker: exits with "Complete" status instead of running
+   - celery-beat: not started (0/1 replicas)
+   - flower: not started (0/1 replicas)
+3. Started Docker image rebuild (started ~01:28 UTC)
+   - Command: docker build -t 192.168.1.254:5000/unified-engine/api:latest -f Dockerfile.stack .
+   - Status: In progress, completed stage #9 (install gcc/curl), still transferring 221MB context
+   - Expected completion: Unknown (previous sessions reported 60+ minute builds)
 
 **Infrastructure Health: 6/10 Services Running**
 ✅ trading_postgres (1/1) - Database healthy
@@ -18,20 +28,28 @@ Last Updated: 2026-01-07 23:50 UTC
 ✅ trading_ui (1/1) - Frontend accessible
 ✅ trading_nginx (1/1) - Reverse proxy working
 
-❌ trading_celery-worker (0/1) - Exits after start (needs investigation)
+❌ trading_celery-worker (0/1) - Exits with "Complete" instead of running
 ❌ trading_celery-beat (0/1) - Not started
 ❌ trading_flower (0/1) - Monitoring down
-❌ trading_funnel-automation (0/1) - Waiting for Docker rebuild with aiohttp
+❌ trading_funnel-automation (0/1) - ModuleNotFoundError: aiohttp
 
-## CRITICAL: Docker Build In Progress
-**Status:** Running for 60+ minutes (multi-stage build is VERY slow)
-**Command:** docker build -t 192.168.1.254:5000/unified-engine/api:latest -f Dockerfile.stack .
-**Reason:** Adding aiohttp==3.9.1 to fix funnel-automation
+## Docker Build Status
+**Started:** ~01:28 UTC (2026-01-08)
+**Elapsed:** 52+ minutes (still running as of 02:26 UTC)
+**Current Stage:** #16 (COPY . .) - STUCK/VERY SLOW
+**Progress Completed:**
+- ✅ Stage #5: Context transfer (315MB in 16.4 minutes / 983.8s)
+- ✅ Stage #9: apt-get install gcc curl (548.7s)
+- ✅ Stage #13: pip install requirements.txt (475.8s) - **aiohttp-3.9.1 SUCCESSFULLY INSTALLED**
+- ✅ Stage #14: npm install (161.2s)
+- ✅ Stage #15: COPY ui/ (918.9s)
+- ✅ Stage #17: npm run build (78.6s)
+- 🔄 Stage #16: COPY . . (IN PROGRESS - stuck for 20+ minutes)
 
-**Once build completes, next session MUST:**
-1. Push the new image to registry (or let build finish)
-2. Force update funnel-automation service: docker service update --force trading_funnel-automation
-3. Verify funnel-automation starts without aiohttp error
+**Build Context Issue:**
+The build is transferring 315MB of context which took 16+ minutes. Stage #16 (COPY . .) appears to be stuck or extremely slow. This stage has been running for an extended period without visible progress.
+
+**IMPORTANT:** The new Docker image **DOES** contain aiohttp-3.9.1 (confirmed in stage #13 output). Once build completes, funnel-automation should start successfully.
 
 ## Tests Passing (11/101)
 
@@ -60,89 +78,159 @@ Last Updated: 2026-01-07 23:50 UTC
 ❌ 18-19. OpenAPI docs (/docs and /redoc return 404)
 ❌ 20+. All API endpoints, authentication, trading functionality
 
-## Git Commits This Session
-- cdf8f24 - Update HARNESS_STATE.json - 11/101 tests passing
-- 5484e41 - Update session summary - 11 tests passing
-- ea959de - Mark 11 infrastructure tests as passing
-- 80eeceb - Add aiohttp dependency and enable NATS_URL
+## Next Steps (After Docker Build Completes)
 
-## Next Session Priorities (IN ORDER)
-
-### Priority 1: Complete Docker Build
-- Docker build has been running 60+ minutes
-- Check if completed: ps aux | grep "docker build.*unified-engine"
-- If not complete, consider canceling and using a faster approach
-
-### Priority 2: Fix Funnel-Automation
-Once Docker build completes:
+### Priority 1: Update Services with New Image
 ```bash
+# Option A: Push to registry (if build completes)
+docker push 192.168.1.254:5000/unified-engine/api:latest
+
+# Option B: Force update services to pull new image
+docker service update --force trading_api
 docker service update --force trading_funnel-automation
+docker service update --force trading_celery-worker
+docker service update --force trading_celery-beat
+docker service update --force trading_flower
+```
+
+### Priority 2: Verify Funnel-Automation Starts
+```bash
 docker service ps trading_funnel-automation
 docker service logs trading_funnel-automation --tail 50
 ```
-Expected: Should start successfully without ModuleNotFoundError
+**Expected:** Should start without ModuleNotFoundError for aiohttp
 
-### Priority 3: Fix Celery Services
-Celery workers/beat are completing instead of running:
+### Priority 3: Fix Celery Worker Issue
+The celery worker is exiting with "Complete" status. Possible causes:
+- Celery app imports incorrectly configured
+- Worker finds no tasks and exits
+- Configuration issue in docker-stack.yml
+
+**Investigation needed:**
 ```bash
-docker service ps trading_celery-worker
 docker service logs trading_celery-worker --tail 100
+docker service ps trading_celery-worker
 ```
-Investigation needed: Why do they exit with status "Complete"?
-Possible fix: Check restart_policy, verify celery command stays running
 
-### Priority 4: Continue Testing
-Target: Get to 20-30 tests passing
+**Possible fix:** The celery worker command looks correct in docker-stack.yml:
+```
+command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=2
+```
+
+May need to add additional flags like `--pool=solo` or check if the celery app is properly configured.
+
+### Priority 4: Start Celery Beat and Flower
+Once celery-worker is running:
+```bash
+docker service scale trading_celery-beat=1
+docker service scale trading_flower=1
+```
+
+### Priority 5: Verify Infrastructure Tests
+Re-run the 11 passing tests to ensure they still pass after the changes.
+
+### Priority 6: Target 20-30 Tests Passing
 - Test API authentication endpoints
 - Test database migrations (alembic)
 - Test broker integrations
 - Fix OpenAPI docs 404 issue
 
-## Key Files Modified
-- requirements.txt - Added aiohttp==3.9.1
-- docker-stack.yml - Enabled NATS_URL environment variable
-- feature_list.json - Marked 11 tests as passing
-- SESSION_SUMMARY.md - Added session documentation
-- HARNESS_STATE.json - Updated progress to 11/101
+## Known Issues from FIX_PLAN.md
 
-## Known Issues
-1. Docker build extremely slow (60+ minutes for multi-stage build)
-2. Celery services exit after starting instead of staying running
-3. OpenAPI documentation endpoints return 404
-4. Cannot verify database tables directly (psql command blocked)
-5. funnel-automation still crashing (waiting for aiohttp in new image)
+### CRITICAL (Blocking)
+- ✅ Issue #1: NATS Connection - FIXED (previous session)
+- 🔄 Issue #2: Missing aiohttp Dependency - IN PROGRESS (Docker build)
 
-## Commands for Next Session
+### HIGH (Major Features)
+- ⏳ Issue #3: Database Migrations - NOT YET ADDRESSED
+- ⏳ Issue #4: Celery Workers Not Running - NEEDS INVESTIGATION
+- ⏳ Issue #5: Frontend API URL Not Configured - NOT YET TESTED
+- ⏳ Issue #6: TradeLocker Broker Failing - NOT YET ADDRESSED
 
-### Check Docker Build Status
-```bash
-ps aux | grep "docker build.*unified-engine" | grep -v grep
-docker images | grep unified-engine/api | head -3
-```
+### MEDIUM (UX/Monitoring)
+- ⏳ Issue #7: Flower Monitoring - NOT YET STARTED
+- ⏳ Issue #8: Nginx Proxy - RUNNING, but routing not tested
+- ⏳ Issue #9: Health Check Endpoint - WORKING (verified)
+- ⏳ Issue #10: WebSocket Functionality - NOT YET TESTED
 
-### Restart Services After Build
-```bash
-docker service update --force trading_funnel-automation
-docker service scale trading_celery-worker=1 trading_celery-beat=1 trading_flower=1
-```
+### LOW (Nice-to-have)
+- ⏳ Issue #11: Documentation Gaps - NOT YET ADDRESSED
+- ⏳ Issue #12: Test Suite Not Run - NOT YET ADDRESSED
 
-### Verify Infrastructure
-```bash
-docker service ls | grep trading
-curl http://192.168.1.254:3012/health
-curl http://192.168.1.254:3012/status
-```
+## Git Commits This Session
+(None yet - waiting for Docker build to complete)
 
-### Test Progress
-```bash
-cat feature_list.json | grep '"passes": true' | wc -l
-cat feature_list.json | grep '"passes": false' | wc -l
-```
+## Files Modified This Session
+(None yet - only background tasks running)
 
 ## Progress Toward GREEN
 - **Current:** 11/101 tests passing (10.9%)
-- **Critical Path:** Fix celery services + funnel-automation = ~20 tests
-- **Estimated Next Milestone:** 20-30 tests passing
+- **After Docker build + service updates:** Expected 12-15 tests (funnel-automation + possibly celery services)
+- **Target for this session:** 20-30 tests passing
 - **Time to GREEN:** Depends on resolving celery + docker build issues
+
+## Background Tasks Running
+1. **Docker build** (PID 1625739)
+   - Started: ~01:28 UTC
+   - Status: In progress (12+ minutes elapsed)
+   - Stage: 3/8 for stage-1, transferring 221MB context
+   - Output: /tmp/claude/-home-pharma5-unified-engine/tasks/b47309f.output
+
+2. **Docker service scale trading_celery-worker=1** (PID 1628303)
+   - Started: ~01:29 UTC
+   - Status: Stuck at "overall progress: 0 out of 1 tasks"
+   - Issue: Celery worker won't start (exits with "Complete")
+   - May need to kill this task and investigate root cause
+
+## Recommendations for Next Session
+
+### CRITICAL: Check Docker Build Status First
+
+1. **Check if build completed:**
+   ```bash
+   docker images | grep unified-engine/api
+   # Look for image created at 2026-01-08 02:xx (today)
+   ```
+
+2. **If build COMPLETED successfully:**
+   - Proceed to "Priority 1: Update Services with New Image" section above
+   - Push to registry: `docker push 192.168.1.254:5000/unified-engine/api:latest`
+   - Update services with `--force` flag
+   - Verify funnel-automation starts without aiohttp error
+
+3. **If build STILL RUNNING** (>60 minutes total):
+   - Let it finish - it may just be very slow
+   - Monitor: `ps aux | grep "docker build"`
+   - Check logs: `tail -f /tmp/claude/-home-pharma5-unified-engine/tasks/b47309f.output`
+
+4. **If build FAILED or STUCK:**
+   - Kill the stuck build: Find PID with `ps aux | grep "docker build"`, then `kill <PID>`
+   - Consider alternative approaches:
+     a. **Try docker buildx** with better caching
+     b. **Build with smaller context** - add more to `.dockerignore`
+     c. **Multi-stage optimization** - separate dependency install from code copy
+     d. **Use existing base image** if one exists with aiohttp already installed
+
+5. **Alternative Quick Fix (if build keeps failing):**
+   Instead of full rebuild, you could:
+   ```bash
+   # Install aiohttp directly in running container (temporary)
+   docker exec -it $(docker ps -q -f name=trading_api) pip install aiohttp==3.9.1
+
+   # Then create new image from running container
+   docker commit $(docker ps -q -f name=trading_api) 192.168.1.254:5000/unified-engine/api:latest
+   docker push 192.168.1.254:5000/unified-engine/api:latest
+
+   # Update funnel-automation service
+   docker service update --force trading_funnel-automation
+   ```
+
+### Session Context
+- Build started at 01:28 UTC, ran for 52+ minutes
+- **aiohttp-3.9.1 IS in the new image** (confirmed in pip install stage)
+- Build got stuck on stage #16 (COPY . .) - this is where it copies all app files
+- Context size is 315MB which is causing slow transfers
+- Background task ID: b47309f (Docker build)
+- Background task ID: b8d70c8 (celery-worker scale - stuck)
 
 Good luck! 🚀

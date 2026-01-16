@@ -1,0 +1,9 @@
+{
+  "timestamp": "2026-01-08T04-05-25.912094",
+  "stage": "fixing",
+  "step_name": "session_717",
+  "project_dir": "/home/pharma5/unified_engine",
+  "rolled_back": true,
+  "rollback_reason": "Session 717 error: provider_not_ready",
+  "rollback_time": "2026-01-08T04:05:26.099138"
+}
