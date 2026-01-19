@@ -29,7 +29,7 @@ Full refactor of the trading signal routing engine from organic growth to clean 
   3. NATS connection failure doesn't crash the service
   4. No hardcoded API keys in source code
 **Research**: Unlikely (bug fixes with known solutions from CONCERNS.md)
-**Plans**: TBD
+**Plans**: 4 plans (Wave 1: 01, 02, 03 | Wave 2: 04)
 
 ### Phase 2: Test Infrastructure
 **Goal**: All existing tests pass to provide refactoring safety net
@@ -156,7 +156,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Stability Fixes | 0/TBD | Not started | - |
+| 1. Stability Fixes | 0/4 | Planned | - |
 | 2. Test Infrastructure | 0/TBD | Not started | - |
 | 3. Domain Layer | 0/TBD | Not started | - |
 | 4. Application Layer | 0/TBD | Not started | - |
@@ -168,4 +168,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 10. Deployment | 0/TBD | Not started | - |
 
 ---
-*Last updated: 2026-01-19 after initialization*
+*Last updated: 2026-01-19 after Phase 1 planning*
