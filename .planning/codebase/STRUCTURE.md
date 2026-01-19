@@ -1,0 +1,248 @@
+# Codebase Structure
+
+**Analysis Date:** 2026-01-19
+
+## Directory Layout
+
+```
+unified_engine/
+├── app/                    # Main application code (Python/FastAPI)
+│   ├── brokers/            # Broker executor implementations
+│   ├── cache/              # Redis client wrapper
+│   ├── core/               # Core utilities and configuration
+│   ├── db/                 # Database setup and session management
+│   ├── models/             # SQLAlchemy and Pydantic models
+│   ├── routers/            # FastAPI route handlers
+│   ├── services/           # Business logic layer
+│   ├── tasks/              # Celery background tasks
+│   ├── utils/              # Shared utility functions
+│   ├── webhooks/           # Webhook-specific routers
+│   └── main.py             # FastAPI application entry point
+├── alembic/                # Database migrations
+│   └── versions/           # Migration version files
+├── broker_sdks/            # Third-party broker SDK integrations
+│   ├── topstep/
+│   ├── tradelocker/
+│   ├── tradovate/
+│   └── truforex/
+├── ui/                     # Frontend application (React/TypeScript)
+│   ├── build/              # Production build output
+│   └── src/                # React source code
+├── scripts/                # Operational scripts
+├── tests/                  # Test files
+├── logs/                   # Application log files
+├── backups/                # Database backups
+├── docker/                 # Docker configuration files
+├── docs/                   # Documentation
+├── .claude/                # Claude AI configuration
+├── .planning/              # Planning and codebase analysis
+│   └── codebase/           # Codebase documentation (this file)
+├── run_backend.py          # Backend server launcher with dynamic ports
+├── requirements.txt        # Python dependencies
+├── alembic.ini             # Alembic configuration
+├── docker-compose.yml      # Development docker setup
+├── docker-stack.yml        # Production deployment stack
+└── .env                    # Environment variables
+```
+
+## Directory Purposes
+
+**app/**
+- Purpose: Main Python application source code
+- Contains: All FastAPI backend logic, models, services, routes
+- Key files: `main.py` (app entry point), `main_demo.py` (demo server)
+
+**app/routers/**
+- Purpose: FastAPI route handlers (API endpoints)
+- Contains: RESTful endpoint definitions organized by domain
+- Key files: `auth.py` (authentication), `unified_router.py` (multi-broker API), `signals.py` (signal endpoints), `webhooks.py` (webhook endpoints), `accounts.py`, `positions.py`, `trades.py`, `strategies.py`, `analytics.py`, `notifications.py`, `oauth.py`, `subscription.py`
+
+**app/services/**
+- Purpose: Business logic and service layer
+- Contains: Core trading logic, broker orchestration, automation
+- Key files: `signal_processor.py` (central signal handler), `strategy_runner.py` (strategy execution), `funnel_automation.py` (user onboarding automation), `notification_service.py`, `subscription_service.py`, `oauth_service.py`
+
+**app/brokers/**
+- Purpose: Broker-specific trading executors
+- Contains: Implementations of BaseExecutor for each broker
+- Key files: `base_executor.py` (abstract base class), `mt4_executor.py`, `mt5_executor.py`, `tradelocker_executor.py`, `tradovate_executor.py`, `projectx_executor.py`
+
+**app/models/**
+- Purpose: Data models for database and API
+- Contains: SQLAlchemy ORM models and Pydantic validation schemas
+- Key files: `models.py` (core database models), `enhanced_models.py` (extended features), `database_models.py`, `pydantic_schemas.py` (request/response schemas), `schemas.py`
+
+**app/core/**
+- Purpose: Cross-cutting concerns and shared infrastructure
+- Contains: Configuration, security, logging, middleware
+- Key files: `config.py` (settings management), `security.py` (JWT/hashing), `logging_config.py`, `websocket_manager.py`, `event_emitter.py` (NATS integration), `middleware.py`, `rbac.py` (role-based access control), `database.py`, `redis_cache.py`
+
+**app/db/**
+- Purpose: Database connection and session management
+- Contains: SQLAlchemy engine setup
+- Key files: `database.py` (engine, session factory, Base class)
+
+**app/cache/**
+- Purpose: Redis integration
+- Contains: Redis client wrapper with convenience methods
+- Key files: `redis_client.py`
+
+**app/tasks/**
+- Purpose: Background job processing with Celery
+- Contains: Celery app and task definitions
+- Key files: `celery_app.py`, `trading_tasks.py`
+
+**app/webhooks/**
+- Purpose: Webhook-specific routing logic
+- Contains: Dedicated webhook handlers
+- Key files: `signal_router.py` (TradingView/TrailHacker webhook receiver)
+
+**broker_sdks/**
+- Purpose: Third-party broker SDK integrations
+- Contains: Vendor-provided Python SDKs and custom wrappers
+- Generated: No
+- Committed: Yes
+
+**alembic/**
+- Purpose: Database schema migrations
+- Contains: Alembic configuration and migration versions
+- Generated: Versions generated by alembic commands
+- Committed: Yes (migrations should be versioned)
+
+**ui/**
+- Purpose: Frontend React application
+- Contains: TypeScript/React source code, build output
+- Generated: build/ directory is generated
+- Committed: src/ yes, build/ no
+
+**logs/**
+- Purpose: Application runtime logs
+- Contains: Log files organized by date/run
+- Generated: Yes
+- Committed: No
+
+**tests/**
+- Purpose: Test suite
+- Contains: Unit and integration tests
+- Key files: Not extensively populated in current state
+
+## Key File Locations
+
+**Entry Points:**
+- `app/main.py`: Main FastAPI application with lifespan management
+- `run_backend.py`: CLI launcher with dynamic port allocation
+- `app/main_demo.py`: Demo server variant
+
+**Configuration:**
+- `.env`: Environment variables for all services
+- `.env.example`: Template for environment setup
+- `app/core/config.py`: Pydantic settings with environment variable loading
+- `alembic.ini`: Database migration configuration
+- `docker-compose.yml`: Development environment orchestration
+- `docker-stack.yml`: Production deployment stack
+
+**Core Logic:**
+- `app/services/signal_processor.py`: Central signal processing engine
+- `app/brokers/base_executor.py`: Broker interface contract
+- `app/models/models.py`: Core database schema (User, Account, Trade, Signal, etc.)
+- `app/core/websocket_manager.py`: Real-time communication manager
+
+**Testing:**
+- `tests/`: Test directory (minimal coverage currently)
+
+## Naming Conventions
+
+**Files:**
+- Python modules: `snake_case.py` (e.g., `signal_processor.py`, `websocket_manager.py`)
+- React components: `PascalCase.tsx` (in ui/src/)
+- Configuration: lowercase with dots (e.g., `docker-compose.yml`, `alembic.ini`)
+
+**Directories:**
+- Lowercase with underscores: `app/`, `broker_sdks/`, `ui/`
+- Plural for collections: `routers/`, `services/`, `models/`, `brokers/`
+
+**Python Classes:**
+- PascalCase: `SignalProcessor`, `BaseExecutor`, `User`, `Account`
+
+**Python Functions/Methods:**
+- snake_case: `process_signal()`, `get_account_info()`, `place_order()`
+
+**Database Tables:**
+- Lowercase plural: `users`, `accounts`, `trades`, `signals`, `webhook_logs`
+
+**API Endpoints:**
+- RESTful kebab-case: `/api/v1/signals`, `/api/v1/webhook/signal`, `/api/v1/accounts`
+
+## Where to Add New Code
+
+**New Broker Integration:**
+- Primary code: `app/brokers/{broker_name}_executor.py` (inherit from `BaseExecutor`)
+- Configuration: Add broker config fields to `app/core/config.py`
+- Registration: Add broker instance to `SignalProcessor.__init__()` in `app/services/signal_processor.py`
+- Tests: `tests/brokers/test_{broker_name}_executor.py`
+
+**New API Endpoint:**
+- Primary code: `app/routers/{domain}.py` (create new router or extend existing)
+- Include router: Register in `app/main.py` with `app.include_router()`
+- Schemas: Define request/response models in `app/models/pydantic_schemas.py`
+- Tests: `tests/routers/test_{domain}.py`
+
+**New Service:**
+- Implementation: `app/services/{service_name}_service.py`
+- Import in routers: Use in `app/routers/` as needed
+- Initialization: If stateful, initialize in `app/main.py` lifespan context
+
+**New Database Model:**
+- Implementation: `app/models/models.py` or `app/models/enhanced_models.py`
+- Migration: `alembic revision --autogenerate -m "description"`
+- Apply: `alembic upgrade head`
+
+**New Background Task:**
+- Implementation: `app/tasks/trading_tasks.py`
+- Celery registration: Add `@celery_app.task` decorator
+- Trigger: Call `.delay()` from services
+
+**Utilities:**
+- Shared helpers: `app/utils/` (create files as needed)
+- Core utilities: `app/core/` for cross-cutting concerns
+
+## Special Directories
+
+**.planning/**
+- Purpose: GSD command documentation and analysis
+- Generated: Yes (by Claude Code agents)
+- Committed: Yes
+
+**.claude/**
+- Purpose: Claude AI agent configuration
+- Generated: No
+- Committed: Yes
+
+**.harness_checkpoints/**
+- Purpose: Harness integration checkpoints
+- Generated: Yes
+- Committed: No (1071 subdirectories, excluded from git)
+
+**broker_sdks/**
+- Purpose: Third-party broker SDK source code
+- Generated: No (vendor-provided)
+- Committed: Yes (tracked for consistency)
+
+**logs/**
+- Purpose: Runtime application logs
+- Generated: Yes
+- Committed: No (.gitignore excludes)
+
+**venv/**
+- Purpose: Python virtual environment
+- Generated: Yes (by `python -m venv venv`)
+- Committed: No
+
+**ui/build/**
+- Purpose: Compiled frontend assets
+- Generated: Yes (by `npm run build`)
+- Committed: No
+
+---
+
+*Structure analysis: 2026-01-19*
