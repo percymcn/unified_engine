@@ -10,17 +10,17 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 ## Current Position
 
 Phase: 5 of 10 (Infrastructure Adapters) - IN PROGRESS
-Plan: 1/12 complete
-Status: Wave 1 in progress
-Last activity: 2026-01-20 — Completed 05-01-PLAN.md
+Plan: 2/12 complete
+Status: Wave 1 complete (2/2 plans)
+Last activity: 2026-01-20 — Completed 05-02-PLAN.md
 
-Progress: █████░░░░░ 45%
+Progress: █████░░░░░ 46%
 
 ### Phase 5 Plans - IN PROGRESS
 | Plan | Title | Wave | Status |
 |------|-------|------|--------|
 | 01 | Infrastructure Package Structure | 1 | Complete |
-| 02 | Entity Mappers | 1 | Pending |
+| 02 | Entity Mappers | 1 | Complete |
 | 03 | SQLAlchemy Repositories | 2 | Pending |
 | 04 | Unit of Work Implementation | 2 | Pending |
 | 05 | Event Publishers | 2 | Pending |
@@ -74,9 +74,9 @@ Progress: █████░░░░░ 45%
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 24
+- Total plans completed: 25
 - Average duration: ~5.0 min/plan
-- Total execution time: ~124 min
+- Total execution time: ~133 min
 
 **By Phase:**
 
@@ -86,11 +86,11 @@ Progress: █████░░░░░ 45%
 | 2 | 5 | 25 min | 5 min |
 | 3 | 7 | 43 min | 6.1 min |
 | 4 | 7 | 33 min | 4.7 min |
-| 5 | 1 | 3 min | 3 min |
+| 5 | 2 | 12 min | 6 min |
 
 **Recent Trend:**
-- Last 5 plans: 4-04, 4-05, 4-06, 4-07, 5-01
-- Trend: Improving speed (5-01 at 3 min)
+- Last 5 plans: 4-05, 4-06, 4-07, 5-01, 5-02
+- Trend: Wave 1 complete (avg 4.5 min)
 
 ## Accumulated Context
 
@@ -146,6 +146,11 @@ Recent decisions affecting current work:
 - Infrastructure layer package structure follows hexagonal architecture principles (05-01)
 - Each infrastructure subpackage reserved for specific adapter types (broker, repository, event, persistence) (05-01)
 - Infrastructure layer depends on domain, never the reverse (05-01)
+- Mappers handle field name differences between ORM and domain (quantity→volume, entry_price→open_price) (05-02)
+- Enum mapping uses explicit dictionaries for clarity and maintainability (05-02)
+- Money value objects use abs() for non-negative constraint, preserve sign in calculations (05-02)
+- Status can be inferred from timestamps when ORM lacks explicit status field (05-02)
+- OrderType combines ORM OrderType + OrderSide (MARKET+BUY → BUY, LIMIT+SELL → SELL_LIMIT) (05-02)
 
 ### Pending Todos
 
@@ -162,6 +167,6 @@ From CONCERNS.md codebase audit:
 ## Session Continuity
 
 Last session: 2026-01-20
-Stopped at: Completed 05-01-PLAN.md
+Stopped at: Completed 05-02-PLAN.md (Entity Mappers)
 Resume file: None
-Next: Continue Phase 5 with plan 05-02 (Entity Mappers)
+Next: Continue Wave 2 with plan 05-03 (SQLAlchemy Repositories)
