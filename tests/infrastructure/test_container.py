@@ -124,6 +124,51 @@ class TestContainerInitialization:
 class TestContainerBrokerAdapters:
     """Tests for broker adapter management in container."""
 
+    @pytest.mark.asyncio
+    async def test_all_five_brokers_initialized(self):
+        """Verify container registers all 5 broker types."""
+        from app.infrastructure.container import Container
+
+        # Mock event publisher to avoid connection
+        with patch('app.infrastructure.events.CompositeEventPublisher.connect', new_callable=AsyncMock):
+            # Create and initialize container
+            container = Container()
+            await container.initialize()
+
+            # Verify all 5 brokers registered
+            expected_brokers = [
+                BrokerType.TRADELOCKER,
+                BrokerType.TOPSTEP,
+                BrokerType.TRADOVATE,
+                BrokerType.MT4,
+                BrokerType.MT5,
+            ]
+
+            for broker_type in expected_brokers:
+                adapter = container.broker_adapter(broker_type)
+                assert adapter is not None, f"Missing adapter for {broker_type}"
+                assert adapter.broker_type == broker_type
+
+            # Cleanup
+            await container.shutdown()
+
+    @pytest.mark.asyncio
+    async def test_shutdown_handles_disconnected_adapters(self):
+        """Verify shutdown doesn't fail if adapters not connected."""
+        from app.infrastructure.container import Container
+
+        # Mock event publisher to avoid connection
+        with patch('app.infrastructure.events.CompositeEventPublisher.connect', new_callable=AsyncMock):
+            container = Container()
+            await container.initialize()
+
+            # None of the adapters are connected (no credentials provided)
+            # Shutdown should still work without errors
+            await container.shutdown()
+
+            # Container should be marked as not initialized
+            assert not container._initialized
+
     def test_all_five_brokers_registered(self):
         """Test container registers all 5 broker adapters."""
         try:
