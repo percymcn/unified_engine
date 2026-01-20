@@ -10,17 +10,17 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 ## Current Position
 
 Phase: 3 of 10 (Domain Layer) - IN PROGRESS
-Plan: 1/7 complete
-Status: Wave 1 complete - Domain package structure created
-Last activity: 2026-01-20 — Completed 03-01-PLAN.md (domain package, 13 exceptions)
+Plan: 2/7 complete
+Status: Wave 2 complete - Domain primitives (enums, value objects) created
+Last activity: 2026-01-20 — Completed 03-02-PLAN.md (9 enums, 11 value objects)
 
-Progress: ████░░░░░░ 31%
+Progress: ████░░░░░░ 34%
 
 ### Phase 3 Plans - IN PROGRESS
 | Plan | Title | Wave | Status |
 |------|-------|------|--------|
 | 01 | Domain Package Structure | 1 | Complete |
-| 02 | Domain Entities | 2 | Pending |
+| 02 | Domain Enums and Value Objects | 2 | Complete |
 | 03 | Repository Ports | 3 | Pending |
 | 04 | Broker Ports | 3 | Pending |
 | 05 | Domain Services | 4 | Pending |
@@ -47,9 +47,9 @@ Progress: ████░░░░░░ 31%
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 10
-- Average duration: ~5 min/plan
-- Total execution time: ~50 min
+- Total plans completed: 11
+- Average duration: ~4 min/plan
+- Total execution time: ~53 min
 
 **By Phase:**
 
@@ -57,11 +57,11 @@ Progress: ████░░░░░░ 31%
 |-------|-------|-------|----------|
 | 1 | 4 | 20 min | 5 min |
 | 2 | 5 | 25 min | 5 min |
-| 3 | 1 | 5 min | 5 min |
+| 3 | 2 | 8 min | 4 min |
 
 **Recent Trend:**
-- Last 5 plans: 2-05, 3-01
-- Trend: Consistent (5 min average)
+- Last 5 plans: 2-04, 2-05, 3-01, 3-02
+- Trend: Improving (4 min average for phase 3)
 
 ## Accumulated Context
 
@@ -77,6 +77,10 @@ Recent decisions affecting current work:
 - Domain layer strictly isolated from FastAPI, SQLAlchemy, and all frameworks (03-01)
 - Domain exceptions include context dict for rich error information (03-01)
 - Three-tier exception hierarchy: DomainException → Category → Specific (03-01)
+- All enums inherit from (str, Enum) for automatic JSON serialization (03-02)
+- Money uses Decimal for precise financial calculations (03-02)
+- All value objects are frozen (immutable) dataclasses (03-02)
+- Symbol and Currency auto-normalize to uppercase in __post_init__ (03-02)
 
 ### Pending Todos
 
@@ -93,6 +97,6 @@ From CONCERNS.md codebase audit:
 ## Session Continuity
 
 Last session: 2026-01-20
-Stopped at: Completed 03-01-PLAN.md
+Stopped at: Completed 03-02-PLAN.md
 Resume file: None
-Next: 03-02 (Domain Entities)
+Next: 03-03 (Repository Ports)
