@@ -25,22 +25,29 @@ class TradovateExecutor(BaseExecutor):
         config = settings.get_broker_config("tradovate")
         super().__init__(config)
         self.config = config
-        super().__init__(config)
-        self.config = settings.get_broker_config("tradovate")
-        self.api_url = self.config["api_url"]
-        self.ws_url = self.config["ws_url"]
-        self.user_id = self.config["user_id"]
-        self.password = self.config["password"]
-        self.app_id = self.config["app_id"]
-        self.app_version = self.config["app_version"]
-        self.cid = self.config["cid"]
-        self.sec = self.config["sec"]
+        self.api_url = self.config.get("api_url")
+        self.ws_url = self.config.get("ws_url")
+        self.user_id = self.config.get("user_id")
+        self.password = self.config.get("password")
+        self.app_id = self.config.get("app_id")
+        self.app_version = self.config.get("app_version")
+        self.cid = self.config.get("cid")
+        self.sec = self.config.get("sec")
         self.session = None
         self.access_token = None
         self.ws_connection = None
+
+        # Check for required credentials
+        self.is_available = bool(self.user_id and self.password)
+        if not self.is_available:
+            logger.warning("Tradovate executor disabled: credentials not configured")
         
     async def initialize(self) -> bool:
         """Initialize Tradovate connection"""
+        if not self.is_available:
+            logger.info("Tradovate skipped: credentials not configured")
+            return False
+
         try:
             # Initialize HTTP client
             self.session = httpx.AsyncClient(
