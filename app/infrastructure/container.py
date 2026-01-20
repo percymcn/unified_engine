@@ -107,11 +107,19 @@ class Container:
     async def shutdown(self) -> None:
         """Cleanup all connections."""
         if self._event_publisher:
-            await self._event_publisher.disconnect()
+            try:
+                await self._event_publisher.disconnect()
+            except Exception:
+                pass  # Ignore errors during shutdown
 
         for adapter in self._broker_adapters.values():
-            if adapter.is_connected:
-                await adapter.disconnect()
+            try:
+                # is_connected is an async method, not a property
+                if await adapter.is_connected():
+                    await adapter.disconnect()
+            except Exception:
+                # Log but don't fail shutdown
+                pass
 
         self._initialized = False
 
