@@ -10,17 +10,17 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 ## Current Position
 
 Phase: 6 of 10 (Security Hardening) - IN PROGRESS
-Plan: 1/6 complete
-Status: Wave 1 in progress
-Last activity: 2026-01-20 — Completed 06-01-PLAN.md
+Plan: 2/6 complete
+Status: Wave 1 complete, ready for Wave 2
+Last activity: 2026-01-20 — Completed 06-02-PLAN.md
 
-Progress: ██████░░░░ 59%
+Progress: ██████░░░░ 60%
 
 ### Phase 6 Plans - IN PROGRESS
 | Plan | Title | Wave | Status |
 |------|-------|------|--------|
 | 01 | Encryption Key Management | 1 | Complete |
-| 02 | Credential Database Model | 1 | Pending |
+| 02 | Credential Database Model | 1 | Complete |
 | 03 | Credential Repository Migration | 2 | Pending |
 | 04 | OAuth Token Encryption | 2 | Pending |
 | 05 | API Key Bcrypt Hashing | 2 | Pending |
@@ -91,9 +91,9 @@ Progress: ██████░░░░ 59%
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 37
-- Average duration: ~5.5 min/plan
-- Total execution time: ~224 min
+- Total plans completed: 38
+- Average duration: ~6.1 min/plan
+- Total execution time: ~234 min
 
 **By Phase:**
 
@@ -104,11 +104,11 @@ Progress: ██████░░░░ 59%
 | 3 | 7 | 43 min | 6.1 min |
 | 4 | 7 | 33 min | 4.7 min |
 | 5 | 14 | 100 min | 7.1 min |
-| 6 | 1 | 3 min | 3 min |
+| 6 | 2 | 13 min | 6.5 min |
 
 **Recent Trend:**
-- Last 5 plans: 5-12, 5-13, 5-14, 6-01
-- Trend: Phase 6 security hardening started (06-01: 3 min - encryption service)
+- Last 5 plans: 5-13, 5-14, 6-01, 6-02
+- Trend: Phase 6 Wave 1 complete (avg 6.5 min - encryption + database model)
 
 ## Accumulated Context
 
@@ -206,6 +206,12 @@ Recent decisions affecting current work:
 - Application fails fast if CREDENTIAL_ENCRYPTION_KEY missing or invalid format (06-01)
 - Encryption key must be 32 bytes URL-safe base64 (standard Fernet format) (06-01)
 - Convenience functions provided: encrypt(), decrypt(), encrypt_dict(), decrypt_dict() (06-01)
+- Credential model uses String(36) for UUID primary keys for maximum DB compatibility (06-02)
+- Encrypted_data stored as Text column containing Fernet-encrypted JSON (06-02)
+- Lifecycle tracking via rotation_days and last_rotated timestamps for key rotation (06-02)
+- Soft delete pattern with is_active boolean for credential lifecycle management (06-02)
+- Composite index on user_id and service for efficient credential lookups (06-02)
+- Async engine creation wrapped in try/except for graceful degradation without drivers (06-02)
 
 ### Pending Todos
 
@@ -217,12 +223,14 @@ From CONCERNS.md codebase audit:
 - ~~aioredis deprecated (causes crash) — Phase 1~~ FIXED
 - ~~Hardcoded encryption key — Phase 6 (Plan 01)~~ FIXED
 - ~~90/101 tests failing — Phase 2~~ FIXED (173 tests now collected)
-- In-memory credential storage — Phase 6 (Plans 02, 03)
-- credential_router.py still uses runtime Fernet.generate_key() — will be fixed in 06-03
+- ~~In-memory credential storage — Phase 6 (Plan 02)~~ FIXED (database model + migration created)
+- credential_router.py still uses in-memory dict and runtime Fernet.generate_key() — will be fixed in 06-03
+- Alembic has multiple heads (001 and 002) — may need merging in future
+- asyncpg not installed (gracefully degraded, async operations won't work)
 
 ## Session Continuity
 
 Last session: 2026-01-20
-Stopped at: Completed 06-01-PLAN.md (Encryption Key Management)
+Stopped at: Completed 06-02-PLAN.md (Credential Database Model)
 Resume file: None
-Next: Execute remaining Phase 6 plans (06-02 through 06-06)
+Next: Wave 1 complete. Execute Wave 2 plans (03, 04, 05) with `/gsd:execute-phase 6`
