@@ -281,3 +281,15 @@ configs:
 volumes:
   unified_postgres_data:
   unified_redis_data:
+
+secrets:
+  db_password:
+    external: true
+  secret_key:
+    external: true
+  jwt_secret:
+    external: true
+  credential_encryption_key:
+    external: true
+  flower_auth:
+    external: true
