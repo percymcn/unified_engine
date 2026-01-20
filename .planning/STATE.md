@@ -5,25 +5,36 @@
 See: .planning/PROJECT.md (updated 2026-01-19)
 
 **Core value:** Reliable signal-to-trade execution across all configured brokers with zero missed signals.
-**Current focus:** Phase 7 - UI Foundation (in progress)
+**Current focus:** Phase 8 - UI Dashboard (next)
 
 ## Current Position
 
-Phase: 7 of 10 (UI Foundation) - IN PROGRESS
-Plan: 2/5 complete
-Status: Plan 07-02 complete
-Last activity: 2026-01-20 - Completed 07-02-PLAN.md
+Phase: 8 of 10 (UI Dashboard) - IN PROGRESS
+Plan: 1/4 complete
+Status: Wave 1 in progress
+Last activity: 2026-01-20 - Completed 08-01-PLAN.md
 
-Progress: █████████░ 70%
+Progress: █████████░ 71%
 
-### Phase 7 Plans - IN PROGRESS
+### Phase 8 Plans - IN PROGRESS
+| Plan | Title | Wave | Status |
+|------|-------|------|--------|
+| 01 | Signal Status Table | 1 | Complete |
+| 02 | Broker Health Cards | 1 | Pending |
+| 03 | Trade Logs Table | 2 | Pending |
+| 04 | Real-time WebSocket Integration | 3 | Pending |
+
+### Phase 8 Wave Structure
+- **Wave 1** (parallel): Plans 01, 02 - Core UI components (signals table, broker health)
+- **Wave 2**: Plan 03 - Trade logs with filtering
+- **Wave 3**: Plan 04 - WebSocket integration for real-time updates
+
+### Phase 7 Plans - COMPLETE
 | Plan | Title | Wave | Status |
 |------|-------|------|--------|
 | 01 | Next.js Foundation | 1 | Complete |
 | 02 | Auth Pages | 1 | Complete |
-| 03 | Dashboard Layout | 2 | Pending |
-| 04 | Account Management | 2 | Pending |
-| 05 | Signal Display | 3 | Pending |
+| 03 | Dashboard Layout | 2 | Complete |
 
 ### Phase 6 Plans - COMPLETE
 | Plan | Title | Wave | Status |
@@ -100,9 +111,9 @@ Progress: █████████░ 70%
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 45
-- Average duration: ~7.0 min/plan
-- Total execution time: ~314 min
+- Total plans completed: 46
+- Average duration: ~6.9 min/plan
+- Total execution time: ~318 min
 
 **By Phase:**
 
@@ -114,11 +125,12 @@ Progress: █████████░ 70%
 | 4 | 7 | 33 min | 4.7 min |
 | 5 | 14 | 100 min | 7.1 min |
 | 6 | 6 | 48 min | 8.0 min |
-| 7 | 2 | 45 min | 22.5 min |
+| 7 | 3 | 49 min | 16.3 min |
+| 8 | 1 | 4 min | 4 min |
 
 **Recent Trend:**
-- Last 5 plans: 6-05, 6-06, 7-01, 7-02
-- Trend: Phase 7 UI plans executing smoothly (8 min for auth pages)
+- Last 5 plans: 6-06, 7-01, 7-02, 7-03, 8-01
+- Trend: Phase 8 UI components executing very fast (4 min for signals table)
 
 ## Accumulated Context
 
@@ -247,6 +259,10 @@ Recent decisions affecting current work:
 - Cookie presence check in middleware, token validation server-side via /api/auth/me (07-02)
 - Form-urlencoded format for backend login compatibility (07-02)
 - AUTH_COOKIE_NAME constant shared between auth.ts and routes (07-02)
+- Client-side table sorting by created_at descending for newest-first display (08-01)
+- Manual refresh pattern for tables until WebSocket integration (08-01)
+- BFF API routes extract auth token from httpOnly cookies for backend proxy (08-01)
+- Custom green styling (bg-green-600) for executed status badges (08-01)
 
 ### Pending Todos
 
@@ -267,6 +283,6 @@ From CONCERNS.md codebase audit:
 ## Session Continuity
 
 Last session: 2026-01-20
-Stopped at: Completed 07-02-PLAN.md
+Stopped at: Completed 08-01-PLAN.md
 Resume file: None
-Next: Execute plan 07-03 (Dashboard Layout)
+Next: Continue Phase 8 Wave 1 - execute 08-02 (Broker Health Cards)
