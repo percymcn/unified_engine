@@ -25,17 +25,24 @@ class ProjectXExecutor(BaseExecutor):
         config = settings.get_broker_config("projectx")
         super().__init__(config)
         self.config = config
-        super().__init__(config)
-        self.config = settings.get_broker_config("projectx")
-        self.api_url = self.config["api_url"]
-        self.ws_url = self.config["ws_url"]
-        self.api_token = self.config["api_token"]
-        self.environment = self.config["environment"]
+        self.api_url = self.config.get("api_url")
+        self.ws_url = self.config.get("ws_url")
+        self.api_token = self.config.get("api_token")
+        self.environment = self.config.get("environment", "demo")
         self.session = None
         self.ws_connection = None
+
+        # Check for required credentials
+        self.is_available = bool(self.api_token)
+        if not self.is_available:
+            logger.warning("ProjectX executor disabled: API token not configured")
         
     async def initialize(self) -> bool:
         """Initialize ProjectX connection"""
+        if not self.is_available:
+            logger.info("ProjectX skipped: credentials not configured")
+            return False
+
         try:
             # Initialize HTTP client
             self.session = httpx.AsyncClient(
