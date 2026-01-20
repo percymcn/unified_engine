@@ -9,21 +9,21 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 
 ## Current Position
 
-Phase: 5 of 10 (Infrastructure Adapters) - COMPLETE
-Plan: 12/12 complete
-Status: All waves complete - Phase 5 finished
-Last activity: 2026-01-20 — Completed 05-12-PLAN.md (Infrastructure Tests)
+Phase: 5 of 10 (Infrastructure Adapters) - GAP CLOSURE
+Plan: 14/14 complete
+Status: Gap closure in progress (Plan 05-13 pending)
+Last activity: 2026-01-20 — Completed 05-14-PLAN.md (Container Bug Fix)
 
-Progress: ██████░░░░ 56%
+Progress: ██████░░░░ 57%
 
-### Phase 5 Plans - IN PROGRESS
+### Phase 5 Plans - GAP CLOSURE IN PROGRESS
 | Plan | Title | Wave | Status |
 |------|-------|------|--------|
 | 01 | Infrastructure Package Structure | 1 | Complete |
 | 02 | Entity Mappers | 1 | Complete |
 | 03 | SQLAlchemy Repositories | 2 | Complete |
 | 04 | Unit of Work Implementation | 2 | Complete |
-| 05 | Event Publishers | 2 | Pending |
+| 05 | Event Publishers | 2 | Complete |
 | 06 | TradeLocker Adapter | 3 | Complete |
 | 07 | TopStep Adapter | 3 | Complete |
 | 08 | Tradovate Adapter | 3 | Complete |
@@ -31,6 +31,12 @@ Progress: ██████░░░░ 56%
 | 10 | MT5 Adapter | 3 | Complete |
 | 11 | DI Container | 4 | Complete |
 | 12 | Infrastructure Tests | 4 | Complete |
+| 13 | Fix Test Infrastructure (gap) | 5 | Pending |
+| 14 | Fix Container Bug (gap) | 5 | Complete |
+
+### Verification Gaps (from 05-VERIFICATION.md)
+1. **Test Infrastructure Broken** — SQLAlchemy "Table 'users' already defined" error blocks all 58 infrastructure tests (Plan 05-13)
+2. ~~**Container Runtime Bug** — Container shutdown needs error handling improvements~~ FIXED (Plan 05-14)
 
 ### Phase 4 Plans - COMPLETE
 | Plan | Title | Wave | Status |
@@ -74,9 +80,9 @@ Progress: ██████░░░░ 56%
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 35
-- Average duration: ~5.7 min/plan
-- Total execution time: ~216 min
+- Total plans completed: 36
+- Average duration: ~5.6 min/plan
+- Total execution time: ~221 min
 
 **By Phase:**
 
@@ -86,11 +92,11 @@ Progress: ██████░░░░ 56%
 | 2 | 5 | 25 min | 5 min |
 | 3 | 7 | 43 min | 6.1 min |
 | 4 | 7 | 33 min | 4.7 min |
-| 5 | 12 | 95 min | 7.9 min |
+| 5 | 14 | 100 min | 7.1 min |
 
 **Recent Trend:**
-- Last 5 plans: 5-08, 5-09, 5-10, 5-11, 5-12
-- Trend: Phase 5 complete (avg 7.9 min - infrastructure layer with all adapters and tests)
+- Last 5 plans: 5-10, 5-11, 5-12, 5-13, 5-14
+- Trend: Phase 5 gap closure (avg 7.1 min - including test fixes and container improvements)
 
 ## Accumulated Context
 
@@ -178,6 +184,8 @@ Recent decisions affecting current work:
 - All 5 broker adapters registered in container by BrokerType enum (05-11)
 - Global container instance accessed via get_container() function (05-11)
 - Container lifecycle integrated with FastAPI startup/shutdown events (05-11)
+- Container shutdown uses await for adapter.is_connected() async method (05-14)
+- Container shutdown wraps each disconnect in try/except for graceful degradation (05-14)
 
 ### Pending Todos
 
@@ -194,6 +202,6 @@ From CONCERNS.md codebase audit:
 ## Session Continuity
 
 Last session: 2026-01-20
-Stopped at: Completed 05-12-PLAN.md (Infrastructure Tests)
+Stopped at: Completed 05-14-PLAN.md (Container Bug Fix)
 Resume file: None
-Next: Phase 5 complete - Begin Phase 6 (Interface Layer)
+Next: Execute 05-13 (Test Infrastructure Fix), then re-verify Phase 5
