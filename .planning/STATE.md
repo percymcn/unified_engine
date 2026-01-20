@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 ## Current Position
 
 Phase: 3 of 10 (Domain Layer) - IN PROGRESS
-Plan: 6/7 complete
-Status: Wave 5 complete - Domain services with business logic orchestration
-Last activity: 2026-01-20 — Completed 03-06-PLAN.md (Domain Services)
+Plan: 7/9 complete
+Status: Wave 6 complete - Domain layer with comprehensive test coverage
+Last activity: 2026-01-20 — Completed 03-07-PLAN.md (Domain Tests)
 
-Progress: ██████░░░░ 52%
+Progress: ██████░░░░ 56%
 
 ### Phase 3 Plans - IN PROGRESS
 | Plan | Title | Wave | Status |
@@ -25,9 +25,9 @@ Progress: ██████░░░░ 52%
 | 04 | Account & Position Entities | 3 | Complete |
 | 05 | Repository Ports | 4 | Complete |
 | 06 | Domain Services | 5 | Complete |
-| 07 | Domain Tests | 5 | Pending |
-| 08 | Domain Tests | 5 | Pending |
-| 09 | Verify Domain Layer | 6 | Pending |
+| 07 | Domain Tests | 6 | Complete |
+| 08 | Domain Tests | 6 | Pending |
+| 09 | Verify Domain Layer | 7 | Pending |
 
 ### Phase 2 Plans - COMPLETE
 | Plan | Title | Wave | Status |
@@ -49,9 +49,9 @@ Progress: ██████░░░░ 52%
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 15
-- Average duration: ~5 min/plan
-- Total execution time: ~80 min
+- Total plans completed: 16
+- Average duration: ~5.5 min/plan
+- Total execution time: ~88 min
 
 **By Phase:**
 
@@ -59,11 +59,11 @@ Progress: ██████░░░░ 52%
 |-------|-------|-------|----------|
 | 1 | 4 | 20 min | 5 min |
 | 2 | 5 | 25 min | 5 min |
-| 3 | 6 | 35 min | 5.8 min |
+| 3 | 7 | 43 min | 6.1 min |
 
 **Recent Trend:**
-- Last 5 plans: 3-02, 3-03, 3-04, 3-05, 3-06
-- Trend: Very stable (~4-6 min per plan)
+- Last 5 plans: 3-03, 3-04, 3-05, 3-06, 3-07
+- Trend: Very stable (~5-8 min per plan)
 
 ## Accumulated Context
 
@@ -94,6 +94,9 @@ Recent decisions affecting current work:
 - TradeService performs margin checks before placing orders through broker (03-06)
 - Domain services publish events through EventPort for observability (03-06)
 - All service dependencies injected through constructor (no global state) (03-06)
+- Mock ports implemented as concrete classes, not unittest.Mock objects (03-07)
+- Domain tests verify business rules and invariants, not just happy paths (03-07)
+- In-memory repositories use Dict for predictable test state management (03-07)
 
 ### Pending Todos
 
@@ -110,6 +113,6 @@ From CONCERNS.md codebase audit:
 ## Session Continuity
 
 Last session: 2026-01-20
-Stopped at: Completed 03-06-PLAN.md
+Stopped at: Completed 03-07-PLAN.md
 Resume file: None
-Next: 03-07 (Domain Tests)
+Next: 03-08 (Domain Tests - continued)
