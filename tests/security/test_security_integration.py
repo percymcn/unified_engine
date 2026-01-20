@@ -1,0 +1,224 @@
+"""
+Security Integration Tests
+
+Validates all Phase 6 security requirements are properly implemented.
+"""
+import pytest
+import os
+from unittest.mock import patch, MagicMock, AsyncMock
+from cryptography.fernet import Fernet
+
+
+class TestSEC01EncryptionKeyRequired:
+    """SEC-01: Encryption key must be read from environment."""
+
+    def test_missing_key_fails_fast(self):
+        """Application fails fast when CREDENTIAL_ENCRYPTION_KEY is missing."""
+        from app.core import encryption
+        encryption.EncryptionService._instance = None
+
+        with patch.object(encryption.settings, 'CREDENTIAL_ENCRYPTION_KEY', ''):
+            with pytest.raises(encryption.EncryptionKeyMissingError) as exc:
+                encryption.EncryptionService()
+
+            error_msg = str(exc.value)
+            assert "CREDENTIAL_ENCRYPTION_KEY" in error_msg
+            assert "required" in error_msg.lower()
+
+    def test_invalid_key_fails_fast(self):
+        """Application fails fast when encryption key is invalid format."""
+        from app.core import encryption
+        encryption.EncryptionService._instance = None
+
+        with patch.object(encryption.settings, 'CREDENTIAL_ENCRYPTION_KEY', 'not-valid-base64-key'):
+            with pytest.raises(encryption.EncryptionKeyMissingError) as exc:
+                encryption.EncryptionService()
+
+            assert "Invalid" in str(exc.value)
+
+    def test_valid_key_initializes(self):
+        """Application starts successfully with valid encryption key."""
+        from app.core import encryption
+        encryption.EncryptionService._instance = None
+
+        valid_key = Fernet.generate_key().decode()
+        with patch.object(encryption.settings, 'CREDENTIAL_ENCRYPTION_KEY', valid_key):
+            service = encryption.EncryptionService()
+            assert service._cipher is not None
+
+
+class TestSEC02PersistentCredentials:
+    """SEC-02: Credentials must persist in database, not memory."""
+
+    @pytest.mark.asyncio
+    async def test_credentials_use_database_not_memory(self):
+        """Verify CredentialRepository uses SQLAlchemy, not dict."""
+        from app.infrastructure.repositories.credential_repository import CredentialRepository
+
+        # CredentialRepository requires AsyncSession, not dict
+        mock_session = AsyncMock()
+        repo = CredentialRepository(mock_session)
+
+        # Repository should have _session attribute, not credentials_db
+        assert hasattr(repo, '_session')
+        assert not hasattr(repo, 'credentials_db')
+
+    @pytest.mark.asyncio
+    async def test_credentials_encrypted_before_storage(self):
+        """Verify credentials are encrypted before database storage."""
+        from app.core import encryption
+        encryption.EncryptionService._instance = None
+
+        valid_key = Fernet.generate_key().decode()
+        with patch.object(encryption.settings, 'CREDENTIAL_ENCRYPTION_KEY', valid_key):
+            from app.infrastructure.repositories.credential_repository import CredentialRepository
+
+            mock_session = AsyncMock()
+            mock_session.add = MagicMock()
+            mock_session.flush = AsyncMock()
+            mock_session.refresh = AsyncMock()
+
+            repo = CredentialRepository(mock_session)
+
+            await repo.create(
+                credential_id="test-123",
+                user_id=1,
+                name="Test",
+                credential_type="api_key",
+                service="test",
+                credential_data={"secret": "value"}
+            )
+
+            # Verify session.add was called with encrypted data
+            mock_session.add.assert_called_once()
+            added_credential = mock_session.add.call_args[0][0]
+
+            # The encrypted_data should NOT be plaintext JSON
+            assert "secret" not in added_credential.encrypted_data
+            assert "value" not in added_credential.encrypted_data
+
+
+class TestSEC03OAuthTokenEncryption:
+    """SEC-03: OAuth tokens must be encrypted in database."""
+
+    def test_oauth_service_has_encryption_methods(self):
+        """Verify OAuthService has encryption helper methods."""
+        from app.services.oauth_service import OAuthService
+
+        assert hasattr(OAuthService, '_encrypt_token')
+        assert hasattr(OAuthService, '_decrypt_token')
+        assert hasattr(OAuthService, 'get_decrypted_tokens')
+
+    def test_encrypt_token_not_plaintext(self):
+        """Verify _encrypt_token produces encrypted output."""
+        from app.core import encryption
+        encryption.EncryptionService._instance = None
+
+        valid_key = Fernet.generate_key().decode()
+        with patch.object(encryption.settings, 'CREDENTIAL_ENCRYPTION_KEY', valid_key):
+            from app.services.oauth_service import OAuthService
+
+            original_token = "ya29.test_access_token_12345"
+            encrypted = OAuthService._encrypt_token(original_token)
+
+            # Encrypted token should be different from original
+            assert encrypted != original_token
+            # Encrypted token should be decodable Fernet token
+            assert len(encrypted) > len(original_token)
+
+    def test_decrypt_token_recovers_original(self):
+        """Verify encrypt/decrypt roundtrip works."""
+        from app.core import encryption
+        encryption.EncryptionService._instance = None
+
+        valid_key = Fernet.generate_key().decode()
+        with patch.object(encryption.settings, 'CREDENTIAL_ENCRYPTION_KEY', valid_key):
+            from app.services.oauth_service import OAuthService
+
+            original_token = "ya29.test_access_token_12345"
+            encrypted = OAuthService._encrypt_token(original_token)
+            decrypted = OAuthService._decrypt_token(encrypted)
+
+            assert decrypted == original_token
+
+
+class TestSEC04ApiKeyBcrypt:
+    """SEC-04: API keys must use bcrypt with salt."""
+
+    def test_api_key_hash_is_bcrypt(self):
+        """Verify hash_api_key produces bcrypt hash."""
+        from app.routers.api_keys import hash_api_key, generate_api_key
+
+        api_key = generate_api_key()
+        hashed = hash_api_key(api_key)
+
+        # Bcrypt hashes start with $2a$, $2b$, or $2y$
+        assert hashed.startswith("$2")
+        # Bcrypt hashes are 60 characters
+        assert len(hashed) == 60
+
+    def test_api_key_hash_not_sha256(self):
+        """Verify SHA256 is NOT used (would be 64-char hex)."""
+        from app.routers.api_keys import hash_api_key, generate_api_key
+
+        api_key = generate_api_key()
+        hashed = hash_api_key(api_key)
+
+        # SHA256 produces 64-char lowercase hex string
+        # Bcrypt produces 60-char string with special characters
+        assert len(hashed) != 64
+        assert "$" in hashed  # Bcrypt contains $ delimiters
+        assert not all(c in '0123456789abcdef' for c in hashed)  # Not hex
+
+    def test_same_key_different_hashes(self):
+        """Verify bcrypt produces unique hashes (due to salt)."""
+        from app.routers.api_keys import hash_api_key, generate_api_key
+
+        api_key = generate_api_key()
+
+        hash1 = hash_api_key(api_key)
+        hash2 = hash_api_key(api_key)
+
+        # Bcrypt uses random salt, so same input -> different output
+        assert hash1 != hash2
+
+    def test_api_key_can_be_verified(self):
+        """Verify hashed API key can be verified."""
+        from app.routers.api_keys import hash_api_key, generate_api_key, pwd_context
+
+        api_key = generate_api_key()
+        hashed = hash_api_key(api_key)
+
+        # Correct key should verify
+        assert pwd_context.verify(api_key, hashed) is True
+
+        # Wrong key should fail
+        assert pwd_context.verify("wrong_key_ue_12345", hashed) is False
+
+    def test_no_hashlib_in_api_keys(self):
+        """Verify hashlib is not imported in api_keys module."""
+        import app.routers.api_keys as api_keys_module
+
+        # hashlib should not be in the module's namespace
+        assert not hasattr(api_keys_module, 'hashlib')
+
+
+class TestSecurityRequirementsCoverage:
+    """Meta-tests to verify all requirements are covered."""
+
+    def test_all_sec_requirements_have_tests(self):
+        """Verify each SEC requirement has corresponding test class."""
+        test_classes = [
+            TestSEC01EncryptionKeyRequired,
+            TestSEC02PersistentCredentials,
+            TestSEC03OAuthTokenEncryption,
+            TestSEC04ApiKeyBcrypt,
+        ]
+
+        # Each SEC-0X requirement should have a test class
+        assert len(test_classes) == 4
+
+        # Each class should have at least one test method
+        for cls in test_classes:
+            test_methods = [m for m in dir(cls) if m.startswith('test_')]
+            assert len(test_methods) >= 1, f"{cls.__name__} has no test methods"
