@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 ## Current Position
 
 Phase: 5 of 10 (Infrastructure Adapters) - IN PROGRESS
-Plan: 4/12 complete
-Status: Wave 2 in progress (3/3 plans complete)
-Last activity: 2026-01-20 — Completed 05-04-PLAN.md
+Plan: 9/12 complete
+Status: Wave 3 in progress (5/5 plans complete)
+Last activity: 2026-01-20 — Completed 05-09-PLAN.md
 
-Progress: █████░░░░░ 48%
+Progress: █████░░░░░ 53%
 
 ### Phase 5 Plans - IN PROGRESS
 | Plan | Title | Wave | Status |
@@ -24,11 +24,11 @@ Progress: █████░░░░░ 48%
 | 03 | SQLAlchemy Repositories | 2 | Complete |
 | 04 | Unit of Work Implementation | 2 | Complete |
 | 05 | Event Publishers | 2 | Pending |
-| 06 | TradeLocker Adapter | 3 | Pending |
-| 07 | TopStep Adapter | 3 | Pending |
-| 08 | Tradovate Adapter | 3 | Pending |
-| 09 | MT4 Adapter | 3 | Pending |
-| 10 | MT5 Adapter | 3 | Pending |
+| 06 | TradeLocker Adapter | 3 | Complete |
+| 07 | TopStep Adapter | 3 | Complete |
+| 08 | Tradovate Adapter | 3 | Complete |
+| 09 | MT4 Adapter | 3 | Complete |
+| 10 | MT5 Adapter | 3 | Complete |
 | 11 | DI Container | 4 | Pending |
 | 12 | Infrastructure Tests | 4 | Pending |
 
@@ -74,9 +74,9 @@ Progress: █████░░░░░ 48%
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 27
-- Average duration: ~5.0 min/plan
-- Total execution time: ~147 min
+- Total plans completed: 32
+- Average duration: ~5.2 min/plan
+- Total execution time: ~187 min
 
 **By Phase:**
 
@@ -86,11 +86,11 @@ Progress: █████░░░░░ 48%
 | 2 | 5 | 25 min | 5 min |
 | 3 | 7 | 43 min | 6.1 min |
 | 4 | 7 | 33 min | 4.7 min |
-| 5 | 4 | 26 min | 6.5 min |
+| 5 | 9 | 66 min | 7.3 min |
 
 **Recent Trend:**
-- Last 5 plans: 4-07, 5-01, 5-02, 5-03, 5-04
-- Trend: Wave 2 in progress (avg 6.3 min)
+- Last 5 plans: 5-06, 5-07, 5-08, 5-09, 5-10
+- Trend: Wave 3 complete (avg 8 min - broker adapters)
 
 ## Accumulated Context
 
@@ -161,6 +161,10 @@ Recent decisions affecting current work:
 - All repositories share same SQLAlchemy session for transactional consistency (05-04)
 - SessionFactory accepts optional engine parameter for testing flexibility (05-04)
 - Added async_engine to database.py alongside sync engine for backward compatibility (05-04)
+- MT4Adapter stores account_id internally from authenticate() credentials (05-09)
+- MT4 cmd integers (0-5) mapped to domain OrderType enum for type safety (05-09)
+- Broker adapters handle both dict and Pydantic model responses from executors (05-09)
+- Broker adapters raise domain exceptions for consistent error contracts (05-09)
 
 ### Pending Todos
 
@@ -177,6 +181,6 @@ From CONCERNS.md codebase audit:
 ## Session Continuity
 
 Last session: 2026-01-20
-Stopped at: Completed 05-04-PLAN.md (Unit of Work Implementation)
+Stopped at: Completed 05-09-PLAN.md (MT4 Adapter)
 Resume file: None
-Next: Wave 2 complete - Begin Wave 3 with plan 05-06 (TradeLocker Adapter)
+Next: Wave 3 complete - Begin Wave 4 with plan 05-11 (DI Container)
