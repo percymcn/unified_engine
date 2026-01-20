@@ -7,3 +7,8 @@ __pycache__/
 venv/
 node_modules/
 .DS_Store
+
+# Environment files with real values
+.env.local
+.env.*.local
+deploy/envs/.env.*.local
