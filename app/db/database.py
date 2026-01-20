@@ -22,11 +22,17 @@ if async_database_url.startswith("postgresql://"):
 elif async_database_url.startswith("sqlite:///"):
     async_database_url = async_database_url.replace("sqlite:///", "sqlite+aiosqlite:///", 1)
 
-async_engine = create_async_engine(
-    async_database_url,
-    echo=settings.DEBUG,
-    future=True,
-)
+# Create async engine with graceful degradation for missing drivers
+# This allows alembic migrations to run without asyncpg/aiosqlite installed
+try:
+    async_engine = create_async_engine(
+        async_database_url,
+        echo=settings.DEBUG,
+        future=True,
+    )
+except ModuleNotFoundError as e:
+    logger.warning(f"Async database driver not available: {e}. Async operations will not work.")
+    async_engine = None
 
 # Create session factory (synchronous - existing code)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
