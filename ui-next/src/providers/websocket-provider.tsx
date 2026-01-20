@@ -3,15 +3,13 @@
 import {
   createContext,
   useContext,
-  useEffect,
   useState,
   useCallback,
   ReactNode,
 } from 'react';
-import { useWebSocket, UseWebSocketReturn } from '@/hooks/use-websocket';
+import { useWebSocket } from '@/hooks/use-websocket';
 import {
   WebSocketMessage,
-  WebSocketMessageType,
   ConnectionStatus,
   SignalUpdateData,
   OrderUpdateData,
