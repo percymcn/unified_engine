@@ -4,7 +4,7 @@ Persistence Layer Package
 Contains Unit of Work implementation and session management:
 - SQLAlchemyUnitOfWork: Implements app.application.interfaces.unit_of_work.UnitOfWork
 - SQLAlchemyUnitOfWorkFactory: Creates UnitOfWork instances with proper session management
-- SessionManager: Manages SQLAlchemy session lifecycle
+- SessionFactory: Creates async database sessions
 
 Responsibilities:
 - Transaction management (commit, rollback)
@@ -12,14 +12,17 @@ Responsibilities:
 - Database session lifecycle management
 - Connection pooling configuration
 
-Implementation in Plan 05-04.
+Implemented in Plan 05-04.
 """
 
-# Persistence layer exports
-# Will be populated in Plan 05-04
+from app.infrastructure.persistence.session_factory import SessionFactory
+from app.infrastructure.persistence.unit_of_work import (
+    SQLAlchemyUnitOfWork,
+    SQLAlchemyUnitOfWorkFactory,
+)
 
 __all__ = [
-    # "SQLAlchemyUnitOfWork",
-    # "SQLAlchemyUnitOfWorkFactory",
-    # "SessionManager",
+    "SessionFactory",
+    "SQLAlchemyUnitOfWork",
+    "SQLAlchemyUnitOfWorkFactory",
 ]
