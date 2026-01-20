@@ -1,8 +1,9 @@
 """
 Comprehensive Database Models for Unified Trading Engine
 """
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text, JSON, Enum
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text, JSON, Enum, Index
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 from datetime import datetime
 import enum
 
@@ -84,6 +85,7 @@ class User(Base):
     accounts = relationship("TradingAccount", back_populates="user", cascade="all, delete-orphan")
     signals = relationship("Signal", back_populates="user", cascade="all, delete-orphan")
     webhooks = relationship("WebhookConfig", back_populates="user", cascade="all, delete-orphan")
+    credentials = relationship("Credential", back_populates="user", cascade="all, delete-orphan")
 
 
 class TradingAccount(Base):
@@ -395,3 +397,42 @@ class SystemConfig(Base):
     is_encrypted = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class Credential(Base):
+    """
+    Secure credential storage model.
+
+    Stores encrypted credentials for broker APIs, databases, and external services.
+    The encrypted_data column contains Fernet-encrypted JSON.
+    """
+    __tablename__ = "credentials"
+
+    id = Column(String(36), primary_key=True, index=True)  # UUID string
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    type = Column(String(50), nullable=False)  # api_key, password, certificate, token, oauth
+    service = Column(String(50), nullable=False, index=True)  # mt4, mt5, tradelocker, tradovate, projectx, etc.
+    encrypted_data = Column(Text, nullable=False)  # Fernet encrypted JSON
+    description = Column(Text, nullable=True)
+
+    # Lifecycle tracking
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+    rotation_days = Column(Integer, nullable=True, default=90)
+    last_rotated = Column(DateTime(timezone=True), nullable=True)
+    last_accessed = Column(DateTime(timezone=True), nullable=True)
+    access_count = Column(Integer, default=0)
+
+    # Status
+    is_active = Column(Boolean, default=True, index=True)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    user = relationship("User", back_populates="credentials")
+
+    __table_args__ = (
+        Index('ix_credentials_user_service', 'user_id', 'service'),
+    )
