@@ -7,9 +7,9 @@ Full refactor of the trading signal routing engine from organic growth to clean 
 ## Phases
 
 - [x] **Phase 1: Stability Fixes** - Fix critical crashes blocking development
-- [ ] **Phase 2: Test Infrastructure** - Get all 101 tests passing as safety net
-- [ ] **Phase 3: Domain Layer** - Pure business logic with no framework deps
-- [ ] **Phase 4: Application Layer** - Use cases and service orchestration
+- [x] **Phase 2: Test Infrastructure** - Get all 101 tests passing as safety net
+- [x] **Phase 3: Domain Layer** - Pure business logic with no framework deps
+- [x] **Phase 4: Application Layer** - Use cases and service orchestration
 - [ ] **Phase 5: Infrastructure Adapters** - Broker executors with hexagonal pattern
 - [ ] **Phase 6: Security Hardening** - Encryption, credential storage, secrets
 - [ ] **Phase 7: UI Foundation** - Next.js 14 setup with auth and layout
@@ -65,7 +65,7 @@ Full refactor of the trading signal routing engine from organic growth to clean 
   3. Use cases have no direct infrastructure imports
   4. Application layer tests use mock ports (no real database/brokers)
 **Research**: Unlikely (follows from domain layer patterns)
-**Plans**: TBD
+**Plans**: 7 plans (Wave 1: 01, 02 | Wave 2: 03, 04 | Wave 3: 05, 06 | Wave 4: 07)
 
 ### Phase 5: Infrastructure Adapters
 **Goal**: Concrete implementations of ports for all external services
@@ -157,9 +157,9 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Stability Fixes | 4/4 | Complete | 2026-01-19 |
-| 2. Test Infrastructure | 0/5 | Planned | - |
-| 3. Domain Layer | 0/TBD | Not started | - |
-| 4. Application Layer | 0/TBD | Not started | - |
+| 2. Test Infrastructure | 5/5 | Complete | 2026-01-19 |
+| 3. Domain Layer | 7/7 | Complete | 2026-01-20 |
+| 4. Application Layer | 7/7 | Complete | 2026-01-20 |
 | 5. Infrastructure Adapters | 0/TBD | Not started | - |
 | 6. Security Hardening | 0/TBD | Not started | - |
 | 7. UI Foundation | 0/TBD | Not started | - |
@@ -168,4 +168,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 10. Deployment | 0/TBD | Not started | - |
 
 ---
-*Last updated: 2026-01-19 after Phase 1 completion*
+*Last updated: 2026-01-20 after Phase 4 completion*
