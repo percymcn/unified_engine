@@ -18,7 +18,6 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime, timedelta
 import secrets
-import hashlib
 from passlib.context import CryptContext
 
 from app.db.database import get_db
