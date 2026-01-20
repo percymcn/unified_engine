@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 ## Current Position
 
 Phase: 6 of 10 (Security Hardening) - IN PROGRESS
-Plan: 2/6 complete
-Status: Wave 1 complete, ready for Wave 2
-Last activity: 2026-01-20 — Completed 06-02-PLAN.md
+Plan: 4/6 complete
+Status: Wave 2 in progress (3 of 3 parallel plans complete)
+Last activity: 2026-01-20 — Completed 06-04-PLAN.md
 
 Progress: ██████░░░░ 60%
 
@@ -21,9 +21,9 @@ Progress: ██████░░░░ 60%
 |------|-------|------|--------|
 | 01 | Encryption Key Management | 1 | Complete |
 | 02 | Credential Database Model | 1 | Complete |
-| 03 | Credential Repository Migration | 2 | Pending |
-| 04 | OAuth Token Encryption | 2 | Pending |
-| 05 | API Key Bcrypt Hashing | 2 | Pending |
+| 03 | Credential Repository Migration | 2 | Complete |
+| 04 | OAuth Token Encryption | 2 | Complete |
+| 05 | API Key Bcrypt Hashing | 2 | Complete |
 | 06 | Security Integration Tests | 3 | Pending |
 
 ### Phase 6 Wave Structure
@@ -91,9 +91,9 @@ Progress: ██████░░░░ 60%
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 38
+- Total plans completed: 41
 - Average duration: ~6.1 min/plan
-- Total execution time: ~234 min
+- Total execution time: ~252 min
 
 **By Phase:**
 
@@ -104,11 +104,11 @@ Progress: ██████░░░░ 60%
 | 3 | 7 | 43 min | 6.1 min |
 | 4 | 7 | 33 min | 4.7 min |
 | 5 | 14 | 100 min | 7.1 min |
-| 6 | 2 | 13 min | 6.5 min |
+| 6 | 4 | 31 min | 7.75 min |
 
 **Recent Trend:**
-- Last 5 plans: 5-13, 5-14, 6-01, 6-02
-- Trend: Phase 6 Wave 1 complete (avg 6.5 min - encryption + database model)
+- Last 5 plans: 5-14, 6-01, 6-02, 6-03, 6-04
+- Trend: Phase 6 Wave 2 complete (avg 7.75 min - credential repo + OAuth + API keys)
 
 ## Accumulated Context
 
@@ -212,6 +212,10 @@ Recent decisions affecting current work:
 - Soft delete pattern with is_active boolean for credential lifecycle management (06-02)
 - Composite index on user_id and service for efficient credential lookups (06-02)
 - Async engine creation wrapped in try/except for graceful degradation without drivers (06-02)
+- OAuth tokens encrypted at service layer before database storage (06-04)
+- Static helper methods (_encrypt_token, _decrypt_token) for consistent token encryption (06-04)
+- get_decrypted_tokens() returns tuple for future authenticated API calls (06-04)
+- Empty/None OAuth tokens handled gracefully without encryption (06-04)
 
 ### Pending Todos
 
@@ -231,6 +235,6 @@ From CONCERNS.md codebase audit:
 ## Session Continuity
 
 Last session: 2026-01-20
-Stopped at: Completed 06-02-PLAN.md (Credential Database Model)
+Stopped at: Completed 06-04-PLAN.md (OAuth Token Encryption)
 Resume file: None
-Next: Wave 1 complete. Execute Wave 2 plans (03, 04, 05) with `/gsd:execute-phase 6`
+Next: Wave 2 complete. Execute Wave 3 plan (06) with `/gsd:execute-plan 06`
