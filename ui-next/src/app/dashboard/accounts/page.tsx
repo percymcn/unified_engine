@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AccountList } from '@/components/accounts/account-list';
 import { BrokerHealthGrid } from '@/components/brokers/broker-health-grid';
 
 export default function AccountsPage() {
@@ -12,23 +12,21 @@ export default function AccountsPage() {
         </p>
       </div>
 
-      {/* Broker Health Grid */}
+      {/* Account Management */}
       <div>
-        <h2 className="text-lg font-semibold tracking-tight mb-4">Broker Connections</h2>
-        <BrokerHealthGrid />
+        <h2 className="text-lg font-semibold tracking-tight mb-4">
+          Broker Accounts
+        </h2>
+        <AccountList />
       </div>
 
-      {/* Accounts list placeholder */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Connected Accounts</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Account management will be available in Phase 9.
-          </p>
-        </CardContent>
-      </Card>
+      {/* Broker Health Grid */}
+      <div>
+        <h2 className="text-lg font-semibold tracking-tight mb-4">
+          Broker Connections
+        </h2>
+        <BrokerHealthGrid />
+      </div>
     </div>
   );
 }
