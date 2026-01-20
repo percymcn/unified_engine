@@ -14,10 +14,14 @@ import { cn } from '@/lib/utils';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'Accounts', href: '/accounts', icon: Users },
   { name: 'Signals', href: '/signals', icon: Signal },
   { name: 'Trades', href: '/trades', icon: History },
-  { name: 'Settings', href: '/settings', icon: Settings },
+];
+
+const settingsNavigation = [
+  { name: 'Accounts', href: '/settings/accounts', icon: Users },
+  { name: 'API Keys', href: '/settings/api-keys', icon: Settings },
+  { name: 'Webhooks', href: '/settings/webhooks', icon: Settings },
 ];
 
 interface SidebarProps {
@@ -44,6 +48,7 @@ export function Sidebar({ className }: SidebarProps) {
 
       {/* Navigation Items */}
       <nav className="flex-1 space-y-1 px-3 py-4">
+        {/* Main Navigation */}
         {navigation.map((item) => {
           const isActive = pathname === item.href;
           return (
@@ -62,6 +67,31 @@ export function Sidebar({ className }: SidebarProps) {
             </Link>
           );
         })}
+
+        {/* Settings Section */}
+        <div className="pt-4">
+          <p className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+            Settings
+          </p>
+          {settingsNavigation.map((item) => {
+            const isActive = pathname === item.href;
+            return (
+              <Link
+                key={item.name}
+                href={item.href}
+                className={cn(
+                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                  isActive
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                )}
+              >
+                <item.icon className="h-5 w-5" />
+                {item.name}
+              </Link>
+            );
+          })}
+        </div>
       </nav>
 
       {/* Footer */}
