@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 
 ## Current Position
 
-Phase: 5 of 10 (Infrastructure Adapters) - GAP CLOSURE
+Phase: 5 of 10 (Infrastructure Adapters) - COMPLETE
 Plan: 14/14 complete
-Status: Gap closure in progress (Plan 05-13 pending)
-Last activity: 2026-01-20 — Completed 05-14-PLAN.md (Container Bug Fix)
+Status: Phase complete, all gaps resolved
+Last activity: 2026-01-20 — Completed 05-13-PLAN.md (Fix Test Infrastructure)
 
-Progress: ██████░░░░ 57%
+Progress: ██████░░░░ 58%
 
 ### Phase 5 Plans - GAP CLOSURE IN PROGRESS
 | Plan | Title | Wave | Status |
@@ -31,11 +31,11 @@ Progress: ██████░░░░ 57%
 | 10 | MT5 Adapter | 3 | Complete |
 | 11 | DI Container | 4 | Complete |
 | 12 | Infrastructure Tests | 4 | Complete |
-| 13 | Fix Test Infrastructure (gap) | 5 | Pending |
+| 13 | Fix Test Infrastructure (gap) | 5 | Complete |
 | 14 | Fix Container Bug (gap) | 5 | Complete |
 
 ### Verification Gaps (from 05-VERIFICATION.md)
-1. **Test Infrastructure Broken** — SQLAlchemy "Table 'users' already defined" error blocks all 58 infrastructure tests (Plan 05-13)
+1. ~~**Test Infrastructure Broken** — SQLAlchemy "Table 'users' already defined" error blocks all 58 infrastructure tests~~ FIXED (Plan 05-13)
 2. ~~**Container Runtime Bug** — Container shutdown needs error handling improvements~~ FIXED (Plan 05-14)
 
 ### Phase 4 Plans - COMPLETE
@@ -186,6 +186,9 @@ Recent decisions affecting current work:
 - Container lifecycle integrated with FastAPI startup/shutdown events (05-11)
 - Container shutdown uses await for adapter.is_connected() async method (05-14)
 - Container shutdown wraps each disconnect in try/except for graceful degradation (05-14)
+- Don't import container at module level in app/infrastructure/__init__.py to prevent model conflicts (05-13)
+- Defer app.main import to fixture scope in test conftest to avoid loading routes at module level (05-13)
+- Infrastructure test fixtures use mocks to isolate from full app imports (05-13)
 
 ### Pending Todos
 
@@ -202,6 +205,6 @@ From CONCERNS.md codebase audit:
 ## Session Continuity
 
 Last session: 2026-01-20
-Stopped at: Completed 05-14-PLAN.md (Container Bug Fix)
+Stopped at: Completed 05-13-PLAN.md (Fix Test Infrastructure) - Phase 5 complete
 Resume file: None
-Next: Execute 05-13 (Test Infrastructure Fix), then re-verify Phase 5
+Next: Phase 6 planning - API Layer and authentication
