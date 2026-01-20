@@ -10,7 +10,7 @@ Full refactor of the trading signal routing engine from organic growth to clean 
 - [x] **Phase 2: Test Infrastructure** - Get all 101 tests passing as safety net
 - [x] **Phase 3: Domain Layer** - Pure business logic with no framework deps
 - [x] **Phase 4: Application Layer** - Use cases and service orchestration
-- [ ] **Phase 5: Infrastructure Adapters** - Broker executors with hexagonal pattern
+- [x] **Phase 5: Infrastructure Adapters** - Broker executors with hexagonal pattern
 - [ ] **Phase 6: Security Hardening** - Encryption, credential storage, secrets
 - [ ] **Phase 7: UI Foundation** - Next.js 14 setup with auth and layout
 - [ ] **Phase 8: UI Dashboard** - Signal status, broker health, trade logs
@@ -81,7 +81,7 @@ Full refactor of the trading signal routing engine from organic growth to clean 
   7. Dependency injection wires adapters to use cases
 **Research**: Likely (broker API changes, SDK updates)
 **Research topics**: Current TradeLocker API docs, TopStep/ProjectX gateway API, Tradovate WebSocket patterns
-**Plans**: TBD
+**Plans**: 14 plans (Wave 1: 01, 02 | Wave 2: 03, 04, 05 | Wave 3: 06, 07, 08, 09, 10 | Wave 4: 11, 12 | Wave 5: 13, 14 gap closure)
 
 ### Phase 6: Security Hardening
 **Goal**: Fix all security vulnerabilities from codebase audit
@@ -160,7 +160,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 2. Test Infrastructure | 5/5 | Complete | 2026-01-19 |
 | 3. Domain Layer | 7/7 | Complete | 2026-01-20 |
 | 4. Application Layer | 7/7 | Complete | 2026-01-20 |
-| 5. Infrastructure Adapters | 0/TBD | Not started | - |
+| 5. Infrastructure Adapters | 14/14 | Complete | 2026-01-20 |
 | 6. Security Hardening | 0/TBD | Not started | - |
 | 7. UI Foundation | 0/TBD | Not started | - |
 | 8. UI Dashboard | 0/TBD | Not started | - |
@@ -168,4 +168,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 10. Deployment | 0/TBD | Not started | - |
 
 ---
-*Last updated: 2026-01-20 after Phase 4 completion*
+*Last updated: 2026-01-20 after Phase 5 completion*
