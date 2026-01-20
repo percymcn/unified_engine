@@ -14,9 +14,23 @@ from app.application.use_cases.get_signals import (
     GetSignalUseCase,
     ListSignalsUseCase,
 )
+from app.application.use_cases.place_order import PlaceOrderUseCase
+from app.application.use_cases.manage_positions import (
+    ClosePositionUseCase,
+    ModifyPositionUseCase,
+    GetPositionsUseCase,
+    GetTradesUseCase,
+)
 
 __all__ = [
+    # Signal use cases
     "ProcessSignalUseCase",
     "GetSignalUseCase",
     "ListSignalsUseCase",
+    # Trade use cases
+    "PlaceOrderUseCase",
+    "ClosePositionUseCase",
+    "ModifyPositionUseCase",
+    "GetPositionsUseCase",
+    "GetTradesUseCase",
 ]
