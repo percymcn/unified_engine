@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 ## Current Position
 
 Phase: 8 of 10 (UI Dashboard) - IN PROGRESS
-Plan: 2/4 complete
-Status: Wave 1 complete, Wave 2 next
-Last activity: 2026-01-20 - Completed 08-02-PLAN.md
+Plan: 3/4 complete
+Status: Wave 2 complete, Wave 3 next
+Last activity: 2026-01-20 - Completed 08-03-PLAN.md
 
-Progress: █████████░ 72%
+Progress: █████████░ 75%
 
 ### Phase 8 Plans - IN PROGRESS
 | Plan | Title | Wave | Status |
 |------|-------|------|--------|
 | 01 | Signal Status Table | 1 | Complete |
 | 02 | Broker Health Cards | 1 | Complete |
-| 03 | Trade Logs Table | 2 | Pending |
+| 03 | Trade Logs Table | 2 | Complete |
 | 04 | Real-time WebSocket Integration | 3 | Pending |
 
 ### Phase 8 Wave Structure
@@ -111,9 +111,9 @@ Progress: █████████░ 72%
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 47
-- Average duration: ~6.9 min/plan
-- Total execution time: ~323 min
+- Total plans completed: 48
+- Average duration: ~7.1 min/plan
+- Total execution time: ~340 min
 
 **By Phase:**
 
@@ -126,11 +126,11 @@ Progress: █████████░ 72%
 | 5 | 14 | 100 min | 7.1 min |
 | 6 | 6 | 48 min | 8.0 min |
 | 7 | 3 | 49 min | 16.3 min |
-| 8 | 2 | 9 min | 4.5 min |
+| 8 | 3 | 26 min | 8.7 min |
 
 **Recent Trend:**
-- Last 5 plans: 7-01, 7-02, 7-03, 8-01, 8-02
-- Trend: Phase 8 UI components executing very fast (4-5 min average)
+- Last 5 plans: 7-02, 7-03, 8-01, 8-02, 8-03
+- Trend: Phase 8 UI components with filtering taking longer due to shadcn component setup
 
 ## Accumulated Context
 
@@ -267,6 +267,10 @@ Recent decisions affecting current work:
 - Health endpoint requires no authentication for availability monitoring (08-02)
 - Grid responsive: 1 col mobile, 2 col tablet, 5 col desktop (08-02)
 - BFF proxy pattern for backend API calls through /api/* routes (08-02)
+- DateRangePicker wraps shadcn Calendar with Popover for unified date range selection (08-03)
+- TradeFilters uses controlled state with onChange callback for filter updates (08-03)
+- P/L column color-coded green/red with +/- prefix formatting (08-03)
+- Filters re-fetch trades on change (no debouncing for immediate feedback) (08-03)
 
 ### Pending Todos
 
@@ -287,6 +291,6 @@ From CONCERNS.md codebase audit:
 ## Session Continuity
 
 Last session: 2026-01-20
-Stopped at: Completed 08-02-PLAN.md
+Stopped at: Completed 08-03-PLAN.md
 Resume file: None
-Next: Continue Phase 8 Wave 2 - execute 08-03 (Trade Logs Table)
+Next: Continue Phase 8 Wave 3 - execute 08-04 (WebSocket Integration)
