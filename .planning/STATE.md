@@ -5,16 +5,36 @@
 See: .planning/PROJECT.md (updated 2026-01-19)
 
 **Core value:** Reliable signal-to-trade execution across all configured brokers with zero missed signals.
-**Current focus:** Phase 9 - UI Configuration - COMPLETE
+**Current focus:** Phase 10 - Deployment - PLANNING COMPLETE
 
 ## Current Position
 
-Phase: 9 of 10 (UI Configuration)
-Plan: 4/4 complete
-Status: Phase Complete
-Last activity: 2026-01-20 - Completed 09-04-PLAN.md (Webhook Endpoints Page)
+Phase: 10 of 10 (Deployment)
+Plan: 0/4 complete
+Status: Ready for Execution
+Last activity: 2026-01-20 - Created Phase 10 plans (4 plans)
 
-Progress: █████████████ 87.5%
+Progress: ███████████████ 93.3%
+
+### Phase 10 Plans - READY
+| Plan | Title | Wave | Status |
+|------|-------|------|--------|
+| 01 | Next.js Production Dockerfile | 1 | Ready |
+| 02 | Docker Secrets Integration | 2 | Ready |
+| 03 | Environment Configuration | 2 | Ready |
+| 04 | Docker Stack Update and Health Checks | 3 | Ready |
+
+### Phase 10 Wave Structure
+- **Wave 1**: Plan 01 - Create ui-next Dockerfile (required before stack update)
+- **Wave 2** (parallel): Plans 02, 03 - Secrets infrastructure + Environment configs (independent)
+- **Wave 3**: Plan 04 - Update docker-stack.yml with all integrations (depends on 01-03)
+
+### Phase 10 Success Criteria
+1. docker-stack.yml deploys full stack to Swarm
+2. Environment configs work for dev/staging/prod
+3. Secrets (DB password, encryption key, JWT secret) use Docker secrets
+4. Health checks pass for all services in stack
+5. Stack survives node restart with persistent data
 
 ### Phase 9 Plans - COMPLETE
 | Plan | Title | Wave | Status |
@@ -144,7 +164,7 @@ Progress: █████████████ 87.5%
 
 **Recent Trend:**
 - Last 5 plans: 9-01, 9-02, 9-03, 9-04
-- Trend: Phase 9 complete (all UI configuration pages), Phase 10 (Production Readiness) next
+- Trend: Phase 9 complete (all UI configuration pages), Phase 10 (Deployment) ready
 
 ## Accumulated Context
 
@@ -335,6 +355,6 @@ From CONCERNS.md codebase audit:
 ## Session Continuity
 
 Last session: 2026-01-20
-Stopped at: Completed 09-04-PLAN.md (Webhook Endpoints Page) - Phase 9 Complete
+Stopped at: Created Phase 10 plans (4 plans for Deployment)
 Resume file: None
-Next: Phase 10 (Production Readiness) - final phase
+Next: Execute Phase 10 with `/gsd:execute-phase 10`
