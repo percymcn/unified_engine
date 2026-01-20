@@ -5,16 +5,32 @@
 See: .planning/PROJECT.md (updated 2026-01-19)
 
 **Core value:** Reliable signal-to-trade execution across all configured brokers with zero missed signals.
-**Current focus:** Phase 4 — Application Layer (in progress)
+**Current focus:** Phase 5 — Infrastructure Adapters (planned)
 
 ## Current Position
 
-Phase: 4 of 10 (Application Layer) - COMPLETE
-Plan: 7/7 complete
-Status: All application layer use cases implemented and tested with mock ports
-Last activity: 2026-01-20 — Completed 04-07 Application Tests
+Phase: 5 of 10 (Infrastructure Adapters) - PLANNED
+Plan: 0/12 complete
+Status: 12 plans created, ready for execution
+Last activity: 2026-01-20 — Created Phase 5 plans (12 plans across 4 waves)
 
 Progress: █████░░░░░ 44%
+
+### Phase 5 Plans - PLANNED
+| Plan | Title | Wave | Status |
+|------|-------|------|--------|
+| 01 | Infrastructure Package Structure | 1 | Pending |
+| 02 | Entity Mappers | 1 | Pending |
+| 03 | SQLAlchemy Repositories | 2 | Pending |
+| 04 | Unit of Work Implementation | 2 | Pending |
+| 05 | Event Publishers | 2 | Pending |
+| 06 | TradeLocker Adapter | 3 | Pending |
+| 07 | TopStep Adapter | 3 | Pending |
+| 08 | Tradovate Adapter | 3 | Pending |
+| 09 | MT4 Adapter | 3 | Pending |
+| 10 | MT5 Adapter | 3 | Pending |
+| 11 | DI Container | 4 | Pending |
+| 12 | Infrastructure Tests | 4 | Pending |
 
 ### Phase 4 Plans - COMPLETE
 | Plan | Title | Wave | Status |
@@ -142,6 +158,6 @@ From CONCERNS.md codebase audit:
 ## Session Continuity
 
 Last session: 2026-01-20
-Stopped at: Completed 04-07 Application Tests (Phase 4 complete)
+Stopped at: Created Phase 5 plans (12 plans across 4 waves)
 Resume file: None
-Next: Phase 5 — Infrastructure Layer
+Next: Execute Phase 5 with `/gsd:execute-phase 5`
