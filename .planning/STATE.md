@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 ## Current Position
 
 Phase: 4 of 10 (Application Layer) - IN PROGRESS
-Plan: 4/7 complete
-Status: Trade use cases complete with account validation
-Last activity: 2026-01-20 — Completed 04-04 Trade Use Cases
+Plan: 5/7 complete
+Status: Account use cases complete with broker connection and sync
+Last activity: 2026-01-20 — Completed 04-05 Account Use Cases
 
-Progress: ████░░░░░░ 38%
+Progress: █████░░░░░ 40%
 
 ### Phase 4 Plans - IN PROGRESS
 | Plan | Title | Wave | Status |
@@ -23,7 +23,7 @@ Progress: ████░░░░░░ 38%
 | 02 | Application DTOs | 1 | Complete |
 | 03 | Signal Use Cases | 2 | Complete |
 | 04 | Trade Use Cases | 2 | Complete |
-| 05 | Account Use Cases | 3 | Pending |
+| 05 | Account Use Cases | 3 | Complete |
 | 06 | Application Services | 3 | Pending |
 | 07 | Application Tests | 4 | Pending |
 
@@ -58,9 +58,9 @@ Progress: ████░░░░░░ 38%
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 20
-- Average duration: ~5.5 min/plan
-- Total execution time: ~110 min
+- Total plans completed: 21
+- Average duration: ~5.3 min/plan
+- Total execution time: ~112 min
 
 **By Phase:**
 
@@ -69,11 +69,11 @@ Progress: ████░░░░░░ 38%
 | 1 | 4 | 20 min | 5 min |
 | 2 | 5 | 25 min | 5 min |
 | 3 | 7 | 43 min | 6.1 min |
-| 4 | 4 | 22 min | 5.5 min |
+| 4 | 5 | 24 min | 4.8 min |
 
 **Recent Trend:**
-- Last 5 plans: 4-01, 4-02, 4-03, 4-04, —
-- Trend: Very stable (~5-6 min per plan)
+- Last 5 plans: 4-01, 4-02, 4-03, 4-04, 4-05
+- Trend: Accelerating (4-05 was 2 min, fastest plan yet)
 
 ## Accumulated Context
 
@@ -119,6 +119,9 @@ Recent decisions affecting current work:
 - ClosePositionUseCase supports partial closes via optional volume parameter (04-04)
 - Read-only use cases (GetPositions, GetTrades) use repositories directly without TradeService (04-04)
 - Use cases map domain exceptions to DTO error responses for graceful degradation (04-04)
+- ConnectAccountUseCase retrieves broker account info and updates state in single atomic operation (04-05)
+- SyncAccountUseCase counts positions and orders from broker for summary statistics (04-05)
+- GetAccountsUseCase supports filtering by broker type and active status (04-05)
 
 ### Pending Todos
 
@@ -135,6 +138,6 @@ From CONCERNS.md codebase audit:
 ## Session Continuity
 
 Last session: 2026-01-20
-Stopped at: Completed 04-04 Trade Use Cases
+Stopped at: Completed 04-05 Account Use Cases
 Resume file: None
-Next: 04-05 Account Use Cases
+Next: 04-06 Application Services
