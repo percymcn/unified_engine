@@ -11,7 +11,7 @@ Full refactor of the trading signal routing engine from organic growth to clean 
 - [x] **Phase 3: Domain Layer** - Pure business logic with no framework deps
 - [x] **Phase 4: Application Layer** - Use cases and service orchestration
 - [x] **Phase 5: Infrastructure Adapters** - Broker executors with hexagonal pattern
-- [ ] **Phase 6: Security Hardening** - Encryption, credential storage, secrets
+- [x] **Phase 6: Security Hardening** - Encryption, credential storage, secrets
 - [ ] **Phase 7: UI Foundation** - Next.js 14 setup with auth and layout
 - [ ] **Phase 8: UI Dashboard** - Signal status, broker health, trade logs
 - [ ] **Phase 9: UI Configuration** - Account management, routing rules, API keys
@@ -94,7 +94,7 @@ Full refactor of the trading signal routing engine from organic growth to clean 
   4. API keys use bcrypt with salt (not plain SHA256)
   5. Encrypted credentials survive service restarts
 **Research**: Unlikely (standard security patterns)
-**Plans**: TBD
+**Plans**: 6 plans (Wave 1: 01, 02 | Wave 2: 03, 04, 05 | Wave 3: 06)
 
 ### Phase 7: UI Foundation
 **Goal**: Next.js 14 project with auth and layout ready
@@ -161,11 +161,11 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 3. Domain Layer | 7/7 | Complete | 2026-01-20 |
 | 4. Application Layer | 7/7 | Complete | 2026-01-20 |
 | 5. Infrastructure Adapters | 14/14 | Complete | 2026-01-20 |
-| 6. Security Hardening | 0/TBD | Not started | - |
+| 6. Security Hardening | 6/6 | Complete | 2026-01-20 |
 | 7. UI Foundation | 0/TBD | Not started | - |
 | 8. UI Dashboard | 0/TBD | Not started | - |
 | 9. UI Configuration | 0/TBD | Not started | - |
 | 10. Deployment | 0/TBD | Not started | - |
 
 ---
-*Last updated: 2026-01-20 after Phase 5 completion*
+*Last updated: 2026-01-20 after Phase 6 completion*
