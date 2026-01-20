@@ -54,7 +54,8 @@ class BrokerType(str, enum.Enum):
 
 class User(Base):
     __tablename__ = "users"
-    
+    __table_args__ = {'extend_existing': True}
+
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True, nullable=False)
     username = Column(String, unique=True, index=True, nullable=False)
@@ -100,7 +101,8 @@ class User(Base):
 
 class UserSession(Base):
     __tablename__ = "user_sessions"
-    
+    __table_args__ = {'extend_existing': True}
+
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     session_token = Column(String, unique=True, index=True, nullable=False)
@@ -115,7 +117,8 @@ class UserSession(Base):
 
 class Account(Base):
     __tablename__ = "accounts"
-    
+    __table_args__ = {'extend_existing': True}
+
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     organization_id = Column(Integer, ForeignKey("organizations.id"), index=True)  # Multi-tenancy
@@ -149,7 +152,8 @@ class Account(Base):
 
 class Trade(Base):
     __tablename__ = "trades"
-    
+    __table_args__ = {'extend_existing': True}
+
     id = Column(Integer, primary_key=True, index=True)
     account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False)
     trade_id = Column(String, unique=True, index=True, nullable=False)
@@ -178,7 +182,8 @@ class Trade(Base):
 
 class Position(Base):
     __tablename__ = "positions"
-    
+    __table_args__ = {'extend_existing': True}
+
     id = Column(Integer, primary_key=True, index=True)
     account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False)
     position_id = Column(String, unique=True, index=True, nullable=False)
@@ -207,7 +212,8 @@ class Position(Base):
 
 class Order(Base):
     __tablename__ = "orders"
-    
+    __table_args__ = {'extend_existing': True}
+
     id = Column(Integer, primary_key=True, index=True)
     account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False)
     order_id = Column(String, unique=True, index=True, nullable=False)
@@ -233,7 +239,8 @@ class Order(Base):
 
 class Signal(Base):
     __tablename__ = "signals"
-    
+    __table_args__ = {'extend_existing': True}
+
     id = Column(Integer, primary_key=True, index=True)
     signal_id = Column(String, unique=True, index=True, nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"))
@@ -264,7 +271,8 @@ class Signal(Base):
 
 class WebhookLog(Base):
     __tablename__ = "webhook_logs"
-    
+    __table_args__ = {'extend_existing': True}
+
     id = Column(Integer, primary_key=True, index=True)
     webhook_id = Column(String, unique=True, index=True, nullable=False)
     source = Column(String, nullable=False)
@@ -280,7 +288,8 @@ class WebhookLog(Base):
 
 class ExecutionLog(Base):
     __tablename__ = "execution_logs"
-    
+    __table_args__ = {'extend_existing': True}
+
     id = Column(Integer, primary_key=True, index=True)
     signal_id = Column(String, ForeignKey("signals.signal_id"))
     account_id = Column(Integer, ForeignKey("accounts.id"))
@@ -297,7 +306,8 @@ class ExecutionLog(Base):
 
 class SystemConfig(Base):
     __tablename__ = "system_config"
-    
+    __table_args__ = {'extend_existing': True}
+
     id = Column(Integer, primary_key=True, index=True)
     key = Column(String, unique=True, index=True, nullable=False)
     value = Column(Text)
@@ -308,7 +318,8 @@ class SystemConfig(Base):
 
 class Alert(Base):
     __tablename__ = "alerts"
-    
+    __table_args__ = {'extend_existing': True}
+
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
     account_id = Column(Integer, ForeignKey("accounts.id"))
@@ -322,7 +333,8 @@ class Alert(Base):
 
 class ApiKey(Base):
     __tablename__ = "api_keys"
-    
+    __table_args__ = {'extend_existing': True}
+
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     key_hash = Column(String, unique=True, index=True, nullable=False)  # Hashed API key
@@ -339,7 +351,8 @@ class ApiKey(Base):
 
 class Strategy(Base):
     __tablename__ = "strategies"
-    
+    __table_args__ = {'extend_existing': True}
+
     id = Column(Integer, primary_key=True, index=True)
     strategy_id = Column(String, unique=True, index=True, nullable=False)
     strategy_name = Column(String, nullable=False)
@@ -353,7 +366,8 @@ class Strategy(Base):
 
 class AccountStrategy(Base):
     __tablename__ = "account_strategies"
-    
+    __table_args__ = {'extend_existing': True}
+
     id = Column(Integer, primary_key=True, index=True)
     account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False)
     strategy_id = Column(Integer, ForeignKey("strategies.id"), nullable=False)
