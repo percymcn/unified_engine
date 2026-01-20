@@ -1,11 +1,13 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { BrokerType } from '@/types/broker';
+import { cn } from '@/lib/utils';
 
 interface BrokerHealthCardProps {
   name: BrokerType;
   connected: boolean;
   loading?: boolean;
+  recentlyChanged?: boolean;
 }
 
 // Map broker type to friendly display name
@@ -17,11 +19,21 @@ const BROKER_DISPLAY_NAMES: Record<BrokerType, string> = {
   projectx: 'TopStep',
 };
 
-export function BrokerHealthCard({ name, connected, loading = false }: BrokerHealthCardProps) {
+export function BrokerHealthCard({
+  name,
+  connected,
+  loading = false,
+  recentlyChanged = false,
+}: BrokerHealthCardProps) {
   const displayName = BROKER_DISPLAY_NAMES[name];
 
   return (
-    <Card>
+    <Card
+      className={cn(
+        'transition-all duration-300',
+        recentlyChanged && 'ring-2 ring-primary animate-pulse'
+      )}
+    >
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium">{displayName}</CardTitle>
         {loading ? (
