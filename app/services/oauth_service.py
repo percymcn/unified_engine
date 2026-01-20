@@ -9,6 +9,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.encryption import encrypt, decrypt, EncryptionError
 from app.models.models import User
 from app.models.enhanced_models import OAuthAccount, OAuthProvider
 from app.routers.auth import get_password_hash
@@ -17,7 +18,29 @@ logger = logging.getLogger(__name__)
 
 class OAuthService:
     """OAuth service for handling social logins"""
-    
+
+    @staticmethod
+    def _encrypt_token(token: str) -> str:
+        """Encrypt OAuth token for storage."""
+        if not token:
+            return token
+        try:
+            return encrypt(token)
+        except EncryptionError as e:
+            logger.error(f"Failed to encrypt OAuth token: {e}")
+            raise
+
+    @staticmethod
+    def _decrypt_token(encrypted_token: str) -> str:
+        """Decrypt OAuth token for use."""
+        if not encrypted_token:
+            return encrypted_token
+        try:
+            return decrypt(encrypted_token)
+        except EncryptionError as e:
+            logger.error(f"Failed to decrypt OAuth token: {e}")
+            raise
+
     @staticmethod
     async def get_google_user_info(access_token: str) -> Dict[str, Any]:
         """Get user info from Google"""
@@ -139,7 +162,7 @@ class OAuthService:
         
         if oauth_account:
             # Update OAuth account
-            oauth_account.access_token = access_token  # Should be encrypted in production
+            oauth_account.access_token = OAuthService._encrypt_token(access_token)
             oauth_account.provider_email = email
             oauth_account.provider_data = user_info
             db.commit()
@@ -155,7 +178,7 @@ class OAuthService:
                 provider=provider,
                 provider_user_id=provider_user_id,
                 provider_email=email,
-                access_token=access_token,  # Should be encrypted
+                access_token=OAuthService._encrypt_token(access_token),
                 provider_data=user_info
             )
             db.add(oauth_account)
@@ -190,13 +213,13 @@ class OAuthService:
             provider=provider,
             provider_user_id=provider_user_id,
             provider_email=email,
-            access_token=access_token,  # Should be encrypted
+            access_token=OAuthService._encrypt_token(access_token),
             provider_data=user_info
         )
         db.add(oauth_account)
         db.commit()
         db.refresh(user)
-        
+
         return user
     
     @staticmethod
