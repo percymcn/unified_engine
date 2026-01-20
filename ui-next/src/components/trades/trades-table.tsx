@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState, useCallback } from 'react';
 import {
   Table,
   TableBody,
@@ -8,11 +9,15 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Trade } from '@/types/trade';
+import { Trade, TradeStatus } from '@/types/trade';
 import { TradeStatusBadge } from './trade-status-badge';
+import { useWebSocketContext } from '@/providers/websocket-provider';
+import { OrderUpdateData, PositionUpdateData } from '@/types/websocket';
+import { cn } from '@/lib/utils';
 
 interface TradesTableProps {
   trades: Trade[];
+  onTradeUpdate?: (trade: Trade) => void;
 }
 
 const BROKER_NAMES: Record<string, string> = {
@@ -23,9 +28,141 @@ const BROKER_NAMES: Record<string, string> = {
   projectx: 'TopStep',
 };
 
-export function TradesTable({ trades }: TradesTableProps) {
+// Map order status to trade status
+const ORDER_STATUS_MAP: Record<string, TradeStatus> = {
+  pending: 'pending',
+  open: 'open',
+  filled: 'open',
+  partial: 'open',
+  closed: 'closed',
+  cancelled: 'cancelled',
+  rejected: 'cancelled',
+};
+
+export function TradesTable({ trades, onTradeUpdate }: TradesTableProps) {
+  const { subscribeToOrders, subscribeToPositions } = useWebSocketContext();
+  const [localTrades, setLocalTrades] = useState<Trade[]>(trades);
+  const [recentlyUpdated, setRecentlyUpdated] = useState<Set<number>>(new Set());
+
+  // Sync props to local state
+  useEffect(() => {
+    setLocalTrades(trades);
+  }, [trades]);
+
+  // Handle WebSocket order updates
+  const handleOrderUpdate = useCallback(
+    (data: OrderUpdateData) => {
+      setLocalTrades((current) => {
+        const index = current.findIndex(
+          (t) => t.id === data.id
+        );
+
+        if (index >= 0) {
+          // Update existing trade
+          const updated = [...current];
+          const tradeStatus = ORDER_STATUS_MAP[data.status.toLowerCase()] || 'open';
+
+          updated[index] = {
+            ...updated[index],
+            status: tradeStatus,
+            quantity: data.quantity,
+            ...(data.price && { entry_price: data.price }),
+            ...(data.filled_quantity && { quantity: data.filled_quantity }),
+          };
+
+          // Mark as recently updated
+          setRecentlyUpdated((prev) => new Set(prev).add(data.id));
+          setTimeout(() => {
+            setRecentlyUpdated((prev) => {
+              const next = new Set(prev);
+              next.delete(data.id);
+              return next;
+            });
+          }, 3000);
+
+          onTradeUpdate?.(updated[index]);
+          return updated;
+        } else {
+          // New trade from order - add to beginning
+          const newTrade: Trade = {
+            id: data.id,
+            symbol: data.symbol,
+            side: data.side,
+            quantity: data.filled_quantity || data.quantity,
+            entry_price: data.price || 0,
+            status: ORDER_STATUS_MAP[data.status.toLowerCase()] || 'open',
+            broker: data.broker,
+            account_id: 0, // Will be populated by backend
+            opened_at: new Date().toISOString(),
+          };
+
+          // Mark as recently updated
+          setRecentlyUpdated((prev) => new Set(prev).add(data.id));
+          setTimeout(() => {
+            setRecentlyUpdated((prev) => {
+              const next = new Set(prev);
+              next.delete(data.id);
+              return next;
+            });
+          }, 3000);
+
+          onTradeUpdate?.(newTrade);
+          return [newTrade, ...current];
+        }
+      });
+    },
+    [onTradeUpdate]
+  );
+
+  // Handle WebSocket position updates (for P/L and exits)
+  const handlePositionUpdate = useCallback(
+    (data: PositionUpdateData) => {
+      setLocalTrades((current) => {
+        const index = current.findIndex(
+          (t) => t.symbol === data.symbol && t.broker.toLowerCase() === data.broker.toLowerCase()
+        );
+
+        if (index >= 0) {
+          // Update existing trade with position data
+          const updated = [...current];
+          updated[index] = {
+            ...updated[index],
+            ...(data.current_price && { exit_price: data.current_price }),
+            ...(data.unrealized_pnl !== undefined && { profit_loss: data.unrealized_pnl }),
+          };
+
+          // Mark as recently updated
+          setRecentlyUpdated((prev) => new Set(prev).add(updated[index].id));
+          setTimeout(() => {
+            setRecentlyUpdated((prev) => {
+              const next = new Set(prev);
+              next.delete(updated[index].id);
+              return next;
+            });
+          }, 3000);
+
+          onTradeUpdate?.(updated[index]);
+          return updated;
+        }
+
+        return current;
+      });
+    },
+    [onTradeUpdate]
+  );
+
+  // Subscribe to WebSocket updates
+  useEffect(() => {
+    const unsubscribeOrders = subscribeToOrders(handleOrderUpdate);
+    const unsubscribePositions = subscribeToPositions(handlePositionUpdate);
+    return () => {
+      unsubscribeOrders();
+      unsubscribePositions();
+    };
+  }, [subscribeToOrders, subscribeToPositions, handleOrderUpdate, handlePositionUpdate]);
+
   // Sort by opened_at descending (newest first)
-  const sortedTrades = [...trades].sort((a, b) => {
+  const sortedTrades = [...localTrades].sort((a, b) => {
     return new Date(b.opened_at).getTime() - new Date(a.opened_at).getTime();
   });
 
@@ -86,8 +223,22 @@ export function TradesTable({ trades }: TradesTableProps) {
         </TableHeader>
         <TableBody>
           {sortedTrades.map((trade) => (
-            <TableRow key={trade.id}>
-              <TableCell className="font-medium">{trade.symbol}</TableCell>
+            <TableRow
+              key={trade.id}
+              className={cn(
+                'transition-colors duration-300',
+                recentlyUpdated.has(trade.id) &&
+                  'bg-primary/10 animate-pulse'
+              )}
+            >
+              <TableCell className="font-medium">
+                {trade.symbol}
+                {recentlyUpdated.has(trade.id) && (
+                  <span className="ml-2 text-xs text-primary font-medium">
+                    LIVE
+                  </span>
+                )}
+              </TableCell>
               <TableCell
                 className={`uppercase font-medium ${
                   trade.side === 'buy' ? 'text-green-500' : 'text-red-500'
