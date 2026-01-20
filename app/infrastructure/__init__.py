@@ -1,27 +1,35 @@
 """
-Infrastructure Layer
+Infrastructure Layer.
 
-Implements domain ports with concrete adapters for external systems.
-This layer depends on the domain layer but the domain never depends on infrastructure.
-
-Hexagonal Architecture:
-- Domain defines ports (BrokerPort, EventPort, Repository interfaces)
-- Infrastructure provides adapters (MT4Adapter, NATSEventPublisher, SQLAlchemyRepositories)
-- Application layer receives infrastructure adapters via dependency injection
-
-Subpackages:
-- adapters: Broker adapter implementations (BrokerPort)
-- repositories: SQLAlchemy repository implementations (Repository)
-- persistence: Unit of Work and session management
-- events: Event publisher implementations (EventPort)
+Implements domain ports with concrete adapters:
+- adapters/: Broker implementations (BrokerPort)
+- repositories/: SQLAlchemy implementations (Repository ports)
+- persistence/: Unit of Work (transaction management)
+- events/: Event publishers (EventPort)
+- container.py: DI wiring
 """
+from app.infrastructure.container import (
+    Container,
+    get_container,
+    initialize_container,
+    shutdown_container,
+)
 
-# Infrastructure layer exports
-# Will be populated as adapters are implemented in subsequent plans
+# Re-export subpackages for convenience
+from app.infrastructure import adapters
+from app.infrastructure import repositories
+from app.infrastructure import persistence
+from app.infrastructure import events
 
 __all__ = [
-    # Broker adapters (Phase 5, Plans 06-10)
-    # EventPublishers (Phase 5, Plan 05)
-    # Repositories (Phase 5, Plan 03)
-    # UnitOfWork (Phase 5, Plan 04)
+    # Container
+    "Container",
+    "get_container",
+    "initialize_container",
+    "shutdown_container",
+    # Subpackages
+    "adapters",
+    "repositories",
+    "persistence",
+    "events",
 ]
