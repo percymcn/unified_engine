@@ -5,18 +5,33 @@
 See: .planning/PROJECT.md (updated 2026-01-19)
 
 **Core value:** Reliable signal-to-trade execution across all configured brokers with zero missed signals.
-**Current focus:** Phase 5 — Infrastructure Adapters (planned)
+**Current focus:** Phase 6 — Security Hardening (planned)
 
 ## Current Position
 
-Phase: 5 of 10 (Infrastructure Adapters) - COMPLETE
-Plan: 14/14 complete
-Status: Phase complete, all gaps resolved
-Last activity: 2026-01-20 — Completed 05-13-PLAN.md (Fix Test Infrastructure)
+Phase: 6 of 10 (Security Hardening) - PLANNED
+Plan: 0/6 complete
+Status: Plans created, ready for execution
+Last activity: 2026-01-20 — Created Phase 6 plans
 
 Progress: ██████░░░░ 58%
 
-### Phase 5 Plans - GAP CLOSURE IN PROGRESS
+### Phase 6 Plans - READY FOR EXECUTION
+| Plan | Title | Wave | Status |
+|------|-------|------|--------|
+| 01 | Encryption Key Management | 1 | Pending |
+| 02 | Credential Database Model | 1 | Pending |
+| 03 | Credential Repository Migration | 2 | Pending |
+| 04 | OAuth Token Encryption | 2 | Pending |
+| 05 | API Key Bcrypt Hashing | 2 | Pending |
+| 06 | Security Integration Tests | 3 | Pending |
+
+### Phase 6 Wave Structure
+- **Wave 1** (parallel): Plans 01, 02 — Foundation (encryption service + DB model)
+- **Wave 2** (parallel): Plans 03, 04, 05 — Implementation (credential repo, OAuth, API keys)
+- **Wave 3**: Plan 06 — Verification (integration tests)
+
+### Phase 5 Plans - COMPLETE
 | Plan | Title | Wave | Status |
 |------|-------|------|--------|
 | 01 | Infrastructure Package Structure | 1 | Complete |
@@ -33,10 +48,6 @@ Progress: ██████░░░░ 58%
 | 12 | Infrastructure Tests | 4 | Complete |
 | 13 | Fix Test Infrastructure (gap) | 5 | Complete |
 | 14 | Fix Container Bug (gap) | 5 | Complete |
-
-### Verification Gaps (from 05-VERIFICATION.md)
-1. ~~**Test Infrastructure Broken** — SQLAlchemy "Table 'users' already defined" error blocks all 58 infrastructure tests~~ FIXED (Plan 05-13)
-2. ~~**Container Runtime Bug** — Container shutdown needs error handling improvements~~ FIXED (Plan 05-14)
 
 ### Phase 4 Plans - COMPLETE
 | Plan | Title | Wave | Status |
@@ -198,13 +209,13 @@ None yet.
 
 From CONCERNS.md codebase audit:
 - ~~aioredis deprecated (causes crash) — Phase 1~~ FIXED
-- Hardcoded encryption key — Phase 6
+- Hardcoded encryption key — Phase 6 (Plan 01)
 - ~~90/101 tests failing — Phase 2~~ FIXED (173 tests now collected)
-- In-memory credential storage — Phase 6
+- In-memory credential storage — Phase 6 (Plans 02, 03)
 
 ## Session Continuity
 
 Last session: 2026-01-20
-Stopped at: Completed 05-13-PLAN.md (Fix Test Infrastructure) - Phase 5 complete
+Stopped at: Created Phase 6 Security Hardening plans
 Resume file: None
-Next: Phase 6 planning - API Layer and authentication
+Next: Execute Phase 6 with `/gsd:execute-phase 6`
