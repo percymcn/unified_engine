@@ -147,7 +147,7 @@ Full refactor of the trading signal routing engine from organic growth to clean 
   4. Health checks pass for all services in stack
   5. Stack survives node restart with persistent data
 **Research**: Unlikely (existing docker-stack.yml as base)
-**Plans**: TBD
+**Plans**: 4 plans (Wave 1: 01 | Wave 2: 02, 03 | Wave 3: 04)
 
 ## Progress
 
@@ -165,7 +165,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 7. UI Foundation | 3/3 | Complete | 2026-01-20 |
 | 8. UI Dashboard | 4/4 | Complete | 2026-01-20 |
 | 9. UI Configuration | 4/4 | Complete | 2026-01-20 |
-| 10. Deployment | 0/TBD | Not started | - |
+| 10. Deployment | 0/4 | Planning Complete | - |
 
 ---
-*Last updated: 2026-01-20 after Phase 9 completion*
+*Last updated: 2026-01-20 after Phase 10 planning complete*
