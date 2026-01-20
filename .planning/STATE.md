@@ -9,17 +9,17 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 
 ## Current Position
 
-Phase: 6 of 10 (Security Hardening) - PLANNED
-Plan: 0/6 complete
-Status: Plans created, ready for execution
-Last activity: 2026-01-20 — Created Phase 6 plans
+Phase: 6 of 10 (Security Hardening) - IN PROGRESS
+Plan: 1/6 complete
+Status: Wave 1 in progress
+Last activity: 2026-01-20 — Completed 06-01-PLAN.md
 
-Progress: ██████░░░░ 58%
+Progress: ██████░░░░ 59%
 
-### Phase 6 Plans - READY FOR EXECUTION
+### Phase 6 Plans - IN PROGRESS
 | Plan | Title | Wave | Status |
 |------|-------|------|--------|
-| 01 | Encryption Key Management | 1 | Pending |
+| 01 | Encryption Key Management | 1 | Complete |
 | 02 | Credential Database Model | 1 | Pending |
 | 03 | Credential Repository Migration | 2 | Pending |
 | 04 | OAuth Token Encryption | 2 | Pending |
@@ -91,9 +91,9 @@ Progress: ██████░░░░ 58%
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 36
-- Average duration: ~5.6 min/plan
-- Total execution time: ~221 min
+- Total plans completed: 37
+- Average duration: ~5.5 min/plan
+- Total execution time: ~224 min
 
 **By Phase:**
 
@@ -104,10 +104,11 @@ Progress: ██████░░░░ 58%
 | 3 | 7 | 43 min | 6.1 min |
 | 4 | 7 | 33 min | 4.7 min |
 | 5 | 14 | 100 min | 7.1 min |
+| 6 | 1 | 3 min | 3 min |
 
 **Recent Trend:**
-- Last 5 plans: 5-10, 5-11, 5-12, 5-13, 5-14
-- Trend: Phase 5 gap closure (avg 7.1 min - including test fixes and container improvements)
+- Last 5 plans: 5-12, 5-13, 5-14, 6-01
+- Trend: Phase 6 security hardening started (06-01: 3 min - encryption service)
 
 ## Accumulated Context
 
@@ -200,6 +201,11 @@ Recent decisions affecting current work:
 - Don't import container at module level in app/infrastructure/__init__.py to prevent model conflicts (05-13)
 - Defer app.main import to fixture scope in test conftest to avoid loading routes at module level (05-13)
 - Infrastructure test fixtures use mocks to isolate from full app imports (05-13)
+- Fernet symmetric encryption (AES-128-CBC with HMAC) chosen for credential storage (06-01)
+- EncryptionService is singleton initialized once at startup with environment key (06-01)
+- Application fails fast if CREDENTIAL_ENCRYPTION_KEY missing or invalid format (06-01)
+- Encryption key must be 32 bytes URL-safe base64 (standard Fernet format) (06-01)
+- Convenience functions provided: encrypt(), decrypt(), encrypt_dict(), decrypt_dict() (06-01)
 
 ### Pending Todos
 
@@ -209,13 +215,14 @@ None yet.
 
 From CONCERNS.md codebase audit:
 - ~~aioredis deprecated (causes crash) — Phase 1~~ FIXED
-- Hardcoded encryption key — Phase 6 (Plan 01)
+- ~~Hardcoded encryption key — Phase 6 (Plan 01)~~ FIXED
 - ~~90/101 tests failing — Phase 2~~ FIXED (173 tests now collected)
 - In-memory credential storage — Phase 6 (Plans 02, 03)
+- credential_router.py still uses runtime Fernet.generate_key() — will be fixed in 06-03
 
 ## Session Continuity
 
 Last session: 2026-01-20
-Stopped at: Created Phase 6 Security Hardening plans
+Stopped at: Completed 06-01-PLAN.md (Encryption Key Management)
 Resume file: None
-Next: Execute Phase 6 with `/gsd:execute-phase 6`
+Next: Execute remaining Phase 6 plans (06-02 through 06-06)
