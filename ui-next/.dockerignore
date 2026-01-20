@@ -1,0 +1,34 @@
+# Dependencies - installed fresh in container
+node_modules
+
+# Build output - rebuilt in container
+.next
+
+# Git
+.git
+.gitignore
+
+# Documentation
+*.md
+README*
+
+# Environment files - passed at runtime
+.env*
+!.env.example
+
+# Editor configs
+.eslintrc*
+.vscode
+.idea
+
+# TypeScript build info
+tsconfig.tsbuildinfo
+
+# Test files
+*.test.*
+*.spec.*
+__tests__
+
+# Development only
+.turbo
+.vercel
