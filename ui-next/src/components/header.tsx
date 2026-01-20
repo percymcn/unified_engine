@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/sheet';
 import { UserNav } from '@/components/user-nav';
 import { Sidebar } from '@/components/sidebar';
+import { ConnectionStatusIndicator } from '@/components/connection-status';
 
 interface HeaderProps {
   user?: {
@@ -40,8 +41,12 @@ export function Header({ user }: HeaderProps) {
         {/* Empty for now - dashboard pages can add their own title */}
       </div>
 
-      {/* User navigation - always visible */}
-      <div className="ml-auto">
+      {/* Right side actions */}
+      <div className="ml-auto flex items-center gap-4">
+        {/* WebSocket connection status indicator */}
+        <ConnectionStatusIndicator />
+
+        {/* User navigation */}
         <UserNav user={user} />
       </div>
     </header>
