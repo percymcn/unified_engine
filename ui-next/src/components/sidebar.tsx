@@ -9,6 +9,9 @@ import {
   History,
   Settings,
   Activity,
+  Key,
+  Webhook,
+  GitBranch,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -20,8 +23,9 @@ const navigation = [
 
 const settingsNavigation = [
   { name: 'Accounts', href: '/settings/accounts', icon: Users },
-  { name: 'API Keys', href: '/settings/api-keys', icon: Settings },
-  { name: 'Webhooks', href: '/settings/webhooks', icon: Settings },
+  { name: 'Signal Routing', href: '/settings/routing', icon: GitBranch },
+  { name: 'API Keys', href: '/settings/api-keys', icon: Key },
+  { name: 'Webhooks', href: '/settings/webhooks', icon: Webhook },
 ];
 
 interface SidebarProps {
@@ -50,11 +54,12 @@ export function Sidebar({ className }: SidebarProps) {
       <nav className="flex-1 space-y-1 px-3 py-4">
         {/* Main Navigation */}
         {navigation.map((item) => {
-          const isActive = pathname === item.href;
+          const fullHref = `/dashboard${item.href}`;
+          const isActive = pathname === '/dashboard' ? item.href === '/' : pathname === fullHref;
           return (
             <Link
               key={item.name}
-              href={item.href}
+              href={fullHref}
               className={cn(
                 'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
                 isActive
@@ -74,11 +79,12 @@ export function Sidebar({ className }: SidebarProps) {
             Settings
           </p>
           {settingsNavigation.map((item) => {
-            const isActive = pathname === item.href;
+            const fullHref = `/dashboard${item.href}`;
+            const isActive = pathname === fullHref;
             return (
               <Link
                 key={item.name}
-                href={item.href}
+                href={fullHref}
                 className={cn(
                   'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
                   isActive
