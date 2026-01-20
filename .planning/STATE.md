@@ -10,19 +10,19 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 ## Current Position
 
 Phase: 4 of 10 (Application Layer) - IN PROGRESS
-Plan: 2/7 complete
-Status: Application DTOs complete with validation
-Last activity: 2026-01-20 — Completed 04-02 Application DTOs
+Plan: 4/7 complete
+Status: Trade use cases complete with account validation
+Last activity: 2026-01-20 — Completed 04-04 Trade Use Cases
 
-Progress: ████░░░░░░ 33%
+Progress: ████░░░░░░ 38%
 
 ### Phase 4 Plans - IN PROGRESS
 | Plan | Title | Wave | Status |
 |------|-------|------|--------|
 | 01 | Application Package Structure | 1 | Complete |
 | 02 | Application DTOs | 1 | Complete |
-| 03 | Signal Use Cases | 2 | Pending |
-| 04 | Trade Use Cases | 2 | Pending |
+| 03 | Signal Use Cases | 2 | Complete |
+| 04 | Trade Use Cases | 2 | Complete |
 | 05 | Account Use Cases | 3 | Pending |
 | 06 | Application Services | 3 | Pending |
 | 07 | Application Tests | 4 | Pending |
@@ -58,9 +58,9 @@ Progress: ████░░░░░░ 33%
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 18
-- Average duration: ~5.6 min/plan
-- Total execution time: ~100 min
+- Total plans completed: 19
+- Average duration: ~5.5 min/plan
+- Total execution time: ~105 min
 
 **By Phase:**
 
@@ -69,10 +69,10 @@ Progress: ████░░░░░░ 33%
 | 1 | 4 | 20 min | 5 min |
 | 2 | 5 | 25 min | 5 min |
 | 3 | 7 | 43 min | 6.1 min |
-| 4 | 2 | 12 min | 6 min |
+| 4 | 3 | 17 min | 5.7 min |
 
 **Recent Trend:**
-- Last 5 plans: 3-06, 3-07, 4-01, 4-02, —
+- Last 5 plans: 3-07, 4-01, 4-02, 4-03, —
 - Trend: Very stable (~5-6 min per plan)
 
 ## Accumulated Context
@@ -111,6 +111,10 @@ Recent decisions affecting current work:
 - DTOs validate input in __post_init__ using ValueError (04-02)
 - DTOs use domain enums but not domain entities directly (04-02)
 - DTOs use primitive types (str, Decimal) not value objects (Symbol, Volume) (04-02)
+- Use cases instantiate domain services directly with injected ports (04-03)
+- Use cases return error DTOs instead of raising exceptions (04-03)
+- Query use cases separated from command use cases (CQRS-lite) (04-03)
+- DTO conversion logic contained in use cases via private methods (04-03)
 
 ### Pending Todos
 
@@ -127,6 +131,6 @@ From CONCERNS.md codebase audit:
 ## Session Continuity
 
 Last session: 2026-01-20
-Stopped at: Completed 04-02 Application DTOs
+Stopped at: Completed 04-03 Signal Use Cases
 Resume file: None
-Next: 04-03 Signal Use Cases
+Next: 04-04 Trade Use Cases
