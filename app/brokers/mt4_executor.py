@@ -23,19 +23,24 @@ class MT4Executor(BaseExecutor):
         config = settings.get_broker_config("mt4")
         super().__init__(config)
         self.config = config
-        config = settings.get_broker_config("mt4")
-        super().__init__(config)
-        self.config = config
-        self.api_url = self.config["api_url"]
-        self.api_url = self.config["api_url"]
-        self.manager_host = self.config["manager_host"]
-        self.manager_port = self.config["manager_port"]
-        self.manager_login = self.config["manager_login"]
-        self.manager_password = self.config["manager_password"]
+        self.api_url = self.config.get("api_url")
+        self.manager_host = self.config.get("manager_host")
+        self.manager_port = self.config.get("manager_port")
+        self.manager_login = self.config.get("manager_login")
+        self.manager_password = self.config.get("manager_password")
         self.session = None
+
+        # Check for required credentials
+        self.is_available = bool(self.manager_login and self.manager_password)
+        if not self.is_available:
+            logger.warning("MT4 executor disabled: manager credentials not configured")
         
     async def initialize(self) -> bool:
         """Initialize MT4 connection"""
+        if not self.is_available:
+            logger.info("MT4 skipped: credentials not configured")
+            return False
+
         try:
             self.session = httpx.AsyncClient(
                 base_url=self.api_url,
