@@ -38,8 +38,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<LoginResp
 
     // Validate required fields
     if (!username || !password) {
-      return NextResponse.json(
-        { success: false, error: 'Username and password are required' },
+      return NextResponse.json<LoginErrorResponse>(
+        { success: false as const, error: 'Username and password are required' },
         { status: 400 }
       );
     }
@@ -64,8 +64,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<LoginResp
       const errorData = await backendResponse.json().catch(() => ({}));
       const errorMessage = errorData.detail || errorData.message || 'Authentication failed';
 
-      return NextResponse.json(
-        { success: false, error: errorMessage },
+      return NextResponse.json<LoginErrorResponse>(
+        { success: false as const, error: errorMessage },
         { status: backendResponse.status }
       );
     }
@@ -74,8 +74,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<LoginResp
     const authData: BackendAuthResponse = await backendResponse.json();
 
     // Create response with success message
-    const response = NextResponse.json(
-      { success: true, message: 'Login successful' },
+    const response = NextResponse.json<LoginSuccessResponse>(
+      { success: true as const, message: 'Login successful' },
       { status: 200 }
     );
 
@@ -98,14 +98,14 @@ export async function POST(request: NextRequest): Promise<NextResponse<LoginResp
     console.error('Login error:', error);
 
     if (error instanceof SyntaxError) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid request body' },
+      return NextResponse.json<LoginErrorResponse>(
+        { success: false as const, error: 'Invalid request body' },
         { status: 400 }
       );
     }
 
-    return NextResponse.json(
-      { success: false, error: 'Unable to connect to authentication service' },
+    return NextResponse.json<LoginErrorResponse>(
+      { success: false as const, error: 'Unable to connect to authentication service' },
       { status: 503 }
     );
   }
