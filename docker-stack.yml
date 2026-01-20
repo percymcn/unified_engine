@@ -7,11 +7,13 @@ services:
     environment:
       POSTGRES_DB: trading_db
       POSTGRES_USER: trading_user
-      POSTGRES_PASSWORD: trading_password
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
     volumes:
       - unified_postgres_data:/var/lib/postgresql/data
     networks:
       - unified-network
+    secrets:
+      - db_password
     deploy:
       replicas: 1
       placement:
@@ -77,16 +79,20 @@ services:
       context: .
       dockerfile: Dockerfile.stack
     environment:
-      - DATABASE_URL=postgresql://trading_user:trading_password@postgres:5432/trading_db
+      - DATABASE_URL=postgresql://trading_user@postgres:5432/trading_db
       - REDIS_URL=redis://redis:6379/0
       - NATS_URL=nats://nats:4222
-      - SECRET_KEY=unified-secret-key-2024
       - ENVIRONMENT=production
     volumes:
       - ./logs:/app/logs
       - ./data:/app/data
     networks:
       - unified-network
+    secrets:
+      - db_password
+      - secret_key
+      - jwt_secret
+      - credential_encryption_key
     deploy:
       replicas: 1
       placement:
@@ -114,9 +120,8 @@ services:
       dockerfile: Dockerfile.stack
     command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=2
     environment:
-      - DATABASE_URL=postgresql://trading_user:trading_password@postgres:5432/trading_db
+      - DATABASE_URL=postgresql://trading_user@postgres:5432/trading_db
       - REDIS_URL=redis://redis:6379/0
-      - SECRET_KEY=unified-secret-key-2024
       - ENVIRONMENT=production
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
@@ -125,6 +130,11 @@ services:
       - ./data:/app/data
     networks:
       - unified-network
+    secrets:
+      - db_password
+      - secret_key
+      - jwt_secret
+      - credential_encryption_key
     deploy:
       replicas: 1
       placement:
@@ -146,9 +156,8 @@ services:
       dockerfile: Dockerfile.stack
     command: celery -A app.tasks.celery_app beat --loglevel=info
     environment:
-      - DATABASE_URL=postgresql://trading_user:trading_password@postgres:5432/trading_db
+      - DATABASE_URL=postgresql://trading_user@postgres:5432/trading_db
       - REDIS_URL=redis://redis:6379/0
-      - SECRET_KEY=unified-secret-key-2024
       - ENVIRONMENT=production
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
@@ -157,6 +166,11 @@ services:
       - ./data:/app/data
     networks:
       - unified-network
+    secrets:
+      - db_password
+      - secret_key
+      - jwt_secret
+      - credential_encryption_key
     deploy:
       replicas: 1
       placement:
@@ -176,18 +190,23 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.stack
-    command: celery -A app.tasks.celery_app flower --port=5555 --basic_auth=admin:Unified2024!
+    command: sh -c 'celery -A app.tasks.celery_app flower --port=5555 --basic_auth=$$(cat /run/secrets/flower_auth)'
     ports:
       - "5558:5555"
     environment:
-      - DATABASE_URL=postgresql://trading_user:trading_password@postgres:5432/trading_db
+      - DATABASE_URL=postgresql://trading_user@postgres:5432/trading_db
       - REDIS_URL=redis://redis:6379/0
-      - SECRET_KEY=unified-secret-key-2024
       - ENVIRONMENT=production
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
     networks:
       - unified-network
+    secrets:
+      - db_password
+      - secret_key
+      - jwt_secret
+      - credential_encryption_key
+      - flower_auth
     deploy:
       replicas: 1
       restart_policy:
@@ -226,15 +245,19 @@ services:
       dockerfile: Dockerfile.stack
     command: python -c "import asyncio; from app.services.funnel_automation import main; asyncio.run(main())"
     environment:
-      - DATABASE_URL=postgresql://trading_user:trading_password@postgres:5432/trading_db
+      - DATABASE_URL=postgresql://trading_user@postgres:5432/trading_db
       - REDIS_URL=redis://redis:6379/0
-      - SECRET_KEY=unified-secret-key-2024
       - ENVIRONMENT=production
     volumes:
       - ./logs:/app/logs
       - ./data:/app/data
     networks:
       - unified-network
+    secrets:
+      - db_password
+      - secret_key
+      - jwt_secret
+      - credential_encryption_key
     deploy:
       replicas: 1
       placement:
