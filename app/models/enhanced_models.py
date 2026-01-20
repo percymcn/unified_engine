@@ -52,7 +52,8 @@ user_organization_table = Table(
     Column('user_id', Integer, ForeignKey('users.id'), primary_key=True),
     Column('organization_id', Integer, ForeignKey('organizations.id'), primary_key=True),
     Column('role', String, default='member'),
-    Column('joined_at', DateTime(timezone=True), server_default=func.now())
+    Column('joined_at', DateTime(timezone=True), server_default=func.now()),
+    extend_existing=True
 )
 
 # Association table for permissions
@@ -60,13 +61,15 @@ permission_role_table = Table(
     'permission_roles',
     Base.metadata,
     Column('permission_id', Integer, ForeignKey('permissions.id'), primary_key=True),
-    Column('role_id', Integer, ForeignKey('roles.id'), primary_key=True)
+    Column('role_id', Integer, ForeignKey('roles.id'), primary_key=True),
+    extend_existing=True
 )
 
 class Organization(Base):
     """Multi-tenancy: Organizations/Workspaces"""
     __tablename__ = "organizations"
-    
+    __table_args__ = {'extend_existing': True}
+
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False, index=True)
     slug = Column(String, unique=True, index=True, nullable=False)
@@ -107,7 +110,8 @@ class Organization(Base):
 class Role(Base):
     """RBAC: Roles"""
     __tablename__ = "roles"
-    
+    __table_args__ = {'extend_existing': True}
+
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, nullable=False, index=True)
     description = Column(Text)
@@ -122,7 +126,8 @@ class Role(Base):
 class Permission(Base):
     """RBAC: Permissions"""
     __tablename__ = "permissions"
-    
+    __table_args__ = {'extend_existing': True}
+
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, nullable=False, index=True)
     resource = Column(String, nullable=False)  # accounts, users, signals, etc.
@@ -136,7 +141,8 @@ class Permission(Base):
 class UserSubscription(Base):
     """User-level subscription tracking"""
     __tablename__ = "user_subscriptions"
-    
+    __table_args__ = {'extend_existing': True}
+
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     tier = Column(SQLEnum(SubscriptionTier), nullable=False)
@@ -174,7 +180,8 @@ class UserSubscription(Base):
 class OAuthAccount(Base):
     """OAuth provider accounts"""
     __tablename__ = "oauth_accounts"
-    
+    __table_args__ = {'extend_existing': True, 'mysql_engine': 'InnoDB'}
+
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     provider = Column(SQLEnum(OAuthProvider), nullable=False)
@@ -186,18 +193,15 @@ class OAuthAccount(Base):
     provider_data = Column(JSON)  # Additional provider-specific data
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    
+
     # Relationships
     user = relationship("User", back_populates="oauth_accounts")
-    
-    __table_args__ = (
-        {'mysql_engine': 'InnoDB'},
-    )
 
 class Notification(Base):
     """Enhanced notification system"""
     __tablename__ = "notifications"
-    
+    __table_args__ = {'extend_existing': True}
+
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     organization_id = Column(Integer, ForeignKey("organizations.id"), index=True)
@@ -235,7 +239,8 @@ class Notification(Base):
 class NotificationPreference(Base):
     """User notification preferences"""
     __tablename__ = "notification_preferences"
-    
+    __table_args__ = {'extend_existing': True}
+
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True, index=True)
     
@@ -266,7 +271,8 @@ class NotificationPreference(Base):
 class AuditLog(Base):
     """Audit logging for compliance and security"""
     __tablename__ = "audit_logs"
-    
+    __table_args__ = {'extend_existing': True}
+
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), index=True)
     organization_id = Column(Integer, ForeignKey("organizations.id"), index=True)
@@ -299,7 +305,8 @@ class AuditLog(Base):
 class UsageMetric(Base):
     """Track usage metrics for billing and analytics"""
     __tablename__ = "usage_metrics"
-    
+    __table_args__ = {'extend_existing': True}
+
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), index=True)
     organization_id = Column(Integer, ForeignKey("organizations.id"), index=True)
