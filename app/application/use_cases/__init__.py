@@ -2,11 +2,7 @@
 Use Cases - Application Business Rules
 
 Use cases orchestrate domain services and entities to accomplish
-specific application tasks. They:
-- Accept DTOs as input
-- Return DTOs as output
-- Coordinate multiple domain operations
-- Handle application-level error mapping
+specific application tasks.
 """
 
 from app.application.use_cases.process_signal import ProcessSignalUseCase
@@ -21,6 +17,12 @@ from app.application.use_cases.manage_positions import (
     GetPositionsUseCase,
     GetTradesUseCase,
 )
+from app.application.use_cases.manage_accounts import (
+    GetAccountsUseCase,
+    GetAccountUseCase,
+    ConnectAccountUseCase,
+    SyncAccountUseCase,
+)
 
 __all__ = [
     # Signal use cases
@@ -33,4 +35,9 @@ __all__ = [
     "ModifyPositionUseCase",
     "GetPositionsUseCase",
     "GetTradesUseCase",
+    # Account use cases
+    "GetAccountsUseCase",
+    "GetAccountUseCase",
+    "ConnectAccountUseCase",
+    "SyncAccountUseCase",
 ]
