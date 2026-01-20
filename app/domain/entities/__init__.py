@@ -22,8 +22,14 @@ Design Principles:
 
 from app.domain.entities.account import Account
 from app.domain.entities.position import Position
+from app.domain.entities.signal import Signal
+from app.domain.entities.trade import Trade
+from app.domain.entities.order import Order
 
 __all__ = [
     "Account",
     "Position",
+    "Signal",
+    "Trade",
+    "Order",
 ]
