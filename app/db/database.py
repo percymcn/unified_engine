@@ -37,6 +37,16 @@ except ModuleNotFoundError as e:
 # Create session factory (synchronous - existing code)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+# Create async session factory (for new infrastructure layer)
+if async_engine:
+    AsyncSessionLocal = async_sessionmaker(
+        async_engine,
+        class_=AsyncSession,
+        expire_on_commit=False
+    )
+else:
+    AsyncSessionLocal = None
+
 # Create base class for models
 Base = declarative_base()
 
@@ -50,6 +60,17 @@ def get_db():
         yield db
     finally:
         db.close()
+
+async def get_async_session():
+    """Async database dependency for FastAPI"""
+    if not AsyncSessionLocal:
+        raise RuntimeError("Async database engine not available. Install asyncpg or aiosqlite.")
+
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+        finally:
+            await session.close()
 
 def init_db():
     """Initialize database with all tables"""
