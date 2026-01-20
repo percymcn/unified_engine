@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 ## Current Position
 
 Phase: 3 of 10 (Domain Layer) - IN PROGRESS
-Plan: 4/7 complete
-Status: Wave 3 in progress - Account & Position entities created with margin/P&L calculations
-Last activity: 2026-01-20 — Completed 03-04-PLAN.md (Account & Position entities)
+Plan: 5/7 complete
+Status: Wave 4 complete - Port interfaces created for hexagonal architecture
+Last activity: 2026-01-20 — Completed 03-05-PLAN.md (Repository Ports)
 
-Progress: █████░░░░░ 40%
+Progress: ██████░░░░ 50%
 
 ### Phase 3 Plans - IN PROGRESS
 | Plan | Title | Wave | Status |
@@ -23,7 +23,7 @@ Progress: █████░░░░░ 40%
 | 02 | Domain Enums and Value Objects | 2 | Complete |
 | 03 | Trading Domain Entities | 3 | Complete |
 | 04 | Account & Position Entities | 3 | Complete |
-| 05 | Repository Ports | 3 | Pending |
+| 05 | Repository Ports | 4 | Complete |
 | 06 | Broker Ports | 3 | Pending |
 | 07 | Domain Services | 4 | Pending |
 | 08 | Domain Tests | 5 | Pending |
@@ -49,9 +49,9 @@ Progress: █████░░░░░ 40%
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 13
+- Total plans completed: 14
 - Average duration: ~5 min/plan
-- Total execution time: ~71 min
+- Total execution time: ~76 min
 
 **By Phase:**
 
@@ -59,11 +59,11 @@ Progress: █████░░░░░ 40%
 |-------|-------|-------|----------|
 | 1 | 4 | 20 min | 5 min |
 | 2 | 5 | 25 min | 5 min |
-| 3 | 4 | 26 min | 6.5 min |
+| 3 | 5 | 31 min | 6.2 min |
 
 **Recent Trend:**
-- Last 5 plans: 2-05, 3-01, 3-02, 3-03, 3-04
-- Trend: Stable (3-04 took 11 min due to bug fixes, average still good)
+- Last 5 plans: 3-01, 3-02, 3-03, 3-04, 3-05
+- Trend: Very stable (~5-6 min per plan)
 
 ## Accumulated Context
 
@@ -87,6 +87,9 @@ Recent decisions affecting current work:
 - Account.free_margin is Decimal property (can be negative during margin calls) (03-04)
 - Position.unrealized_pnl is Decimal property (can be negative for losses) (03-04)
 - Money value object remains strictly non-negative for balances; calculated values use Decimal (03-04)
+- BrokerPort mirrors BaseExecutor but uses domain types (Symbol, Volume, Price, OrderId) (03-05)
+- Repository interfaces use domain entities as return types (Signal, Trade, Order, etc.) (03-05)
+- All ports are ABC with @abstractmethod - no implementation code in domain layer (03-05)
 
 ### Pending Todos
 
@@ -103,6 +106,6 @@ From CONCERNS.md codebase audit:
 ## Session Continuity
 
 Last session: 2026-01-20
-Stopped at: Completed 03-04-PLAN.md
+Stopped at: Completed 03-05-PLAN.md
 Resume file: None
-Next: 03-05 (Repository Ports)
+Next: 03-06 (Broker Ports)
