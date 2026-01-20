@@ -21,4 +21,40 @@ The domain layer is the heart of the application and must remain
 framework-independent to ensure testability and maintainability.
 """
 
-__all__ = []
+from app.domain.exceptions import (
+    DomainException,
+    ValidationError,
+    EntityNotFoundError,
+    BusinessRuleViolation,
+    SignalValidationError,
+    SignalProcessingError,
+    DuplicateSignalError,
+    InsufficientBalanceError,
+    InvalidOrderError,
+    PositionNotFoundError,
+    OrderNotFoundError,
+    AccountNotFoundError,
+    AccountDisabledError,
+    BrokerConnectionError,
+)
+
+__all__ = [
+    # Base exceptions
+    "DomainException",
+    "ValidationError",
+    "EntityNotFoundError",
+    "BusinessRuleViolation",
+    # Signal exceptions
+    "SignalValidationError",
+    "SignalProcessingError",
+    "DuplicateSignalError",
+    # Trading exceptions
+    "InsufficientBalanceError",
+    "InvalidOrderError",
+    "PositionNotFoundError",
+    "OrderNotFoundError",
+    # Account exceptions
+    "AccountNotFoundError",
+    "AccountDisabledError",
+    "BrokerConnectionError",
+]
