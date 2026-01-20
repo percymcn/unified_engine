@@ -25,18 +25,25 @@ class TradeLockerExecutor(BaseExecutor):
         config = settings.get_broker_config("tradelocker")
         super().__init__(config)
         self.config = config
-        super().__init__(config)
-        self.config = settings.get_broker_config("tradelocker")
-        self.api_url = self.config["api_url"]
-        self.ws_url = self.config["ws_url"]
-        self.api_key = self.config["api_key"]
-        self.environment = self.config["environment"]
+        self.api_url = self.config.get("api_url")
+        self.ws_url = self.config.get("ws_url")
+        self.api_key = self.config.get("api_key")
+        self.environment = self.config.get("environment", "demo")
         self.session = None
         self.sio = None
         self.access_token = None
+
+        # Check for required credentials
+        self.is_available = bool(self.api_key)
+        if not self.is_available:
+            logger.warning("TradeLocker executor disabled: API key not configured")
         
     async def initialize(self) -> bool:
         """Initialize TradeLocker connection"""
+        if not self.is_available:
+            logger.info("TradeLocker skipped: credentials not configured")
+            return False
+
         try:
             # Initialize HTTP client
             self.session = httpx.AsyncClient(
