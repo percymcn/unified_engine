@@ -40,8 +40,8 @@ class Position:
     is_active: bool = True
 
     @property
-    def unrealized_pnl(self) -> Money:
-        """Calculate unrealized P&L based on current price"""
+    def unrealized_pnl(self) -> Decimal:
+        """Calculate unrealized P&L based on current price (can be negative for losses)"""
         price_diff = self.current_price.value - self.open_price.value
         if self.side == PositionSide.SHORT:
             price_diff = -price_diff
@@ -49,7 +49,7 @@ class Position:
         # Simplified P&L calculation
         pnl = price_diff * self.volume.value
         total = pnl - self.commission.amount + self.swap.amount
-        return Money(total)
+        return total
 
     def update_price(self, new_price: Price) -> None:
         """Update current market price"""
@@ -123,7 +123,7 @@ class Position:
 
     @property
     def is_profitable(self) -> bool:
-        return self.unrealized_pnl.amount > 0
+        return self.unrealized_pnl > 0
 
     @property
     def is_at_stop_loss(self) -> bool:

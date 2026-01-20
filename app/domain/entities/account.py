@@ -28,7 +28,6 @@ class Account:
     balance: Money
     equity: Money
     margin: Money = field(default_factory=lambda: Money(Decimal("0")))
-    free_margin: Money = field(default_factory=lambda: Money(Decimal("0")))
     leverage: int = 100
     is_active: bool = True
     is_connected: bool = False
@@ -37,14 +36,10 @@ class Account:
     last_sync: Optional[datetime] = None
     created_at: datetime = field(default_factory=datetime.utcnow)
 
-    def __post_init__(self):
-        # Calculate free margin
-        self._update_free_margin()
-
-    def _update_free_margin(self) -> None:
-        """Calculate free margin = equity - margin"""
-        free = self.equity.amount - self.margin.amount
-        object.__setattr__(self, 'free_margin', Money(free, self.currency))
+    @property
+    def free_margin(self) -> Decimal:
+        """Calculate free margin = equity - margin (can be negative during margin calls)"""
+        return self.equity.amount - self.margin.amount
 
     def update_balance(self, new_balance: Money) -> None:
         """Update account balance (from broker sync)"""
@@ -58,24 +53,22 @@ class Account:
         if not self.is_active:
             raise AccountDisabledError(self.id.value)
         object.__setattr__(self, 'equity', new_equity)
-        self._update_free_margin()
         object.__setattr__(self, 'last_sync', datetime.utcnow())
 
     def update_margin(self, new_margin: Money) -> None:
         """Update used margin"""
         object.__setattr__(self, 'margin', new_margin)
-        self._update_free_margin()
 
     def check_margin_for_trade(self, required_margin: Money) -> bool:
         """Check if account has sufficient margin for a trade"""
-        return self.free_margin.amount >= required_margin.amount
+        return self.free_margin >= required_margin.amount
 
     def reserve_margin(self, amount: Money) -> None:
         """Reserve margin for a new trade"""
         if not self.check_margin_for_trade(amount):
             raise InsufficientBalanceError(
                 required=float(amount.amount),
-                available=float(self.free_margin.amount),
+                available=float(self.free_margin),
                 account_id=self.id.value
             )
         new_margin = Money(self.margin.amount + amount.amount, self.currency)
@@ -92,7 +85,6 @@ class Account:
         object.__setattr__(self, 'balance', new_balance)
         new_equity = Money(self.equity.amount + pnl.amount, self.currency)
         object.__setattr__(self, 'equity', new_equity)
-        self._update_free_margin()
 
     def deactivate(self) -> None:
         """Deactivate account"""
@@ -116,10 +108,10 @@ class Account:
 
     @property
     def margin_level(self) -> Optional[Decimal]:
-        """Calculate margin level percentage"""
+        """Calculate margin level percentage (equity / margin * 100)"""
         if self.margin.amount == 0:
             return None
-        return (self.equity.amount / self.margin.amount) * 100
+        return (self.equity.amount / self.margin.amount) * Decimal("100")
 
     @property
     def is_margin_call(self) -> bool:
