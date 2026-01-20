@@ -1,0 +1,23 @@
+# Development overrides - used automatically with docker-compose up
+# Does NOT use Docker secrets, uses local .env file instead
+version: '3.8'
+
+services:
+  postgres:
+    environment:
+      POSTGRES_PASSWORD: trading_password  # OK for local dev only
+    ports:
+      - "5432:5432"  # Expose for local access
+
+  redis:
+    ports:
+      - "6379:6379"
+
+  api:
+    environment:
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
+    volumes:
+      - .:/app  # Live reload
+    ports:
+      - "8000:8000"
