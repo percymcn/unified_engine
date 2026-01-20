@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 ## Current Position
 
 Phase: 5 of 10 (Infrastructure Adapters) - IN PROGRESS
-Plan: 5/12 complete
+Plan: 4/12 complete
 Status: Wave 2 in progress (3/3 plans complete)
-Last activity: 2026-01-20 — Completed 05-05-PLAN.md
+Last activity: 2026-01-20 — Completed 05-04-PLAN.md
 
-Progress: █████░░░░░ 49%
+Progress: █████░░░░░ 48%
 
 ### Phase 5 Plans - IN PROGRESS
 | Plan | Title | Wave | Status |
@@ -23,7 +23,7 @@ Progress: █████░░░░░ 49%
 | 02 | Entity Mappers | 1 | Complete |
 | 03 | SQLAlchemy Repositories | 2 | Complete |
 | 04 | Unit of Work Implementation | 2 | Complete |
-| 05 | Event Publishers | 2 | Complete |
+| 05 | Event Publishers | 2 | Pending |
 | 06 | TradeLocker Adapter | 3 | Pending |
 | 07 | TopStep Adapter | 3 | Pending |
 | 08 | Tradovate Adapter | 3 | Pending |
@@ -74,9 +74,9 @@ Progress: █████░░░░░ 49%
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 28
+- Total plans completed: 27
 - Average duration: ~5.0 min/plan
-- Total execution time: ~151 min
+- Total execution time: ~147 min
 
 **By Phase:**
 
@@ -86,11 +86,11 @@ Progress: █████░░░░░ 49%
 | 2 | 5 | 25 min | 5 min |
 | 3 | 7 | 43 min | 6.1 min |
 | 4 | 7 | 33 min | 4.7 min |
-| 5 | 5 | 30 min | 6 min |
+| 5 | 4 | 26 min | 6.5 min |
 
 **Recent Trend:**
-- Last 5 plans: 5-01, 5-02, 5-03, 5-04, 5-05
-- Trend: Wave 2 complete (avg 6 min)
+- Last 5 plans: 4-07, 5-01, 5-02, 5-03, 5-04
+- Trend: Wave 2 in progress (avg 6.3 min)
 
 ## Accumulated Context
 
@@ -157,9 +157,10 @@ Recent decisions affecting current work:
 - UnitOfWork manages transaction lifecycle with async context manager (05-04)
 - UnitOfWork provides unified access to all 5 repository types (05-04)
 - Database session created per request/operation, not singleton (05-04)
-- NATS as primary event broker, Redis as fallback (05-05)
-- Event publishers degrade gracefully when message broker unavailable (05-05)
-- CompositeEventPublisher tries publishers in order until one succeeds (05-05)
+- UnitOfWork lazy-initializes repositories to avoid unnecessary object creation (05-04)
+- All repositories share same SQLAlchemy session for transactional consistency (05-04)
+- SessionFactory accepts optional engine parameter for testing flexibility (05-04)
+- Added async_engine to database.py alongside sync engine for backward compatibility (05-04)
 
 ### Pending Todos
 
@@ -176,6 +177,6 @@ From CONCERNS.md codebase audit:
 ## Session Continuity
 
 Last session: 2026-01-20
-Stopped at: Completed 05-05-PLAN.md (Event Publishers)
+Stopped at: Completed 05-04-PLAN.md (Unit of Work Implementation)
 Resume file: None
 Next: Wave 2 complete - Begin Wave 3 with plan 05-06 (TradeLocker Adapter)
