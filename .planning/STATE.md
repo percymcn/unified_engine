@@ -58,9 +58,9 @@ Progress: ████░░░░░░ 38%
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 19
+- Total plans completed: 20
 - Average duration: ~5.5 min/plan
-- Total execution time: ~105 min
+- Total execution time: ~110 min
 
 **By Phase:**
 
@@ -69,10 +69,10 @@ Progress: ████░░░░░░ 38%
 | 1 | 4 | 20 min | 5 min |
 | 2 | 5 | 25 min | 5 min |
 | 3 | 7 | 43 min | 6.1 min |
-| 4 | 3 | 17 min | 5.7 min |
+| 4 | 4 | 22 min | 5.5 min |
 
 **Recent Trend:**
-- Last 5 plans: 3-07, 4-01, 4-02, 4-03, —
+- Last 5 plans: 4-01, 4-02, 4-03, 4-04, —
 - Trend: Very stable (~5-6 min per plan)
 
 ## Accumulated Context
@@ -115,6 +115,10 @@ Recent decisions affecting current work:
 - Use cases return error DTOs instead of raising exceptions (04-03)
 - Query use cases separated from command use cases (CQRS-lite) (04-03)
 - DTO conversion logic contained in use cases via private methods (04-03)
+- PlaceOrderUseCase validates account.is_active and is_connected before placing orders (04-04)
+- ClosePositionUseCase supports partial closes via optional volume parameter (04-04)
+- Read-only use cases (GetPositions, GetTrades) use repositories directly without TradeService (04-04)
+- Use cases map domain exceptions to DTO error responses for graceful degradation (04-04)
 
 ### Pending Todos
 
@@ -131,6 +135,6 @@ From CONCERNS.md codebase audit:
 ## Session Continuity
 
 Last session: 2026-01-20
-Stopped at: Completed 04-03 Signal Use Cases
+Stopped at: Completed 04-04 Trade Use Cases
 Resume file: None
-Next: 04-04 Trade Use Cases
+Next: 04-05 Account Use Cases
