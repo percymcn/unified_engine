@@ -10,17 +10,17 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 ## Current Position
 
 Phase: 8 of 10 (UI Dashboard) - IN PROGRESS
-Plan: 1/4 complete
-Status: Wave 1 in progress
-Last activity: 2026-01-20 - Completed 08-01-PLAN.md
+Plan: 2/4 complete
+Status: Wave 1 complete, Wave 2 next
+Last activity: 2026-01-20 - Completed 08-02-PLAN.md
 
-Progress: █████████░ 71%
+Progress: █████████░ 72%
 
 ### Phase 8 Plans - IN PROGRESS
 | Plan | Title | Wave | Status |
 |------|-------|------|--------|
 | 01 | Signal Status Table | 1 | Complete |
-| 02 | Broker Health Cards | 1 | Pending |
+| 02 | Broker Health Cards | 1 | Complete |
 | 03 | Trade Logs Table | 2 | Pending |
 | 04 | Real-time WebSocket Integration | 3 | Pending |
 
@@ -111,9 +111,9 @@ Progress: █████████░ 71%
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 46
+- Total plans completed: 47
 - Average duration: ~6.9 min/plan
-- Total execution time: ~318 min
+- Total execution time: ~323 min
 
 **By Phase:**
 
@@ -126,11 +126,11 @@ Progress: █████████░ 71%
 | 5 | 14 | 100 min | 7.1 min |
 | 6 | 6 | 48 min | 8.0 min |
 | 7 | 3 | 49 min | 16.3 min |
-| 8 | 1 | 4 min | 4 min |
+| 8 | 2 | 9 min | 4.5 min |
 
 **Recent Trend:**
-- Last 5 plans: 6-06, 7-01, 7-02, 7-03, 8-01
-- Trend: Phase 8 UI components executing very fast (4 min for signals table)
+- Last 5 plans: 7-01, 7-02, 7-03, 8-01, 8-02
+- Trend: Phase 8 UI components executing very fast (4-5 min average)
 
 ## Accumulated Context
 
@@ -263,6 +263,10 @@ Recent decisions affecting current work:
 - Manual refresh pattern for tables until WebSocket integration (08-01)
 - BFF API routes extract auth token from httpOnly cookies for backend proxy (08-01)
 - Custom green styling (bg-green-600) for executed status badges (08-01)
+- Broker names displayed as friendly names (MetaTrader 4, TradeLocker, TopStep) (08-02)
+- Health endpoint requires no authentication for availability monitoring (08-02)
+- Grid responsive: 1 col mobile, 2 col tablet, 5 col desktop (08-02)
+- BFF proxy pattern for backend API calls through /api/* routes (08-02)
 
 ### Pending Todos
 
@@ -283,6 +287,6 @@ From CONCERNS.md codebase audit:
 ## Session Continuity
 
 Last session: 2026-01-20
-Stopped at: Completed 08-01-PLAN.md
+Stopped at: Completed 08-02-PLAN.md
 Resume file: None
-Next: Continue Phase 8 Wave 1 - execute 08-02 (Broker Health Cards)
+Next: Continue Phase 8 Wave 2 - execute 08-03 (Trade Logs Table)
