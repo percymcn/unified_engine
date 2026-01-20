@@ -121,7 +121,7 @@ Full refactor of the trading signal routing engine from organic growth to clean 
   3. Trade execution logs display with date/broker/status filtering
   4. Dashboard updates in real-time without page refresh
 **Research**: Unlikely (WebSocket patterns established in backend)
-**Plans**: TBD
+**Plans**: 4 plans (Wave 1: 01, 02 | Wave 2: 03 | Wave 3: 04)
 
 ### Phase 9: UI Configuration
 **Goal**: Complete account and configuration management
@@ -162,10 +162,10 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 4. Application Layer | 7/7 | Complete | 2026-01-20 |
 | 5. Infrastructure Adapters | 14/14 | Complete | 2026-01-20 |
 | 6. Security Hardening | 6/6 | Complete | 2026-01-20 |
-| 7. UI Foundation | 0/TBD | Not started | - |
-| 8. UI Dashboard | 0/TBD | Not started | - |
+| 7. UI Foundation | 3/3 | Complete | 2026-01-20 |
+| 8. UI Dashboard | 4/4 | Complete | 2026-01-20 |
 | 9. UI Configuration | 0/TBD | Not started | - |
 | 10. Deployment | 0/TBD | Not started | - |
 
 ---
-*Last updated: 2026-01-20 after Phase 6 completion*
+*Last updated: 2026-01-20 after Phase 8 completion*
