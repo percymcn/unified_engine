@@ -340,7 +340,17 @@ configs:
 
 volumes:
   unified_postgres_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /data/unified-engine/postgres
   unified_redis_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /data/unified-engine/redis
 
 secrets:
   db_password:
