@@ -7,6 +7,7 @@ from typing import Optional, List, Dict, Any
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import field_validator
 from functools import lru_cache
+from app.core.secrets import get_secret
 
 class Settings(BaseSettings):
     """Application settings with environment variable support"""
@@ -23,16 +24,18 @@ class Settings(BaseSettings):
     RELOAD: bool = True
     
     # Security
-    SECRET_KEY: str = "your-secret-key-change-in-production"
+    SECRET_KEY: str = ""  # Loaded from secret or env
+    JWT_SECRET_KEY: str = ""  # JWT signing key (separate from SECRET_KEY)
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     # Security - Encryption
     CREDENTIAL_ENCRYPTION_KEY: str = ""  # Required, fail fast if missing
-    
+
     # Database
     DATABASE_URL: str = "postgresql://user:password@localhost/trading_db"
+    DATABASE_PASSWORD: str = ""  # Loaded from secret for URL construction
     DATABASE_POOL_SIZE: int = 10
     DATABASE_MAX_OVERFLOW: int = 20
     
@@ -154,8 +157,57 @@ class Settings(BaseSettings):
     @field_validator("SECRET_KEY", mode="before")
     @classmethod
     def validate_secret_key(cls, v):
+        # Try to load from Docker secret if not provided
+        if not v or v == "your-secret-key-change-in-production":
+            try:
+                v = get_secret("secret_key", default=v or "your-secret-key-change-in-production")
+            except ValueError:
+                pass
+
         if v == "your-secret-key-change-in-production" and os.getenv("ENVIRONMENT") == "production":
             raise ValueError("SECRET_KEY must be changed in production")
+        return v
+
+    @field_validator("JWT_SECRET_KEY", mode="before")
+    @classmethod
+    def validate_jwt_secret(cls, v):
+        # Try to load from Docker secret if not provided
+        if not v:
+            try:
+                return get_secret("jwt_secret")
+            except ValueError:
+                # Fall back to SECRET_KEY if jwt_secret not available
+                # This will be set after SECRET_KEY is validated
+                return ""
+        return v
+
+    @field_validator("CREDENTIAL_ENCRYPTION_KEY", mode="before")
+    @classmethod
+    def validate_encryption_key(cls, v):
+        # Try to load from Docker secret if not provided
+        if not v:
+            try:
+                return get_secret("credential_encryption_key")
+            except ValueError as e:
+                # In production, this is required
+                if os.getenv("ENVIRONMENT") == "production":
+                    raise ValueError(
+                        "CREDENTIAL_ENCRYPTION_KEY is required in production. "
+                        "Create it with: ./scripts/create-secrets.sh"
+                    ) from e
+                # In development, allow empty but warn
+                return ""
+        return v
+
+    @field_validator("DATABASE_PASSWORD", mode="before")
+    @classmethod
+    def load_database_password(cls, v):
+        # Try to load from Docker secret if not provided
+        if not v:
+            try:
+                return get_secret("db_password", default="")
+            except ValueError:
+                return ""
         return v
     
     model_config = SettingsConfigDict(
@@ -163,7 +215,32 @@ class Settings(BaseSettings):
         case_sensitive=True,
         extra="ignore"
     )
-        
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        # If JWT_SECRET_KEY is still empty after validation, fall back to SECRET_KEY
+        if not self.JWT_SECRET_KEY:
+            self.JWT_SECRET_KEY = self.SECRET_KEY
+
+        # If DATABASE_PASSWORD was loaded from secret, reconstruct DATABASE_URL
+        if self.DATABASE_PASSWORD and "password@" not in self.DATABASE_URL:
+            # Parse existing DATABASE_URL and inject password
+            # Format: postgresql://user:password@host:port/db
+            if "://" in self.DATABASE_URL:
+                parts = self.DATABASE_URL.split("://", 1)
+                protocol = parts[0]
+                rest = parts[1]
+
+                if "@" in rest:
+                    userinfo, hostinfo = rest.split("@", 1)
+                    if ":" in userinfo:
+                        user = userinfo.split(":")[0]
+                    else:
+                        user = userinfo
+
+                    self.DATABASE_URL = f"{protocol}://{user}:{self.DATABASE_PASSWORD}@{hostinfo}"
+
     @property
     def is_production(self) -> bool:
         return self.ENVIRONMENT.lower() == "production"
