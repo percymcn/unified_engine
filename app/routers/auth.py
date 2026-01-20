@@ -242,37 +242,20 @@ async def revoke_session(
 
 
 async def verify_api_key(api_key: str = Header(None, alias="X-API-Key"), db: Session = Depends(get_db)) -> User:
-    """Verify API key"""
+    """Verify API key against database"""
     if api_key is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="API key required"
         )
-    
-    # Try database verification first
+
+    # Verify against database
     from app.routers.api_keys import verify_api_key_from_db
     user = await verify_api_key_from_db(api_key, db)
-    
+
     if user:
         return user
-    
-    # Fallback to test key for development
-    if api_key == "test-api-key":
-        test_user = get_user_by_username(db, "api_user")
-        if test_user:
-            return test_user
-        # Create test user if doesn't exist
-        test_user = User(
-            username="api_user",
-            email="api@example.com",
-            hashed_password=get_password_hash("test"),
-            is_active=True
-        )
-        db.add(test_user)
-        db.commit()
-        db.refresh(test_user)
-        return test_user
-    
+
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Invalid API key"
