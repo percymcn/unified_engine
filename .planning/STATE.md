@@ -10,11 +10,20 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 ## Current Position
 
 Phase: 2 of 10 (Test Infrastructure)
-Plan: 0/TBD complete
-Status: Ready to plan
-Last activity: 2026-01-19 — Phase 1 completed (4/4 plans)
+Plan: 0/5 complete
+Status: Ready to execute
+Last activity: 2026-01-19 — Phase 2 planned (5 plans)
 
 Progress: █░░░░░░░░░ 10%
+
+### Phase 2 Plans
+| Plan | Title | Wave | Status |
+|------|-------|------|--------|
+| 01 | Test Infrastructure Setup | 1 | Pending |
+| 02 | Fix Test Collection Errors | 1 | Pending |
+| 03 | Fix Test Failures | 2 | Pending |
+| 04 | Add Broker Error Tests | 2 | Pending |
+| 05 | Verify Test Infrastructure | 3 | Pending |
 
 ### Phase 1 Completed
 | Plan | Title | Wave | Status |
@@ -68,5 +77,5 @@ From CONCERNS.md codebase audit:
 ## Session Continuity
 
 Last session: 2026-01-19
-Stopped at: Phase 1 complete, ready for Phase 2 planning
+Stopped at: Phase 2 planned, ready to execute
 Resume file: None

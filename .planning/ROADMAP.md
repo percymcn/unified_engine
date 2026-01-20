@@ -40,7 +40,7 @@ Full refactor of the trading signal routing engine from organic growth to clean 
   2. All 101 tests pass (or skipped with documented reason)
   3. Broker executor error scenarios have test coverage
 **Research**: Unlikely (fixing existing test setup)
-**Plans**: TBD
+**Plans**: 5 plans (Wave 1: 01, 02 | Wave 2: 03, 04 | Wave 3: 05)
 
 ### Phase 3: Domain Layer
 **Goal**: Pure business logic with no framework dependencies
@@ -157,7 +157,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Stability Fixes | 4/4 | Complete | 2026-01-19 |
-| 2. Test Infrastructure | 0/TBD | Not started | - |
+| 2. Test Infrastructure | 0/5 | Planned | - |
 | 3. Domain Layer | 0/TBD | Not started | - |
 | 4. Application Layer | 0/TBD | Not started | - |
 | 5. Infrastructure Adapters | 0/TBD | Not started | - |
