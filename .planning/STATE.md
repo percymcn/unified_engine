@@ -10,17 +10,17 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 ## Current Position
 
 Phase: 9 of 10 (UI Configuration)
-Plan: 2/4 complete
+Plan: 3/4 complete
 Status: In Progress
-Last activity: 2026-01-20 - Completed 09-03-PLAN.md (API Keys Management)
+Last activity: 2026-01-20 - Completed 09-02-PLAN.md (Signal Routing Configuration)
 
-Progress: ████████████░ 83.7%
+Progress: ████████████░ 85.7%
 
 ### Phase 9 Plans
 | Plan | Title | Wave | Status |
 |------|-------|------|--------|
 | 01 | Account Management Page | 1 | Complete |
-| 02 | Signal Routing Configuration | 2 | Not Started |
+| 02 | Signal Routing Configuration | 2 | Complete |
 | 03 | API Keys Management | 2 | Complete |
 | 04 | Webhook Endpoints Page | 3 | Not Started |
 
@@ -124,9 +124,9 @@ Progress: ████████████░ 83.7%
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 51
-- Average duration: ~7.6 min/plan
-- Total execution time: ~387 min
+- Total plans completed: 52
+- Average duration: ~7.9 min/plan
+- Total execution time: ~412 min
 
 **By Phase:**
 
@@ -140,11 +140,11 @@ Progress: ████████████░ 83.7%
 | 6 | 6 | 48 min | 8.0 min |
 | 7 | 3 | 49 min | 16.3 min |
 | 8 | 4 | 50 min | 12.5 min |
-| 9 | 2 | 23 min | 11.5 min |
+| 9 | 3 | 48 min | 16.0 min |
 
 **Recent Trend:**
-- Last 5 plans: 8-03, 8-04, 9-01, 9-03
-- Trend: Phase 9 progressing with configuration UI (accounts, API keys)
+- Last 5 plans: 8-04, 9-01, 9-02, 9-03
+- Trend: Phase 9 Wave 2 complete (routing + API keys), only webhook endpoints page remains
 
 ## Accumulated Context
 
@@ -305,6 +305,11 @@ Recent decisions affecting current work:
 - One-time secret display pattern: Warning banner, clipboard copy, close confirmation (09-03)
 - Masked credential display: Show only prefix for security (09-03)
 - Empty state with CTA: Icon, description, primary action button (09-03)
+- Routing rules use condition objects with field/operator/value structure (09-02)
+- Priority-based rule evaluation (lowest priority first) for predictable routing (09-02)
+- Webhook keys generated with secrets.token_urlsafe(32) for cryptographic security (09-02)
+- Account ownership validation on config and routing rule targets (09-02)
+- Symbol and action filters optional (empty = accept all signals) (09-02)
 
 ### Pending Todos
 
@@ -325,6 +330,6 @@ From CONCERNS.md codebase audit:
 ## Session Continuity
 
 Last session: 2026-01-20
-Stopped at: Completed 09-03-PLAN.md (API Keys Management)
+Stopped at: Completed 09-02-PLAN.md (Signal Routing Configuration)
 Resume file: None
-Next: Execute Phase 9 remaining plans (09-02: Signal Routing Configuration, 09-04: Webhook Endpoints Page)
+Next: Execute Phase 9 Plan 04 (Webhook Endpoints Page) - final plan in phase
