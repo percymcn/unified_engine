@@ -5,24 +5,24 @@
 See: .planning/PROJECT.md (updated 2026-01-19)
 
 **Core value:** Reliable signal-to-trade execution across all configured brokers with zero missed signals.
-**Current focus:** Phase 8 - UI Dashboard (next)
+**Current focus:** Phase 8 - UI Dashboard - COMPLETE
 
 ## Current Position
 
-Phase: 8 of 10 (UI Dashboard) - IN PROGRESS
-Plan: 3/4 complete
-Status: Wave 2 complete, Wave 3 next
-Last activity: 2026-01-20 - Completed 08-03-PLAN.md
+Phase: 8 of 10 (UI Dashboard) - COMPLETE
+Plan: 4/4 complete
+Status: Phase complete
+Last activity: 2026-01-20 - Completed 08-04-PLAN.md
 
-Progress: █████████░ 75%
+Progress: ██████████ 80%
 
-### Phase 8 Plans - IN PROGRESS
+### Phase 8 Plans - COMPLETE
 | Plan | Title | Wave | Status |
 |------|-------|------|--------|
 | 01 | Signal Status Table | 1 | Complete |
 | 02 | Broker Health Cards | 1 | Complete |
 | 03 | Trade Logs Table | 2 | Complete |
-| 04 | Real-time WebSocket Integration | 3 | Pending |
+| 04 | Real-time WebSocket Integration | 3 | Complete |
 
 ### Phase 8 Wave Structure
 - **Wave 1** (parallel): Plans 01, 02 - Core UI components (signals table, broker health)
@@ -111,9 +111,9 @@ Progress: █████████░ 75%
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 48
-- Average duration: ~7.1 min/plan
-- Total execution time: ~340 min
+- Total plans completed: 49
+- Average duration: ~7.4 min/plan
+- Total execution time: ~364 min
 
 **By Phase:**
 
@@ -126,11 +126,11 @@ Progress: █████████░ 75%
 | 5 | 14 | 100 min | 7.1 min |
 | 6 | 6 | 48 min | 8.0 min |
 | 7 | 3 | 49 min | 16.3 min |
-| 8 | 3 | 26 min | 8.7 min |
+| 8 | 4 | 50 min | 12.5 min |
 
 **Recent Trend:**
-- Last 5 plans: 7-02, 7-03, 8-01, 8-02, 8-03
-- Trend: Phase 8 UI components with filtering taking longer due to shadcn component setup
+- Last 5 plans: 7-03, 8-01, 8-02, 8-03, 8-04
+- Trend: Phase 8 complete with WebSocket integration for real-time updates
 
 ## Accumulated Context
 
@@ -271,6 +271,12 @@ Recent decisions affecting current work:
 - TradeFilters uses controlled state with onChange callback for filter updates (08-03)
 - P/L column color-coded green/red with +/- prefix formatting (08-03)
 - Filters re-fetch trades on change (no debouncing for immediate feedback) (08-03)
+- WebSocket URL auto-constructed from BACKEND_URL or explicit WS_URL env var (08-04)
+- Subscription pattern for type-safe message handling by component (08-04)
+- 30-second heartbeat interval to keep connection alive (08-04)
+- Auto-reconnect with max 10 attempts at 3-second intervals (08-04)
+- 3-second highlight animation for recently updated signals/trades (08-04)
+- 2-second animation for broker status changes (08-04)
 
 ### Pending Todos
 
@@ -291,6 +297,6 @@ From CONCERNS.md codebase audit:
 ## Session Continuity
 
 Last session: 2026-01-20
-Stopped at: Completed 08-03-PLAN.md
+Stopped at: Completed 08-04-PLAN.md (Phase 8 complete)
 Resume file: None
-Next: Continue Phase 8 Wave 3 - execute 08-04 (WebSocket Integration)
+Next: Phase 9 (API hardening / production readiness) or Phase 10 (deployment)
