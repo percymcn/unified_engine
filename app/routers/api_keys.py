@@ -1,6 +1,17 @@
 """
 API Key Management Router
 Handles API key generation, validation, and revocation
+
+MIGRATION NOTE:
+As of Phase 6 security hardening, API keys are now hashed with bcrypt
+instead of SHA256. Existing SHA256-hashed keys will fail verification.
+Users with old keys need to regenerate them.
+
+To migrate without user disruption:
+1. Add a `hash_version` column to ApiKey model
+2. Check hash_version in verify_api_key_from_db
+3. If version=1 (SHA256), verify with hashlib and prompt user to regenerate
+4. If version=2 (bcrypt), verify with pwd_context
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Header
 from sqlalchemy.orm import Session
@@ -19,8 +30,15 @@ router = APIRouter(prefix="/api-keys", tags=["api-keys"])
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def hash_api_key(api_key: str) -> str:
-    """Hash API key for storage"""
-    return hashlib.sha256(api_key.encode()).hexdigest()
+    """
+    Hash API key using bcrypt for secure storage.
+
+    Bcrypt provides:
+    - Automatic unique salt per hash
+    - Configurable work factor (slow by design)
+    - Resistance to rainbow table attacks
+    """
+    return pwd_context.hash(api_key)
 
 def generate_api_key() -> str:
     """Generate a secure API key"""
@@ -142,27 +160,34 @@ async def get_api_key(
     }
 
 async def verify_api_key_from_db(api_key: str, db: Session) -> Optional[User]:
-    """Verify API key against database"""
+    """Verify API key against database using bcrypt."""
     if not api_key:
         return None
-    
-    key_hash = hash_api_key(api_key)
-    
-    db_api_key = db.query(ApiKey).filter(
-        ApiKey.key_hash == key_hash,
-        ApiKey.is_active == True
-    ).first()
-    
-    if not db_api_key:
+
+    # With bcrypt, we can't look up by hash directly
+    # We need to check all active keys (or use a key prefix lookup)
+    # For efficiency, we'll use a key prefix strategy
+
+    # Extract prefix from API key (e.g., first 8 chars after "ue_")
+    if not api_key.startswith("ue_"):
         return None
-    
-    # Check expiration
-    if db_api_key.expires_at and db_api_key.expires_at < datetime.utcnow():
-        return None
-    
-    # Update last used
-    db_api_key.last_used_at = datetime.utcnow()
-    db.commit()
-    
-    # Return user
-    return db.query(User).filter(User.id == db_api_key.user_id).first()
+
+    # Get all active API keys and check each
+    # Note: For high-volume systems, consider adding a key_prefix column
+    active_keys = db.query(ApiKey).filter(ApiKey.is_active == True).all()
+
+    for db_api_key in active_keys:
+        # Check expiration first (faster than bcrypt verify)
+        if db_api_key.expires_at and db_api_key.expires_at < datetime.utcnow():
+            continue
+
+        # Verify bcrypt hash
+        if pwd_context.verify(api_key, db_api_key.key_hash):
+            # Update last used
+            db_api_key.last_used_at = datetime.utcnow()
+            db.commit()
+
+            # Return user
+            return db.query(User).filter(User.id == db_api_key.user_id).first()
+
+    return None
