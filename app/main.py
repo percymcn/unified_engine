@@ -22,7 +22,8 @@ from app.db.database import engine, Base
 
 # Import models so SQLAlchemy can create tables
 # This must be imported before Base.metadata.create_all()
-from app.models import models, enhanced_models  # noqa: F401
+from app.models import models  # noqa: F401
+# Note: enhanced_models not imported - contains extended features not yet in database schema
 
 # Router imports
 from app.routers.auth import router as auth_router
@@ -42,6 +43,7 @@ from app.routers.strategy_execution import router as strategy_execution_router
 from app.routers.oauth import router as oauth_router
 from app.routers.analytics import router as analytics_router
 from app.routers.notifications import router as notifications_router
+from app.routers.webhook_config import router as webhook_config_router
 from app.core.event_emitter import event_emitter
 
 # Configure structured logging
@@ -61,9 +63,15 @@ async def lifespan(app: FastAPI):
     logger.info("🚀 Starting Unified Trading Engine...")
     
     try:
-        # Create database tables
-        Base.metadata.create_all(bind=engine)
-        logger.info("✅ Database tables created")
+        # Create database tables (ignore if already exist)
+        try:
+            Base.metadata.create_all(bind=engine)
+            logger.info("✅ Database tables created")
+        except Exception as e:
+            if "already exists" in str(e):
+                logger.info("✅ Database tables already exist")
+            else:
+                raise
         
         # Initialize Redis connection
         redis_client._connect()
@@ -173,6 +181,7 @@ app.include_router(strategy_execution_router, prefix="/api/v1", tags=["strategy-
 app.include_router(oauth_router, tags=["oauth"])
 app.include_router(analytics_router, tags=["analytics"])
 app.include_router(notifications_router, tags=["notifications"])
+app.include_router(webhook_config_router, prefix="/api/v1", tags=["webhook-configs"])
 
 # WebSocket endpoint
 @app.websocket("/ws")
