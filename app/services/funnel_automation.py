@@ -8,7 +8,7 @@ import logging
 from datetime import datetime, timedelta
 from typing import Dict, List, Any
 import aiohttp
-import aioredis
+from redis import asyncio as aioredis  # Modern redis-py async client
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
