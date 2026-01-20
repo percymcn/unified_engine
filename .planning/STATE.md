@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 ## Current Position
 
 Phase: 5 of 10 (Infrastructure Adapters) - IN PROGRESS
-Plan: 10/12 complete
-Status: Wave 3 complete (5/5 plans), Wave 4 next
-Last activity: 2026-01-20 — Completed 05-10-PLAN.md
+Plan: 11/12 complete
+Status: Wave 4 in progress (1/2 plans complete)
+Last activity: 2026-01-20 — Completed 05-11-PLAN.md
 
-Progress: █████░░░░░ 54%
+Progress: █████░░░░░ 56%
 
 ### Phase 5 Plans - IN PROGRESS
 | Plan | Title | Wave | Status |
@@ -29,7 +29,7 @@ Progress: █████░░░░░ 54%
 | 08 | Tradovate Adapter | 3 | Complete |
 | 09 | MT4 Adapter | 3 | Complete |
 | 10 | MT5 Adapter | 3 | Complete |
-| 11 | DI Container | 4 | Pending |
+| 11 | DI Container | 4 | Complete |
 | 12 | Infrastructure Tests | 4 | Pending |
 
 ### Phase 4 Plans - COMPLETE
@@ -74,9 +74,9 @@ Progress: █████░░░░░ 54%
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 33
+- Total plans completed: 34
 - Average duration: ~5.1 min/plan
-- Total execution time: ~194 min
+- Total execution time: ~199 min
 
 **By Phase:**
 
@@ -86,11 +86,11 @@ Progress: █████░░░░░ 54%
 | 2 | 5 | 25 min | 5 min |
 | 3 | 7 | 43 min | 6.1 min |
 | 4 | 7 | 33 min | 4.7 min |
-| 5 | 10 | 73 min | 7.3 min |
+| 5 | 11 | 78 min | 7.1 min |
 
 **Recent Trend:**
-- Last 5 plans: 5-06, 5-07, 5-08, 5-09, 5-10
-- Trend: Wave 3 complete (avg 7.4 min - broker adapters)
+- Last 5 plans: 5-07, 5-08, 5-09, 5-10, 5-11
+- Trend: Wave 4 started (avg 5 min - infrastructure wiring)
 
 ## Accumulated Context
 
@@ -172,6 +172,12 @@ Recent decisions affecting current work:
 - TopStep uses ProjectXExecutor (TopStep accessed via ProjectX Gateway API) (05-07)
 - TopstepAdapter wraps ProjectXExecutor for domain value object conversion (05-07)
 - Websockets module required for ProjectX Gateway real-time updates (05-07)
+- Container provides repositories directly to use cases (not UnitOfWork in constructors) (05-11)
+- New session created per request via _get_repositories() helper method (05-11)
+- Event publisher is CompositeEventPublisher with NATS primary, Redis fallback (05-11)
+- All 5 broker adapters registered in container by BrokerType enum (05-11)
+- Global container instance accessed via get_container() function (05-11)
+- Container lifecycle integrated with FastAPI startup/shutdown events (05-11)
 
 ### Pending Todos
 
@@ -188,6 +194,6 @@ From CONCERNS.md codebase audit:
 ## Session Continuity
 
 Last session: 2026-01-20
-Stopped at: Completed 05-10-PLAN.md (MT5 Adapter)
+Stopped at: Completed 05-11-PLAN.md (DI Container)
 Resume file: None
-Next: Wave 3 complete - Begin Wave 4 with plan 05-11 (DI Container)
+Next: Wave 4 in progress - Complete Phase 5 with plan 05-12 (Infrastructure Tests)
