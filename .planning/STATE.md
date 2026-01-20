@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 ## Current Position
 
 Phase: 5 of 10 (Infrastructure Adapters) - IN PROGRESS
-Plan: 9/12 complete
-Status: Wave 3 in progress (5/5 plans complete)
-Last activity: 2026-01-20 — Completed 05-09-PLAN.md
+Plan: 10/12 complete
+Status: Wave 3 complete (5/5 plans), Wave 4 next
+Last activity: 2026-01-20 — Completed 05-10-PLAN.md
 
-Progress: █████░░░░░ 53%
+Progress: █████░░░░░ 54%
 
 ### Phase 5 Plans - IN PROGRESS
 | Plan | Title | Wave | Status |
@@ -74,9 +74,9 @@ Progress: █████░░░░░ 53%
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 32
-- Average duration: ~5.2 min/plan
-- Total execution time: ~187 min
+- Total plans completed: 33
+- Average duration: ~5.1 min/plan
+- Total execution time: ~194 min
 
 **By Phase:**
 
@@ -86,11 +86,11 @@ Progress: █████░░░░░ 53%
 | 2 | 5 | 25 min | 5 min |
 | 3 | 7 | 43 min | 6.1 min |
 | 4 | 7 | 33 min | 4.7 min |
-| 5 | 9 | 66 min | 7.3 min |
+| 5 | 10 | 73 min | 7.3 min |
 
 **Recent Trend:**
 - Last 5 plans: 5-06, 5-07, 5-08, 5-09, 5-10
-- Trend: Wave 3 complete (avg 8 min - broker adapters)
+- Trend: Wave 3 complete (avg 7.4 min - broker adapters)
 
 ## Accumulated Context
 
@@ -165,6 +165,10 @@ Recent decisions affecting current work:
 - MT4 cmd integers (0-5) mapped to domain OrderType enum for type safety (05-09)
 - Broker adapters handle both dict and Pydantic model responses from executors (05-09)
 - Broker adapters raise domain exceptions for consistent error contracts (05-09)
+- MT5Adapter wraps MT5Executor without duplicating API logic (05-10)
+- Credentials passed via authenticate() with account_id for multi-account support (05-10)
+- Domain exceptions raised for broker errors (BrokerConnectionError, InvalidOrderError, etc.) (05-10)
+- Adapter pattern uses _executor instance variable and _to_domain_* conversion methods (05-10)
 
 ### Pending Todos
 
@@ -181,6 +185,6 @@ From CONCERNS.md codebase audit:
 ## Session Continuity
 
 Last session: 2026-01-20
-Stopped at: Completed 05-09-PLAN.md (MT4 Adapter)
+Stopped at: Completed 05-10-PLAN.md (MT5 Adapter)
 Resume file: None
 Next: Wave 3 complete - Begin Wave 4 with plan 05-11 (DI Container)
