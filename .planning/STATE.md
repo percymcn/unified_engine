@@ -10,17 +10,17 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 ## Current Position
 
 Phase: 7 of 10 (UI Foundation) - IN PROGRESS
-Plan: 1/5 complete
-Status: Plan 07-01 complete
-Last activity: 2026-01-20 - Completed 07-01-PLAN.md
+Plan: 2/5 complete
+Status: Plan 07-02 complete
+Last activity: 2026-01-20 - Completed 07-02-PLAN.md
 
-Progress: ████████░░ 68%
+Progress: █████████░ 70%
 
 ### Phase 7 Plans - IN PROGRESS
 | Plan | Title | Wave | Status |
 |------|-------|------|--------|
 | 01 | Next.js Foundation | 1 | Complete |
-| 02 | Auth Pages | 1 | Pending |
+| 02 | Auth Pages | 1 | Complete |
 | 03 | Dashboard Layout | 2 | Pending |
 | 04 | Account Management | 2 | Pending |
 | 05 | Signal Display | 3 | Pending |
@@ -100,9 +100,9 @@ Progress: ████████░░ 68%
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 44
-- Average duration: ~6.7 min/plan
-- Total execution time: ~306 min
+- Total plans completed: 45
+- Average duration: ~7.0 min/plan
+- Total execution time: ~314 min
 
 **By Phase:**
 
@@ -114,11 +114,11 @@ Progress: ████████░░ 68%
 | 4 | 7 | 33 min | 4.7 min |
 | 5 | 14 | 100 min | 7.1 min |
 | 6 | 6 | 48 min | 8.0 min |
-| 7 | 1 | 37 min | 37 min |
+| 7 | 2 | 45 min | 22.5 min |
 
 **Recent Trend:**
-- Last 5 plans: 6-04, 6-05, 6-06, 7-01
-- Trend: Phase 7 started with UI foundation (37 min - npm install heavy)
+- Last 5 plans: 6-05, 6-06, 7-01, 7-02
+- Trend: Phase 7 UI plans executing smoothly (8 min for auth pages)
 
 ## Accumulated Context
 
@@ -242,6 +242,11 @@ Recent decisions affecting current work:
 - Dark theme in :root (default), light in .light class (07-01)
 - Cyan/teal primary accent (hsl 160 84% 39%) (07-01)
 - className='dark' on html element for explicit dark mode (07-01)
+- httpOnly cookies for JWT storage instead of localStorage - XSS protection (07-02)
+- BFF pattern - Next.js proxies auth to FastAPI backend, hides backend URL from client (07-02)
+- Cookie presence check in middleware, token validation server-side via /api/auth/me (07-02)
+- Form-urlencoded format for backend login compatibility (07-02)
+- AUTH_COOKIE_NAME constant shared between auth.ts and routes (07-02)
 
 ### Pending Todos
 
@@ -262,6 +267,6 @@ From CONCERNS.md codebase audit:
 ## Session Continuity
 
 Last session: 2026-01-20
-Stopped at: Completed 07-01-PLAN.md
+Stopped at: Completed 07-02-PLAN.md
 Resume file: None
-Next: Execute plan 07-02 (Auth Pages)
+Next: Execute plan 07-03 (Dashboard Layout)
