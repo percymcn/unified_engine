@@ -217,14 +217,17 @@ services:
         reservations:
           memory: 128M
 
-  # React UI
+  # Next.js UI
   ui:
-    image: 192.168.1.254:5000/unified-engine/ui:latest
+    image: 192.168.1.254:5000/unified-engine/ui-next:latest
     build:
-      context: ./ui
+      context: ./ui-next
       dockerfile: Dockerfile
+    environment:
+      - NEXT_PUBLIC_API_URL=http://api:8000
+      - BACKEND_URL=http://api:8000
     ports:
-      - "3411:80"
+      - "3411:3000"
     networks:
       - unified-network
     deploy:
@@ -236,6 +239,12 @@ services:
           memory: 256M
         reservations:
           memory: 128M
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   # Funnel Automation Service
   funnel-automation:
