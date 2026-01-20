@@ -42,6 +42,26 @@ class OAuthService:
             raise
 
     @staticmethod
+    def get_decrypted_tokens(oauth_account: OAuthAccount) -> tuple[str, Optional[str]]:
+        """
+        Get decrypted OAuth tokens for API calls.
+
+        Args:
+            oauth_account: OAuthAccount with encrypted tokens
+
+        Returns:
+            Tuple of (access_token, refresh_token) decrypted
+
+        Raises:
+            EncryptionError: If decryption fails
+        """
+        access_token = OAuthService._decrypt_token(oauth_account.access_token)
+        refresh_token = None
+        if oauth_account.refresh_token:
+            refresh_token = OAuthService._decrypt_token(oauth_account.refresh_token)
+        return access_token, refresh_token
+
+    @staticmethod
     async def get_google_user_info(access_token: str) -> Dict[str, Any]:
         """Get user info from Google"""
         async with httpx.AsyncClient() as client:
