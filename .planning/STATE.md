@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 ## Current Position
 
 Phase: 3 of 10 (Domain Layer) - IN PROGRESS
-Plan: 5/7 complete
-Status: Wave 4 complete - Port interfaces created for hexagonal architecture
-Last activity: 2026-01-20 — Completed 03-05-PLAN.md (Repository Ports)
+Plan: 6/7 complete
+Status: Wave 5 complete - Domain services with business logic orchestration
+Last activity: 2026-01-20 — Completed 03-06-PLAN.md (Domain Services)
 
-Progress: ██████░░░░ 50%
+Progress: ██████░░░░ 52%
 
 ### Phase 3 Plans - IN PROGRESS
 | Plan | Title | Wave | Status |
@@ -24,8 +24,8 @@ Progress: ██████░░░░ 50%
 | 03 | Trading Domain Entities | 3 | Complete |
 | 04 | Account & Position Entities | 3 | Complete |
 | 05 | Repository Ports | 4 | Complete |
-| 06 | Broker Ports | 3 | Pending |
-| 07 | Domain Services | 4 | Pending |
+| 06 | Domain Services | 5 | Complete |
+| 07 | Domain Tests | 5 | Pending |
 | 08 | Domain Tests | 5 | Pending |
 | 09 | Verify Domain Layer | 6 | Pending |
 
@@ -49,9 +49,9 @@ Progress: ██████░░░░ 50%
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 14
+- Total plans completed: 15
 - Average duration: ~5 min/plan
-- Total execution time: ~76 min
+- Total execution time: ~80 min
 
 **By Phase:**
 
@@ -59,11 +59,11 @@ Progress: ██████░░░░ 50%
 |-------|-------|-------|----------|
 | 1 | 4 | 20 min | 5 min |
 | 2 | 5 | 25 min | 5 min |
-| 3 | 5 | 31 min | 6.2 min |
+| 3 | 6 | 35 min | 5.8 min |
 
 **Recent Trend:**
-- Last 5 plans: 3-01, 3-02, 3-03, 3-04, 3-05
-- Trend: Very stable (~5-6 min per plan)
+- Last 5 plans: 3-02, 3-03, 3-04, 3-05, 3-06
+- Trend: Very stable (~4-6 min per plan)
 
 ## Accumulated Context
 
@@ -90,6 +90,10 @@ Recent decisions affecting current work:
 - BrokerPort mirrors BaseExecutor but uses domain types (Symbol, Volume, Price, OrderId) (03-05)
 - Repository interfaces use domain entities as return types (Signal, Trade, Order, etc.) (03-05)
 - All ports are ABC with @abstractmethod - no implementation code in domain layer (03-05)
+- SignalService routes signals to connected accounts through BrokerPort interface (03-06)
+- TradeService performs margin checks before placing orders through broker (03-06)
+- Domain services publish events through EventPort for observability (03-06)
+- All service dependencies injected through constructor (no global state) (03-06)
 
 ### Pending Todos
 
@@ -106,6 +110,6 @@ From CONCERNS.md codebase audit:
 ## Session Continuity
 
 Last session: 2026-01-20
-Stopped at: Completed 03-05-PLAN.md
+Stopped at: Completed 03-06-PLAN.md
 Resume file: None
-Next: 03-06 (Broker Ports)
+Next: 03-07 (Domain Tests)
