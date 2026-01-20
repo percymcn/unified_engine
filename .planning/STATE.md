@@ -169,6 +169,9 @@ Recent decisions affecting current work:
 - Credentials passed via authenticate() with account_id for multi-account support (05-10)
 - Domain exceptions raised for broker errors (BrokerConnectionError, InvalidOrderError, etc.) (05-10)
 - Adapter pattern uses _executor instance variable and _to_domain_* conversion methods (05-10)
+- TopStep uses ProjectXExecutor (TopStep accessed via ProjectX Gateway API) (05-07)
+- TopstepAdapter wraps ProjectXExecutor for domain value object conversion (05-07)
+- Websockets module required for ProjectX Gateway real-time updates (05-07)
 
 ### Pending Todos
 
