@@ -10,19 +10,19 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 ## Current Position
 
 Phase: 10 of 10 (Deployment)
-Plan: 2/4 complete
-Status: In Progress
-Last activity: 2026-01-20 - Completed 10-02-PLAN.md
+Plan: 4/4 complete
+Status: PHASE COMPLETE
+Last activity: 2026-01-20 - Completed 10-04-PLAN.md
 
-Progress: ███████████████░ 96.7%
+Progress: ████████████████ 100%
 
-### Phase 10 Plans - IN PROGRESS
+### Phase 10 Plans - COMPLETE
 | Plan | Title | Wave | Status |
 |------|-------|------|--------|
 | 01 | Next.js Production Dockerfile | 1 | Complete |
 | 02 | Docker Secrets Integration | 2 | Complete |
 | 03 | Environment Configuration | 2 | Complete |
-| 04 | Docker Stack Update and Health Checks | 3 | Ready |
+| 04 | Docker Stack Update and Health Checks | 3 | Complete |
 
 ### Phase 10 Wave Structure
 - **Wave 1**: Plan 01 - Create ui-next Dockerfile (required before stack update)
@@ -144,9 +144,9 @@ Progress: ███████████████░ 96.7%
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 58
-- Average duration: ~8.1 min/plan
-- Total execution time: ~474 min
+- Total plans completed: 60
+- Average duration: ~8.0 min/plan
+- Total execution time: ~480 min
 
 **By Phase:**
 
@@ -161,11 +161,11 @@ Progress: ███████████████░ 96.7%
 | 7 | 3 | 49 min | 16.3 min |
 | 8 | 4 | 50 min | 12.5 min |
 | 9 | 4 | 78 min | 19.5 min |
-| 10 | 2 | 18 min | 9 min |
+| 10 | 4 | 24 min | 6 min |
 
 **Recent Trend:**
-- Last 5 plans: 9-03, 9-04, 10-01, 10-02
-- Trend: Phase 10 Wave 2 in progress (2/4 deployment plans complete), secrets infrastructure complete
+- Last 5 plans: 9-04, 10-01, 10-02, 10-03, 10-04
+- Trend: Phase 10 complete (4/4 deployment plans), production stack ready
 
 ## Accumulated Context
 
@@ -351,6 +351,12 @@ Recent decisions affecting current work:
 - Staging/production require Docker Swarm secrets (10-03)
 - Environment variables loaded via load-env.sh script (10-03)
 - docker-compose.override.yml automatically used by docker-compose up (10-03)
+- All services have health checks for Swarm orchestration (10-04)
+- Bind mount volumes to /data/unified-engine for persistence across restarts (10-04)
+- Nginx routes /api to backend, /ws to WebSocket, / to UI (10-04)
+- UI service updated to ui-next (Next.js) on port 3000 (10-04)
+- Health check intervals: 30s for most services, 60s for celery (10-04)
+- Docker configs use versioned names (v2) for zero-downtime updates (10-04)
 
 ### Pending Todos
 
@@ -371,6 +377,6 @@ From CONCERNS.md codebase audit:
 ## Session Continuity
 
 Last session: 2026-01-20
-Stopped at: Completed 10-02-PLAN.md (Docker Secrets Integration)
+Stopped at: Completed 10-04-PLAN.md (Docker Stack Update and Health Checks)
 Resume file: None
-Next: Execute 10-04 (Docker Stack Update) to complete Phase 10
+Status: ALL PHASES COMPLETE - Production deployment ready
