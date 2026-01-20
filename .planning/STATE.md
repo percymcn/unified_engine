@@ -5,16 +5,25 @@
 See: .planning/PROJECT.md (updated 2026-01-19)
 
 **Core value:** Reliable signal-to-trade execution across all configured brokers with zero missed signals.
-**Current focus:** Phase 7 — UI Foundation (next)
+**Current focus:** Phase 7 - UI Foundation (in progress)
 
 ## Current Position
 
-Phase: 6 of 10 (Security Hardening) - COMPLETE
-Plan: 6/6 complete
-Status: All waves complete, Phase 6 finished
-Last activity: 2026-01-20 — Completed 06-06-PLAN.md
+Phase: 7 of 10 (UI Foundation) - IN PROGRESS
+Plan: 1/5 complete
+Status: Plan 07-01 complete
+Last activity: 2026-01-20 - Completed 07-01-PLAN.md
 
-Progress: ███████░░░ 66%
+Progress: ████████░░ 68%
+
+### Phase 7 Plans - IN PROGRESS
+| Plan | Title | Wave | Status |
+|------|-------|------|--------|
+| 01 | Next.js Foundation | 1 | Complete |
+| 02 | Auth Pages | 1 | Pending |
+| 03 | Dashboard Layout | 2 | Pending |
+| 04 | Account Management | 2 | Pending |
+| 05 | Signal Display | 3 | Pending |
 
 ### Phase 6 Plans - COMPLETE
 | Plan | Title | Wave | Status |
@@ -27,9 +36,9 @@ Progress: ███████░░░ 66%
 | 06 | Security Integration Tests | 3 | Complete |
 
 ### Phase 6 Wave Structure
-- **Wave 1** (parallel): Plans 01, 02 — Foundation (encryption service + DB model)
-- **Wave 2** (parallel): Plans 03, 04, 05 — Implementation (credential repo, OAuth, API keys)
-- **Wave 3**: Plan 06 — Verification (integration tests)
+- **Wave 1** (parallel): Plans 01, 02 - Foundation (encryption service + DB model)
+- **Wave 2** (parallel): Plans 03, 04, 05 - Implementation (credential repo, OAuth, API keys)
+- **Wave 3**: Plan 06 - Verification (integration tests)
 
 ### Phase 5 Plans - COMPLETE
 | Plan | Title | Wave | Status |
@@ -91,9 +100,9 @@ Progress: ███████░░░ 66%
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 43
-- Average duration: ~6.2 min/plan
-- Total execution time: ~269 min
+- Total plans completed: 44
+- Average duration: ~6.7 min/plan
+- Total execution time: ~306 min
 
 **By Phase:**
 
@@ -105,10 +114,11 @@ Progress: ███████░░░ 66%
 | 4 | 7 | 33 min | 4.7 min |
 | 5 | 14 | 100 min | 7.1 min |
 | 6 | 6 | 48 min | 8.0 min |
+| 7 | 1 | 37 min | 37 min |
 
 **Recent Trend:**
-- Last 5 plans: 6-02, 6-03, 6-04, 6-05, 6-06
-- Trend: Phase 6 complete (avg 8.0 min - security hardening with comprehensive testing)
+- Last 5 plans: 6-04, 6-05, 6-06, 7-01
+- Trend: Phase 7 started with UI foundation (37 min - npm install heavy)
 
 ## Accumulated Context
 
@@ -123,7 +133,7 @@ Recent decisions affecting current work:
 - All 5 broker integrations must work
 - Domain layer strictly isolated from FastAPI, SQLAlchemy, and all frameworks (03-01)
 - Domain exceptions include context dict for rich error information (03-01)
-- Three-tier exception hierarchy: DomainException → Category → Specific (03-01)
+- Three-tier exception hierarchy: DomainException -> Category -> Specific (03-01)
 - All enums inherit from (str, Enum) for automatic JSON serialization (03-02)
 - Money uses Decimal for precise financial calculations (03-02)
 - All value objects are frozen (immutable) dataclasses (03-02)
@@ -164,13 +174,13 @@ Recent decisions affecting current work:
 - Infrastructure layer package structure follows hexagonal architecture principles (05-01)
 - Each infrastructure subpackage reserved for specific adapter types (broker, repository, event, persistence) (05-01)
 - Infrastructure layer depends on domain, never the reverse (05-01)
-- Mappers handle field name differences between ORM and domain (quantity→volume, entry_price→open_price) (05-02)
+- Mappers handle field name differences between ORM and domain (quantity->volume, entry_price->open_price) (05-02)
 - Enum mapping uses explicit dictionaries for clarity and maintainability (05-02)
 - Money value objects use abs() for non-negative constraint, preserve sign in calculations (05-02)
 - Status can be inferred from timestamps when ORM lacks explicit status field (05-02)
-- OrderType combines ORM OrderType + OrderSide (MARKET+BUY → BUY, LIMIT+SELL → SELL_LIMIT) (05-02)
+- OrderType combines ORM OrderType + OrderSide (MARKET+BUY -> BUY, LIMIT+SELL -> SELL_LIMIT) (05-02)
 - SQLAlchemy repositories implement repository ports using async session (05-03)
-- Repositories use mappers for bidirectional ORM↔Domain conversion (05-03)
+- Repositories use mappers for bidirectional ORM<->Domain conversion (05-03)
 - Repository methods raise DomainException subclasses for consistency with domain layer (05-03)
 - UnitOfWork manages transaction lifecycle with async context manager (05-04)
 - UnitOfWork provides unified access to all 5 repository types (05-04)
@@ -227,6 +237,11 @@ Recent decisions affecting current work:
 - All SQLAlchemy models use extend_existing=True for test isolation (06-06)
 - Security tests organized by requirement (SEC-XX) for clear traceability (06-06)
 - 14 integration tests verify encryption, persistence, OAuth, and bcrypt requirements (06-06)
+- Next.js 14.2.35 (not 15) for stability (07-01)
+- shadcn/ui new-york style with slate base color (07-01)
+- Dark theme in :root (default), light in .light class (07-01)
+- Cyan/teal primary accent (hsl 160 84% 39%) (07-01)
+- className='dark' on html element for explicit dark mode (07-01)
 
 ### Pending Todos
 
@@ -235,17 +250,18 @@ None yet.
 ### Blockers/Concerns
 
 From CONCERNS.md codebase audit:
-- ~~aioredis deprecated (causes crash) — Phase 1~~ FIXED
-- ~~Hardcoded encryption key — Phase 6 (Plan 01)~~ FIXED
-- ~~90/101 tests failing — Phase 2~~ FIXED (173 tests now collected)
-- ~~In-memory credential storage — Phase 6 (Plan 02)~~ FIXED (database model + migration created)
-- ~~credential_router.py uses in-memory dict and runtime Fernet.generate_key() — Phase 6 (Plan 03)~~ FIXED (database repository with env key)
-- Alembic has multiple heads (001 and 002) — may need merging in future
+- ~~aioredis deprecated (causes crash) - Phase 1~~ FIXED
+- ~~Hardcoded encryption key - Phase 6 (Plan 01)~~ FIXED
+- ~~90/101 tests failing - Phase 2~~ FIXED (173 tests now collected)
+- ~~In-memory credential storage - Phase 6 (Plan 02)~~ FIXED (database model + migration created)
+- ~~credential_router.py uses in-memory dict and runtime Fernet.generate_key() - Phase 6 (Plan 03)~~ FIXED (database repository with env key)
+- Alembic has multiple heads (001 and 002) - may need merging in future
 - asyncpg not installed (gracefully degraded, async operations won't work)
+- npm audit shows 3 high severity vulnerabilities in ui-next (eslint-related, dev-only)
 
 ## Session Continuity
 
 Last session: 2026-01-20
-Stopped at: Phase 6 verification passed
+Stopped at: Completed 07-01-PLAN.md
 Resume file: None
-Next: Plan Phase 7 (UI Foundation) with `/gsd:plan-phase 7`
+Next: Execute plan 07-02 (Auth Pages)
