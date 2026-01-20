@@ -1,12 +1,16 @@
 """
 Application Interfaces
 
-Interfaces that the application layer depends on for:
-- Unit of Work pattern (transaction management)
-- External service contracts
-- Cross-cutting concerns
-
+Abstract interfaces that the application layer depends on.
 These are implemented by the infrastructure layer.
 """
 
-__all__ = []
+from app.application.interfaces.unit_of_work import (
+    UnitOfWork,
+    UnitOfWorkFactory,
+)
+
+__all__ = [
+    "UnitOfWork",
+    "UnitOfWorkFactory",
+]
