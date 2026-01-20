@@ -102,7 +102,7 @@ export function useWebSocket(
                 data: { client_time: new Date().toISOString() },
                 timestamp: new Date().toISOString(),
               }));
-            } catch (e) {
+            } catch {
               // Ignore send errors during heartbeat
             }
           }
