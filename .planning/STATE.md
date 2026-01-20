@@ -212,6 +212,11 @@ Recent decisions affecting current work:
 - Soft delete pattern with is_active boolean for credential lifecycle management (06-02)
 - Composite index on user_id and service for efficient credential lookups (06-02)
 - Async engine creation wrapped in try/except for graceful degradation without drivers (06-02)
+- CredentialRepository uses centralized encryption service for all encrypt/decrypt operations (06-03)
+- Repository pattern applied to credential persistence with SQLAlchemy async session (06-03)
+- Dependency injection used for CredentialManager with per-request session lifecycle (06-03)
+- Audit logs kept in-memory for now, credential persistence prioritized (06-03)
+- AsyncSessionLocal factory with expire_on_commit=False for proper async session management (06-03)
 - Bcrypt hashing for API keys instead of SHA256 (rainbow table protection) (06-05)
 - Iterate active keys for bcrypt verification (can't do direct hash lookup) (06-05)
 - Breaking change: existing SHA256 hashes won't verify (documented migration path) (06-05)
@@ -231,13 +236,13 @@ From CONCERNS.md codebase audit:
 - ~~Hardcoded encryption key — Phase 6 (Plan 01)~~ FIXED
 - ~~90/101 tests failing — Phase 2~~ FIXED (173 tests now collected)
 - ~~In-memory credential storage — Phase 6 (Plan 02)~~ FIXED (database model + migration created)
-- credential_router.py still uses in-memory dict and runtime Fernet.generate_key() — will be fixed in 06-03
+- ~~credential_router.py uses in-memory dict and runtime Fernet.generate_key() — Phase 6 (Plan 03)~~ FIXED (database repository with env key)
 - Alembic has multiple heads (001 and 002) — may need merging in future
 - asyncpg not installed (gracefully degraded, async operations won't work)
 
 ## Session Continuity
 
 Last session: 2026-01-20
-Stopped at: Completed 06-04-PLAN.md (OAuth Token Encryption)
+Stopped at: Completed 06-03-PLAN.md (Credential Repository Migration)
 Resume file: None
-Next: Wave 2 complete. Execute Wave 3 plan (06) with `/gsd:execute-plan 06`
+Next: Wave 2 in progress (Plans 03, 04, 05 parallel execution)
