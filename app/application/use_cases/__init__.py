@@ -9,4 +9,14 @@ specific application tasks. They:
 - Handle application-level error mapping
 """
 
-__all__ = []
+from app.application.use_cases.process_signal import ProcessSignalUseCase
+from app.application.use_cases.get_signals import (
+    GetSignalUseCase,
+    ListSignalsUseCase,
+)
+
+__all__ = [
+    "ProcessSignalUseCase",
+    "GetSignalUseCase",
+    "ListSignalsUseCase",
+]
