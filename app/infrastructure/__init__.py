@@ -6,28 +6,21 @@ Implements domain ports with concrete adapters:
 - repositories/: SQLAlchemy implementations (Repository ports)
 - persistence/: Unit of Work (transaction management)
 - events/: Event publishers (EventPort)
-- container.py: DI wiring
-"""
-from app.infrastructure.container import (
-    Container,
-    get_container,
-    initialize_container,
-    shutdown_container,
-)
+- container.py: DI wiring (import explicitly when needed)
 
-# Re-export subpackages for convenience
-from app.infrastructure import adapters
-from app.infrastructure import repositories
-from app.infrastructure import persistence
-from app.infrastructure import events
+IMPORTANT: Do not import container at module level to avoid SQLAlchemy model conflicts.
+Container imports all adapters and repositories, which triggers database_models.py loading.
+If container is imported alongside routes (which import models.py), SQLAlchemy will raise
+"Table already defined" errors due to duplicate User table definitions.
+
+To use container, import explicitly:
+    from app.infrastructure.container import get_container
+"""
+
+# Don't import container at module level to avoid triggering model imports
+# Container should be imported explicitly in main.py/startup only
 
 __all__ = [
-    # Container
-    "Container",
-    "get_container",
-    "initialize_container",
-    "shutdown_container",
-    # Subpackages
     "adapters",
     "repositories",
     "persistence",
