@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Menu, X, Zap } from "lucide-react";
+import { Menu, Zap } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {

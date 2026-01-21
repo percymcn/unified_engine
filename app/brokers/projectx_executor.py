@@ -1,358 +1,476 @@
 """
 ProjectX/TopStep Broker Executor
-Handles all ProjectX and TopStep trading operations via Gateway API
+Supports both official SDK and custom httpx implementation.
+
+Dual-mode executor:
+- SDK mode: Uses official project-x-py SDK (preferred)
+- Custom mode: Uses httpx + websockets (fallback)
 """
+
 import asyncio
 import json
 import logging
 from typing import Dict, List, Optional, Any
 from datetime import datetime
-import httpx
-import websockets
+
 from app.brokers.base_executor import BaseExecutor
 from app.core.config import settings
 from app.models.pydantic_schemas import (
-    OrderRequest, OrderResponse, Position, Account, 
+    OrderRequest, OrderResponse, Position, Account,
     TradeRequest, TradeResponse
 )
 
 logger = logging.getLogger(__name__)
 
+# Try to import SDK service
+try:
+    from app.services.projectx_sdk_service import ProjectXSDKService, SDK_AVAILABLE
+except ImportError:
+    SDK_AVAILABLE = False
+    ProjectXSDKService = None
+    logger.warning("project-x-py SDK not available, using httpx fallback")
+
+
 class ProjectXExecutor(BaseExecutor):
-    """ProjectX/TopStep trading executor using Gateway API"""
-    
-    def __init__(self):
-        config = settings.get_broker_config("projectx")
+    """
+    ProjectX/TopStep trading executor.
+
+    Supports two modes:
+    - SDK mode: Uses official project-x-py SDK (preferred)
+    - Custom mode: Uses httpx + websockets (fallback)
+    """
+
+    def __init__(
+        self,
+        account_id: Optional[str] = None,
+        username: Optional[str] = None,
+        api_key: Optional[str] = None,
+        use_sdk: bool = True,
+    ):
+        """
+        Initialize ProjectX executor.
+
+        Args:
+            account_id: Optional account ID to use
+            username: TopStep username (for SDK mode)
+            api_key: TopStep API key (for both modes)
+            use_sdk: Whether to prefer SDK mode (default True)
+        """
+        # Get config from settings
+        config = settings.get_broker_config("projectx") if hasattr(settings, 'get_broker_config') else {}
         super().__init__(config)
+
         self.config = config
-        self.api_url = self.config.get("api_url")
-        self.ws_url = self.config.get("ws_url")
-        self.api_token = self.config.get("api_token")
-        self.environment = self.config.get("environment", "demo")
-        self.session = None
-        self.ws_connection = None
+        self._account_id = account_id
+
+        # Credentials - prefer parameters, then settings
+        self._username = username or getattr(settings, 'PROJECT_X_USERNAME', None) or config.get("username")
+        self._api_key = api_key or getattr(settings, 'PROJECT_X_API_KEY', None) or config.get("api_token") or config.get("api_key")
+
+        # SDK service (preferred mode)
+        self._sdk_service: Optional[Any] = None
+        self._use_sdk = use_sdk and SDK_AVAILABLE
+
+        # Fallback httpx client
+        self._session = None
+        self._ws_connection = None
+        self._is_connected = False
+
+        # API URL for httpx fallback
+        self._api_url = config.get("api_url", "https://gateway-api.s2f.projectx.com/api")
 
         # Check for required credentials
-        self.is_available = bool(self.api_token)
+        self.is_available = bool(self._api_key and self._username) if self._use_sdk else bool(self._api_key)
         if not self.is_available:
-            logger.warning("ProjectX executor disabled: API token not configured")
-        
+            logger.warning("ProjectX executor disabled: credentials not configured")
+
+    @property
+    def is_using_sdk(self) -> bool:
+        """Check if using official SDK."""
+        return self._use_sdk and self._sdk_service is not None and self._sdk_service.is_connected
+
     async def initialize(self) -> bool:
-        """Initialize ProjectX connection"""
+        """Initialize ProjectX connection."""
         if not self.is_available:
             logger.info("ProjectX skipped: credentials not configured")
             return False
 
+        # Try SDK first
+        if self._use_sdk and SDK_AVAILABLE and ProjectXSDKService is not None:
+            try:
+                self._sdk_service = ProjectXSDKService(
+                    username=self._username,
+                    api_key=self._api_key,
+                )
+
+                success = await self._sdk_service.connect()
+                if success:
+                    self._is_connected = True
+                    logger.info("ProjectX executor initialized via SDK")
+                    return True
+                else:
+                    logger.warning("SDK connection failed, falling back to httpx")
+                    self._sdk_service = None
+            except Exception as e:
+                logger.warning(f"SDK init failed: {e}, falling back to httpx")
+                self._sdk_service = None
+
+        # Fallback to custom httpx implementation
+        return await self._initialize_httpx()
+
+    async def _initialize_httpx(self) -> bool:
+        """Initialize using custom httpx client (fallback)."""
         try:
-            # Initialize HTTP client
-            self.session = httpx.AsyncClient(
-                base_url=self.api_url,
-                headers={"Authorization": f"Bearer {self.api_token}"},
+            import httpx
+
+            self._session = httpx.AsyncClient(
+                base_url=self._api_url,
                 timeout=30.0
             )
-            
-            # Test connection
-            response = await self.session.get("/auth/validate")
-            if response.status_code == 200:
-                
-                # Initialize WebSocket connection
-                await self._init_websocket()
-                
-                self.is_connected = True
-                logger.info("ProjectX executor initialized successfully")
-                return True
-            else:
-                logger.error(f"ProjectX auth failed: {response.text}")
-                return False
-                
-        except Exception as e:
-            logger.error(f"ProjectX initialization failed: {e}")
-            return False
-    
-    async def _init_websocket(self):
-        """Initialize WebSocket connection"""
-        try:
-            self.ws_connection = await websockets.connect(
-                self.ws_url,
-                extra_headers={"Authorization": f"Bearer {self.api_token}"}
+
+            # Authenticate via ProjectX Gateway API
+            auth_response = await self._session.post(
+                "/Auth/loginKey",
+                json={"userName": self._username, "apiKey": self._api_key},
+                headers={"Content-Type": "application/json", "Accept": "text/plain"}
             )
-            
-            # Start WebSocket message handler
-            asyncio.create_task(self._handle_websocket_messages())
-            
+
+            if auth_response.status_code == 200:
+                # Response is typically plain text token or JSON
+                content_type = auth_response.headers.get("content-type", "")
+                if content_type.startswith("application/json"):
+                    token_data = auth_response.json()
+                else:
+                    token_data = {"token": auth_response.text.strip()}
+
+                token = token_data.get("token") or token_data.get("accessToken")
+
+                if token:
+                    self._session.headers.update({"Authorization": f"Bearer {token}"})
+                    self._is_connected = True
+                    logger.info("ProjectX executor initialized via httpx")
+                    return True
+
+            logger.error(f"ProjectX auth failed: {auth_response.text}")
+            return False
+
         except Exception as e:
-            logger.error(f"Failed to initialize ProjectX WebSocket: {e}")
-    
-    async def _handle_websocket_messages(self):
-        """Handle incoming WebSocket messages"""
-        try:
-            async for message in self.ws_connection:
-                data = json.loads(message)
-                await self._process_websocket_message(data)
-        except Exception as e:
-            logger.error(f"WebSocket message handling error: {e}")
-    
-    async def _process_websocket_message(self, data):
-        """Process WebSocket message"""
-        try:
-            event_type = data.get("type")
-            
-            if event_type == "account_update":
-                await self._handle_account_update(data)
-            elif event_type == "position_update":
-                await self._handle_position_update(data)
-            elif event_type == "order_update":
-                await self._handle_order_update(data)
-            elif event_type == "trade_update":
-                await self._handle_trade_update(data)
-                
-        except Exception as e:
-            logger.error(f"Error processing WebSocket message: {e}")
-    
-    async def _handle_account_update(self, data):
-        """Handle account updates"""
-        await self.emit_account_update(data)
-    
-    async def _handle_position_update(self, data):
-        """Handle position updates"""
-        await self.emit_position_update(data)
-    
-    async def _handle_order_update(self, data):
-        """Handle order updates"""
-        await self.emit_order_update(data)
-    
-    async def _handle_trade_update(self, data):
-        """Handle trade updates"""
-        await self.emit_trade_update(data)
-    
+            logger.error(f"ProjectX httpx initialization failed: {e}")
+            return False
+
     async def disconnect(self):
-        """Disconnect from ProjectX"""
-        if self.ws_connection:
-            await self.ws_connection.close()
-        if self.session:
-            await self.session.aclose()
-        self.is_connected = False
+        """Disconnect from ProjectX."""
+        if self._sdk_service:
+            await self._sdk_service.disconnect()
+            self._sdk_service = None
+
+        if self._ws_connection:
+            try:
+                await self._ws_connection.close()
+            except Exception:
+                pass
+            self._ws_connection = None
+
+        if self._session:
+            await self._session.aclose()
+            self._session = None
+
+        self._is_connected = False
         logger.info("ProjectX executor disconnected")
-    
+
     async def get_accounts(self) -> List[Account]:
-        """Get all ProjectX accounts"""
+        """Get all ProjectX accounts."""
+        if self.is_using_sdk:
+            try:
+                info = await self._sdk_service.get_account_info()
+                return [Account(
+                    id=info.get("id", ""),
+                    broker="projectx",
+                    account_type="live",
+                    currency=info.get("currency", "USD"),
+                    balance=float(info.get("balance", 0)),
+                    equity=float(info.get("equity", 0)),
+                    margin=float(info.get("margin", 0)),
+                    free_margin=float(info.get("free_margin", 0)),
+                    margin_level=0.0,
+                    leverage=100,
+                    is_active=True,
+                    is_live=True,
+                    created_at=datetime.now(),
+                    updated_at=datetime.now()
+                )]
+            except Exception as e:
+                logger.error(f"SDK get_accounts failed: {e}")
+                return []
+
+        # Fallback to httpx
+        return await self._get_accounts_httpx()
+
+    async def _get_accounts_httpx(self) -> List[Account]:
+        """Get accounts via httpx (fallback)."""
         try:
-            response = await self.session.get("/accounts")
+            response = await self._session.post("/Account/search", json={})
             if response.status_code == 200:
-                accounts_data = response.json()
-                accounts = []
-                
-                for account_data in accounts_data:
-                    account = Account(
-                        id=str(account_data["id"]),
+                data = response.json()
+                accounts_data = data if isinstance(data, list) else data.get("accounts", data.get("data", []))
+
+                return [
+                    Account(
+                        id=str(acc.get("id", "")),
                         broker="projectx",
-                        account_type=account_data.get("type", "live"),
-                        currency=account_data.get("currency", "USD"),
-                        balance=float(account_data.get("balance", 0)),
-                        equity=float(account_data.get("equity", 0)),
-                        margin=float(account_data.get("margin", 0)),
-                        free_margin=float(account_data.get("free_margin", 0)),
-                        margin_level=float(account_data.get("margin_level", 0)),
-                        leverage=account_data.get("leverage", 100),
-                        is_active=account_data.get("is_active", True),
-                        is_live=account_data.get("type") == "live",
-                        created_at=datetime.fromisoformat(account_data.get("created_at", "2023-01-01")),
+                        account_type=acc.get("type", "live"),
+                        currency=acc.get("currency", "USD"),
+                        balance=float(acc.get("balance", 0)),
+                        equity=float(acc.get("equity", 0)),
+                        margin=float(acc.get("margin", 0)),
+                        free_margin=float(acc.get("free_margin", 0)),
+                        margin_level=float(acc.get("margin_level", 0)),
+                        leverage=acc.get("leverage", 100),
+                        is_active=acc.get("is_active", True),
+                        is_live=acc.get("type") == "live",
+                        created_at=datetime.now(),
                         updated_at=datetime.now()
                     )
-                    accounts.append(account)
-                
-                return accounts
-            else:
-                logger.error(f"Failed to get ProjectX accounts: {response.text}")
-                return []
-                
-        except Exception as e:
-            logger.error(f"Error getting ProjectX accounts: {e}")
+                    for acc in accounts_data
+                ]
             return []
-    
+        except Exception as e:
+            logger.error(f"httpx get_accounts failed: {e}")
+            return []
+
     async def get_positions(self, account_id: Optional[str] = None) -> List[Position]:
-        """Get open positions from ProjectX"""
-        try:
-            params = {}
-            if account_id:
-                params["account_id"] = account_id
-                
-            response = await self.session.get("/positions", params=params)
-            if response.status_code == 200:
-                positions_data = response.json()
-                positions = []
-                
-                for pos_data in positions_data:
-                    if pos_data.get("is_active", True):
-                        position = Position(
-                            id=str(pos_data["id"]),
-                            broker="projectx",
-                            account_id=str(pos_data["account_id"]),
-                            symbol=pos_data["symbol"],
-                            side=pos_data["side"].lower(),
-                            size=float(pos_data["size"]),
-                            entry_price=float(pos_data["entry_price"]),
-                            current_price=float(pos_data.get("current_price", pos_data["entry_price"])),
-                            unrealized_pnl=float(pos_data.get("unrealized_pnl", 0)),
-                            realized_pnl=float(pos_data.get("realized_pnl", 0)),
-                            margin=float(pos_data.get("margin", 0)),
-                            magic_number=pos_data.get("magic_number", 0),
-                            comment=pos_data.get("comment", ""),
-                            open_time=datetime.fromisoformat(pos_data.get("open_time", "2023-01-01")),
-                            close_time=datetime.fromisoformat(pos_data["close_time"]) if pos_data.get("close_time") else None,
-                            is_active=pos_data.get("is_active", True)
-                        )
-                        positions.append(position)
-                
-                return positions
-            else:
-                logger.error(f"Failed to get ProjectX positions: {response.text}")
+        """Get open positions."""
+        if self.is_using_sdk:
+            try:
+                positions_data = await self._sdk_service.get_positions()
+                return [
+                    Position(
+                        id=pos.get("id", ""),
+                        broker="projectx",
+                        account_id=account_id or "",
+                        symbol=pos.get("symbol", ""),
+                        side=pos.get("side", "buy"),
+                        size=float(pos.get("size", 0)),
+                        entry_price=float(pos.get("entry_price", 0)),
+                        current_price=float(pos.get("current_price", 0)),
+                        unrealized_pnl=float(pos.get("unrealized_pnl", 0)),
+                        realized_pnl=0.0,
+                        margin=0.0,
+                        magic_number=0,
+                        comment="",
+                        open_time=datetime.now(),
+                        close_time=None,
+                        is_active=True
+                    )
+                    for pos in positions_data
+                ]
+            except Exception as e:
+                logger.error(f"SDK get_positions failed: {e}")
                 return []
-                
-        except Exception as e:
-            logger.error(f"Error getting ProjectX positions: {e}")
+
+        # Fallback to httpx
+        return await self._get_positions_httpx(account_id)
+
+    async def _get_positions_httpx(self, account_id: Optional[str] = None) -> List[Position]:
+        """Get positions via httpx (fallback)."""
+        try:
+            search_data = {}
+            if account_id:
+                search_data["accountId"] = account_id
+
+            response = await self._session.post("/Position/searchOpen", json=search_data)
+            if response.status_code == 200:
+                data = response.json()
+                positions_data = data if isinstance(data, list) else data.get("positions", data.get("data", []))
+
+                return [
+                    Position(
+                        id=str(pos.get("id", "")),
+                        broker="projectx",
+                        account_id=str(pos.get("account_id", account_id or "")),
+                        symbol=pos.get("symbol", ""),
+                        side=pos.get("side", "buy").lower(),
+                        size=float(pos.get("size", 0)),
+                        entry_price=float(pos.get("entry_price", 0)),
+                        current_price=float(pos.get("current_price", pos.get("entry_price", 0))),
+                        unrealized_pnl=float(pos.get("unrealized_pnl", 0)),
+                        realized_pnl=float(pos.get("realized_pnl", 0)),
+                        margin=float(pos.get("margin", 0)),
+                        magic_number=pos.get("magic_number", 0),
+                        comment=pos.get("comment", ""),
+                        open_time=datetime.fromisoformat(pos.get("open_time", datetime.now().isoformat())),
+                        close_time=None,
+                        is_active=True
+                    )
+                    for pos in positions_data
+                ]
             return []
-    
+        except Exception as e:
+            logger.error(f"httpx get_positions failed: {e}")
+            return []
+
     async def place_order(self, order: OrderRequest) -> OrderResponse:
-        """Place order with ProjectX"""
+        """Place order with ProjectX."""
+        if self.is_using_sdk:
+            return await self._place_order_sdk(order)
+        return await self._place_order_httpx(order)
+
+    async def _place_order_sdk(self, order: OrderRequest) -> OrderResponse:
+        """Place order via SDK."""
         try:
             # Map order types
-            order_type_map = {
-                "market_buy": {"type": "market", "side": "buy"},
-                "market_sell": {"type": "market", "side": "sell"},
-                "buy_limit": {"type": "limit", "side": "buy"},
-                "sell_limit": {"type": "limit", "side": "sell"},
-                "buy_stop": {"type": "stop", "side": "buy"},
-                "sell_stop": {"type": "stop", "side": "sell"}
-            }
-            
-            order_config = order_type_map.get(order.order_type)
-            if not order_config:
-                return OrderResponse(
-                    success=False,
-                    error=f"Unsupported order type: {order.order_type}"
+            order_type_lower = order.order_type.lower()
+            side = "buy" if "buy" in order_type_lower else "sell"
+            is_market = "market" in order_type_lower
+
+            if is_market:
+                result = await self._sdk_service.place_market_order(
+                    instrument=order.symbol,
+                    side=side,
+                    size=int(order.quantity),
                 )
-            
+            else:
+                result = await self._sdk_service.place_limit_order(
+                    instrument=order.symbol,
+                    side=side,
+                    size=int(order.quantity),
+                    limit_price=order.price,
+                    stop_loss=order.stop_loss,
+                    take_profit=order.take_profit,
+                )
+
+            return OrderResponse(
+                success=result.get("success", True),
+                order_id=result.get("order_id", ""),
+                broker="projectx",
+                status=result.get("status", "submitted"),
+                filled_quantity=order.quantity,
+                filled_price=order.price,
+                commission=0.0,
+                timestamp=datetime.now(),
+                error=result.get("error"),
+            )
+        except Exception as e:
+            logger.error(f"SDK place_order failed: {e}")
+            return OrderResponse(success=False, error=str(e))
+
+    async def _place_order_httpx(self, order: OrderRequest) -> OrderResponse:
+        """Place order via httpx (fallback)."""
+        try:
+            # First, get contract ID for symbol
+            contract_response = await self._session.post(
+                "/Contract/search",
+                json={"symbol": order.symbol}
+            )
+
+            if contract_response.status_code != 200:
+                return OrderResponse(success=False, error="Failed to find contract")
+
+            contracts = contract_response.json()
+            if isinstance(contracts, dict):
+                contracts = contracts.get("contracts", contracts.get("data", []))
+
+            if not contracts:
+                return OrderResponse(success=False, error=f"Contract not found: {order.symbol}")
+
+            contract_id = contracts[0].get("id") or contracts[0].get("contract_id")
+
+            # Map order type
+            order_type_lower = order.order_type.lower()
+            side = "buy" if "buy" in order_type_lower else "sell"
+            order_type = "market" if "market" in order_type_lower else "limit"
+
             order_data = {
-                "account_id": order.account_id,
-                "symbol": order.symbol,
-                "type": order_config["type"],
-                "side": order_config["side"],
-                "quantity": order.quantity,
-                "price": order.price,
-                "stop_loss": order.stop_loss,
-                "take_profit": order.take_profit,
-                "comment": order.comment,
-                "magic_number": order.magic_number
+                "accountId": order.account_id,
+                "contractId": contract_id,
+                "side": side,
+                "type": order_type,
+                "size": int(order.quantity),
             }
-            
-            response = await self.session.post("/orders", json=order_data)
-            
+
+            if order.price and order_type != "market":
+                order_data["price"] = order.price
+            if order.stop_loss:
+                order_data["stopLoss"] = order.stop_loss
+            if order.take_profit:
+                order_data["takeProfit"] = order.take_profit
+
+            response = await self._session.post("/Order/place", json=order_data)
+
             if response.status_code == 200:
                 result = response.json()
-                
                 return OrderResponse(
                     success=True,
-                    order_id=str(result.get("id")),
+                    order_id=str(result.get("id", "")),
                     broker="projectx",
                     status=result.get("status", "submitted"),
-                    filled_quantity=result.get("filled_quantity", order.quantity),
-                    filled_price=result.get("filled_price", order.price),
+                    filled_quantity=order.quantity,
+                    filled_price=order.price,
                     commission=result.get("commission", 0),
                     timestamp=datetime.now()
                 )
-            else:
-                error_msg = response.text
-                logger.error(f"ProjectX order failed: {error_msg}")
-                return OrderResponse(
-                    success=False,
-                    error=error_msg
-                )
-                
+
+            return OrderResponse(success=False, error=response.text)
+
         except Exception as e:
-            logger.error(f"Error placing ProjectX order: {e}")
-            return OrderResponse(
-                success=False,
-                error=str(e)
-            )
-    
-    async def modify_order(self, order_id: str, modifications: Dict[str, Any]) -> OrderResponse:
-        """Modify existing order in ProjectX"""
-        try:
-            modify_data = {
-                "price": modifications.get("price"),
-                "stop_loss": modifications.get("stop_loss"),
-                "take_profit": modifications.get("take_profit")
-            }
-            
-            response = await self.session.put(f"/orders/{order_id}", json=modify_data)
-            
-            if response.status_code == 200:
-                return OrderResponse(
-                    success=True,
-                    order_id=order_id,
-                    broker="projectx",
-                    status="modified",
-                    timestamp=datetime.now()
-                )
-            else:
-                error_msg = response.text
-                logger.error(f"ProjectX order modification failed: {error_msg}")
-                return OrderResponse(
-                    success=False,
-                    error=error_msg
-                )
-                
-        except Exception as e:
-            logger.error(f"Error modifying ProjectX order: {e}")
-            return OrderResponse(
-                success=False,
-                error=str(e)
-            )
-    
-    async def cancel_order(self, order_id: str) -> OrderResponse:
-        """Cancel order in ProjectX"""
-        try:
-            response = await self.session.delete(f"/orders/{order_id}")
-            
-            if response.status_code == 200:
-                return OrderResponse(
-                    success=True,
-                    order_id=order_id,
-                    broker="projectx",
-                    status="cancelled",
-                    timestamp=datetime.now()
-                )
-            else:
-                error_msg = response.text
-                logger.error(f"ProjectX order cancellation failed: {error_msg}")
-                return OrderResponse(
-                    success=False,
-                    error=error_msg
-                )
-                
-        except Exception as e:
-            logger.error(f"Error cancelling ProjectX order: {e}")
-            return OrderResponse(
-                success=False,
-                error=str(e)
-            )
-    
+            logger.error(f"httpx place_order failed: {e}")
+            return OrderResponse(success=False, error=str(e))
+
     async def close_position(self, position_id: str, quantity: Optional[float] = None) -> TradeResponse:
-        """Close position in ProjectX"""
+        """Close position."""
+        if self.is_using_sdk:
+            try:
+                # Need instrument context for SDK
+                positions = await self._sdk_service.get_positions()
+                for pos in positions:
+                    if pos.get("id") == position_id or pos.get("contract_id") == position_id:
+                        result = await self._sdk_service.close_position(
+                            instrument=pos.get("symbol", "MNQ"),
+                            position_id=position_id,
+                            size=int(quantity) if quantity else None,
+                        )
+
+                        return TradeResponse(
+                            success=result.get("success", False),
+                            trade_id=result.get("trade_id", ""),
+                            broker="projectx",
+                            symbol=pos.get("symbol", ""),
+                            side="sell" if pos.get("side") == "buy" else "buy",
+                            quantity=quantity or pos.get("size", 0),
+                            price=pos.get("current_price", 0),
+                            pnl=pos.get("unrealized_pnl", 0),
+                            commission=0.0,
+                            timestamp=datetime.now(),
+                            error=result.get("error"),
+                        )
+
+                return TradeResponse(success=False, error="Position not found")
+            except Exception as e:
+                logger.error(f"SDK close_position failed: {e}")
+                return TradeResponse(success=False, error=str(e))
+
+        # Fallback to httpx
+        return await self._close_position_httpx(position_id, quantity)
+
+    async def _close_position_httpx(self, position_id: str, quantity: Optional[float] = None) -> TradeResponse:
+        """Close position via httpx (fallback)."""
         try:
-            close_data = {
-                "quantity": quantity
-            }
-            
-            response = await self.session.delete(f"/positions/{position_id}", json=close_data)
-            
+            close_data = {"contractId": position_id}
+            if quantity:
+                close_data["size"] = int(quantity)
+
+            # Get account ID
+            accounts = await self._get_accounts_httpx()
+            if accounts:
+                close_data["accountId"] = accounts[0].id
+
+            response = await self._session.post("/Position/closeContract", json=close_data)
+
             if response.status_code == 200:
                 result = response.json()
-                
                 return TradeResponse(
                     success=True,
-                    trade_id=str(result.get("id")),
+                    trade_id=str(result.get("id", "")),
                     broker="projectx",
                     symbol=result.get("symbol", ""),
                     side=result.get("side", ""),
@@ -362,122 +480,139 @@ class ProjectXExecutor(BaseExecutor):
                     commission=result.get("commission", 0),
                     timestamp=datetime.now()
                 )
-            else:
-                error_msg = response.text
-                logger.error(f"ProjectX position close failed: {error_msg}")
-                return TradeResponse(
-                    success=False,
-                    error=error_msg
-                )
-                
+
+            return TradeResponse(success=False, error=response.text)
+
         except Exception as e:
-            logger.error(f"Error closing ProjectX position: {e}")
-            return TradeResponse(
-                success=False,
-                error=str(e)
-            )
-    
-    async def get_account_info(self, account_id: str) -> Optional[Account]:
-        """Get specific account information"""
+            logger.error(f"httpx close_position failed: {e}")
+            return TradeResponse(success=False, error=str(e))
+
+    async def modify_order(self, order_id: str, modifications: Dict[str, Any]) -> OrderResponse:
+        """Modify existing order."""
+        # SDK doesn't have direct modify - using httpx
         try:
-            response = await self.session.get(f"/accounts/{account_id}")
+            modify_data = {"orderId": order_id}
+            if "price" in modifications:
+                modify_data["price"] = modifications["price"]
+            if "stop_loss" in modifications:
+                modify_data["stopLoss"] = modifications["stop_loss"]
+            if "take_profit" in modifications:
+                modify_data["takeProfit"] = modifications["take_profit"]
+
+            response = await self._session.post("/Order/modify", json=modify_data)
+
             if response.status_code == 200:
-                account_data = response.json()
-                
-                account = Account(
-                    id=str(account_data["id"]),
+                return OrderResponse(
+                    success=True,
+                    order_id=order_id,
                     broker="projectx",
-                    account_type=account_data.get("type", "live"),
-                    currency=account_data.get("currency", "USD"),
-                    balance=float(account_data.get("balance", 0)),
-                    equity=float(account_data.get("equity", 0)),
-                    margin=float(account_data.get("margin", 0)),
-                    free_margin=float(account_data.get("free_margin", 0)),
-                    margin_level=float(account_data.get("margin_level", 0)),
-                    leverage=account_data.get("leverage", 100),
-                    is_active=account_data.get("is_active", True),
-                    is_live=account_data.get("type") == "live",
-                    created_at=datetime.fromisoformat(account_data.get("created_at", "2023-01-01")),
-                    updated_at=datetime.now()
+                    status="modified",
+                    timestamp=datetime.now()
                 )
-                
-                return account
-            else:
-                logger.error(f"Failed to get ProjectX account {account_id}: {response.text}")
-                return None
-                
+
+            return OrderResponse(success=False, error=response.text)
+
         except Exception as e:
-            logger.error(f"Error getting ProjectX account {account_id}: {e}")
-            return None
-    
-    async def get_evaluations(self) -> List[Dict[str, Any]]:
-        """Get evaluation accounts (TopStep specific)"""
+            logger.error(f"modify_order failed: {e}")
+            return OrderResponse(success=False, error=str(e))
+
+    async def cancel_order(self, order_id: str) -> OrderResponse:
+        """Cancel order."""
         try:
-            response = await self.session.get("/evaluations")
+            response = await self._session.post("/Order/cancel", json={"orderId": order_id})
+
             if response.status_code == 200:
-                return response.json()
-            else:
-                logger.error(f"Failed to get evaluations: {response.text}")
-                return []
-                
+                return OrderResponse(
+                    success=True,
+                    order_id=order_id,
+                    broker="projectx",
+                    status="cancelled",
+                    timestamp=datetime.now()
+                )
+
+            return OrderResponse(success=False, error=response.text)
+
         except Exception as e:
-            logger.error(f"Error getting evaluations: {e}")
-            return []
-    
-    async def get_evaluation_progress(self, evaluation_id: str) -> Optional[Dict[str, Any]]:
-        """Get evaluation progress"""
-        try:
-            response = await self.session.get(f"/evaluations/{evaluation_id}/progress")
-            if response.status_code == 200:
-                return response.json()
-            else:
-                logger.error(f"Failed to get evaluation progress: {response.text}")
-                return None
-                
-        except Exception as e:
-            logger.error(f"Error getting evaluation progress: {e}")
-            return None
-    
-    async def get_symbols(self) -> List[str]:
-        """Get available symbols from ProjectX"""
-        try:
-            response = await self.session.get("/instruments")
-            if response.status_code == 200:
-                instruments_data = response.json()
-                return [instrument["symbol"] for instrument in instruments_data]
-            else:
-                logger.error(f"Failed to get ProjectX symbols: {response.text}")
-                return []
-                
-        except Exception as e:
-            logger.error(f"Error getting ProjectX symbols: {e}")
-            return []
+            logger.error(f"cancel_order failed: {e}")
+            return OrderResponse(success=False, error=str(e))
+
+    # Additional methods for compatibility
+
     async def authenticate(self) -> bool:
-        """Authenticate with broker API"""
+        """Authenticate with broker API."""
         return await self.initialize()
-    
+
     async def connect(self) -> bool:
-        """Connect to broker API"""
+        """Connect to broker API."""
         return await self.initialize()
-    
+
     async def get_orders(self) -> List[Dict[str, Any]]:
-        """Get pending orders"""
-        return []
-    
+        """Get pending orders."""
+        try:
+            if self._session:
+                response = await self._session.post("/Order/searchOpen", json={})
+                if response.status_code == 200:
+                    data = response.json()
+                    return data if isinstance(data, list) else data.get("orders", data.get("data", []))
+            return []
+        except Exception as e:
+            logger.error(f"get_orders failed: {e}")
+            return []
+
     async def get_quote(self, symbol: str) -> Optional[Dict[str, Any]]:
-        """Get quote for symbol"""
+        """Get quote for symbol."""
+        if self.is_using_sdk:
+            try:
+                data = await self._sdk_service.get_market_data(symbol, days=1, interval=1)
+                if data:
+                    latest = data[-1]
+                    return {
+                        "symbol": symbol,
+                        "bid": latest.get("close", 0),
+                        "ask": latest.get("close", 0),
+                        "timestamp": datetime.now(),
+                    }
+            except Exception as e:
+                logger.error(f"SDK get_quote failed: {e}")
         return None
-    
+
+    async def get_account_info(self, account_id: str) -> Optional[Account]:
+        """Get specific account information."""
+        accounts = await self.get_accounts()
+        for acc in accounts:
+            if acc.id == account_id:
+                return acc
+        return accounts[0] if accounts else None
+
+    async def get_symbols(self) -> List[str]:
+        """Get available symbols."""
+        common_symbols = ["MNQ", "MES", "MYM", "M2K", "MCL", "MGC", "MBT"]
+
+        if self.is_using_sdk:
+            try:
+                all_symbols = []
+                for sym in common_symbols:
+                    instruments = await self._sdk_service.search_instruments(sym)
+                    all_symbols.extend([inst.get("symbol", sym) for inst in instruments])
+                return list(set(all_symbols))
+            except Exception as e:
+                logger.error(f"SDK get_symbols failed: {e}")
+
+        return common_symbols
+
     async def modify_position(
         self,
         position_id: str,
         stop_loss: Optional[float] = None,
         take_profit: Optional[float] = None
     ) -> Dict[str, Any]:
-        """Modify position"""
-        return {"error": "Not implemented"}
+        """Modify position SL/TP."""
+        # ProjectX doesn't have direct position modification
+        # Would need to place/modify protective orders
+        return {"error": "Position modification not directly supported - use orders"}
 
     def is_connected(self) -> bool:
-        """Check if broker is connected"""
-        return hasattr(self, 'session') and self.session is not None and not self.session.is_closed
-
+        """Check if connected."""
+        if self._sdk_service:
+            return self._sdk_service.is_connected
+        return self._session is not None and hasattr(self._session, 'is_closed') and not self._session.is_closed

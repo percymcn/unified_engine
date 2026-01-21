@@ -40,6 +40,7 @@ export default function ApiKeysPage() {
 
   useEffect(() => {
     loadApiKeys();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadApiKeys = async () => {
@@ -47,7 +48,7 @@ export default function ApiKeysPage() {
     try {
       const keys = await getApiKeys();
       setApiKeys(keys);
-    } catch (error) {
+    } catch {
       toast({
         title: 'Error',
         description: 'Failed to load API keys',
@@ -70,7 +71,7 @@ export default function ApiKeysPage() {
         title: 'Success',
         description: 'API key created successfully',
       });
-    } catch (error) {
+    } catch {
       toast({
         title: 'Error',
         description: 'Failed to create API key',
@@ -96,7 +97,7 @@ export default function ApiKeysPage() {
         title: 'Success',
         description: 'API key revoked successfully',
       });
-    } catch (error) {
+    } catch {
       toast({
         title: 'Error',
         description: 'Failed to revoke API key',

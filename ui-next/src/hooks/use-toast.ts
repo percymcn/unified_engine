@@ -24,6 +24,7 @@ type ToasterToast = Toast & {
   variant?: "default" | "destructive"
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const actionTypes = {
   ADD_TOAST: "ADD_TOAST",
   UPDATE_TOAST: "UPDATE_TOAST",

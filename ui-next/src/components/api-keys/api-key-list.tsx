@@ -33,7 +33,7 @@ export function ApiKeyList({ apiKeys, onCreateClick, onRevoke, isLoading }: ApiK
         <div className="text-center space-y-2">
           <h3 className="text-lg font-semibold">No API keys</h3>
           <p className="text-sm text-muted-foreground max-w-sm">
-            You haven't created any API keys yet. Create one to start using the API.
+            You haven&apos;t created any API keys yet. Create one to start using the API.
           </p>
         </div>
         <Button onClick={onCreateClick}>
