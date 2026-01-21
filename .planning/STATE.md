@@ -72,6 +72,9 @@ Progress: [####------------] 8% (v1.1)
 | 12-01 | Environment variable layering for webhooks | WEBHOOK_BASE_URL > BACKEND_URL > localhost for flexible deployment |
 | 12-01 | Separate BACKEND_URL and NEXT_PUBLIC_BACKEND_URL | Server-side vs client-side distinction in Next.js |
 | 12-01 | Default port 8765 everywhere | Consistency with FastAPI backend configuration |
+| 12-03 | Sidebar shrink-0 + z-10 for stacking | Prevent flex compression and ensure sidebar stays above content |
+| 12-03 | Controlled Sheet state for mobile menu | Use pathname effect to auto-close on navigation |
+| 12-03 | startsWith() for nested route detection | Active state works for /settings/accounts/edit, etc. |
 | 12-04 | Return empty array on API failures for list endpoints | Better UX - users see "no configs" instead of error on first use |
 | 12-04 | Preserve 401 errors in BFF routes | Auth errors should still propagate to trigger login redirect |
 | 12-04 | Skeleton loading states matching page layout | Smooth transition from loading to content |
