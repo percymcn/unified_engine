@@ -81,11 +81,17 @@ class Settings(BaseSettings):
                 return int(v)
         return v
     
-    # TradeLocker Configuration
+    # TradeLocker Configuration (Brand API - legacy)
     TRADELOCKER_API_KEY: Optional[str] = None
     TRADELOCKER_API_URL: str = "https://api.tradelocker.com"
     TRADELOCKER_WS_URL: str = "wss://api.tradelocker.com/brand-api/socket.io/"
     TRADELOCKER_ENV: str = "LIVE"  # LIVE or DEMO
+
+    # TradeLocker SDK Configuration (user credentials)
+    TRADELOCKER_USERNAME: Optional[str] = None
+    TRADELOCKER_PASSWORD: Optional[str] = None
+    TRADELOCKER_SERVER: Optional[str] = None
+    TRADELOCKER_ENVIRONMENT: str = "https://demo.tradelocker.com"  # SDK environment URL
     
     # Tradovate Configuration
     TRADOVATE_API_URL: str = "https://demo.tradovate.com/api/v1"
@@ -265,7 +271,12 @@ class Settings(BaseSettings):
                 "api_url": self.TRADELOCKER_API_URL,
                 "ws_url": self.TRADELOCKER_WS_URL,
                 "api_key": self.TRADELOCKER_API_KEY,
-                "environment": self.TRADELOCKER_ENV
+                "environment": self.TRADELOCKER_ENV,
+                # SDK credentials (preferred over Brand API)
+                "username": self.TRADELOCKER_USERNAME,
+                "password": self.TRADELOCKER_PASSWORD,
+                "server": self.TRADELOCKER_SERVER,
+                "sdk_environment": self.TRADELOCKER_ENVIRONMENT,
             },
             "tradovate": {
                 "api_url": self.TRADOVATE_API_URL,
