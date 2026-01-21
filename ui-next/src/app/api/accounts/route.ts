@@ -47,6 +47,10 @@ export async function GET() {
  * POST /api/accounts
  * BFF pattern: Proxy account creation to backend
  * Expects JSON body with account creation data
+ *
+ * Supports both credential-based and OAuth-based account creation:
+ * - Standard: { account_id, broker, account_type, api_key, api_secret, ... }
+ * - OAuth: { account_id, broker, account_type, oauth_tokens: { access_token, refresh_token, expires_in, environment } }
  */
 export async function POST(request: NextRequest) {
   try {
@@ -63,6 +67,25 @@ export async function POST(request: NextRequest) {
     // Parse request body
     const body = await request.json();
 
+    // Build account data, preserving oauth_tokens if provided
+    const accountData = {
+      account_id: body.account_id,
+      broker: body.broker,
+      account_type: body.account_type,
+      currency: body.currency,
+      leverage: body.leverage,
+      // Credential-based fields
+      ...(body.api_key && { api_key: body.api_key }),
+      ...(body.api_secret && { api_secret: body.api_secret }),
+      ...(body.login && { login: body.login }),
+      ...(body.password && { password: body.password }),
+      ...(body.server && { server: body.server }),
+      // OAuth tokens for Tradovate
+      ...(body.oauth_tokens && { oauth_tokens: body.oauth_tokens }),
+      // Additional broker config
+      ...(body.broker_config && { broker_config: body.broker_config }),
+    };
+
     // Create account in backend
     const response = await fetch(`${BACKEND_URL}/api/v1/accounts/`, {
       method: 'POST',
@@ -70,7 +93,7 @@ export async function POST(request: NextRequest) {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify(accountData),
     });
 
     if (!response.ok) {
