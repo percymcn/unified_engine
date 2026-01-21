@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-21)
 ## Current Position
 
 Phase: 12 - Critical Fixes & Infrastructure
-Plan: 01 of 5 complete
+Plan: 04 of 5 complete
 Status: In progress
-Last activity: 2026-01-21 - Completed 12-01-PLAN.md (Branding and Environment Configuration)
+Last activity: 2026-01-21 - Completed 12-04-PLAN.md (Webhook Config Loading & Error Handling)
 
-Progress: [#---------------] 2% (v1.1)
+Progress: [####------------] 8% (v1.1)
 
 ## v1.1 Milestone Goals
 
@@ -45,7 +45,7 @@ Progress: [#---------------] 2% (v1.1)
 
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
-| 12 | Critical Fixes & Infrastructure | 14 | In progress (1/5 plans) |
+| 12 | Critical Fixes & Infrastructure | 14 | In progress (4/5 plans) |
 | 13 | Stripe Billing | 7 | Not started |
 | 14 | Landing Page | 11 | Not started |
 | 15 | TradeLocker SDK | 1 | Not started |
@@ -72,6 +72,10 @@ Progress: [#---------------] 2% (v1.1)
 | 12-01 | Environment variable layering for webhooks | WEBHOOK_BASE_URL > BACKEND_URL > localhost for flexible deployment |
 | 12-01 | Separate BACKEND_URL and NEXT_PUBLIC_BACKEND_URL | Server-side vs client-side distinction in Next.js |
 | 12-01 | Default port 8765 everywhere | Consistency with FastAPI backend configuration |
+| 12-04 | Return empty array on API failures for list endpoints | Better UX - users see "no configs" instead of error on first use |
+| 12-04 | Preserve 401 errors in BFF routes | Auth errors should still propagate to trigger login redirect |
+| 12-04 | Skeleton loading states matching page layout | Smooth transition from loading to content |
+| 12-04 | Retry button in all error states | Recoverable errors should be retryable |
 
 ## Known Tech Debt
 
@@ -84,13 +88,12 @@ Progress: [#---------------] 2% (v1.1)
 
 ## Session Continuity
 
-Last session: 2026-01-21T08:32:00Z
-Stopped at: Completed 12-01-PLAN.md
+Last session: 2026-01-21T03:57:00Z
+Stopped at: Completed 12-04-PLAN.md
 Resume file: None
-Status: Ready for 12-02-PLAN.md
+Status: Ready for 12-05-PLAN.md
 
 ## Next Steps
 
-1. Execute 12-02-PLAN.md - Signal Processing and Response Handling
-2. Continue through 12-03, 12-04, 12-05 to complete Phase 12
-3. Then proceed to Phase 13 (Stripe Billing)
+1. Execute 12-05-PLAN.md - Final plan in Phase 12
+2. Complete Phase 12 and proceed to Phase 13 (Stripe Billing)
