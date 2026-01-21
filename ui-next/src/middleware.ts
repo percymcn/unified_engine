@@ -50,6 +50,7 @@ function isAuthRoute(path: string): boolean {
 /**
  * Middleware for route protection
  *
+ * - Root path (/): Show landing page to visitors, redirect to /dashboard if authenticated
  * - Protected routes (/dashboard/*): Require auth cookie, redirect to /login if missing
  * - Auth routes (/login): Redirect to /dashboard if already authenticated
  * - Public routes: No checks
@@ -68,6 +69,15 @@ export function middleware(request: NextRequest) {
   // Check for auth token cookie
   const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
   const isAuthenticated = !!token;
+
+  // Root path: Show landing page to visitors, dashboard to authenticated users
+  if (pathname === '/') {
+    if (isAuthenticated) {
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
+    // Unauthenticated users see the landing page
+    return NextResponse.next();
+  }
 
   // Protected routes: Redirect to login if not authenticated
   if (isProtectedRoute(pathname)) {
