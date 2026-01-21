@@ -11,11 +11,7 @@ import {
 } from '@/components/ui/select';
 import { Loader2, ExternalLink } from 'lucide-react';
 
-interface TradovateOAuthButtonProps {
-  onSuccess?: () => void;
-}
-
-export function TradovateOAuthButton({ onSuccess }: TradovateOAuthButtonProps) {
+export function TradovateOAuthButton() {
   const [environment, setEnvironment] = useState<'demo' | 'live'>('demo');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
