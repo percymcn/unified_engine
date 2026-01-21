@@ -178,3 +178,47 @@ class SymbolAliasRepository(ABC):
             List of user-defined SymbolAlias entities
         """
         pass
+
+    @abstractmethod
+    async def bulk_create_auto_aliases(
+        self,
+        user_id: int,
+        broker_type: str,
+        symbol_map: dict[str, str]
+    ) -> int:
+        """
+        Bulk create auto-detected aliases from a symbol map.
+
+        Skips aliases that already exist (user-defined take priority).
+        Only creates aliases where source != target.
+
+        Args:
+            user_id: User ID for the aliases
+            broker_type: Broker type (tradelocker, mt5, etc.)
+            symbol_map: Dict mapping source symbols to target symbols
+
+        Returns:
+            Number of aliases created
+        """
+        pass
+
+    @abstractmethod
+    async def delete_auto_detected(
+        self,
+        user_id: int,
+        broker_type: str
+    ) -> int:
+        """
+        Delete all auto-detected aliases for a user and broker.
+
+        Used when re-detecting symbols on re-connection.
+        Does NOT delete user-defined aliases.
+
+        Args:
+            user_id: User ID
+            broker_type: Broker type
+
+        Returns:
+            Number of aliases deleted
+        """
+        pass

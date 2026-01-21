@@ -35,6 +35,7 @@ from app.infrastructure.repositories import (
     SQLAlchemyOrderRepository,
     SQLAlchemyAccountRepository,
     SQLAlchemyPositionRepository,
+    SQLAlchemySymbolAliasRepository,
 )
 
 # Use cases
@@ -142,6 +143,11 @@ class Container:
             CredentialRepository(session),
         )
 
+    def _get_symbol_alias_repository(self):
+        """Get symbol alias repository instance."""
+        session = self._session_factory.create()
+        return SQLAlchemySymbolAliasRepository(session)
+
     # Use case factories
     def process_signal_use_case(self) -> ProcessSignalUseCase:
         """Create ProcessSignalUseCase with injected dependencies."""
@@ -240,9 +246,11 @@ class Container:
     def create_account_use_case(self) -> CreateAccountUseCase:
         """Create CreateAccountUseCase with injected dependencies."""
         _, _, _, account_repo, _, credential_repo = self._get_repositories()
+        alias_repo = self._get_symbol_alias_repository()
         return CreateAccountUseCase(
             account_repository=account_repo,
             credential_repository=credential_repo,
+            symbol_alias_repository=alias_repo,
         )
 
     def update_account_use_case(self) -> UpdateAccountUseCase:

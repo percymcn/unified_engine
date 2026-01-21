@@ -273,12 +273,14 @@ class CreateAccountUseCase:
         self,
         account_repository: AccountRepository,
         credential_repository,  # CredentialRepository from infrastructure
+        symbol_alias_repository=None,  # Optional: for auto-alias creation
     ):
         self._account_repo = account_repository
         self._credential_repo = credential_repository
+        self._alias_repo = symbol_alias_repository
 
     async def execute(self, request: CreateAccountRequest) -> CreateAccountResponse:
-        """Create new account with encrypted credentials"""
+        """Create new account with encrypted credentials and auto-detected aliases"""
         try:
             import uuid
 
@@ -316,12 +318,30 @@ class CreateAccountUseCase:
                 description=f"Credentials for {request.broker.value} account {request.account_id}",
             )
 
+            # Create auto-detected aliases if symbol_map provided
+            auto_aliases_created = 0
+            if request.symbol_map and self._alias_repo:
+                try:
+                    auto_aliases_created = await self._alias_repo.bulk_create_auto_aliases(
+                        user_id=request.user_id,
+                        broker_type=request.broker.value,
+                        symbol_map=request.symbol_map
+                    )
+                    logger.info(
+                        f"Created {auto_aliases_created} auto-detected aliases "
+                        f"for {request.broker.value} account"
+                    )
+                except Exception as e:
+                    # Don't fail account creation if alias creation fails
+                    logger.warning(f"Failed to create auto-aliases: {e}")
+
             logger.info(f"Account created: {saved_account.id.value} with encrypted credentials")
 
             return CreateAccountResponse(
                 account_id=saved_account.id.value,
                 broker=saved_account.broker,
                 is_active=saved_account.is_active,
+                auto_aliases_created=auto_aliases_created,
             )
 
         except Exception as e:

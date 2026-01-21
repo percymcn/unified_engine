@@ -234,3 +234,111 @@ class SQLAlchemySymbolAliasRepository(SymbolAliasRepository):
         )
         result = await self._session.execute(stmt)
         return [self._to_entity(orm) for orm in result.scalars().all()]
+
+    async def bulk_create_auto_aliases(
+        self,
+        user_id: int,
+        broker_type: str,
+        symbol_map: dict[str, str]
+    ) -> int:
+        """
+        Bulk create auto-detected aliases from a symbol map.
+
+        Skips aliases that already exist (user-defined take priority).
+        Only creates aliases where source != target.
+
+        Args:
+            user_id: User ID for the aliases
+            broker_type: Broker type (tradelocker, mt5, etc.)
+            symbol_map: Dict mapping source symbols to target symbols
+
+        Returns:
+            Number of aliases created
+        """
+        broker = broker_type.lower()
+        created = 0
+
+        for source, target in symbol_map.items():
+            source_upper = source.upper()
+
+            # Skip if source equals target (no mapping needed)
+            if source_upper == target.upper():
+                continue
+
+            # Check if alias already exists
+            existing = await self.get_alias(user_id, source_upper, broker)
+            if existing:
+                # User-defined or already auto-detected - skip
+                continue
+
+            # Create new auto-detected alias
+            alias = SymbolAlias(
+                user_id=user_id,
+                source_symbol=source_upper,
+                broker_type=broker,
+                target_symbol=target,
+                is_auto_detected=True
+            )
+
+            orm = self._to_orm(alias)
+            self._session.add(orm)
+            created += 1
+
+        # Flush all at once
+        if created > 0:
+            try:
+                await self._session.flush()
+            except IntegrityError:
+                # Some duplicates slipped through - that's ok
+                await self._session.rollback()
+                # Retry one by one
+                created = 0
+                for source, target in symbol_map.items():
+                    source_upper = source.upper()
+                    if source_upper == target.upper():
+                        continue
+                    existing = await self.get_alias(user_id, source_upper, broker)
+                    if existing:
+                        continue
+                    try:
+                        alias = SymbolAlias(
+                            user_id=user_id,
+                            source_symbol=source_upper,
+                            broker_type=broker,
+                            target_symbol=target,
+                            is_auto_detected=True
+                        )
+                        orm = self._to_orm(alias)
+                        self._session.add(orm)
+                        await self._session.flush()
+                        created += 1
+                    except IntegrityError:
+                        await self._session.rollback()
+                        continue
+
+        return created
+
+    async def delete_auto_detected(
+        self,
+        user_id: int,
+        broker_type: str
+    ) -> int:
+        """
+        Delete all auto-detected aliases for a user and broker.
+
+        Used when re-detecting symbols on re-connection.
+        Does NOT delete user-defined aliases.
+
+        Returns:
+            Number of aliases deleted
+        """
+        stmt = delete(SymbolAliasORM).where(
+            and_(
+                SymbolAliasORM.user_id == user_id,
+                SymbolAliasORM.broker_type == broker_type.lower(),
+                SymbolAliasORM.is_auto_detected == True
+            )
+        )
+        result = await self._session.execute(stmt)
+        await self._session.flush()
+        return result.rowcount
