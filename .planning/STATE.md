@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-01-21)
 
 ## Current Position
 
-Phase: 16 - Tradovate OAuth (COMPLETE)
-Plan: 4 of 4 complete
-Status: Phase complete, ready for Phase 17
-Last activity: 2026-01-21 - Completed 16-04-PLAN.md (Frontend OAuth UI)
+Phase: 17 - TopStep/ProjectX SDK (COMPLETE)
+Plan: 1 of 1 complete
+Status: Phase complete, ready for Phase 18
+Last activity: 2026-01-21 - Completed 17-01-PLAN.md (Migrate TopStep to project-x-py SDK)
 
-Progress: [############----] 47% (v1.1) - Phase 16 complete
+Progress: [#############---] 50% (v1.1) - Phase 17 complete
 
 ## v1.1 Milestone Goals
 
@@ -50,7 +50,7 @@ Progress: [############----] 47% (v1.1) - Phase 16 complete
 | 14 | Landing Page | 11 | Complete (7/7 plans, incl. gap closure) |
 | 15 | TradeLocker SDK | 1 | Complete (1/1 plan) |
 | 16 | Tradovate OAuth | 3 | Complete (4/4 plans) |
-| 17 | TopStep/ProjectX SDK | 1 | Not started |
+| 17 | TopStep/ProjectX SDK | 1 | Complete (1/1 plan) |
 | 18 | MetaAPI SDK | 3 | Not started |
 | 19 | Broker Connections UI | 4 | Not started |
 | 20 | Symbol Mapping & Futures | 6 | Not started |
@@ -119,6 +119,10 @@ Progress: [############----] 47% (v1.1) - Phase 16 complete
 | 16-04 | Separate OAuth button component | Encapsulates OAuth initiation logic, reusable |
 | 16-04 | Tokens in URL fragment for callback | Fragments not sent to server, more secure |
 | 16-04 | Keep credential fields as fallback | Some users may prefer manual credential entry |
+| 17-01 | Dual-mode ProjectX executor (SDK + httpx) | SDK preferred, httpx fallback for reliability |
+| 17-01 | ProjectXSDKService wrapper for project-x-py | Matches existing service patterns |
+| 17-01 | TradingSuite per-instrument context | SDK requires instrument context for operations |
+| 17-01 | SDK_AVAILABLE flag for conditional imports | Graceful degradation when SDK not installed |
 
 ## Known Tech Debt
 
@@ -131,10 +135,10 @@ Progress: [############----] 47% (v1.1) - Phase 16 complete
 
 ## Session Continuity
 
-Last session: 2026-01-21T18:17:00Z
-Stopped at: Completed 16-04-PLAN.md (Frontend OAuth UI)
+Last session: 2026-01-21T18:48:25Z
+Stopped at: Completed 17-01-PLAN.md (Migrate TopStep to project-x-py SDK)
 Resume file: None
-Status: Phase 16 complete, ready for Phase 17
+Status: Phase 17 complete, ready for Phase 18
 
 ## Gap Closure Status
 
@@ -158,5 +162,5 @@ Status: Phase 16 complete, ready for Phase 17
 
 ## Next Steps
 
-1. Begin Phase 17 (TopStep/ProjectX SDK)
-2. Continue through Phases 18-23 for v1.1 completion
+1. Begin Phase 18 (MetaAPI SDK)
+2. Continue through Phases 19-23 for v1.1 completion
