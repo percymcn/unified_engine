@@ -19,6 +19,7 @@ from app.core.websocket_manager import ws_manager as websocket_manager
 from app.services.signal_processor import signal_processor
 from app.cache.redis_client import redis_client
 from app.db.database import engine, Base
+from app.infrastructure.container import Container
 
 # Import models so SQLAlchemy can create tables
 # This must be imported before Base.metadata.create_all()
@@ -56,12 +57,17 @@ setup_logging(
 logger = logging.getLogger(__name__)
 logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION} in {settings.ENVIRONMENT} mode")
 
+# Global container instance
+container: Container | None = None
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager"""
     # Startup
     logger.info("🚀 Starting Unified Trading Engine...")
-    
+
+    global container
+
     try:
         # Create database tables (ignore if already exist)
         try:
@@ -72,10 +78,16 @@ async def lifespan(app: FastAPI):
                 logger.info("✅ Database tables already exist")
             else:
                 raise
-        
+
         # Initialize Redis connection
         redis_client._connect()
         logger.info("✅ Redis connected")
+
+        # Initialize DI Container
+        container = Container()
+        await container.initialize()
+        app.state.container = container
+        logger.info("✅ DI Container initialized")
         
         # Initialize event emitter (NATS or logging fallback)
         # This is non-blocking and will gracefully fall back to logging if NATS fails
@@ -112,24 +124,29 @@ async def lifespan(app: FastAPI):
         raise
     
     yield
-    
+
     # Shutdown
     logger.info("🛑 Shutting down Unified Trading Engine...")
-    
+
     try:
+        # Shutdown DI Container
+        if container:
+            await container.shutdown()
+            logger.info("✅ DI Container shutdown")
+
         # Shutdown signal processor
         await signal_processor.shutdown()
         logger.info("✅ Signal processor shutdown")
-        
+
         # Shutdown event emitter
         await event_emitter.shutdown()
         logger.info("✅ Event emitter shutdown")
-        
+
         # Close WebSocket connections
         logger.info("✅ WebSocket connections closed")
-        
+
         logger.info("👋 Unified Trading Engine shutdown complete")
-        
+
     except Exception as e:
         logger.error(f"❌ Error during shutdown: {e}")
 
