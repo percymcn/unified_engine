@@ -34,37 +34,57 @@ class MT4Adapter(BrokerPort):
     MT4 broker adapter implementing domain BrokerPort.
 
     Wraps MT4Executor and converts between domain value objects
-    and executor primitives. Uses MT4 Manager API via REST bridge.
+    and executor primitives. Supports both MetaAPI SDK and Manager API.
     """
 
-    def __init__(self, executor: Optional[MT4Executor] = None):
+    def __init__(
+        self,
+        executor: Optional[MT4Executor] = None,
+        metaapi_token: Optional[str] = None,
+        metaapi_account_id: Optional[str] = None,
+    ):
         """
         Initialize MT4 adapter.
 
         Args:
             executor: Optional pre-configured MT4Executor instance.
                      If None, creates new executor on connect().
+            metaapi_token: Optional MetaAPI token for SDK mode.
+            metaapi_account_id: Optional MetaAPI account ID for SDK mode.
         """
         self._executor = executor
         self._account_id: Optional[str] = None
+        self._metaapi_token = metaapi_token
+        self._metaapi_account_id = metaapi_account_id
 
     @property
     def broker_type(self) -> BrokerType:
         """Return the broker type this adapter handles"""
         return BrokerType.MT4
 
+    @property
+    def is_using_sdk(self) -> bool:
+        """Check if using MetaAPI SDK mode."""
+        return self._executor is not None and self._executor.is_using_sdk
+
     async def connect(self) -> bool:
         """
-        Establish connection to MT4 Manager API.
+        Establish connection to MT4 (via MetaAPI SDK or Manager API).
         Returns True if connection successful.
         """
         try:
             if self._executor is None:
-                self._executor = MT4Executor()
+                self._executor = MT4Executor(
+                    metaapi_token=self._metaapi_token,
+                    metaapi_account_id=self._metaapi_account_id,
+                )
 
             result = await self._executor.initialize()
             if not result:
                 logger.error("MT4 connection failed during initialization")
+            else:
+                mode = "MetaAPI SDK" if self._executor.is_using_sdk else "Manager API"
+                logger.info(f"MT4 adapter connected via {mode}")
             return result
         except Exception as e:
             logger.error(f"MT4 connection error: {e}")
@@ -90,6 +110,11 @@ class MT4Adapter(BrokerPort):
         Authenticate with MT4 using provided credentials.
 
         Credentials dict should contain:
+        For MetaAPI SDK mode:
+        - metaapi_token: MetaAPI API token
+        - metaapi_account_id: MetaAPI account ID
+
+        For Manager API mode (fallback):
         - login: MT4 account login
         - password: MT4 account password
         - server: Optional server name
@@ -97,11 +122,23 @@ class MT4Adapter(BrokerPort):
         Returns True if authentication successful.
         """
         try:
-            # Store account_id for later use
-            self._account_id = str(credentials.get("login"))
+            # Check for MetaAPI credentials
+            if credentials.get("metaapi_token") and credentials.get("metaapi_account_id"):
+                self._metaapi_token = credentials["metaapi_token"]
+                self._metaapi_account_id = credentials["metaapi_account_id"]
+                self._account_id = credentials["metaapi_account_id"]
+            else:
+                # Store account_id for later use (Manager API mode)
+                self._account_id = str(credentials.get("login"))
 
-            # MT4Executor authentication happens during initialize()
-            # which uses credentials from config
+            # (Re)create executor with new credentials if needed
+            if self._executor is None or (self._metaapi_token and not self._executor.is_using_sdk):
+                self._executor = MT4Executor(
+                    metaapi_token=self._metaapi_token,
+                    metaapi_account_id=self._metaapi_account_id,
+                )
+
+            # Connect if not already connected
             if not await self.is_connected():
                 return await self.connect()
             return True
