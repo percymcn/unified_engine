@@ -54,6 +54,9 @@ stripe>=7.0.0
 # TradeLocker Official SDK
 tradelocker>=0.56.0
 
+# ProjectX Official SDK (TopStep)
+project-x-py>=3.5.0
+
 # Test Dependencies (ensure these are installed for running tests)
 # pytest==7.4.3 (already listed)
 # pytest-asyncio==0.21.1 (already listed)
