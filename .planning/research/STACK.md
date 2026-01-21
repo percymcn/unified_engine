@@ -1,722 +1,670 @@
-# Stack Research: Trading Signal Routing Engine Refactor
+# Stack Research: v1.1 Additions
 
-**Researched:** 2026-01-19
-**Domain:** Trading signal routing with hexagonal architecture
-**Overall Confidence:** HIGH for backend, MEDIUM for frontend real-time patterns
-
-## Question
-
-What's the standard 2025/2026 stack for:
-1. Hexagonal architecture in Python/FastAPI trading systems?
-2. Real-time dashboard UIs with Next.js 14 and shadcn/ui?
-3. WebSocket patterns for trading signal updates?
+**Researched:** 2026-01-20
+**Domain:** Stripe Billing + Official Broker SDKs
+**Confidence:** HIGH (verified via PyPI, npm, official docs)
 
 ## Executive Summary
 
-**Backend:** Python hexagonal architecture is mature and production-ready with established patterns. Use FastAPI's built-in DI for simple cases, dependency-injector library for complex systems. SQLAlchemy 2.0 async repository pattern is standard. Avoid over-abstracting in trading systems - hexagonal architecture shines for domain logic isolation, not CRUD operations.
+v1.1 adds Stripe billing infrastructure and replaces placeholder broker adapters with official SDKs. The existing hexagonal architecture (BrokerPort interface, adapter pattern) maps perfectly to this integration. Stripe Python SDK 14.2.0 and Stripe.js 8.6.1 provide complete billing lifecycle management. For brokers: TradeLocker has an official Python SDK (0.56.2), TopStep uses project-x-py (3.5.9), MetaAPI provides metaapi-cloud-sdk (29.1.1), and Tradovate requires custom OAuth 2.0 implementation (no official Python SDK exists).
 
-**Frontend:** Next.js 14 App Router with shadcn/ui is the current best practice for dashboards. For real-time trading data, Server-Sent Events (SSE) outperforms WebSockets for unidirectional updates (50% lower overhead). Use TanStack Query for state management with query invalidation pattern. Tremor provides production-ready charts built on Recharts.
-
-**Critical Insight:** Trading systems need WebSocket/SSE for market data, but HTTP/REST for command operations. Don't force everything through WebSocket - bi-directional communication adds 30% complexity overhead for no benefit when client only receives updates.
+**Critical finding:** All broker SDKs except Tradovate have official Python libraries. Tradovate requires building a custom adapter using httpx + websockets for their REST/WebSocket API with OAuth 2.0 authentication.
 
 ---
 
-## Python/FastAPI Hexagonal Architecture Stack
+## Stripe Integration
 
-### Core Framework
-| Library | Version | Purpose | Confidence |
+### Libraries
+
+| Package | Version | Purpose | Confidence |
 |---------|---------|---------|------------|
-| **FastAPI** | 0.104.1+ | Web framework with async support | HIGH |
-| **Pydantic** | 2.12.5 | Data validation with v2 performance | HIGH |
-| **SQLAlchemy** | 2.0+ | Async ORM with repository pattern | HIGH |
-| **dependency-injector** | 4.48.3 | DI container for hexagonal architecture | HIGH |
-
-**Current as of:** January 2026
-
-### Why These Versions?
-
-**Pydantic 2.12.5** (released Nov 26, 2025):
-- Rebuilt on Rust core with 2-5x performance improvement
-- `model_validate`, `model_dump`, `TypeAdapter` new API surface
-- `Annotated` types for constraints: `UserId = Annotated[int, Field(ge=1)]`
-- Better TypeScript-like type safety
-- Python 3.14 support
-
-**dependency-injector 4.48.3** (released Dec 4, 2025):
-- Mature, production-ready (8+ years)
-- FastAPI integration examples in official docs
-- Async/await support with coroutine providers
-- Configuration from environment variables, YAML, Pydantic settings
-- Mypy-friendly with typing stubs
-- Fast (written in Cython)
-
-**SQLAlchemy 2.0**:
-- `AsyncEngine` and `AsyncConnection` for async I/O
-- Repository pattern with async session management
-- Lambda statements for optimized queries
-- FastAPI dependency caching ensures single session per request
-
-### Hexagonal Architecture Project Structure
-
-Standard structure verified across multiple 2025 sources:
-
-```
-src/
-├── domain/               # Domain layer (no 3rd party dependencies)
-│   ├── entities/        # Business entities (rich domain model, not anemic)
-│   ├── value_objects/   # Immutable value objects
-│   └── ports/           # Interfaces (repositories, events, use cases)
-│       ├── repositories/
-│       └── services/
-├── application/         # Application layer (use cases)
-│   ├── use_cases/       # Business process coordination
-│   ├── dto/             # Data transfer objects
-│   └── services/        # Application services implementing domain ports
-├── infrastructure/      # Infrastructure layer (adapters)
-│   ├── adapters/
-│   │   ├── input/       # HTTP handlers (FastAPI routes)
-│   │   └── output/      # External integrations (DB, APIs, queues)
-│   ├── repositories/    # Concrete repository implementations
-│   └── config/          # Configuration adapters
-└── bootstrap.py         # DI container setup
-```
-
-**Key principle:** Domain layer has ZERO imports from FastAPI, SQLAlchemy, or any framework. Only Python stdlib and domain logic.
-
-### Dependency Injection Pattern
-
-**For simple systems:** FastAPI's built-in `Depends()` is sufficient.
-
-**For hexagonal architecture:** Use dependency-injector library.
-
-```python
-# bootstrap.py
-from dependency_injector import containers, providers
-
-class Container(containers.DeclarativeContainer):
-    config = providers.Configuration()
-
-    # Infrastructure
-    db = providers.Singleton(
-        Database,
-        db_url=config.db.url,
-    )
-
-    # Repositories
-    signal_repository = providers.Factory(
-        SignalRepository,
-        session_factory=db.provided.session,
-    )
-
-    # Services
-    routing_service = providers.Factory(
-        RoutingService,
-        signal_repo=signal_repository,
-    )
-```
-
-**Rationale:** dependency-injector reduces boilerplate by 25% compared to manual DI (source: 2025 fintech deployment). Provides clear separation of concerns required for hexagonal architecture.
-
-### Repository Pattern with SQLAlchemy 2.0
-
-```python
-# domain/ports/repositories.py (interface)
-from abc import ABC, abstractmethod
-from typing import Protocol
-
-class SignalRepository(Protocol):
-    async def save(self, signal: Signal) -> Signal:
-        ...
-
-    async def find_by_id(self, signal_id: UUID) -> Signal | None:
-        ...
-
-# infrastructure/repositories/signal_repository.py (implementation)
-from sqlalchemy.ext.asyncio import AsyncSession
-
-class SQLAlchemySignalRepository:
-    def __init__(self, session: AsyncSession):
-        self._session = session
-
-    async def save(self, signal: Signal) -> Signal:
-        # Implementation using self._session
-        pass
-```
-
-**Pattern verified:** Litestar framework (2025) provides built-in repository with optimized bulk operations and `lambda_stmt` for performance. Consider adapting their patterns.
-
-### What NOT to Do
-
-**❌ Don't use hexagonal architecture for CRUD operations**
-- Trading signal CRUD = use FastAPI routes directly
-- Market data ingestion = hexagonal architecture (complex domain logic)
-- **Rationale:** "If your project has CRUD-like complexity, hexagonal architecture is overengineering" (verified across 5+ sources)
-
-**❌ Don't create interfaces prematurely**
-- Create ports/interfaces only when you have 2+ implementations
-- **Rationale:** "Create interfaces lazily once there are two implementations" (SQuaRE FastAPI guide)
-
-**❌ Don't use 3rd party libraries in domain layer**
-- No SQLAlchemy models in domain entities
-- No Pydantic models in domain (use plain Python classes or dataclasses)
-- **Rationale:** Domain logic should be framework-agnostic for testability
-
-**❌ Avoid interface explosion**
-- Anti-pattern: 50+ ports for mid-sized app (30% increased cognitive load)
-- **Fix:** Group related operations into composite ports (e.g., `ISignalRepository` combines CRUD)
-
-**❌ Don't use `scoped_session` with async**
-- SQLAlchemy docs: "Not recommended for new development with asyncio"
-- **Use instead:** Pass `AsyncSession` directly to awaitable functions via DI
-
----
-
-## Next.js 14 Real-Time Dashboard Stack
-
-### Core Frontend Framework
-| Library | Version | Purpose | Confidence |
-|---------|---------|---------|------------|
-| **Next.js** | 14+ (App Router) | React framework with SSR | HIGH |
-| **shadcn/ui** | Latest | Component library with Tailwind | HIGH |
-| **next-themes** | Latest | Dark mode theming | HIGH |
-| **Zustand** | 4.x | Client state management | HIGH |
-| **TanStack Query** | v5 | Server state & cache management | HIGH |
-| **Tremor** | Latest | Dashboard charts (built on Recharts) | MEDIUM |
-
-### UI Component Stack
-
-**shadcn/ui + next-themes** for theming:
-```tsx
-// app/providers.tsx
-'use client'
-import { ThemeProvider as NextThemesProvider } from 'next-themes'
-
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  return (
-    <NextThemesProvider
-      attribute="class"
-      defaultTheme="system"
-      enableSystem
-      disableTransitionOnChange
-    >
-      {children}
-    </NextThemesProvider>
-  )
-}
-
-// app/layout.tsx
-export default function RootLayout({ children }) {
-  return (
-    <html lang="en" suppressHydrationWarning>
-      <body>
-        <ThemeProvider>{children}</ThemeProvider>
-      </body>
-    </html>
-  )
-}
-```
-
-**IMPORTANT:** Must add `suppressHydrationWarning` to `<html>` tag - next-themes updates this element, causing hydration warnings otherwise.
-
-**Tailwind config:** Set `darkMode: 'class'` in `tailwind.config.ts`.
-
-### Charting Library: Tremor vs Recharts vs Chart.js
-
-| Library | Weekly Downloads | Stars | Best For |
-|---------|------------------|-------|----------|
-| **Recharts** | 9.5M | 26.4K | React projects, flexibility |
-| **Chart.js** | 5.6M | 66.9K | Simple, framework-agnostic |
-| **Tremor** | 139K | 16.4K | Rapid dashboard development |
-
-**Recommendation: Tremor** for this project.
-
-**Rationale:**
-- Built on Recharts + Radix UI + Tailwind CSS (already in stack)
-- Production-ready dashboard components with minimal configuration
-- Tight Next.js integration with official docs
-- Dark mode support out-of-box with shadcn/ui compatibility
-- Trading dashboards need fast development > deep customization
-
-**Trade-off:** Less customizable than raw Recharts. If you need custom chart types, use Recharts directly. Tremor is 80% less code for standard dashboard charts.
+| `stripe` (Python) | 14.2.0 | Backend API operations | HIGH |
+| `@stripe/stripe-js` | 8.6.1 | Frontend Stripe.js loader | HIGH |
+| `@stripe/react-stripe-js` | 5.4.1 | React components for Elements | HIGH |
+| `stripe` (Node.js) | 20.1.0 | Optional: server-side actions | MEDIUM |
 
 **Installation:**
 ```bash
-npm install @tremor/react recharts
+# Backend (Python)
+pip install stripe==14.2.0
+
+# Frontend (Next.js)
+npm install @stripe/stripe-js@8.6.1 @stripe/react-stripe-js@5.4.1
 ```
 
-### State Management Architecture
+**Why these versions:**
+- stripe 14.2.0: Latest stable, supports Python 3.7-3.12, async support via `[async]` extra
+- @stripe/stripe-js 8.6.1: Current stable, auto-loads latest Stripe.js from CDN (PCI compliance)
+- @stripe/react-stripe-js 5.4.1: React 16.8+ support, works with existing React 18 setup
 
-**Use Zustand for client state, TanStack Query for server state.**
+**What NOT to use:**
+- `stripe-subscriptions` (PyPI): Third-party wrapper, unnecessary abstraction over official SDK
+- Self-hosted Stripe.js: Violates PCI compliance (must load from js.stripe.com)
+- Older stripe versions (<14.0): Deprecated Python 3.6 support, missing async features
 
-**Zustand setup for Next.js App Router:**
-```typescript
-// lib/stores/trading-store.ts
-'use client'
-import { create } from 'zustand'
+### Environment Variables
 
-export const useTradingStore = create<TradingState>((set) => ({
-  selectedBroker: null,
-  setSelectedBroker: (broker) => set({ selectedBroker: broker }),
-}))
+```bash
+# Backend (.env)
+STRIPE_SECRET_KEY=sk_live_...              # Required: API operations
+STRIPE_PUBLISHABLE_KEY=pk_live_...         # Required: Frontend config
+STRIPE_WEBHOOK_SECRET=whsec_...            # Required: Webhook signature verification
+STRIPE_API_VERSION=2025-12-15.clover       # Optional: Pin API version
+
+# Product/Price IDs (create in Stripe Dashboard first)
+STRIPE_PRICE_ID_BASIC=price_...            # Basic plan price ID
+STRIPE_PRICE_ID_PRO=price_...              # Pro plan price ID
+STRIPE_PRICE_ID_ENTERPRISE=price_...       # Enterprise plan price ID
 ```
 
-**CRITICAL for App Router:**
-- ❌ Don't define store as global variable (violates Next.js RSC architecture)
-- ✅ Create store per-request or use client-side initialization
-- ❌ React Server Components should NOT read/write Zustand
-- ✅ Only Client Components can use Zustand hooks
+### Integration Pattern with Hexagonal Architecture
 
-**Why Zustand over Redux:**
-- 90% less boilerplate (no actions, reducers)
-- Better TypeScript support
-- 25% smaller bundle size
-- Simpler mental model for trading dashboard state
-
-**Confidence:** HIGH - Zustand is mature, widely adopted, and specifically documented for Next.js 14+ App Router.
-
----
-
-## Real-Time Trading Data Patterns
-
-### Server-Sent Events (SSE) vs WebSockets
-
-**Recommendation: Use SSE for market data updates, WebSockets only if bi-directional needed.**
-
-| Feature | SSE | WebSockets |
-|---------|-----|------------|
-| Direction | Server → Client only | Bi-directional |
-| Protocol | HTTP/2 | Custom over TCP |
-| Latency | ~50ms | ~20ms |
-| Complexity | Low | Medium-High |
-| Server Load | 50% lower for push-only | Higher (maintains state) |
-| Reconnection | Automatic | Manual implementation |
-| Firewall/Proxy | Works everywhere | May be blocked |
-
-**For trading signals:**
-- Market data updates → **SSE** (unidirectional)
-- Trade execution confirmations → **SSE**
-- Live dashboard metrics → **SSE**
-- Chat/collaboration features → **WebSockets**
-
-**Performance data (2025 benchmarks):**
-- SSE: 10,000 concurrent connections, <5% CPU (Microsoft ASP.NET benchmark)
-- WebSockets: 10,000 messages/sec, 10ms latency (optimal conditions)
-- Trading APIs: Polygon.io <20ms, EODHD <50ms transport latency
-
-**Rationale:** SSE is simpler, has lower overhead, automatic reconnection. WebSockets add 30% complexity for bi-directional communication you don't need in a trading dashboard (signals flow server→client only).
-
-### FastAPI WebSocket/SSE Implementation
-
-**For WebSockets with FastAPI:**
+**New Port Interface:**
 ```python
-from fastapi import WebSocket
+# app/domain/ports/billing_port.py
+from abc import ABC, abstractmethod
+from typing import Optional
+from app.domain.entities.subscription import Subscription
+from app.domain.value_objects import CustomerId, SubscriptionId
 
-@app.websocket("/ws/signals")
-async def websocket_signals(websocket: WebSocket):
-    await websocket.accept()
-    try:
-        while True:
-            signal = await signal_queue.get()
-            await websocket.send_json(signal.dict())
-    except WebSocketDisconnect:
+class BillingPort(ABC):
+    """Port interface for billing operations."""
+
+    @abstractmethod
+    async def create_checkout_session(
+        self,
+        customer_id: CustomerId,
+        price_id: str,
+        success_url: str,
+        cancel_url: str,
+    ) -> str:
+        """Create checkout session, return session URL."""
+        pass
+
+    @abstractmethod
+    async def create_portal_session(
+        self,
+        customer_id: CustomerId,
+        return_url: str,
+    ) -> str:
+        """Create customer portal session, return portal URL."""
+        pass
+
+    @abstractmethod
+    async def get_subscription(
+        self,
+        subscription_id: SubscriptionId,
+    ) -> Optional[Subscription]:
+        """Get subscription details."""
+        pass
+
+    @abstractmethod
+    async def cancel_subscription(
+        self,
+        subscription_id: SubscriptionId,
+        at_period_end: bool = True,
+    ) -> Subscription:
+        """Cancel subscription."""
+        pass
+
+    @abstractmethod
+    async def handle_webhook_event(
+        self,
+        payload: bytes,
+        signature: str,
+    ) -> dict:
+        """Verify and handle webhook event."""
         pass
 ```
 
-**Production deployment:**
-- Use Gunicorn + Uvicorn workers (`gunicorn -k uvicorn.workers.UvicornWorker`)
-- Worker count = CPU cores (each worker handles own connections)
-- Redis pub/sub for multi-worker coordination
-- Nginx reverse proxy for HTTPS, load balancing
-
-**For horizontal scaling:** Use Redis PubSub, NATS, or Kafka to distribute events across FastAPI instances. Each instance subscribes and forwards to locally connected clients.
-
-**Security:**
-- Authenticate during handshake (verify JWT in query param or cookie)
-- Use WSS (WebSocket Secure) over TLS in production
-- Implement heartbeat messages to keep connections alive
-
-### Frontend WebSocket Integration
-
-**Pattern: TanStack Query + WebSocket invalidation**
-
-```typescript
-// hooks/use-trading-signals.ts
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect } from 'react'
-
-export function useTradingSignals() {
-  const queryClient = useQueryClient()
-
-  // Standard HTTP query
-  const { data } = useQuery({
-    queryKey: ['signals'],
-    queryFn: fetchSignals,
-  })
-
-  // WebSocket for real-time updates
-  useEffect(() => {
-    const ws = new WebSocket('wss://api/ws/signals')
-
-    ws.onmessage = (event) => {
-      const signal = JSON.parse(event.data)
-
-      // Approach 1: Invalidate and refetch
-      queryClient.invalidateQueries({ queryKey: ['signals'] })
-
-      // Approach 2: Direct cache update (for partial updates)
-      queryClient.setQueryData(['signals'], (old) =>
-        updateSignalInList(old, signal)
-      )
-    }
-
-    return () => ws.close()
-  }, [queryClient])
-
-  return data
-}
-```
-
-**Why this pattern:**
-- Query invalidation prevents "over-pushing" (only refetches when data displayed)
-- If on Profile page when signal updates arrive, invalidation defers refetch until Signals page opened
-- Optimistic updates possible with `setQueryData`
-- TanStack Query handles caching, background refetch, error retry
-
-**Alternative: react-use-websocket library**
-- Lightweight hook for WebSocket connections
-- Handles reconnection logic
-- Good for simple cases without TanStack Query
-
-**Confidence:** HIGH for TanStack Query + invalidation pattern (official TanStack blog, multiple 2025 production examples). MEDIUM for specific library versions (ecosystem moves fast).
-
-### TanStack Query with Next.js 14
-
-**Key features:**
-- Server-side prefetching with dehydration
-- Experimental streaming support (3x faster for AI responses)
-- Experimental `broadcastQueryClient` for cross-tab sync (80% fewer redundant API calls)
-
-```tsx
-// app/signals/page.tsx
-import { HydrationBoundary, QueryClient, dehydrate } from '@tanstack/react-query'
-
-export default async function SignalsPage() {
-  const queryClient = new QueryClient()
-
-  // Prefetch on server
-  await queryClient.prefetchQuery({
-    queryKey: ['signals'],
-    queryFn: fetchSignals,
-  })
-
-  return (
-    <HydrationBoundary state={dehydrate(queryClient)}>
-      <SignalsList />
-    </HydrationBoundary>
-  )
-}
-```
-
-**Rationale:** Server prefetch provides instant page load, then React Query upgrades with full client functionality (refetch on stale, background updates).
-
----
-
-## Integration Patterns for Trading System
-
-### FastAPI Backend Architecture
-
-```
-backend/
-├── domain/
-│   ├── entities/
-│   │   ├── signal.py          # Trading signal entity
-│   │   └── broker.py          # Broker connection entity
-│   └── ports/
-│       ├── signal_repository.py
-│       └── broker_service.py
-├── application/
-│   └── use_cases/
-│       ├── route_signal.py    # Core routing logic
-│       └── execute_trade.py
-├── infrastructure/
-│   ├── adapters/
-│   │   ├── http/              # FastAPI routes
-│   │   ├── websocket/         # Real-time signal streaming
-│   │   └── tradingview/       # TradingView webhook adapter
-│   └── repositories/
-│       └── sqlalchemy/
-└── bootstrap.py
-```
-
-**Key integration points:**
-1. **TradingView webhook** → FastAPI HTTP adapter → RouteSignal use case
-2. **RouteSignal use case** → Broker service port → Execute at broker
-3. **Signal saved** → Redis pub/sub → WebSocket/SSE → Frontend
-4. **Frontend query** → FastAPI HTTP → Repository → Database
-
-### JWT Authentication Flow
-
-**Self-hosted JWT (no Supabase):**
-
+**Stripe Adapter Implementation:**
 ```python
-# infrastructure/auth/jwt_handler.py
-from fastapi import Depends, HTTPException
-from fastapi.security import HTTPBearer
-import jwt
+# app/infrastructure/adapters/stripe_adapter.py
+import stripe
+from app.domain.ports.billing_port import BillingPort
+from app.config import settings
 
-security = HTTPBearer()
+class StripeAdapter(BillingPort):
+    """Stripe adapter implementing BillingPort."""
 
-async def get_current_user(token: str = Depends(security)):
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-        return payload['sub']
-    except jwt.InvalidTokenError:
-        raise HTTPException(401, "Invalid token")
+    def __init__(self):
+        stripe.api_key = settings.STRIPE_SECRET_KEY
+
+    async def create_checkout_session(
+        self,
+        customer_id: CustomerId,
+        price_id: str,
+        success_url: str,
+        cancel_url: str,
+    ) -> str:
+        session = stripe.checkout.Session.create(
+            customer=customer_id.value,
+            line_items=[{"price": price_id, "quantity": 1}],
+            mode="subscription",
+            success_url=success_url,
+            cancel_url=cancel_url,
+        )
+        return session.url
+
+    async def create_portal_session(
+        self,
+        customer_id: CustomerId,
+        return_url: str,
+    ) -> str:
+        session = stripe.billing_portal.Session.create(
+            customer=customer_id.value,
+            return_url=return_url,
+        )
+        return session.url
+
+    async def handle_webhook_event(
+        self,
+        payload: bytes,
+        signature: str,
+    ) -> dict:
+        event = stripe.Webhook.construct_event(
+            payload,
+            signature,
+            settings.STRIPE_WEBHOOK_SECRET,
+        )
+        return {"type": event.type, "data": event.data.object}
 ```
 
-**WebSocket authentication:**
+**Webhook Endpoint (FastAPI):**
 ```python
-@app.websocket("/ws/signals")
-async def websocket_signals(
-    websocket: WebSocket,
-    token: str = Query(...),  # Pass JWT in query param
+# app/api/routes/billing.py
+from fastapi import APIRouter, Request, HTTPException, Depends
+from app.domain.ports.billing_port import BillingPort
+
+router = APIRouter(prefix="/billing", tags=["billing"])
+
+@router.post("/webhook")
+async def stripe_webhook(
+    request: Request,
+    billing: BillingPort = Depends(get_billing_port),
 ):
-    user = await verify_jwt(token)  # Verify during handshake
-    await websocket.accept()
-    # ... stream signals for this user
+    payload = await request.body()  # Raw bytes required
+    signature = request.headers.get("stripe-signature")
+
+    try:
+        event = await billing.handle_webhook_event(payload, signature)
+    except stripe.error.SignatureVerificationError:
+        raise HTTPException(400, "Invalid signature")
+
+    # Handle event types
+    match event["type"]:
+        case "checkout.session.completed":
+            await handle_checkout_complete(event["data"])
+        case "customer.subscription.updated":
+            await handle_subscription_updated(event["data"])
+        case "customer.subscription.deleted":
+            await handle_subscription_deleted(event["data"])
+        case "invoice.payment_failed":
+            await handle_payment_failed(event["data"])
+
+    return {"status": "ok"}
 ```
 
-**Frontend (Next.js):**
+**Frontend (Next.js) Pattern:**
 ```typescript
-// lib/api-client.ts
-export const apiClient = {
-  baseUrl: process.env.NEXT_PUBLIC_API_URL,
+// src/lib/stripe.ts
+import { loadStripe } from '@stripe/stripe-js';
 
-  async fetch(endpoint: string, options?: RequestInit) {
-    const token = getToken() // From cookie or localStorage
-    return fetch(`${this.baseUrl}${endpoint}`, {
-      ...options,
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        ...options?.headers,
-      },
-    })
-  },
+export const stripePromise = loadStripe(
+  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
+);
+
+// src/app/pricing/page.tsx
+'use client';
+import { stripePromise } from '@/lib/stripe';
+
+async function handleCheckout(priceId: string) {
+  const response = await fetch('/api/checkout', {
+    method: 'POST',
+    body: JSON.stringify({ priceId }),
+  });
+  const { url } = await response.json();
+  window.location.href = url;  // Redirect to Stripe Checkout
 }
 ```
 
-**Confidence:** HIGH - JWT is standard for self-hosted auth, FastAPI has built-in security utilities, Next.js 14 works with any auth provider.
-
 ---
 
-## Recommended Stack Summary
+## Broker SDKs
 
-### Must Use (High Confidence)
+### TradeLocker (tradelocker)
 
-**Backend:**
-- **FastAPI 0.104.1+** with async/await for all I/O operations
-- **Pydantic 2.12.5** for validation and DTOs (use `Annotated` types)
-- **SQLAlchemy 2.0+** with async engine and repository pattern
-- **dependency-injector 4.48.3** for hexagonal architecture DI
-- **Gunicorn + Uvicorn** workers for production deployment
-- **Redis** for WebSocket pub/sub coordination (multi-worker)
+| Attribute | Value |
+|-----------|-------|
+| Package | `tradelocker` |
+| Version | 0.56.2 |
+| Python | >=3.11 |
+| Confidence | HIGH |
+| Source | [PyPI](https://pypi.org/project/tradelocker/), [GitHub](https://github.com/TradeLocker/tradelocker-python) |
 
-**Frontend:**
-- **Next.js 14 App Router** with React Server Components
-- **shadcn/ui** for component library
-- **next-themes** for dark mode (with `suppressHydrationWarning`)
-- **Zustand 4.x** for client state management (per-request pattern)
-- **TanStack Query v5** for server state with query invalidation
-- **Tremor** for dashboard charts (production-ready, built on Recharts)
-
-**Real-Time:**
-- **Server-Sent Events (SSE)** for unidirectional updates (preferred for trading data)
-- **WebSockets** only if bi-directional needed (chat, collaboration)
-- **TanStack Query invalidation** pattern for WebSocket + HTTP integration
-
-### Should Consider (Medium Confidence)
-
-- **Litestar SQLAlchemy Repository** - Pre-built async repository with optimized bulk operations (adapt patterns, don't add dependency)
-- **encode/broadcaster** - For production WebSocket scaling with Redis/PostgreSQL backend
-- **Recharts directly** - If Tremor's abstraction too limiting for custom chart types
-- **experimental TanStack Query features** - Streaming support (3x faster), broadcastQueryClient (cross-tab sync)
-
-### Avoid
-
-**Backend:**
-- ❌ **Django** for hexagonal architecture - Less natural fit than FastAPI for ports/adapters
-- ❌ **`scoped_session`** with async - SQLAlchemy docs recommend against for new development
-- ❌ **Global Zustand stores** in Next.js App Router - Violates RSC architecture
-- ❌ **Anemic domain models** - Use rich domain objects with behavior, not just data
-- ❌ **Hexagonal architecture for CRUD** - Overengineering for simple operations
-
-**Frontend:**
-- ❌ **Redux** - 90% more boilerplate than Zustand for same functionality
-- ❌ **Vanilla WebSocket libraries** without TanStack Query - Reinventing cache invalidation
-- ❌ **Chart.js** - Less React-friendly than Recharts/Tremor for dashboard use case
-- ❌ **D3.js directly** - Too low-level for standard trading charts, use Tremor/Recharts
-- ❌ **Long polling** for real-time data - SSE is standard now (50% lower overhead)
-
-**Architecture:**
-- ❌ **WebSockets for everything** - Use HTTP for commands, SSE/WebSocket only for events
-- ❌ **Interface explosion** - Create ports lazily, group related operations
-- ❌ **3rd party imports in domain layer** - Breaks framework independence
-
----
-
-## Deployment Considerations
-
-### Docker Swarm Deployment
-
-**FastAPI container:**
-```dockerfile
-FROM python:3.12-slim
-
-WORKDIR /app
-
-# Install dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-COPY . .
-
-# Production command
-CMD ["gunicorn", "main:app", \
-     "--workers", "4", \
-     "--worker-class", "uvicorn.workers.UvicornWorker", \
-     "--bind", "0.0.0.0:8000"]
+**Installation:**
+```bash
+pip install tradelocker==0.56.2
 ```
 
-**Worker count:** Match CPU cores. For WebSockets, each worker maintains own connections.
+**Environment Variables:**
+```bash
+TRADELOCKER_ENV_URL=https://api.tradelocker.com    # API environment
+TRADELOCKER_USERNAME=your_username                  # Account username
+TRADELOCKER_PASSWORD=your_password                  # Account password
+TRADELOCKER_SERVER=server_id                        # Server identifier
+```
 
-**Redis for coordination:**
+**Why official SDK:**
+- Direct mapping to existing `TradeLockerAdapter` pattern
+- Officially maintained by TradeLocker
+- Healthy release cadence (new version in past 3 months)
+- Simplifies authentication flow (handles token refresh)
+
+**Key API Methods:**
 ```python
-# infrastructure/pubsub/redis_broker.py
-import redis.asyncio as redis
+from tradelocker import TLAPI
 
-class RedisSignalBroker:
-    def __init__(self, redis_url: str):
-        self.redis = redis.from_url(redis_url)
+tl = TLAPI(
+    environment_url=settings.TRADELOCKER_ENV_URL,
+    username=settings.TRADELOCKER_USERNAME,
+    password=settings.TRADELOCKER_PASSWORD,
+    server=settings.TRADELOCKER_SERVER,
+)
 
-    async def publish(self, channel: str, message: dict):
-        await self.redis.publish(channel, json.dumps(message))
+# Get instruments
+instruments = tl.get_all_instruments()
+instrument_id = tl.get_instrument_id_from_symbol_name("BTCUSD")
 
-    async def subscribe(self, channel: str):
-        pubsub = self.redis.pubsub()
-        await pubsub.subscribe(channel)
-        async for message in pubsub.listen():
-            if message['type'] == 'message':
-                yield json.loads(message['data'])
+# Get price data
+history = tl.get_price_history(instrument_id, "1h", start_ts, end_ts)
+price = tl.get_latest_asking_price(instrument_id)
+
+# Order management
+order = tl.create_order(instrument_id, quantity=1.0, side="buy", type_="market")
+tl.close_position(order_id)
 ```
 
-**Nginx reverse proxy:**
-```nginx
-upstream fastapi {
-    server fastapi:8000;
+**Adapter Integration:**
+The existing `TradeLockerAdapter` wraps a `TradeLockerExecutor`. Replace the executor internals with official SDK calls while maintaining the same port interface.
+
+### TopStep/ProjectX (project-x-py)
+
+| Attribute | Value |
+|-----------|-------|
+| Package | `project-x-py` |
+| Version | 3.5.9 |
+| Python | >=3.8 (async-native) |
+| Confidence | HIGH |
+| Source | [PyPI](https://pypi.org/project/project-x-py/), [ReadTheDocs](https://project-x-py.readthedocs.io/) |
+
+**Installation:**
+```bash
+pip install project-x-py==3.5.9
+```
+
+**Environment Variables:**
+```bash
+# Configuration via JSON file or environment
+PROJECTX_API_KEY=your_api_key
+PROJECTX_USERNAME=your_username
+PROJECTX_API_URL=https://api.topstepx.com/api
+PROJECTX_WEBSOCKET_URL=wss://api.topstepx.com
+PROJECTX_TIMEZONE=US/Central
+```
+
+**Why this SDK:**
+- High-performance async SDK for ProjectX Trading Platform
+- 58+ TA-Lib compatible indicators
+- Real-time WebSocket streaming
+- Level 2 orderbook analysis
+
+**Key Features:**
+- Async session management
+- Multi-account support
+- Real-time position P&L
+- Historical market data
+- Pattern recognition (58+ indicators)
+
+**Important Restrictions:**
+- API Access: $29/month (50% off for Topstep traders)
+- All trading must originate from personal device
+- VPS/VPN/remote servers prohibited by Topstep ToS
+
+**Adapter Pattern:**
+```python
+# app/infrastructure/adapters/topstep_adapter.py
+from project_x_py import ProjectXClient
+from app.domain.ports.broker_port import BrokerPort
+
+class TopStepAdapter(BrokerPort):
+    def __init__(self):
+        self._client = None
+
+    async def connect(self) -> bool:
+        self._client = ProjectXClient(config_path="projectx_config.json")
+        await self._client.connect()
+        return True
+
+    async def place_order(self, symbol, order_type, volume, **kwargs):
+        return await self._client.orders.place(
+            symbol=symbol.value,
+            side=self._map_order_type(order_type),
+            quantity=float(volume.value),
+        )
+```
+
+### MetaAPI (metaapi-cloud-sdk)
+
+| Attribute | Value |
+|-----------|-------|
+| Package | `metaapi-cloud-sdk` |
+| Version | 29.1.1 |
+| Python | >=3.8 |
+| Confidence | HIGH |
+| Source | [PyPI](https://pypi.org/project/metaapi-cloud-sdk/), [GitHub](https://github.com/metaapi/metaapi-python-sdk) |
+
+**Installation:**
+```bash
+pip install metaapi-cloud-sdk==29.1.1
+```
+
+**Environment Variables:**
+```bash
+METAAPI_TOKEN=your_metaapi_token                   # MetaApi API token
+METAAPI_ACCOUNT_ID=your_account_id                 # MT4/MT5 account ID
+```
+
+**Why MetaAPI (not direct MT4/MT5):**
+- Cloud-based bridge to MT4/MT5 (no local terminal required)
+- REST + WebSocket API
+- Supports both MT4 and MT5
+- Real-time synchronization
+- CopyFactory trade copying included
+- Free usage tier available
+
+**Key Features:**
+- Terminal state synchronization (positions, orders, quotes)
+- Streaming quote updates
+- Custom history storage (MongoDB, etc.)
+- Connection health monitoring
+- Quote streaming (G1: 1 tick/2.5s limit)
+
+**Adapter Pattern:**
+```python
+# app/infrastructure/adapters/metaapi_adapter.py
+from metaapi_cloud_sdk import MetaApi
+from app.domain.ports.broker_port import BrokerPort
+
+class MetaApiAdapter(BrokerPort):
+    def __init__(self):
+        self._api = None
+        self._connection = None
+
+    async def connect(self) -> bool:
+        self._api = MetaApi(token=settings.METAAPI_TOKEN)
+        account = await self._api.metatrader_account_api.get_account(
+            settings.METAAPI_ACCOUNT_ID
+        )
+        self._connection = account.get_streaming_connection()
+        await self._connection.connect()
+        await self._connection.wait_synchronized()
+        return True
+
+    async def get_positions(self):
+        terminal_state = self._connection.terminal_state
+        return [
+            self._to_domain_position(p)
+            for p in terminal_state.positions
+        ]
+
+    async def get_quote(self, symbol):
+        price = self._connection.terminal_state.price(symbol.value)
+        return {"bid": price.bid, "ask": price.ask}
+```
+
+**Streaming Listener:**
+```python
+from metaapi_cloud_sdk import SynchronizationListener
+
+class QuoteListener(SynchronizationListener):
+    async def on_symbol_price_updated(self, instance_index, price):
+        # Handle real-time quote update
+        await self._publish_quote(price)
+
+    async def on_position_updated(self, instance_index, position):
+        # Handle position update
+        await self._publish_position_update(position)
+```
+
+### Tradovate OAuth
+
+| Attribute | Value |
+|-----------|-------|
+| Package | None (custom implementation) |
+| Auth | OAuth 2.0 |
+| API | REST + WebSocket |
+| Confidence | MEDIUM |
+| Source | [API Docs](https://api.tradovate.com/), [Community Python Client](https://github.com/cullen-b/Tradovate-Python-Client) |
+
+**No Official Python SDK:** Tradovate does not provide an official Python library. Must build custom adapter using:
+- `httpx` for REST API calls
+- `websockets` for real-time data
+- Custom OAuth 2.0 flow implementation
+
+**Environment Variables:**
+```bash
+TRADOVATE_API_URL=https://live.tradovateapi.com/v1  # Live API
+TRADOVATE_DEMO_URL=https://demo.tradovateapi.com/v1 # Demo API
+TRADOVATE_WS_URL=wss://live.tradovateapi.com/v1     # WebSocket
+TRADOVATE_CLIENT_ID=your_client_id                   # OAuth client ID
+TRADOVATE_CLIENT_SECRET=your_client_secret           # OAuth client secret
+TRADOVATE_DEVICE_ID=your_device_id                   # Device identifier
+TRADOVATE_USERNAME=your_username                     # Account username
+TRADOVATE_PASSWORD=your_password                     # Account password
+```
+
+**OAuth 2.0 Flow:**
+```python
+# 1. Get access token
+POST /auth/accesstokenrequest
+{
+    "name": username,
+    "password": password,
+    "appId": client_id,
+    "appVersion": "1.0",
+    "deviceId": device_id,
+    "cid": client_id,
+    "sec": client_secret
 }
 
-server {
-    listen 443 ssl http2;
+# Response
+{
+    "accessToken": "...",
+    "mdAccessToken": "...",
+    "expirationTime": "2026-01-20T20:00:00Z",  # 1 hour limit
+    "userId": 12345,
+    "name": "username"
+}
 
-    location / {
-        proxy_pass http://fastapi;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
+# 2. Renew before expiry (must renew within 1 hour)
+POST /auth/renewaccesstoken
+Authorization: Bearer <accessToken>
+```
 
-    location /ws {
-        proxy_pass http://fastapi;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-    }
+**Custom Adapter Pattern:**
+```python
+# app/infrastructure/adapters/tradovate_adapter.py
+import httpx
+from datetime import datetime, timedelta
+from app.domain.ports.broker_port import BrokerPort
+
+class TradovateAdapter(BrokerPort):
+    def __init__(self):
+        self._client = httpx.AsyncClient()
+        self._access_token = None
+        self._token_expiry = None
+
+    async def connect(self) -> bool:
+        await self._authenticate()
+        return True
+
+    async def _authenticate(self):
+        response = await self._client.post(
+            f"{settings.TRADOVATE_API_URL}/auth/accesstokenrequest",
+            json={
+                "name": settings.TRADOVATE_USERNAME,
+                "password": settings.TRADOVATE_PASSWORD,
+                "appId": settings.TRADOVATE_CLIENT_ID,
+                "appVersion": "1.0",
+                "deviceId": settings.TRADOVATE_DEVICE_ID,
+                "cid": settings.TRADOVATE_CLIENT_ID,
+                "sec": settings.TRADOVATE_CLIENT_SECRET,
+            }
+        )
+        data = response.json()
+        self._access_token = data["accessToken"]
+        self._token_expiry = datetime.fromisoformat(
+            data["expirationTime"].replace("Z", "+00:00")
+        )
+
+    async def _ensure_token_valid(self):
+        if datetime.utcnow() >= self._token_expiry - timedelta(minutes=5):
+            await self._renew_token()
+
+    async def _renew_token(self):
+        response = await self._client.post(
+            f"{settings.TRADOVATE_API_URL}/auth/renewaccesstoken",
+            headers={"Authorization": f"Bearer {self._access_token}"}
+        )
+        data = response.json()
+        self._access_token = data["accessToken"]
+
+    async def place_order(self, symbol, order_type, volume, **kwargs):
+        await self._ensure_token_valid()
+        response = await self._client.post(
+            f"{settings.TRADOVATE_API_URL}/order/placeOrder",
+            headers={"Authorization": f"Bearer {self._access_token}"},
+            json={
+                "accountId": self._account_id,
+                "action": self._map_order_type(order_type),
+                "symbol": symbol.value,
+                "orderQty": int(volume.value),
+                "orderType": "Market",
+            }
+        )
+        return self._to_domain_order(response.json())
+```
+
+**Known Issues:**
+- Token has 1-hour limit (must implement proactive renewal)
+- Rate limits return 429 (implement exponential backoff)
+- Only one WebSocket per user
+- OAuth errors common with incorrect client setup
+
+---
+
+## Dependency Compatibility Matrix
+
+| Component | Python Version | Notes |
+|-----------|----------------|-------|
+| Existing stack | 3.13 | Project uses Python 3.13 |
+| stripe | >=3.7 | Compatible |
+| tradelocker | >=3.11 | Compatible |
+| project-x-py | >=3.8 | Compatible |
+| metaapi-cloud-sdk | >=3.8 | Compatible |
+| Tradovate (httpx) | >=3.8 | Compatible (httpx 0.25.2 already installed) |
+
+**All SDKs are compatible with Python 3.13.**
+
+---
+
+## Updated requirements.txt Additions
+
+```txt
+# Billing
+stripe==14.2.0
+
+# Broker SDKs (Official)
+tradelocker==0.56.2
+project-x-py==3.5.9
+metaapi-cloud-sdk==29.1.1
+
+# Tradovate (using existing httpx + websockets)
+# httpx==0.25.2 (already installed)
+# websockets==12.0 (already installed)
+```
+
+---
+
+## Updated package.json Additions
+
+```json
+{
+  "dependencies": {
+    "@stripe/stripe-js": "^8.6.1",
+    "@stripe/react-stripe-js": "^5.4.1"
+  }
 }
 ```
-
-**Next.js container:**
-```dockerfile
-FROM node:20-alpine
-
-WORKDIR /app
-
-COPY package*.json ./
-RUN npm ci --only=production
-
-COPY . .
-RUN npm run build
-
-CMD ["npm", "start"]
-```
-
-**Environment variables:**
-- `NEXT_PUBLIC_API_URL` - FastAPI backend URL
-- `DATABASE_URL` - PostgreSQL connection string
-- `REDIS_URL` - Redis for pub/sub
-- `JWT_SECRET` - Signing key for authentication
 
 ---
 
 ## Confidence Assessment
 
-| Area | Confidence | Rationale |
-|------|------------|-----------|
-| FastAPI hexagonal architecture | **HIGH** | Multiple 2025 production examples, official dependency-injector docs, established patterns |
-| SQLAlchemy 2.0 async | **HIGH** | Official docs, Litestar framework example, FastAPI community standard |
-| Pydantic v2 | **HIGH** | Latest version (2.12.5, Nov 2025), official FastAPI integration |
-| dependency-injector | **HIGH** | Current version (4.48.3, Dec 2025), mature library, FastAPI examples |
-| Next.js 14 App Router | **HIGH** | Official Next.js docs, shadcn/ui integration guide, TanStack Query SSR |
-| shadcn/ui + next-themes | **HIGH** | Official dark mode docs, multiple 2025 tutorials, widespread adoption |
-| Zustand with App Router | **HIGH** | Official Zustand docs for Next.js, clear RSC guidance, 9M+ weekly downloads |
-| TanStack Query + WebSocket | **HIGH** | Official TanStack blog post, widespread pattern, multiple examples |
-| SSE vs WebSocket recommendation | **MEDIUM** | Based on 2025 benchmarks and general guidance, but trading-specific data limited |
-| Tremor for charts | **MEDIUM** | Good adoption, but newer library (139K downloads vs Recharts 9.5M) |
-| Redis pub/sub for scaling | **MEDIUM** | Standard pattern mentioned in multiple sources, but not trading-specific |
+| Component | Confidence | Notes |
+|-----------|------------|-------|
+| Stripe Python SDK | HIGH | Verified via PyPI (14.2.0), official docs |
+| Stripe.js / React | HIGH | Verified via npm (8.6.1 / 5.4.1) |
+| TradeLocker SDK | HIGH | Official SDK, PyPI verified (0.56.2) |
+| project-x-py | HIGH | PyPI verified (3.5.9), active maintenance |
+| MetaAPI SDK | HIGH | Official SDK, PyPI verified (29.1.1) |
+| Tradovate OAuth | MEDIUM | No official SDK; based on API docs + community client |
+
+---
+
+## Architecture Integration Summary
+
+The existing hexagonal architecture supports clean integration:
+
+1. **New Port:** `BillingPort` for Stripe operations
+2. **Existing Port:** `BrokerPort` already defines the interface for broker adapters
+3. **New Adapters:**
+   - `StripeAdapter` implements `BillingPort`
+   - Update `TradeLockerAdapter` to use official `tradelocker` SDK
+   - Create `TopStepAdapter` using `project-x-py`
+   - Update `MetaApiAdapter` to use `metaapi-cloud-sdk`
+   - Update `TradovateAdapter` with proper OAuth 2.0 flow
+
+4. **Dependency Injection:** Register adapters in DI container based on configuration
+5. **Event Integration:** Webhook events flow through existing `EventPort` for domain events
+
+---
+
+## Open Questions
+
+1. **Stripe Pricing Model:** Need to decide on subscription tiers (Basic/Pro/Enterprise) and corresponding feature gates
+2. **MetaAPI Tier:** Free tier has quote streaming limits (1 tick/2.5s); may need paid tier for real-time
+3. **TopStep API Cost:** $29/month API access cost - include in SaaS pricing or pass through?
+4. **Tradovate WebSocket:** Single connection limit may require connection pooling strategy
 
 ---
 
 ## Sources
 
-### Primary Sources (HIGH confidence)
+### Primary (HIGH confidence)
+- [stripe PyPI](https://pypi.org/project/stripe/) - Version 14.2.0 verified
+- [tradelocker PyPI](https://pypi.org/project/tradelocker/) - Version 0.56.2 verified
+- [project-x-py PyPI](https://pypi.org/project/project-x-py/) - Version 3.5.9 verified
+- [metaapi-cloud-sdk PyPI](https://pypi.org/project/metaapi-cloud-sdk/) - Version 29.1.1 verified
+- [Stripe API Docs](https://docs.stripe.com/api) - Customer Portal, Subscriptions, Webhooks
+- [TradeLocker API](https://public-api.tradelocker.com/) - Official API documentation
+- [ProjectX SDK Docs](https://project-x-py.readthedocs.io/) - SDK documentation
 
-**Python/FastAPI:**
-- [Dependency Injector 4.48.3 Documentation](https://python-dependency-injector.ets-labs.org/) - Official docs with FastAPI examples
-- [Pydantic v2.12 Release](https://github.com/pydantic/pydantic/releases) - Official changelog and version info
-- [SQLAlchemy 2.0 Async Documentation](https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html) - Official async patterns
-- [Hexagonal FastAPI (January 2025)](https://moldhouse.de/posts/hexagonal-fastapi/) - Recent practical guide
-- [Hexagonal architecture in Python](https://blog.szymonmiks.pl/p/hexagonal-architecture-in-python/) - Comprehensive tutorial with patterns
+### Secondary (MEDIUM confidence)
+- [Tradovate API](https://api.tradovate.com/) - Official API docs (no Python SDK)
+- [MetaAPI Docs](https://metaapi.cloud/docs/client/) - Streaming API documentation
+- [FastAPI Stripe Integration](https://www.fast-saas.com/blog/fastapi-stripe-integration/) - Integration patterns
 
-**Next.js/React:**
-- [shadcn/ui Dark Mode - Official Docs](https://ui.shadcn.com/docs/dark-mode/next) - Next.js integration guide
-- [Zustand Next.js Guide - Official Docs](https://zustand.docs.pmnd.rs/guides/nextjs) - App Router best practices
-- [TanStack Query WebSocket Blog](https://tkdodo.eu/blog/using-web-sockets-with-react-query) - Official pattern by TanStack maintainer
-- [Tremor Official Documentation](https://www.tremor.so/docs/getting-started/installation/next) - Next.js setup guide
-
-**Real-Time:**
-- [FastAPI WebSockets - Official Docs](https://fastapi.tiangolo.com/advanced/websockets/) - FastAPI WebSocket implementation
-- [FastAPI WebSocket Production Patterns (2025)](https://orchestrator.dev/blog/2025-1-30-fastapi-production-patterns/) - Production deployment guide
-- [Real-Time Web Apps 2025: WebSockets & SSE](https://www.debutinfotech.com/blog/real-time-web-apps) - Performance benchmarks
-
-### Secondary Sources (MEDIUM confidence - WebSearch verified)
-
-- [Hexagonal Architecture in Python (Medium)](https://medium.com/@miks.szymon/hexagonal-architecture-in-python-e16a8646f000)
-- [Building Maintainable Python Applications with Hexagonal Architecture](https://dev.to/hieutran25/building-maintainable-python-applications-with-hexagonal-architecture-and-domain-driven-design-chp)
-- [FastAPI Best Practices GitHub](https://github.com/zhanymkanov/fastapi-best-practices)
-- [Litestar SQLAlchemy Repository Docs](https://docs.litestar.dev/2/usage/databases/sqlalchemy/models_and_repository.html)
-- [Next.js Real-time Dashboards with Python WebSockets (2025)](https://johal.in/real-time-dashboards-with-next-js-python-websockets-for-live-data-updates-2025/)
-- [JavaScript Charting Libraries for Dashboards (2026)](https://embeddable.com/blog/javascript-charting-libraries)
-- [TanStack Query and WebSockets - LogRocket](https://blog.logrocket.com/tanstack-query-websockets-real-time-react-data-fetching/)
-- [WebSockets at Scale with FastAPI (Medium)](https://medium.com/@bhagyarana80/websockets-at-scale-with-fastapi-and-uvicorn-workers-building-real-time-systems-that-dont-break-ac2dada6cae9)
-
-### Tertiary Sources (LOW confidence - single source or unverified)
-
-- Various GitHub repository examples (dev-lusaja/fastapi-hexagonal, GArmane/python-fastapi-hex-todo, etc.)
-- Community blog posts and Medium articles without official verification
-- npm download statistics and GitHub stars (useful for popularity, not authoritative for best practices)
-
----
-
-## Metadata
-
-**Research date:** 2026-01-19
-**Valid until:** ~60 days (Python/FastAPI stack stable, Next.js ecosystem faster-moving)
-**Researcher note:** Official documentation inaccessible due to network restrictions (WebFetch failed for python-dependency-injector.ets-labs.org, docs.pydantic.dev, ui.shadcn.com, zustand.docs.pmnd.rs). Relied on recent WebSearch results, GitHub releases, and secondary sources. Confidence levels adjusted accordingly but remain HIGH where multiple credible 2025 sources agree.
+### Tertiary (LOW confidence)
+- [Tradovate Python Client](https://github.com/cullen-b/Tradovate-Python-Client) - Community client (reference only)
