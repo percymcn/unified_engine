@@ -1,12 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Webhook } from 'lucide-react';
+import { Webhook, RefreshCw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { WebhookEndpointCard } from '@/components/webhooks/webhook-endpoint-card';
 import { IntegrationInstructions } from '@/components/webhooks/integration-instructions';
 import { WebhookEndpoint } from '@/types/webhook';
 import { WebhookConfig } from '@/types/routing';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const WEBHOOK_ENDPOINTS: WebhookEndpoint[] = [
@@ -73,14 +74,32 @@ export default function WebhooksPage() {
 
   const fetchConfigs = async () => {
     try {
+      setLoading(true);
+      setError(null);
       const response = await fetch('/api/webhook-configs');
+
+      // Handle 401 specifically
+      if (response.status === 401) {
+        setError('Please log in to view your webhook configurations.');
+        return;
+      }
+
       if (!response.ok) {
         throw new Error('Failed to fetch webhook configs');
       }
+
       const data = await response.json();
-      setConfigs(data);
+
+      // Handle error responses from API (which might return empty array or error object)
+      if (data.error) {
+        setError(data.error);
+        return;
+      }
+
+      setConfigs(Array.isArray(data) ? data : []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load webhook configs');
+      console.error('Failed to load webhook configs:', err);
+      setError('Unable to connect to server. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -139,10 +158,17 @@ export default function WebhooksPage() {
         </p>
       </div>
 
-      {/* Error Alert */}
+      {/* Error Alert with Retry */}
       {error && (
         <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
+          <AlertTitle>Error Loading Data</AlertTitle>
+          <AlertDescription className="flex items-center justify-between">
+            <span>{error}</span>
+            <Button variant="outline" size="sm" onClick={fetchConfigs} className="ml-4">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Retry
+            </Button>
+          </AlertDescription>
         </Alert>
       )}
 
