@@ -23,18 +23,36 @@ import {
   deleteAccount,
 } from '@/lib/api/accounts';
 import { useToast } from '@/hooks/use-toast';
+import { parseAccountError, formatErrorForToast } from '@/lib/errors/account-errors';
 
 // Helper to get error message from OAuth error codes
-function getErrorMessage(error: string): string {
+function getOAuthErrorMessage(error: string): { title: string; description: string } {
   switch (error) {
     case 'access_denied':
-      return 'You denied access to your Tradovate account';
+      return {
+        title: 'Authorization Denied',
+        description: 'You denied access to your Tradovate account. Click the OAuth button to try again.',
+      };
     case 'missing_params':
-      return 'OAuth response was incomplete';
+      return {
+        title: 'OAuth Incomplete',
+        description: 'The OAuth response was incomplete. Please try connecting again.',
+      };
     case 'token_exchange_failed':
-      return 'Failed to exchange authorization code';
+      return {
+        title: 'Token Exchange Failed',
+        description: 'Failed to complete OAuth authorization. Please try again or use manual credentials.',
+      };
+    case 'expired':
+      return {
+        title: 'Session Expired',
+        description: 'Your authorization session expired. Please start the connection process again.',
+      };
     default:
-      return `Connection error: ${error}`;
+      return {
+        title: 'Connection Error',
+        description: `An error occurred during OAuth: ${error}. Please try again.`,
+      };
   }
 }
 
@@ -71,7 +89,8 @@ export function AccountList() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to create account');
+        const errorData = await response.json().catch(() => ({}));
+        throw errorData;
       }
 
       const newAccount = await response.json();
@@ -83,11 +102,8 @@ export function AccountList() {
       });
     } catch (error) {
       console.error('OAuth account creation error:', error);
-      toast({
-        title: 'Connection Failed',
-        description: 'Failed to save account credentials',
-        variant: 'destructive',
-      });
+      const userError = parseAccountError(error, 'create');
+      toast(formatErrorForToast(userError));
     }
   }, [toast]);
 
@@ -98,9 +114,10 @@ export function AccountList() {
     const error = searchParams.get('error');
 
     if (error) {
+      const errorInfo = getOAuthErrorMessage(error);
       toast({
-        title: 'Connection Failed',
-        description: getErrorMessage(error),
+        title: errorInfo.title,
+        description: errorInfo.description,
         variant: 'destructive',
       });
       // Clean URL
@@ -152,23 +169,47 @@ export function AccountList() {
       setAccounts(data);
     } catch (error) {
       console.error('Failed to fetch accounts:', error);
+      const userError = parseAccountError(error, 'fetch');
+      toast(formatErrorForToast(userError));
     } finally {
       setLoading(false);
     }
   };
 
   const handleCreate = async (data: AccountCreate) => {
-    const newAccount = await createAccount(data);
-    setAccounts((prev) => [...prev, newAccount]);
+    try {
+      const newAccount = await createAccount(data);
+      setAccounts((prev) => [...prev, newAccount]);
+      toast({
+        title: 'Account Created',
+        description: 'Your broker account has been connected successfully.',
+      });
+    } catch (error) {
+      console.error('Failed to create account:', error);
+      const userError = parseAccountError(error, 'create');
+      toast(formatErrorForToast(userError));
+      throw error; // Re-throw to prevent form from closing
+    }
   };
 
   const handleUpdate = async (data: AccountCreate) => {
     if (!editingAccount) return;
-    const updated = await updateAccount(editingAccount.id, data);
-    setAccounts((prev) =>
-      prev.map((acc) => (acc.id === updated.id ? updated : acc))
-    );
-    setEditingAccount(undefined);
+    try {
+      const updated = await updateAccount(editingAccount.id, data);
+      setAccounts((prev) =>
+        prev.map((acc) => (acc.id === updated.id ? updated : acc))
+      );
+      setEditingAccount(undefined);
+      toast({
+        title: 'Account Updated',
+        description: 'Your account settings have been saved.',
+      });
+    } catch (error) {
+      console.error('Failed to update account:', error);
+      const userError = parseAccountError(error, 'update');
+      toast(formatErrorForToast(userError));
+      throw error; // Re-throw to prevent form from closing
+    }
   };
 
   const handleDelete = async () => {
@@ -179,8 +220,14 @@ export function AccountList() {
       await deleteAccount(deletingAccount.id);
       setAccounts((prev) => prev.filter((acc) => acc.id !== deletingAccount.id));
       setDeletingAccount(undefined);
+      toast({
+        title: 'Account Deleted',
+        description: 'The broker account has been removed.',
+      });
     } catch (error) {
       console.error('Failed to delete account:', error);
+      const userError = parseAccountError(error, 'delete');
+      toast(formatErrorForToast(userError));
     } finally {
       setDeleting(false);
     }

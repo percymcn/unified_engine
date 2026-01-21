@@ -19,6 +19,8 @@ import {
 } from '@/types/account';
 import { cn } from '@/lib/utils';
 import { syncAccount } from '@/lib/api/accounts';
+import { useToast } from '@/hooks/use-toast';
+import { parseAccountError, formatErrorForToast } from '@/lib/errors/account-errors';
 
 interface AccountCardProps {
   account: Account;
@@ -34,14 +36,21 @@ export function AccountCard({
   onSyncComplete,
 }: AccountCardProps) {
   const [syncing, setSyncing] = useState(false);
+  const { toast } = useToast();
 
   const handleSync = async () => {
     setSyncing(true);
     try {
       const updatedAccount = await syncAccount(account.id);
       onSyncComplete?.(updatedAccount);
+      toast({
+        title: 'Sync Complete',
+        description: 'Account data has been updated from the broker.',
+      });
     } catch (error) {
       console.error('Failed to sync account:', error);
+      const userError = parseAccountError(error, 'sync');
+      toast(formatErrorForToast(userError));
     } finally {
       setSyncing(false);
     }
