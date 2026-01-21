@@ -62,6 +62,7 @@ export function AccountForm({
   const [submitting, setSubmitting] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<TestConnectionResult | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
 
   // Get broker-specific credential fields
   const credentialConfig = BROKER_CREDENTIAL_CONFIG[broker];
@@ -119,6 +120,7 @@ export function AccountForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
+    setFormError(null);
 
     try {
       const data: AccountCreate = {
@@ -134,6 +136,9 @@ export function AccountForm({
       onClose();
     } catch (error) {
       console.error('Failed to submit account:', error);
+      // Form stays open, parent handles toast notification
+      // Show brief inline error as feedback
+      setFormError('Save failed. Please check details above and try again.');
     } finally {
       setSubmitting(false);
     }
@@ -402,6 +407,14 @@ export function AccountForm({
               </>
             )}
           </div>
+
+          {/* Form Error Display */}
+          {formError && (
+            <Alert variant="destructive">
+              <XCircle className="h-4 w-4" />
+              <AlertDescription className="ml-2">{formError}</AlertDescription>
+            </Alert>
+          )}
 
           <DialogFooter>
             <Button
