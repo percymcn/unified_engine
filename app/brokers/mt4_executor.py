@@ -1,6 +1,10 @@
 """
 MT4 Broker Executor
-Handles all MT4 trading operations via Manager API
+Supports both official MetaAPI SDK and custom httpx implementation.
+
+Dual-mode executor:
+- SDK mode: Uses official metaapi-cloud-sdk (preferred)
+- Custom mode: Uses httpx to Manager API (fallback)
 """
 import asyncio
 import logging
@@ -10,16 +14,43 @@ import httpx
 from app.brokers.base_executor import BaseExecutor
 from app.core.config import settings
 from app.models.pydantic_schemas import (
-    OrderRequest, OrderResponse, Position, Account, 
+    OrderRequest, OrderResponse, Position, Account,
     TradeRequest, TradeResponse
 )
 
 logger = logging.getLogger(__name__)
 
+# Try to import SDK service
+try:
+    from app.services.metaapi_sdk_service import MetaAPISDKService, SDK_AVAILABLE
+except ImportError:
+    SDK_AVAILABLE = False
+    MetaAPISDKService = None
+    logger.warning("metaapi-cloud-sdk not available, using httpx fallback for MT4")
+
 class MT4Executor(BaseExecutor):
-    """MT4 trading executor using Manager API"""
-    
-    def __init__(self):
+    """
+    MT4 trading executor.
+
+    Supports two modes:
+    - SDK mode: Uses official metaapi-cloud-sdk (preferred)
+    - Custom mode: Uses httpx + Manager API (fallback)
+    """
+
+    def __init__(
+        self,
+        metaapi_token: Optional[str] = None,
+        metaapi_account_id: Optional[str] = None,
+        use_sdk: bool = True,
+    ):
+        """
+        Initialize MT4 executor.
+
+        Args:
+            metaapi_token: MetaAPI token (for SDK mode)
+            metaapi_account_id: MetaAPI account ID (for SDK mode)
+            use_sdk: Whether to prefer SDK mode (default True)
+        """
         config = settings.get_broker_config("mt4")
         super().__init__(config)
         self.config = config
@@ -30,15 +61,66 @@ class MT4Executor(BaseExecutor):
         self.manager_password = self.config.get("manager_password")
         self.session = None
 
-        # Check for required credentials
-        self.is_available = bool(self.manager_login and self.manager_password)
+        # MetaAPI SDK credentials - prefer parameters, then config
+        self._metaapi_token = metaapi_token or self.config.get("metaapi_token")
+        self._metaapi_account_id = metaapi_account_id or self.config.get("metaapi_account_id")
+        self._metaapi_application = self.config.get("metaapi_application", "tradeflow")
+
+        # SDK service (preferred mode)
+        self._sdk_service: Optional[Any] = None
+        self._use_sdk = use_sdk and SDK_AVAILABLE
+
+        # Check for required credentials (either SDK or Manager API)
+        has_sdk_credentials = bool(self._metaapi_token and self._metaapi_account_id)
+        has_manager_credentials = bool(self.manager_login and self.manager_password)
+        self.is_available = has_sdk_credentials or has_manager_credentials
+
         if not self.is_available:
-            logger.warning("MT4 executor disabled: manager credentials not configured")
+            logger.warning("MT4 executor disabled: no credentials configured (MetaAPI or Manager API)")
         
+    @property
+    def is_using_sdk(self) -> bool:
+        """Check if using official MetaAPI SDK."""
+        return self._use_sdk and self._sdk_service is not None and self._sdk_service.is_connected
+
+    def _has_metaapi_credentials(self) -> bool:
+        """Check if MetaAPI credentials are available."""
+        return bool(self._metaapi_token and self._metaapi_account_id)
+
     async def initialize(self) -> bool:
-        """Initialize MT4 connection"""
+        """Initialize MT4 connection."""
         if not self.is_available:
             logger.info("MT4 skipped: credentials not configured")
+            return False
+
+        # Try SDK first if enabled and credentials available
+        if self._use_sdk and SDK_AVAILABLE and self._has_metaapi_credentials() and MetaAPISDKService is not None:
+            try:
+                self._sdk_service = MetaAPISDKService(
+                    token=self._metaapi_token,
+                    account_id=self._metaapi_account_id,
+                    application=self._metaapi_application,
+                )
+
+                success = await self._sdk_service.connect()
+                if success:
+                    self._is_connected = True
+                    logger.info("MT4 executor initialized via MetaAPI SDK")
+                    return True
+                else:
+                    logger.warning("MetaAPI SDK connection failed, falling back to httpx")
+                    self._sdk_service = None
+            except Exception as e:
+                logger.warning(f"MetaAPI SDK init failed: {e}, falling back to httpx")
+                self._sdk_service = None
+
+        # Fallback to custom httpx implementation (Manager API)
+        return await self._initialize_httpx()
+
+    async def _initialize_httpx(self) -> bool:
+        """Initialize using custom httpx client (fallback to Manager API)."""
+        if not (self.manager_login and self.manager_password):
+            logger.error("MT4 Manager API credentials not configured")
             return False
 
         try:
@@ -46,41 +128,77 @@ class MT4Executor(BaseExecutor):
                 base_url=self.api_url,
                 timeout=30.0
             )
-            
+
             # Test connection with auth
             auth_data = {
                 "login": self.manager_login,
                 "password": self.manager_password
             }
-            
+
             response = await self.session.post("/auth/login", json=auth_data)
             if response.status_code == 200:
-                self.is_connected = True
-                logger.info("MT4 executor initialized successfully")
+                self._is_connected = True
+                logger.info("MT4 executor initialized via httpx (Manager API)")
                 return True
             else:
                 logger.error(f"MT4 auth failed: {response.text}")
                 return False
-                
+
         except Exception as e:
             logger.error(f"MT4 initialization failed: {e}")
             return False
     
     async def disconnect(self):
         """Disconnect from MT4"""
+        if self._sdk_service:
+            await self._sdk_service.disconnect()
+            self._sdk_service = None
+
         if self.session:
             await self.session.aclose()
-            self.is_connected = False
-            logger.info("MT4 executor disconnected")
+            self.session = None
+
+        self._is_connected = False
+        logger.info("MT4 executor disconnected")
     
     async def get_accounts(self) -> List[Account]:
-        """Get all MT4 accounts"""
+        """Get all MT4 accounts."""
+        if self.is_using_sdk:
+            return await self._get_accounts_sdk()
+        return await self._get_accounts_httpx()
+
+    async def _get_accounts_sdk(self) -> List[Account]:
+        """Get accounts via MetaAPI SDK."""
+        try:
+            info = await self._sdk_service.get_account_info()
+            return [Account(
+                id=info.get("login", self._metaapi_account_id),
+                broker="mt4",
+                account_type="live" if info.get("trade_allowed", True) else "demo",
+                currency=info.get("currency", "USD"),
+                balance=float(info.get("balance", 0)),
+                equity=float(info.get("equity", 0)),
+                margin=float(info.get("margin", 0)),
+                free_margin=float(info.get("free_margin", 0)),
+                margin_level=float(info.get("margin_level", 0)),
+                leverage=int(info.get("leverage", 100)),
+                is_active=True,
+                is_live=True,
+                created_at=datetime.now(),
+                updated_at=datetime.now()
+            )]
+        except Exception as e:
+            logger.error(f"SDK get_accounts failed: {e}")
+            return []
+
+    async def _get_accounts_httpx(self) -> List[Account]:
+        """Get accounts via httpx (Manager API fallback)."""
         try:
             response = await self.session.get("/users")
             if response.status_code == 200:
                 users_data = response.json()
                 accounts = []
-                
+
                 for user in users_data:
                     account = Account(
                         id=user["login"],
@@ -99,28 +217,63 @@ class MT4Executor(BaseExecutor):
                         updated_at=datetime.now()
                     )
                     accounts.append(account)
-                
+
                 return accounts
             else:
                 logger.error(f"Failed to get MT4 accounts: {response.text}")
                 return []
-                
+
         except Exception as e:
             logger.error(f"Error getting MT4 accounts: {e}")
             return []
     
     async def get_positions(self, account_id: Optional[str] = None) -> List[Position]:
-        """Get open positions from MT4"""
+        """Get open positions from MT4."""
+        if self.is_using_sdk:
+            return await self._get_positions_sdk(account_id)
+        return await self._get_positions_httpx(account_id)
+
+    async def _get_positions_sdk(self, account_id: Optional[str] = None) -> List[Position]:
+        """Get positions via MetaAPI SDK."""
+        try:
+            positions_data = await self._sdk_service.get_positions()
+            return [
+                Position(
+                    id=pos.get("id", ""),
+                    broker="mt4",
+                    account_id=account_id or self._metaapi_account_id or "",
+                    symbol=pos.get("symbol", ""),
+                    side=pos.get("side", "buy"),
+                    size=float(pos.get("volume", 0)),
+                    entry_price=float(pos.get("open_price", 0)),
+                    current_price=float(pos.get("current_price", 0)),
+                    unrealized_pnl=float(pos.get("unrealized_pnl", pos.get("profit", 0))),
+                    realized_pnl=0.0,
+                    margin=0.0,
+                    magic_number=pos.get("magic", 0),
+                    comment=pos.get("comment", ""),
+                    open_time=datetime.now(),  # SDK doesn't provide parsed datetime
+                    close_time=None,
+                    is_active=True
+                )
+                for pos in positions_data
+            ]
+        except Exception as e:
+            logger.error(f"SDK get_positions failed: {e}")
+            return []
+
+    async def _get_positions_httpx(self, account_id: Optional[str] = None) -> List[Position]:
+        """Get positions via httpx (Manager API fallback)."""
         try:
             params = {}
             if account_id:
                 params["login"] = account_id
-                
+
             response = await self.session.get("/trades", params=params)
             if response.status_code == 200:
                 trades_data = response.json()
                 positions = []
-                
+
                 for trade in trades_data:
                     if trade["close_time"] == 0:  # Open position
                         position = Position(
@@ -142,18 +295,109 @@ class MT4Executor(BaseExecutor):
                             is_active=True
                         )
                         positions.append(position)
-                
+
                 return positions
             else:
                 logger.error(f"Failed to get MT4 positions: {response.text}")
                 return []
-                
+
         except Exception as e:
             logger.error(f"Error getting MT4 positions: {e}")
             return []
     
     async def place_order(self, order: OrderRequest) -> OrderResponse:
-        """Place order with MT4"""
+        """Place order with MT4."""
+        if self.is_using_sdk:
+            return await self._place_order_sdk(order)
+        return await self._place_order_httpx(order)
+
+    async def _place_order_sdk(self, order: OrderRequest) -> OrderResponse:
+        """Place order via MetaAPI SDK."""
+        try:
+            order_type_lower = order.order_type.lower()
+
+            # Determine order method based on type
+            if order_type_lower == "market_buy":
+                result = await self._sdk_service.create_market_buy_order(
+                    symbol=order.symbol,
+                    volume=order.quantity,
+                    stop_loss=order.stop_loss,
+                    take_profit=order.take_profit,
+                    comment=order.comment,
+                    magic=order.magic_number,
+                )
+            elif order_type_lower == "market_sell":
+                result = await self._sdk_service.create_market_sell_order(
+                    symbol=order.symbol,
+                    volume=order.quantity,
+                    stop_loss=order.stop_loss,
+                    take_profit=order.take_profit,
+                    comment=order.comment,
+                    magic=order.magic_number,
+                )
+            elif order_type_lower == "buy_limit":
+                result = await self._sdk_service.create_limit_buy_order(
+                    symbol=order.symbol,
+                    volume=order.quantity,
+                    open_price=order.price,
+                    stop_loss=order.stop_loss,
+                    take_profit=order.take_profit,
+                    comment=order.comment,
+                    magic=order.magic_number,
+                )
+            elif order_type_lower == "sell_limit":
+                result = await self._sdk_service.create_limit_sell_order(
+                    symbol=order.symbol,
+                    volume=order.quantity,
+                    open_price=order.price,
+                    stop_loss=order.stop_loss,
+                    take_profit=order.take_profit,
+                    comment=order.comment,
+                    magic=order.magic_number,
+                )
+            elif order_type_lower == "buy_stop":
+                result = await self._sdk_service.create_stop_buy_order(
+                    symbol=order.symbol,
+                    volume=order.quantity,
+                    open_price=order.price,
+                    stop_loss=order.stop_loss,
+                    take_profit=order.take_profit,
+                    comment=order.comment,
+                    magic=order.magic_number,
+                )
+            elif order_type_lower == "sell_stop":
+                result = await self._sdk_service.create_stop_sell_order(
+                    symbol=order.symbol,
+                    volume=order.quantity,
+                    open_price=order.price,
+                    stop_loss=order.stop_loss,
+                    take_profit=order.take_profit,
+                    comment=order.comment,
+                    magic=order.magic_number,
+                )
+            else:
+                return OrderResponse(
+                    success=False,
+                    error=f"Unsupported order type: {order.order_type}"
+                )
+
+            return OrderResponse(
+                success=result.get("success", False),
+                order_id=result.get("order_id", ""),
+                broker="mt4",
+                status=result.get("status", "submitted"),
+                filled_quantity=order.quantity if result.get("success") else 0,
+                filled_price=order.price,
+                commission=0.0,
+                timestamp=datetime.now(),
+                error=result.get("error"),
+            )
+        except Exception as e:
+            logger.error(f"SDK place_order failed: {e}")
+            return OrderResponse(success=False, error=str(e))
+
+    async def _place_order_httpx(self, order: OrderRequest) -> OrderResponse:
+        """Place order via httpx (Manager API fallback)."""
         try:
             # Convert order type to MT4 command
             cmd_map = {
@@ -164,14 +408,14 @@ class MT4Executor(BaseExecutor):
                 "buy_stop": 4,      # OP_BUY_STOP
                 "sell_stop": 5      # OP_SELL_STOP
             }
-            
+
             cmd = cmd_map.get(order.order_type)
             if cmd is None:
                 return OrderResponse(
                     success=False,
                     error=f"Unsupported order type: {order.order_type}"
                 )
-            
+
             trade_data = {
                 "login": order.account_id,
                 "symbol": order.symbol,
@@ -183,15 +427,15 @@ class MT4Executor(BaseExecutor):
                 "comment": order.comment or "",
                 "magic": order.magic_number or 0
             }
-            
+
             response = await self.session.post("/trades", json=trade_data)
-            
+
             if response.status_code == 200:
                 result = response.json()
-                
+
                 # Get order ticket from response
                 order_ticket = result.get("order", 0)
-                
+
                 return OrderResponse(
                     success=True,
                     order_id=str(order_ticket),
@@ -209,7 +453,7 @@ class MT4Executor(BaseExecutor):
                     success=False,
                     error=error_msg
                 )
-                
+
         except Exception as e:
             logger.error(f"Error placing MT4 order: {e}")
             return OrderResponse(
