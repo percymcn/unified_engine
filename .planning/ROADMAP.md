@@ -141,7 +141,7 @@ v1.1 transforms Tradeflow from a working signal router into a production-ready S
   3. Last sync timestamp visible for each account
   4. Clear, actionable error messages on connection failure
 **Research**: Unlikely (UI patterns, internal work)
-**Plans**: TBD
+**Plans**: 2 (19-01 Backend Test Endpoint, 19-02 Frontend Status UI)
 
 ### Phase 20: Symbol Mapping & Futures
 **Goal**: Handle symbol variations across brokers with aliases and futures rollover
@@ -225,7 +225,7 @@ Phases execute in numeric order: 12 → 13 → 14 → 15 → 16 → 17 → 18 �
 | 16. Tradovate OAuth | 4/4 | ✅ Complete | 2026-01-21 |
 | 17. TopStep/ProjectX SDK | 1/1 | ✅ Complete | 2026-01-21 |
 | 18. MetaAPI SDK | 1/1 | ✅ Complete | 2026-01-21 |
-| 19. Broker Connections UI | 0/TBD | Not started | - |
+| 19. Broker Connections UI | 0/2 | 🎯 Planned | - |
 | 20. Symbol Mapping & Futures | 0/TBD | Not started | - |
 | 21. Multi-Account & Routing | 0/TBD | Not started | - |
 | 22. Risk Management | 0/TBD | Not started | - |
