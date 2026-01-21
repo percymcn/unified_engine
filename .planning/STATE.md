@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-01-21)
 
 ## Current Position
 
-Phase: 20 - Symbol Mapping & Futures (COMPLETE)
-Plan: 4 of 4 complete
-Status: Phase complete
-Last activity: 2026-01-21 - Completed 20-04-PLAN.md (Futures Contract Support)
+Phase: 21 - Multi-Account & Routing (PLANNING)
+Plan: 0 of 3 complete
+Status: Plans created, ready for execution
+Last activity: 2026-01-21 - Created 21-01, 21-02, 21-03 PLAN.md files
 
-Progress: [####################] 75% (v1.1) - Phase 20 complete
+Progress: [####################] 75% (v1.1) - Phase 21 planning complete
 
 ## v1.1 Milestone Goals
 
@@ -54,7 +54,7 @@ Progress: [####################] 75% (v1.1) - Phase 20 complete
 | 18 | MetaAPI SDK | 3 | Complete (1/1 plan) |
 | 19 | Broker Connections UI | 4 | Complete (2/2 plans) |
 | 20 | Symbol Mapping & Futures | 6 | Complete (4/4 plans) |
-| 21 | Multi-Account & Routing | 6 | Not started |
+| 21 | Multi-Account & Routing | 6 | Planning complete (0/3 plans) |
 | 22 | Risk Management | 16 | Not started |
 | 23 | User Settings & Dashboard | 10 | Not started |
 
@@ -155,10 +155,10 @@ Progress: [####################] 75% (v1.1) - Phase 20 complete
 
 ## Session Continuity
 
-Last session: 2026-01-21T23:38:55Z
-Stopped at: Completed 20-04-PLAN.md (Futures Contract Support)
+Last session: 2026-01-21T23:58:00Z
+Stopped at: Created Phase 21 plans (21-01, 21-02, 21-03)
 Resume file: None
-Status: Phase 20 complete, ready for Phase 21
+Status: Phase 21 planning complete, ready for execution
 
 ## Gap Closure Status
 
@@ -190,6 +190,10 @@ Status: Phase 20 complete, ready for Phase 21
    - ~~20-02: Symbol Auto-Detection (SYM-03)~~ (COMPLETE)
    - ~~20-03: Symbol Mapping UI (SYM-02)~~ (COMPLETE)
    - ~~20-04: Futures Contract Support (SYM-05, SYM-06)~~ (COMPLETE)
-3. Execute Phase 21 (Multi-Account & Routing) - Account routing logic
+3. Execute Phase 21 (Multi-Account & Routing) - READY FOR EXECUTION
+   - 21-01: Multi-Account Backend Infrastructure (ACCT-01, ACCT-02, ACCT-04, ACCT-05, ACCT-06)
+   - 21-02: Signal Routing Configuration (ACCT-03)
+   - 21-03: Multi-Account UI (all ACCT requirements)
 4. Execute Phase 22 (Risk Management) - Position limits, drawdown protection
 5. Execute Phase 23 (User Settings & Dashboard) - User preferences, dashboard enhancements
+6. Execute Phase 24 (Enhanced Features & Monetization v2) - Trial, 4-tier pricing, full trading

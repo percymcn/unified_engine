@@ -171,7 +171,7 @@ v1.1 transforms Tradeflow from a working signal router into a production-ready S
   5. Per-account risk limits (max position, daily loss)
   6. Account grouping ("Prop Firm", "Personal") works
 **Research**: Unlikely (extends existing patterns)
-**Plans**: TBD
+**Plans**: 3 (21-01 Multi-Account Backend Infrastructure, 21-02 Signal Routing Configuration, 21-03 Multi-Account UI)
 
 ### Phase 22: Risk Management
 **Goal**: Comprehensive trade controls with limits, sizing, and drawdown protection
@@ -259,7 +259,7 @@ Phases execute in numeric order: 12 → 13 → 14 → 15 → 16 → 17 → 18 �
 | 18. MetaAPI SDK | 1/1 | ✅ Complete | 2026-01-21 |
 | 19. Broker Connections UI | 2/2 | ✅ Complete | 2026-01-21 |
 | 20. Symbol Mapping & Futures | 4/4 | ✅ Complete | 2026-01-21 |
-| 21. Multi-Account & Routing | 0/TBD | Not started | - |
+| 21. Multi-Account & Routing | 0/3 | 📋 Planning complete | - |
 | 22. Risk Management | 0/TBD | Not started | - |
 | 23. User Settings & Dashboard | 0/TBD | Not started | - |
 | 24. Enhanced Features & Monetization v2 | 0/TBD | Not started | - |
