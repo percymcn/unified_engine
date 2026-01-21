@@ -31,6 +31,10 @@ class TradeLockerAdapter(BrokerPort):
 
     Wraps TradeLockerExecutor and converts between domain value objects
     and executor primitives.
+
+    Supports two authentication modes (handled by executor):
+    1. SDK mode (preferred): Uses official tradelocker package with user credentials
+    2. Brand API mode (fallback): Uses httpx with Brand API key
     """
 
     def __init__(self, executor: Optional[TradeLockerExecutor] = None):
@@ -42,6 +46,13 @@ class TradeLockerAdapter(BrokerPort):
         """
         self._executor = executor
         self._account_id: Optional[str] = None
+
+    @property
+    def is_using_sdk(self) -> bool:
+        """Check if adapter is using official SDK mode."""
+        if not self._executor:
+            return False
+        return getattr(self._executor, '_use_sdk', False)
 
     @property
     def broker_type(self) -> BrokerType:
@@ -79,15 +90,19 @@ class TradeLockerAdapter(BrokerPort):
     async def authenticate(self, credentials: Dict[str, Any]) -> bool:
         """
         Authenticate with TradeLocker using provided credentials.
-        TradeLocker authenticates during connection setup.
+
+        TradeLocker authenticates during connection setup via:
+        - SDK mode: Uses username/password/server from config
+        - Brand API mode: Uses API key from config
 
         Args:
-            credentials: Dict with authentication details (not used for TradeLocker)
+            credentials: Dict with authentication details.
+                         May include 'account_id' for tracking.
 
         Returns:
             True if authenticated (connection is active)
         """
-        # TradeLocker authenticates on connect via API key
+        # TradeLocker authenticates on connect via SDK or API key
         # Store account_id if provided for tracking
         if "account_id" in credentials:
             self._account_id = credentials["account_id"]
