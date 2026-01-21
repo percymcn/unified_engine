@@ -63,6 +63,10 @@ class AccountCreate(AccountBase):
     login: Optional[int] = None
     password: Optional[str] = None
     broker_config: Optional[Dict[str, Any]] = None
+    # Symbol detection data (from connection test)
+    detected_format: Optional[Dict[str, Any]] = None
+    symbol_map: Optional[Dict[str, str]] = None
+    sample_symbols: Optional[List[str]] = None
 
 class AccountUpdate(BaseModel):
     balance: Optional[float] = None

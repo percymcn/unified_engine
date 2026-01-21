@@ -100,6 +100,10 @@ class CreateAccountRequest:
     currency: str = "USD"
     leverage: int = 100
     server: Optional[str] = None
+    # Symbol detection data (from connection test)
+    detected_format: Optional[dict] = None  # From test-connection response
+    symbol_map: Optional[dict] = None  # From test-connection response
+    sample_symbols: Optional[List[str]] = None  # From test-connection response
 
 
 @dataclass(frozen=True)
@@ -109,6 +113,7 @@ class CreateAccountResponse:
     broker: BrokerType
     is_active: bool
     error: Optional[str] = None
+    auto_aliases_created: int = 0  # Number of auto-detected aliases created
 
 
 @dataclass(frozen=True)

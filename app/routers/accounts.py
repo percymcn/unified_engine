@@ -161,6 +161,10 @@ async def create_account(
         currency=account.currency,
         leverage=account.leverage,
         server=account.server,
+        # Include symbol detection data if provided
+        detected_format=account.detected_format,
+        symbol_map=account.symbol_map,
+        sample_symbols=account.sample_symbols,
     )
 
     response = await use_case.execute(dto_request)
@@ -177,12 +181,20 @@ async def create_account(
         "is_active": response.is_active,
     })
 
-    return {
+    result = {
         "id": response.account_id,
         "broker": response.broker.value,
         "is_active": response.is_active,
         "message": "Account created with encrypted credentials",
     }
+
+    # Include auto-alias count if any were created
+    if response.auto_aliases_created > 0:
+        result["auto_aliases_created"] = response.auto_aliases_created
+        result["message"] = f"Account created with {response.auto_aliases_created} auto-detected symbol aliases"
+
+    return result
+
 
 @router.get("/{account_id}")
 async def get_account(
