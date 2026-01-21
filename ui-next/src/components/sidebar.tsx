@@ -12,6 +12,7 @@ import {
   Webhook,
   GitBranch,
   CreditCard,
+  ArrowRightLeft,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -23,6 +24,7 @@ const navigation = [
 
 const settingsNavigation = [
   { name: 'Accounts', href: '/settings/accounts', icon: Users },
+  { name: 'Symbol Mapping', href: '/settings/symbols', icon: ArrowRightLeft },
   { name: 'Signal Routing', href: '/settings/routing', icon: GitBranch },
   { name: 'API Keys', href: '/settings/api-keys', icon: Key },
   { name: 'Webhooks', href: '/settings/webhooks', icon: Webhook },

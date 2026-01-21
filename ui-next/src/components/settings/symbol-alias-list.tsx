@@ -65,7 +65,7 @@ export function SymbolAliasList({ groups, onEdit, onRefresh }: SymbolAliasListPr
             No symbol mappings configured yet.
           </p>
           <p className="text-sm text-muted-foreground mt-2">
-            Add a mapping to translate TradingView symbols to your broker's format.
+            Add a mapping to translate TradingView symbols to your broker&apos;s format.
           </p>
         </CardContent>
       </Card>
