@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-01-21)
 
 ## Current Position
 
-Phase: 12 - Critical Fixes & Infrastructure (next: plan)
-Plan: —
-Status: Roadmap created, ready to plan
-Last activity: 2026-01-21 — Roadmap created (12 phases, 82 requirements)
+Phase: 12 - Critical Fixes & Infrastructure
+Plan: 01 of 5 complete
+Status: In progress
+Last activity: 2026-01-21 - Completed 12-01-PLAN.md (Branding and Environment Configuration)
 
-Progress: ░░░░░░░░░░░░░░░░ 0% (v1.1)
+Progress: [#---------------] 2% (v1.1)
 
 ## v1.1 Milestone Goals
 
@@ -45,7 +45,7 @@ Progress: ░░░░░░░░░░░░░░░░ 0% (v1.1)
 
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
-| 12 | Critical Fixes & Infrastructure | 14 | Not started |
+| 12 | Critical Fixes & Infrastructure | 14 | In progress (1/5 plans) |
 | 13 | Stripe Billing | 7 | Not started |
 | 14 | Landing Page | 11 | Not started |
 | 15 | TradeLocker SDK | 1 | Not started |
@@ -65,6 +65,14 @@ Progress: ░░░░░░░░░░░░░░░░ 0% (v1.1)
 - 33 requirements satisfied
 - Archives: `.planning/milestones/v1.0-*`
 
+## Accumulated Decisions
+
+| Phase | Decision | Rationale |
+|-------|----------|-----------|
+| 12-01 | Environment variable layering for webhooks | WEBHOOK_BASE_URL > BACKEND_URL > localhost for flexible deployment |
+| 12-01 | Separate BACKEND_URL and NEXT_PUBLIC_BACKEND_URL | Server-side vs client-side distinction in Next.js |
+| 12-01 | Default port 8765 everywhere | Consistency with FastAPI backend configuration |
+
 ## Known Tech Debt
 
 - Dashboard stats use placeholder data
@@ -72,17 +80,17 @@ Progress: ░░░░░░░░░░░░░░░░ 0% (v1.1)
 - asyncpg not installed (graceful degradation)
 - npm audit: 3 high severity vulnerabilities (dev-only, eslint-related)
 - Alembic has multiple heads (001, 002)
-- Base URL hardcoded in some UI routes (fixing in Phase 12)
+- ~~Base URL hardcoded in some UI routes~~ (FIXED in 12-01)
 
 ## Session Continuity
 
-Last session: 2026-01-21
-Stopped at: Roadmap created
+Last session: 2026-01-21T08:32:00Z
+Stopped at: Completed 12-01-PLAN.md
 Resume file: None
-Status: Ready to plan Phase 12
+Status: Ready for 12-02-PLAN.md
 
 ## Next Steps
 
-1. `/gsd:plan-phase 12` — create execution plan for Critical Fixes & Infrastructure
-2. `/gsd:execute-phase 12` — execute the plan
-3. Continue through phases 13-23
+1. Execute 12-02-PLAN.md - Signal Processing and Response Handling
+2. Continue through 12-03, 12-04, 12-05 to complete Phase 12
+3. Then proceed to Phase 13 (Stripe Billing)
