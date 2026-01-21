@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-21)
 ## Current Position
 
 Phase: 13 - Stripe Billing
-Plan: 3 of 5 complete
-Status: In progress
-Last activity: 2026-01-21 - Completed 13-03-PLAN.md (Stripe Webhook Handler)
+Plan: 4 of 6 complete (including gap closure 13-06)
+Status: Gap closure complete
+Last activity: 2026-01-21 - Completed 13-06-PLAN.md (Gap Closure: Billing API Endpoints)
 
-Progress: [###-------------] 17% (v1.1) - Phase 13 in progress (3/5 plans)
+Progress: [####------------] 22% (v1.1) - Phase 13 gap closure complete
 
 ## v1.1 Milestone Goals
 
@@ -24,10 +24,10 @@ Progress: [###-------------] 17% (v1.1) - Phase 13 in progress (3/5 plans)
 
 | Category | Items | Phase |
 |----------|-------|-------|
-| Branding | 1 | 12 ✓ |
-| Infrastructure | 3 | 12 ✓ |
-| Critical Fixes | 7 | 12 ✓ |
-| UI Navigation | 3 | 12 ✓ |
+| Branding | 1 | 12 |
+| Infrastructure | 3 | 12 |
+| Critical Fixes | 7 | 12 |
+| UI Navigation | 3 | 12 |
 | Billing | 7 | 13 |
 | Landing Page | 11 | 14 |
 | TradeLocker SDK | 1 | 15 |
@@ -45,8 +45,8 @@ Progress: [###-------------] 17% (v1.1) - Phase 13 in progress (3/5 plans)
 
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
-| 12 | Critical Fixes & Infrastructure | 14 | ✅ Complete (5/5 plans) |
-| 13 | Stripe Billing | 7 | In progress (3/5 plans) |
+| 12 | Critical Fixes & Infrastructure | 14 | Complete (5/5 plans) |
+| 13 | Stripe Billing | 7 | Gap closure complete (4/6 plans) |
 | 14 | Landing Page | 11 | Not started |
 | 15 | TradeLocker SDK | 1 | Not started |
 | 16 | Tradovate OAuth | 3 | Not started |
@@ -86,6 +86,9 @@ Progress: [###-------------] 17% (v1.1) - Phase 13 in progress (3/5 plans)
 | 13-03 | Return 200 on webhook processing errors | Prevent Stripe retries while acknowledging receipt |
 | 13-03 | Map cancel_at_period_end to "canceling" status | Show users their subscription is ending but still active |
 | 13-03 | User lookup by stripe_customer_id with metadata fallback | Handle first-time checkout linking |
+| 13-06 | Auto-create Stripe customer on first checkout | Simpler UX - no separate registration step needed |
+| 13-06 | Reject checkout if already Pro | Prevent duplicate subscriptions, direct to portal |
+| 13-06 | FRONTEND_URL defaults to production URL | Deployment works without configuration |
 
 ## Known Tech Debt
 
@@ -98,13 +101,25 @@ Progress: [###-------------] 17% (v1.1) - Phase 13 in progress (3/5 plans)
 
 ## Session Continuity
 
-Last session: 2026-01-21T13:36:00Z
-Stopped at: Completed 13-03-PLAN.md
-Resume file: .planning/phases/13-stripe-billing/13-04-PLAN.md
-Status: Continue Phase 13 execution
+Last session: 2026-01-21T15:19:28Z
+Stopped at: Completed 13-06-PLAN.md gap closure plan
+Resume file: None
+Status: Ready for Phase 13 re-verification or Phase 14
+
+## Gap Closure Status
+
+**Phase 13 Verification Results (2026-01-21):**
+- Score: 2/7 must-haves verified initially
+- 13-04 broker limits: Already implemented (accounts.py uses require_broker_slot)
+- 13-06 executed: Added missing checkout/portal/status/plans endpoints
+
+**Gaps Closed by 13-06:**
+1. POST /api/billing/checkout - Create Stripe Checkout session
+2. GET /api/billing/portal - Stripe Customer Portal URL
+3. GET /api/billing/status - Subscription status
+4. GET /api/billing/plans - Plan details
 
 ## Next Steps
 
-1. Execute 13-04-PLAN.md (Tier Enforcement)
-2. Execute 13-05-PLAN.md (Billing Settings Page)
-3. Continue through Phases 14-23 for v1.1 completion
+1. Re-verify Phase 13 to confirm all gaps closed
+2. Continue through Phases 14-23 for v1.1 completion
