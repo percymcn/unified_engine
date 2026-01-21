@@ -34,15 +34,36 @@ class TradovateAdapter(BrokerPort):
     and executor primitives. Uses Tradovate REST/WebSocket API.
     """
 
-    def __init__(self, executor: Optional[TradovateExecutor] = None):
+    def __init__(
+        self,
+        executor: Optional[TradovateExecutor] = None,
+        account_id: Optional[int] = None,
+        access_token: Optional[str] = None,
+        environment: Optional[str] = None,
+    ):
         """
         Initialize Tradovate adapter.
 
         Args:
             executor: Optional pre-configured TradovateExecutor instance.
-                     If None, creates new instance.
+                     If None, creates new instance with OAuth or password auth.
+            account_id: Database account ID (for OAuth mode token refresh)
+            access_token: OAuth access token (enables OAuth mode)
+            environment: "demo" or "live" (for OAuth mode API URL selection)
         """
-        self._executor = executor or TradovateExecutor()
+        if executor:
+            self._executor = executor
+        else:
+            self._executor = TradovateExecutor(
+                account_id=account_id,
+                access_token=access_token,
+                environment=environment,
+            )
+
+    @property
+    def is_using_oauth(self) -> bool:
+        """Check if adapter is using OAuth authentication."""
+        return self._executor._use_oauth
 
     @property
     def broker_type(self) -> BrokerType:
