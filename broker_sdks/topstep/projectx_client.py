@@ -1,12 +1,33 @@
 #!/usr/bin/env python3
 """
 TopStep/ProjectX Gateway API Client
-Aligned with official ProjectX Gateway API documentation:
+
+DEPRECATED: This module is deprecated in favor of the official project-x-py SDK.
+
+Use the official SDK instead:
+    pip install project-x-py
+
+    # New approach (preferred):
+    from app.services.projectx_sdk_service import ProjectXSDKService
+    service = ProjectXSDKService(username=..., api_key=...)
+    await service.connect()
+
+    # Or use ProjectXExecutor which handles SDK/httpx automatically:
+    from app.brokers.projectx_executor import ProjectXExecutor
+    executor = ProjectXExecutor(username=..., api_key=...)
+    await executor.initialize()
+
+This legacy client is kept for reference during transition.
+It will be removed in a future version.
+
+Original documentation:
 - https://gateway.docs.projectx.com/
 - https://help.topstep.com/en/articles/11187768-topstepx-api-access
 
 TopStepX is accessed through the ProjectX Gateway API.
 """
+
+import warnings
 
 import requests
 import json
@@ -21,15 +42,18 @@ logger = logging.getLogger(__name__)
 class ProjectXClient:
     """
     ProjectX Gateway API Client for TopStepX
-    
+
+    DEPRECATED: Use ProjectXSDKService or ProjectXExecutor instead.
+    This class will be removed in a future version.
+
     Official API Base URL:
     - Gateway API: https://gateway.projectx.com/api (or environment-specific)
-    
+
     Authentication:
     - Username and API Key
     - JWT token after authentication
     """
-    
+
     def __init__(
         self,
         username: str,
@@ -38,12 +62,21 @@ class ProjectXClient:
     ):
         """
         Initialize ProjectX client
-        
+
         Args:
             username: TopStep username/email
             api_key: TopStep API key
             environment: Trading platform name (default: "TopstepX")
+
+        .. deprecated::
+            Use :class:`app.services.projectx_sdk_service.ProjectXSDKService` instead.
         """
+        warnings.warn(
+            "ProjectXClient is deprecated. Use ProjectXSDKService or ProjectXExecutor instead. "
+            "See app.services.projectx_sdk_service for the new SDK-based implementation.",
+            DeprecationWarning,
+            stacklevel=2
+        )
         self.username = username
         self.api_key = api_key
         self.environment = environment
