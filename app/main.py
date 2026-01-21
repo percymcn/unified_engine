@@ -45,6 +45,7 @@ from app.routers.oauth import router as oauth_router
 from app.routers.analytics import router as analytics_router
 from app.routers.notifications import router as notifications_router
 from app.routers.webhook_config import router as webhook_config_router
+from app.routers.stripe_webhooks import router as stripe_webhooks_router
 from app.core.event_emitter import event_emitter
 
 # Configure structured logging
@@ -199,6 +200,7 @@ app.include_router(oauth_router, tags=["oauth"])
 app.include_router(analytics_router, tags=["analytics"])
 app.include_router(notifications_router, tags=["notifications"])
 app.include_router(webhook_config_router, prefix="/api/v1", tags=["webhook-configs"])
+app.include_router(stripe_webhooks_router)
 
 # WebSocket endpoint
 @app.websocket("/ws")
