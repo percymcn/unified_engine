@@ -120,19 +120,24 @@ class Settings(BaseSettings):
     PROJECT_X_API_KEY: Optional[str] = None  # TopStep API key
     PROJECT_X_ACCOUNT_NAME: Optional[str] = None  # Optional account name to select
     
-    # MT4 Configuration
+    # MT4 Configuration (Legacy Manager API - fallback)
     MT4_API_URL: str = "http://localhost:8080/api"
     MT4_MANAGER_HOST: str = "localhost"
     MT4_MANAGER_PORT: int = 443
     MT4_MANAGER_LOGIN: int = 1
     MT4_MANAGER_PASSWORD: str = "manager"
-    
-    # MT5 Configuration
+
+    # MT5 Configuration (Legacy Manager API - fallback)
     MT5_API_URL: str = "http://localhost:8081/api"
     MT5_MANAGER_HOST: str = "localhost"
     MT5_MANAGER_PORT: int = 443
     MT5_MANAGER_LOGIN: int = 1
     MT5_MANAGER_PASSWORD: str = "manager"
+
+    # MetaAPI Configuration (Cloud SDK - preferred for MT4/MT5)
+    METAAPI_TOKEN: Optional[str] = None  # API token from https://app.metaapi.cloud/token
+    METAAPI_ACCOUNT_ID: Optional[str] = None  # MetaAPI account ID (MT4 or MT5)
+    METAAPI_APPLICATION: str = "tradeflow"  # Application name for MetaAPI
     
     # Signal Processing
     SIGNAL_PROCESSING_ENABLED: bool = True
@@ -314,14 +319,22 @@ class Settings(BaseSettings):
                 "manager_host": self.MT4_MANAGER_HOST,
                 "manager_port": self.MT4_MANAGER_PORT,
                 "manager_login": self.MT4_MANAGER_LOGIN,
-                "manager_password": self.MT4_MANAGER_PASSWORD
+                "manager_password": self.MT4_MANAGER_PASSWORD,
+                # MetaAPI SDK credentials (preferred)
+                "metaapi_token": self.METAAPI_TOKEN,
+                "metaapi_account_id": self.METAAPI_ACCOUNT_ID,
+                "metaapi_application": self.METAAPI_APPLICATION,
             },
             "mt5": {
                 "api_url": self.MT5_API_URL,
                 "manager_host": self.MT5_MANAGER_HOST,
                 "manager_port": self.MT5_MANAGER_PORT,
                 "manager_login": self.MT5_MANAGER_LOGIN,
-                "manager_password": self.MT5_MANAGER_PASSWORD
+                "manager_password": self.MT5_MANAGER_PASSWORD,
+                # MetaAPI SDK credentials (preferred)
+                "metaapi_token": self.METAAPI_TOKEN,
+                "metaapi_account_id": self.METAAPI_ACCOUNT_ID,
+                "metaapi_application": self.METAAPI_APPLICATION,
             }
         }
         
