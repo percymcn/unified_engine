@@ -222,7 +222,7 @@ Phases execute in numeric order: 12 → 13 → 14 → 15 → 16 → 17 → 18 �
 | 13. Stripe Billing | 6/6 | ✅ Complete | 2026-01-21 |
 | 14. Landing Page | 7/7 | ✅ Complete | 2026-01-21 |
 | 15. TradeLocker SDK | 1/1 | ✅ Complete | 2026-01-21 |
-| 16. Tradovate OAuth | 0/TBD | Not started | - |
+| 16. Tradovate OAuth | 0/4 | Planned | - |
 | 17. TopStep/ProjectX SDK | 0/TBD | Not started | - |
 | 18. MetaAPI SDK | 0/TBD | Not started | - |
 | 19. Broker Connections UI | 0/TBD | Not started | - |
