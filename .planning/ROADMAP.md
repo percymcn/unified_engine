@@ -12,10 +12,11 @@ Full refactor of the trading signal routing engine from organic growth to clean 
 - [x] **Phase 4: Application Layer** - Use cases and service orchestration
 - [x] **Phase 5: Infrastructure Adapters** - Broker executors with hexagonal pattern
 - [x] **Phase 6: Security Hardening** - Encryption, credential storage, secrets
-- [ ] **Phase 7: UI Foundation** - Next.js 14 setup with auth and layout
-- [ ] **Phase 8: UI Dashboard** - Signal status, broker health, trade logs
-- [ ] **Phase 9: UI Configuration** - Account management, routing rules, API keys
-- [ ] **Phase 10: Deployment** - Docker Swarm with secrets and env configs
+- [x] **Phase 7: UI Foundation** - Next.js 14 setup with auth and layout
+- [x] **Phase 8: UI Dashboard** - Signal status, broker health, trade logs
+- [x] **Phase 9: UI Configuration** - Account management, routing rules, API keys
+- [x] **Phase 10: Deployment** - Docker Swarm with secrets and env configs
+- [x] **Phase 11: Integration Wiring** - Wire hexagonal architecture into API layer
 
 ## Phase Details
 
@@ -149,10 +150,23 @@ Full refactor of the trading signal routing engine from organic growth to clean 
 **Research**: Unlikely (existing docker-stack.yml as base)
 **Plans**: 4 plans (Wave 1: 01 | Wave 2: 02, 03 | Wave 3: 04)
 
+### Phase 11: Integration Wiring
+**Goal**: Wire hexagonal architecture (Phases 3-5) into API layer
+**Depends on**: Phase 10 (and milestone audit identifying gaps)
+**Requirements**: Closes gaps in ARCH-05, SEC-02
+**Success Criteria** (what must be TRUE):
+  1. DI Container initialized in main.py lifespan
+  2. Webhook router uses ProcessSignalUseCase from container
+  3. Accounts router uses account use cases from container
+  4. Credentials encrypted via CredentialRepository (not direct SQL)
+  5. Broker adapters from container used for trade execution
+**Research**: No (wiring existing components)
+**Plans**: 3 plans (Wave 1: 01 | Wave 2: 02, 03)
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -166,6 +180,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 8. UI Dashboard | 4/4 | Complete | 2026-01-20 |
 | 9. UI Configuration | 4/4 | Complete | 2026-01-20 |
 | 10. Deployment | 4/4 | Complete | 2026-01-20 |
+| 11. Integration Wiring | 3/3 | Complete | 2026-01-20 |
 
 ---
-*Last updated: 2026-01-20 after Phase 10 completion (ALL PHASES COMPLETE)*
+*Last updated: 2026-01-20 after Phase 11 completion (ALL PHASES COMPLETE)*
