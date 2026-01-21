@@ -5,16 +5,34 @@
 See: .planning/PROJECT.md (updated 2026-01-19)
 
 **Core value:** Reliable signal-to-trade execution across all configured brokers with zero missed signals.
-**Current focus:** ALL PHASES COMPLETE - Milestone v1.0 Ready for Audit
+**Current focus:** Phase 11 - Integration Wiring (closing milestone audit gaps)
 
 ## Current Position
 
-Phase: 10 of 10 (Deployment)
-Plan: 4/4 complete
-Status: PHASE COMPLETE
-Last activity: 2026-01-20 - Completed 10-04-PLAN.md
+Phase: 11 of 11 (Integration Wiring)
+Plan: 1/3 complete
+Status: IN PROGRESS
+Last activity: 2026-01-21 - Completed 11-01-PLAN.md
 
-Progress: ████████████████ 100%
+Progress: ████████████████░ 96% (gap closure in progress)
+
+### Phase 11 Plans - IN PROGRESS
+| Plan | Title | Wave | Status |
+|------|-------|------|--------|
+| 01 | Initialize DI Container in main.py | 1 | Complete |
+| 02 | Wire Webhook Router to Hexagonal Architecture | 2 | Pending |
+| 03 | Wire Accounts Router to Hexagonal Architecture | 2 | Pending |
+
+### Phase 11 Wave Structure
+- **Wave 1**: Plan 01 - Initialize container (required before routers can access use cases)
+- **Wave 2** (parallel): Plans 02, 03 - Wire both routers (independent after container ready)
+
+### Phase 11 Success Criteria
+1. DI Container initialized in main.py lifespan
+2. Webhook router uses ProcessSignalUseCase from container
+3. Accounts router uses account use cases from container
+4. Credentials encrypted via CredentialRepository
+5. Broker adapters from container used for trade execution
 
 ### Phase 10 Plans - COMPLETE
 | Plan | Title | Wave | Status |
@@ -144,9 +162,9 @@ Progress: ████████████████ 100%
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 60
-- Average duration: ~8.0 min/plan
-- Total execution time: ~480 min
+- Total plans completed: 61
+- Average duration: ~7.9 min/plan
+- Total execution time: ~487 min
 
 **By Phase:**
 
@@ -162,10 +180,11 @@ Progress: ████████████████ 100%
 | 8 | 4 | 50 min | 12.5 min |
 | 9 | 4 | 78 min | 19.5 min |
 | 10 | 4 | 24 min | 6 min |
+| 11 | 1 | 7 min | 7 min |
 
 **Recent Trend:**
-- Last 5 plans: 9-04, 10-01, 10-02, 10-03, 10-04
-- Trend: Phase 10 complete (4/4 deployment plans), production stack ready
+- Last 5 plans: 10-02, 10-03, 10-04, 11-01
+- Trend: Phase 11 started (1/3 integration wiring plans), container initialized
 
 ## Accumulated Context
 
@@ -357,6 +376,9 @@ Recent decisions affecting current work:
 - UI service updated to ui-next (Next.js) on port 3000 (10-04)
 - Health check intervals: 30s for most services, 60s for celery (10-04)
 - Docker configs use versioned names (v2) for zero-downtime updates (10-04)
+- Container initialized in lifespan after database/Redis, before signal processor (11-01)
+- Container stored on app.state.container for router access via dependency injection (11-01)
+- Container shutdown before signal processor for clean broker disconnection (11-01)
 
 ### Pending Todos
 
@@ -376,7 +398,15 @@ From CONCERNS.md codebase audit:
 
 ## Session Continuity
 
-Last session: 2026-01-20
-Stopped at: Completed 10-04-PLAN.md (Docker Stack Update and Health Checks)
+Last session: 2026-01-21
+Stopped at: Completed 11-01-PLAN.md (DI Container initialization)
 Resume file: None
-Status: ALL PHASES COMPLETE - Production deployment ready
+Status: Phase 11 in progress (1/3 plans complete)
+
+### Milestone Audit Summary
+Audit found hexagonal architecture (Phases 3-5) built but not wired to API layer:
+- ~~DI Container never initialized in main.py~~ FIXED (11-01)
+- Webhook router uses old SignalProcessor (not ProcessSignalUseCase) - Plan 11-02
+- Accounts router uses direct SQL (bypasses credential encryption) - Plan 11-03
+
+Phase 11 closes these gaps. Wave 1 complete, Wave 2 ready for execution.
