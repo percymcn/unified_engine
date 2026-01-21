@@ -19,8 +19,13 @@ from app.application.dto.account_dto import (
     SyncAccountRequest,
     TestConnectionRequest,
 )
+from app.application.dto.account_settings_dto import (
+    AccountSettingsRequest,
+    GetAccountSettingsRequest,
+    PositionSizingMode,
+)
 from app.domain.enums import BrokerType, AccountType
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class TestConnectionBody(BaseModel):
@@ -366,3 +371,175 @@ async def get_account_balance(
         "free_margin": float(account.free_margin),
         "last_sync": account.last_sync.isoformat() if account.last_sync else None,
     }
+
+
+# Pydantic models for account settings API
+class AccountSettingsBody(BaseModel):
+    """Request body for updating account settings"""
+    # Position sizing
+    position_sizing_mode: Optional[str] = Field(None, description="fixed, percent_balance, percent_equity, risk_based")
+    fixed_lot_size: Optional[float] = Field(None, ge=0.01, le=100)
+    percent_of_balance: Optional[float] = Field(None, ge=0.1, le=100)
+    percent_of_equity: Optional[float] = Field(None, ge=0.1, le=100)
+    risk_percent_per_trade: Optional[float] = Field(None, ge=0.1, le=10)
+
+    # Risk limits
+    max_position_size: Optional[float] = Field(None, ge=0.01)
+    max_daily_loss: Optional[float] = Field(None, ge=0)
+    max_daily_loss_pct: Optional[float] = Field(None, ge=0, le=100)
+    max_drawdown_pct: Optional[float] = Field(None, ge=0, le=100)
+    max_open_positions: Optional[int] = Field(None, ge=1, le=100)
+    max_daily_trades: Optional[int] = Field(None, ge=1, le=1000)
+    trade_cooldown_seconds: Optional[int] = Field(None, ge=0, le=3600)
+
+    # Grouping
+    group_id: Optional[int] = None
+
+    # Routing
+    is_signal_enabled: Optional[bool] = None
+    signal_priority: Optional[int] = Field(None, ge=0, le=100)
+
+
+@router.get("/{account_id}/settings")
+async def get_account_settings(
+    request: Request,
+    account_id: int,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Get current account settings (position sizing, risk limits, routing).
+
+    Returns all configured settings for the specified account.
+    """
+    container = get_container(request)
+    use_case = container.get_account_settings_use_case()
+
+    dto_request = GetAccountSettingsRequest(
+        account_id=account_id,
+        user_id=current_user.id,
+    )
+
+    try:
+        response = await use_case.execute(dto_request)
+        return {
+            "account_id": response.account_id,
+            "position_sizing": {
+                "mode": response.position_sizing_mode,
+                "fixed_lot_size": response.fixed_lot_size,
+                "percent_of_balance": response.percent_of_balance,
+                "percent_of_equity": response.percent_of_equity,
+                "risk_percent_per_trade": response.risk_percent_per_trade,
+            },
+            "risk_limits": {
+                "max_position_size": response.max_position_size,
+                "max_daily_loss": response.max_daily_loss,
+                "max_daily_loss_pct": response.max_daily_loss_pct,
+                "max_drawdown_pct": response.max_drawdown_pct,
+                "max_open_positions": response.max_open_positions,
+                "max_daily_trades": response.max_daily_trades,
+                "trade_cooldown_seconds": response.trade_cooldown_seconds,
+            },
+            "grouping": {
+                "group_id": response.group_id,
+                "group_name": response.group_name,
+                "group_color": response.group_color,
+            },
+            "routing": {
+                "is_signal_enabled": response.is_signal_enabled,
+                "signal_priority": response.signal_priority,
+            },
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+
+
+@router.put("/{account_id}/settings")
+async def update_account_settings(
+    request: Request,
+    account_id: int,
+    settings: AccountSettingsBody,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Update account settings (position sizing, risk limits, routing).
+
+    Only provided fields will be updated. Omit fields to keep current values.
+    """
+    container = get_container(request)
+    use_case = container.update_account_settings_use_case()
+
+    # Convert string mode to enum if provided
+    position_sizing_mode = None
+    if settings.position_sizing_mode:
+        try:
+            position_sizing_mode = PositionSizingMode(settings.position_sizing_mode)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid position_sizing_mode: {settings.position_sizing_mode}. "
+                       f"Valid options: fixed, percent_balance, percent_equity, risk_based"
+            )
+
+    dto_request = AccountSettingsRequest(
+        account_id=account_id,
+        position_sizing_mode=position_sizing_mode,
+        fixed_lot_size=settings.fixed_lot_size,
+        percent_of_balance=settings.percent_of_balance,
+        percent_of_equity=settings.percent_of_equity,
+        risk_percent_per_trade=settings.risk_percent_per_trade,
+        max_position_size=settings.max_position_size,
+        max_daily_loss=settings.max_daily_loss,
+        max_daily_loss_pct=settings.max_daily_loss_pct,
+        max_drawdown_pct=settings.max_drawdown_pct,
+        max_open_positions=settings.max_open_positions,
+        max_daily_trades=settings.max_daily_trades,
+        trade_cooldown_seconds=settings.trade_cooldown_seconds,
+        group_id=settings.group_id,
+        is_signal_enabled=settings.is_signal_enabled,
+        signal_priority=settings.signal_priority,
+    )
+
+    try:
+        response = await use_case.execute(dto_request, user_id=current_user.id)
+        return {
+            "message": "Settings updated successfully",
+            "account_id": response.account_id,
+            "position_sizing": {
+                "mode": response.position_sizing_mode,
+                "fixed_lot_size": response.fixed_lot_size,
+                "percent_of_balance": response.percent_of_balance,
+                "percent_of_equity": response.percent_of_equity,
+                "risk_percent_per_trade": response.risk_percent_per_trade,
+            },
+            "risk_limits": {
+                "max_position_size": response.max_position_size,
+                "max_daily_loss": response.max_daily_loss,
+                "max_daily_loss_pct": response.max_daily_loss_pct,
+                "max_drawdown_pct": response.max_drawdown_pct,
+                "max_open_positions": response.max_open_positions,
+                "max_daily_trades": response.max_daily_trades,
+                "trade_cooldown_seconds": response.trade_cooldown_seconds,
+            },
+            "grouping": {
+                "group_id": response.group_id,
+                "group_name": response.group_name,
+                "group_color": response.group_color,
+            },
+            "routing": {
+                "is_signal_enabled": response.is_signal_enabled,
+                "signal_priority": response.signal_priority,
+            },
+        }
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )

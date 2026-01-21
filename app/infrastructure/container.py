@@ -36,6 +36,7 @@ from app.infrastructure.repositories import (
     SQLAlchemyAccountRepository,
     SQLAlchemyPositionRepository,
     SQLAlchemySymbolAliasRepository,
+    AccountGroupRepository,
 )
 
 # Use cases
@@ -56,6 +57,15 @@ from app.application.use_cases import (
     UpdateAccountUseCase,
     DeleteAccountUseCase,
     TestConnectionUseCase,
+    UpdateAccountSettingsUseCase,
+    GetAccountSettingsUseCase,
+    CreateAccountGroupUseCase,
+    GetAccountGroupsUseCase,
+    GetAccountGroupUseCase,
+    UpdateAccountGroupUseCase,
+    DeleteAccountGroupUseCase,
+    AddAccountToGroupUseCase,
+    RemoveAccountFromGroupUseCase,
 )
 from app.infrastructure.repositories.credential_repository import CredentialRepository
 
@@ -272,6 +282,49 @@ class Container:
     def test_connection_use_case(self) -> TestConnectionUseCase:
         """Create TestConnectionUseCase (no dependencies needed)."""
         return TestConnectionUseCase()
+
+    def _get_account_group_repository(self) -> AccountGroupRepository:
+        """Get account group repository instance."""
+        session = self._session_factory.create()
+        return AccountGroupRepository(session)
+
+    def update_account_settings_use_case(self) -> UpdateAccountSettingsUseCase:
+        """Create UpdateAccountSettingsUseCase with injected dependencies."""
+        session = self._session_factory.create()
+        return UpdateAccountSettingsUseCase(session)
+
+    def get_account_settings_use_case(self) -> GetAccountSettingsUseCase:
+        """Create GetAccountSettingsUseCase with injected dependencies."""
+        session = self._session_factory.create()
+        return GetAccountSettingsUseCase(session)
+
+    def create_account_group_use_case(self) -> CreateAccountGroupUseCase:
+        """Create CreateAccountGroupUseCase with injected dependencies."""
+        return CreateAccountGroupUseCase(self._get_account_group_repository())
+
+    def get_account_groups_use_case(self) -> GetAccountGroupsUseCase:
+        """Create GetAccountGroupsUseCase with injected dependencies."""
+        return GetAccountGroupsUseCase(self._get_account_group_repository())
+
+    def get_account_group_use_case(self) -> GetAccountGroupUseCase:
+        """Create GetAccountGroupUseCase with injected dependencies."""
+        return GetAccountGroupUseCase(self._get_account_group_repository())
+
+    def update_account_group_use_case(self) -> UpdateAccountGroupUseCase:
+        """Create UpdateAccountGroupUseCase with injected dependencies."""
+        return UpdateAccountGroupUseCase(self._get_account_group_repository())
+
+    def delete_account_group_use_case(self) -> DeleteAccountGroupUseCase:
+        """Create DeleteAccountGroupUseCase with injected dependencies."""
+        return DeleteAccountGroupUseCase(self._get_account_group_repository())
+
+    def add_account_to_group_use_case(self) -> AddAccountToGroupUseCase:
+        """Create AddAccountToGroupUseCase with injected dependencies."""
+        return AddAccountToGroupUseCase(self._get_account_group_repository())
+
+    def remove_account_from_group_use_case(self) -> RemoveAccountFromGroupUseCase:
+        """Create RemoveAccountFromGroupUseCase with injected dependencies."""
+        return RemoveAccountFromGroupUseCase(self._get_account_group_repository())
 
     # Direct access to infrastructure
     def broker_adapter(self, broker_type: BrokerType) -> BrokerPort:
