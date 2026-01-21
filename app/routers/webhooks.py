@@ -20,7 +20,7 @@ router = APIRouter()
 async def tradingview_webhook(request: Request, db: Session = Depends(get_db)):
     """TradingView webhook endpoint"""
     start_time = datetime.utcnow()
-    
+
     try:
         # Get request data
         if request.headers.get("content-type", "").startswith("application/json"):
@@ -28,7 +28,7 @@ async def tradingview_webhook(request: Request, db: Session = Depends(get_db)):
         else:
             form_data = await request.form()
             payload = dict(form_data)
-        
+
         # Create webhook log
         webhook_id = str(uuid.uuid4())
         webhook_log = WebhookLogCreate(
@@ -38,11 +38,11 @@ async def tradingview_webhook(request: Request, db: Session = Depends(get_db)):
             user_agent=request.headers.get("user-agent"),
             payload=json.dumps(payload)
         )
-        
+
         db_webhook = WebhookLog(**webhook_log.dict())
         db.add(db_webhook)
         db.commit()
-        
+
         # Extract strategy information from payload
         strategy_info = {}
         if "strategy" in payload:
@@ -58,28 +58,62 @@ async def tradingview_webhook(request: Request, db: Session = Depends(get_db)):
                 "strategy_version": payload.get("strategy_version", "1.0.0"),
                 "strategy_name": payload.get("strategy_name", "Unknown Strategy")
             }
-        
-        # Process signal through signal processor
-        from app.services.signal_processor import SignalProcessor
-        processor = SignalProcessor()
-        
-        signal_data = {
-            "source": "tradingview",
-            "payload": payload,
-            "strategy_info": strategy_info
+
+        # Get container and use case from hexagonal architecture
+        container = get_container(request)
+        use_case = container.process_signal_use_case()
+
+        # Build ProcessSignalRequest from webhook payload
+        # Map TradingView payload fields to domain command
+        symbol = payload.get("ticker") or payload.get("symbol", "UNKNOWN")
+        action_str = payload.get("action", "buy").lower()
+
+        # Map action string to enum
+        action_map = {
+            "buy": SignalAction.BUY,
+            "sell": SignalAction.SELL,
+            "close": SignalAction.CLOSE,
         }
-        
-        result = await processor.process_signal(signal_data, db)
-        
+        action = action_map.get(action_str, SignalAction.BUY)
+
+        # Build command
+        command = ProcessSignalRequest(
+            source=SignalSource.TRADINGVIEW,
+            symbol=symbol,
+            action=action,
+            volume=Decimal(str(payload.get("quantity", payload.get("volume", 1)))),
+            price=Decimal(str(payload["price"])) if payload.get("price") else None,
+            stop_loss=Decimal(str(payload["stop_loss"])) if payload.get("stop_loss") else None,
+            take_profit=Decimal(str(payload["take_profit"])) if payload.get("take_profit") else None,
+            target_account_ids=[],  # Routing will be handled by domain service
+            comment=payload.get("comment"),
+            strategy_id=strategy_info.get("strategy_id"),
+            strategy_name=strategy_info.get("strategy_name"),
+            raw_payload=payload,
+        )
+
+        # Execute use case
+        use_case_result = await use_case.execute(command)
+
+        # Map domain result to API response
+        result = {
+            "success": use_case_result.status.value not in ["failed", "rejected"],
+            "signal_id": use_case_result.signal_id,
+            "status": use_case_result.status.value,
+            "executions": use_case_result.executions,
+            "errors": use_case_result.errors,
+            "processing_time_ms": int((datetime.utcnow() - start_time).total_seconds() * 1000),
+        }
+
         # Update webhook log
-        db_webhook.processed = result.get("success", False)
+        db_webhook.processed = result["success"]
         db_webhook.response_status = 200
         db_webhook.response_body = json.dumps(result)
-        db_webhook.processing_time_ms = result.get("processing_time_ms", 0)
+        db_webhook.processing_time_ms = result["processing_time_ms"]
         db.commit()
-        
+
         return result
-        
+
     except Exception as e:
         # Log error
         db_webhook = WebhookLog(
@@ -87,13 +121,13 @@ async def tradingview_webhook(request: Request, db: Session = Depends(get_db)):
             source="tradingview",
             source_ip=request.client.host if request.client else "unknown",
             user_agent=request.headers.get("user-agent"),
-            payload=json.dumps(payload),
+            payload=json.dumps(payload) if 'payload' in locals() else "{}",
             processed=False,
             error_message=str(e)
         )
         db.add(db_webhook)
         db.commit()
-        
+
         return {"success": False, "error": str(e)}
 
 @router.post("/trailhacker")
