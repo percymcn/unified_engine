@@ -1,6 +1,7 @@
 """
 TradeLocker Broker Executor
-Handles all TradeLocker trading operations via Brand API and WebSocket
+Handles all TradeLocker trading operations via official SDK or Brand API fallback.
+WebSocket kept for real-time updates (SDK doesn't expose WebSocket).
 """
 import asyncio
 import json
@@ -10,40 +11,120 @@ from datetime import datetime
 import httpx
 import socketio
 from app.brokers.base_executor import BaseExecutor
+from app.brokers.tradelocker_sdk_wrapper import TradeLockerSDKWrapper
 from app.core.config import settings
 from app.models.pydantic_schemas import (
-    OrderRequest, OrderResponse, Position, Account, 
+    OrderRequest, OrderResponse, Position, Account,
     TradeRequest, TradeResponse
 )
 
 logger = logging.getLogger(__name__)
 
 class TradeLockerExecutor(BaseExecutor):
-    """TradeLocker trading executor using Brand API"""
-    
+    """
+    TradeLocker trading executor.
+
+    Supports two authentication modes:
+    1. SDK mode (preferred): Uses official tradelocker package with user credentials
+    2. Brand API mode (fallback): Uses httpx with Brand API key
+
+    WebSocket connection is maintained separately for real-time updates
+    (SDK doesn't expose WebSocket API).
+    """
+
     def __init__(self):
         config = settings.get_broker_config("tradelocker")
         super().__init__(config)
         self.config = config
+
+        # Brand API configuration (fallback)
         self.api_url = self.config.get("api_url")
         self.ws_url = self.config.get("ws_url")
         self.api_key = self.config.get("api_key")
         self.environment = self.config.get("environment", "demo")
-        self.session = None
-        self.sio = None
-        self.access_token = None
 
-        # Check for required credentials
-        self.is_available = bool(self.api_key)
+        # SDK configuration (preferred)
+        self._sdk_username = self.config.get("username")
+        self._sdk_password = self.config.get("password")
+        self._sdk_server = self.config.get("server")
+        self._sdk_environment = self.config.get("sdk_environment", "https://demo.tradelocker.com")
+
+        # Runtime state
+        self.session = None  # httpx client for Brand API
+        self.sio = None  # WebSocket client
+        self._sdk_wrapper: Optional[TradeLockerSDKWrapper] = None
+        self.access_token = None
+        self._use_sdk = False  # Track which mode is active
+
+        # Determine availability: SDK credentials OR Brand API key
+        self._sdk_available = all([self._sdk_username, self._sdk_password, self._sdk_server])
+        self._brand_api_available = bool(self.api_key)
+        self.is_available = self._sdk_available or self._brand_api_available
+
         if not self.is_available:
-            logger.warning("TradeLocker executor disabled: API key not configured")
+            logger.warning("TradeLocker executor disabled: No credentials configured")
+        elif self._sdk_available:
+            logger.info("TradeLocker will use official SDK (user credentials)")
+        else:
+            logger.info("TradeLocker will use Brand API fallback")
         
     async def initialize(self) -> bool:
-        """Initialize TradeLocker connection"""
+        """
+        Initialize TradeLocker connection.
+
+        Tries SDK first if credentials available, falls back to Brand API.
+        WebSocket is initialized separately for real-time updates.
+        """
         if not self.is_available:
             logger.info("TradeLocker skipped: credentials not configured")
             return False
 
+        try:
+            # Try SDK initialization first (preferred)
+            if self._sdk_available:
+                success = await self._initialize_sdk()
+                if success:
+                    self._use_sdk = True
+                    # Still set up WebSocket for real-time updates
+                    await self._initialize_websocket()
+                    self.is_connected = True
+                    logger.info("TradeLocker executor initialized via SDK")
+                    return True
+                else:
+                    logger.warning("SDK initialization failed, trying Brand API fallback")
+
+            # Fall back to Brand API if SDK fails or not available
+            if self._brand_api_available:
+                success = await self._initialize_brand_api()
+                if success:
+                    self._use_sdk = False
+                    self.is_connected = True
+                    logger.info("TradeLocker executor initialized via Brand API")
+                    return True
+
+            logger.error("TradeLocker initialization failed: All methods exhausted")
+            return False
+
+        except Exception as e:
+            logger.error(f"TradeLocker initialization failed: {e}")
+            return False
+
+    async def _initialize_sdk(self) -> bool:
+        """Initialize using official SDK."""
+        try:
+            self._sdk_wrapper = TradeLockerSDKWrapper(
+                environment=self._sdk_environment,
+                username=self._sdk_username,
+                password=self._sdk_password,
+                server=self._sdk_server
+            )
+            return await self._sdk_wrapper.initialize()
+        except Exception as e:
+            logger.error(f"SDK initialization error: {e}")
+            return False
+
+    async def _initialize_brand_api(self) -> bool:
+        """Initialize using Brand API (legacy)."""
         try:
             # Initialize HTTP client
             self.session = httpx.AsyncClient(
@@ -51,31 +132,36 @@ class TradeLockerExecutor(BaseExecutor):
                 headers={"brand-api-key": self.api_key},
                 timeout=30.0
             )
-            
-            # Initialize WebSocket client
+
+            # Initialize WebSocket
+            await self._initialize_websocket()
+            return True
+        except Exception as e:
+            logger.error(f"Brand API initialization error: {e}")
+            return False
+
+    async def _initialize_websocket(self) -> None:
+        """Initialize WebSocket connection for real-time updates."""
+        try:
             self.sio = socketio.AsyncClient()
-            
+
             # Set up WebSocket event handlers
             self.sio.on('connect', self._on_connect)
             self.sio.on('disconnect', self._on_disconnect)
             self.sio.on('stream', self._on_stream)
             self.sio.on('subscriptions', self._on_subscriptions)
             self.sio.on('connection', self._on_connection)
-            
+
             # Connect to WebSocket
             await self.sio.connect(
                 self.ws_url,
                 transports=['websocket'],
                 auth={'type': self.environment}
             )
-            
-            self.is_connected = True
-            logger.info("TradeLocker executor initialized successfully")
-            return True
-            
+            logger.info("TradeLocker WebSocket connected")
         except Exception as e:
-            logger.error(f"TradeLocker initialization failed: {e}")
-            return False
+            # WebSocket failure is non-fatal - SDK can work without real-time updates
+            logger.warning(f"WebSocket connection failed (non-fatal): {e}")
     
     async def disconnect(self):
         """Disconnect from TradeLocker"""
@@ -83,7 +169,11 @@ class TradeLockerExecutor(BaseExecutor):
             await self.sio.disconnect()
         if self.session:
             await self.session.aclose()
+        if self._sdk_wrapper:
+            self._sdk_wrapper.shutdown()
+            self._sdk_wrapper = None
         self.is_connected = False
+        self._use_sdk = False
         logger.info("TradeLocker executor disconnected")
     
     async def _on_connect(self):
@@ -219,63 +309,129 @@ class TradeLockerExecutor(BaseExecutor):
     async def place_order(self, order: OrderRequest) -> OrderResponse:
         """Place order with TradeLocker"""
         try:
-            # Map order types
-            order_type_map = {
-                "market_buy": "MARKET_BUY",
-                "market_sell": "MARKET_SELL",
-                "buy_limit": "BUY_LIMIT",
-                "sell_limit": "SELL_LIMIT",
-                "buy_stop": "BUY_STOP",
-                "sell_stop": "SELL_STOP"
-            }
-            
-            api_order_type = order_type_map.get(order.order_type)
-            if not api_order_type:
-                return OrderResponse(
-                    success=False,
-                    error=f"Unsupported order type: {order.order_type}"
-                )
-            
-            order_data = {
-                "account_id": order.account_id,
-                "symbol": order.symbol,
-                "type": api_order_type,
-                "quantity": order.quantity,
-                "price": order.price,
-                "stop_loss": order.stop_loss,
-                "take_profit": order.take_profit,
-                "comment": order.comment,
-                "magic_number": order.magic_number
-            }
-            
-            response = await self.session.post("/trades/market", json=order_data)
-            
-            if response.status_code == 200:
-                result = response.json()
-                
-                return OrderResponse(
-                    success=True,
-                    order_id=str(result.get("id")),
-                    broker="tradelocker",
-                    status=result.get("status", "filled"),
-                    filled_quantity=result.get("filled_quantity", order.quantity),
-                    filled_price=result.get("filled_price", order.price),
-                    commission=result.get("commission", 0),
-                    timestamp=datetime.now()
-                )
-            else:
-                error_msg = response.text
-                logger.error(f"TradeLocker order failed: {error_msg}")
-                return OrderResponse(
-                    success=False,
-                    error=error_msg
-                )
-                
+            # Use SDK if available
+            if self._use_sdk and self._sdk_wrapper:
+                return await self._place_order_sdk(order)
+
+            # Fall back to Brand API
+            return await self._place_order_brand_api(order)
+
         except Exception as e:
             logger.error(f"Error placing TradeLocker order: {e}")
             return OrderResponse(
                 success=False,
                 error=str(e)
+            )
+
+    async def _place_order_sdk(self, order: OrderRequest) -> OrderResponse:
+        """Place order using official SDK."""
+        try:
+            # Lookup instrument ID from symbol
+            instrument_id = await self._sdk_wrapper.get_instrument_id_by_symbol(order.symbol)
+            if instrument_id is None:
+                return OrderResponse(
+                    success=False,
+                    error=f"Instrument not found: {order.symbol}"
+                )
+
+            # Map order type to SDK format
+            order_type = order.order_type.lower()
+            if "market" in order_type:
+                sdk_type = "market"
+            elif "limit" in order_type:
+                sdk_type = "limit"
+            elif "stop" in order_type:
+                sdk_type = "stop"
+            else:
+                sdk_type = "market"
+
+            # Determine side
+            side = "buy" if "buy" in order_type else "sell"
+
+            result = await self._sdk_wrapper.create_order(
+                instrument_id=instrument_id,
+                quantity=order.quantity,
+                side=side,
+                order_type=sdk_type,
+                price=order.price,
+                stop_loss=order.stop_loss,
+                take_profit=order.take_profit
+            )
+
+            if result and result.get("success"):
+                order_result = result.get("result", {})
+                return OrderResponse(
+                    success=True,
+                    order_id=str(order_result.get("orderId", order_result.get("id", ""))),
+                    broker="tradelocker",
+                    status="filled" if sdk_type == "market" else "pending",
+                    filled_quantity=order.quantity if sdk_type == "market" else 0,
+                    filled_price=order.price,
+                    commission=0,
+                    timestamp=datetime.now()
+                )
+            else:
+                return OrderResponse(
+                    success=False,
+                    error=result.get("error", "SDK order failed") if result else "SDK order failed"
+                )
+
+        except Exception as e:
+            logger.error(f"SDK order error: {e}")
+            return OrderResponse(success=False, error=str(e))
+
+    async def _place_order_brand_api(self, order: OrderRequest) -> OrderResponse:
+        """Place order using Brand API (legacy)."""
+        # Map order types
+        order_type_map = {
+            "market_buy": "MARKET_BUY",
+            "market_sell": "MARKET_SELL",
+            "buy_limit": "BUY_LIMIT",
+            "sell_limit": "SELL_LIMIT",
+            "buy_stop": "BUY_STOP",
+            "sell_stop": "SELL_STOP"
+        }
+
+        api_order_type = order_type_map.get(order.order_type)
+        if not api_order_type:
+            return OrderResponse(
+                success=False,
+                error=f"Unsupported order type: {order.order_type}"
+            )
+
+        order_data = {
+            "account_id": order.account_id,
+            "symbol": order.symbol,
+            "type": api_order_type,
+            "quantity": order.quantity,
+            "price": order.price,
+            "stop_loss": order.stop_loss,
+            "take_profit": order.take_profit,
+            "comment": order.comment,
+            "magic_number": order.magic_number
+        }
+
+        response = await self.session.post("/trades/market", json=order_data)
+
+        if response.status_code == 200:
+            result = response.json()
+
+            return OrderResponse(
+                success=True,
+                order_id=str(result.get("id")),
+                broker="tradelocker",
+                status=result.get("status", "filled"),
+                filled_quantity=result.get("filled_quantity", order.quantity),
+                filled_price=result.get("filled_price", order.price),
+                commission=result.get("commission", 0),
+                timestamp=datetime.now()
+            )
+        else:
+            error_msg = response.text
+            logger.error(f"TradeLocker order failed: {error_msg}")
+            return OrderResponse(
+                success=False,
+                error=error_msg
             )
     
     async def modify_order(self, order_id: str, modifications: Dict[str, Any]) -> OrderResponse:
@@ -343,40 +499,81 @@ class TradeLockerExecutor(BaseExecutor):
     async def close_position(self, position_id: str, quantity: Optional[float] = None) -> TradeResponse:
         """Close position in TradeLocker"""
         try:
-            close_data = {
-                "quantity": quantity
-            }
-            
-            response = await self.session.delete(f"/positions/{position_id}", json=close_data)
-            
-            if response.status_code == 200:
-                result = response.json()
-                
-                return TradeResponse(
-                    success=True,
-                    trade_id=str(result.get("id")),
-                    broker="tradelocker",
-                    symbol=result.get("symbol", ""),
-                    side=result.get("side", ""),
-                    quantity=result.get("quantity", 0),
-                    price=result.get("price", 0),
-                    pnl=result.get("pnl", 0),
-                    commission=result.get("commission", 0),
-                    timestamp=datetime.now()
-                )
-            else:
-                error_msg = response.text
-                logger.error(f"TradeLocker position close failed: {error_msg}")
-                return TradeResponse(
-                    success=False,
-                    error=error_msg
-                )
-                
+            # Use SDK if available
+            if self._use_sdk and self._sdk_wrapper:
+                return await self._close_position_sdk(position_id, quantity)
+
+            # Fall back to Brand API
+            return await self._close_position_brand_api(position_id, quantity)
+
         except Exception as e:
             logger.error(f"Error closing TradeLocker position: {e}")
             return TradeResponse(
                 success=False,
                 error=str(e)
+            )
+
+    async def _close_position_sdk(self, position_id: str, quantity: Optional[float] = None) -> TradeResponse:
+        """Close position using official SDK."""
+        try:
+            result = await self._sdk_wrapper.close_position(
+                position_id=int(position_id),
+                quantity=quantity
+            )
+
+            if result and result.get("success"):
+                close_result = result.get("result", {})
+                return TradeResponse(
+                    success=True,
+                    trade_id=str(close_result.get("id", position_id)),
+                    broker="tradelocker",
+                    symbol=close_result.get("symbol", ""),
+                    side=close_result.get("side", ""),
+                    quantity=close_result.get("quantity", quantity or 0),
+                    price=close_result.get("price", 0),
+                    pnl=close_result.get("pnl", 0),
+                    commission=close_result.get("commission", 0),
+                    timestamp=datetime.now()
+                )
+            else:
+                return TradeResponse(
+                    success=False,
+                    error=result.get("error", "SDK close failed") if result else "SDK close failed"
+                )
+
+        except Exception as e:
+            logger.error(f"SDK close position error: {e}")
+            return TradeResponse(success=False, error=str(e))
+
+    async def _close_position_brand_api(self, position_id: str, quantity: Optional[float] = None) -> TradeResponse:
+        """Close position using Brand API (legacy)."""
+        close_data = {
+            "quantity": quantity
+        }
+
+        response = await self.session.delete(f"/positions/{position_id}", json=close_data)
+
+        if response.status_code == 200:
+            result = response.json()
+
+            return TradeResponse(
+                success=True,
+                trade_id=str(result.get("id")),
+                broker="tradelocker",
+                symbol=result.get("symbol", ""),
+                side=result.get("side", ""),
+                quantity=result.get("quantity", 0),
+                price=result.get("price", 0),
+                pnl=result.get("pnl", 0),
+                commission=result.get("commission", 0),
+                timestamp=datetime.now()
+            )
+        else:
+            error_msg = response.text
+            logger.error(f"TradeLocker position close failed: {error_msg}")
+            return TradeResponse(
+                success=False,
+                error=error_msg
             )
     
     async def get_account_info(self, account_id: str) -> Optional[Account]:
@@ -415,6 +612,18 @@ class TradeLockerExecutor(BaseExecutor):
     async def get_symbols(self) -> List[str]:
         """Get available symbols from TradeLocker"""
         try:
+            # Use SDK if available
+            if self._use_sdk and self._sdk_wrapper:
+                instruments = await self._sdk_wrapper.get_all_instruments()
+                if instruments is not None:
+                    # SDK returns DataFrame, extract symbol names
+                    if hasattr(instruments, 'to_dict'):
+                        records = instruments.to_dict('records')
+                        return [inst.get('name', inst.get('symbol', '')) for inst in records]
+                    return []
+                return []
+
+            # Fall back to Brand API
             response = await self.session.get("/instruments")
             if response.status_code == 200:
                 instruments_data = response.json()
@@ -422,7 +631,7 @@ class TradeLockerExecutor(BaseExecutor):
             else:
                 logger.error(f"Failed to get TradeLocker symbols: {response.text}")
                 return []
-                
+
         except Exception as e:
             logger.error(f"Error getting TradeLocker symbols: {e}")
             return []
