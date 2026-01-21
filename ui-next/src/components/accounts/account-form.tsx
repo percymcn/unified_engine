@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,6 +19,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { CheckCircle2, XCircle, Loader2, Wifi } from 'lucide-react';
 import {
   Account,
   AccountCreate,
@@ -29,6 +31,7 @@ import {
   BROKER_CREDENTIAL_CONFIG,
 } from '@/types/account';
 import { TradovateOAuthButton } from './tradovate-oauth-button';
+import { testConnection, TestConnectionResult } from '@/lib/api/accounts';
 
 interface AccountFormProps {
   open: boolean;
@@ -57,9 +60,61 @@ export function AccountForm({
   const [leverage, setLeverage] = useState(account?.leverage?.toString() || '100');
   const [credentials, setCredentials] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<TestConnectionResult | null>(null);
 
   // Get broker-specific credential fields
   const credentialConfig = BROKER_CREDENTIAL_CONFIG[broker];
+
+  // Check if all required credentials are filled
+  const hasRequiredCredentials = useMemo(() => {
+    if (!credentialConfig) return false;
+
+    const requiredFields = credentialConfig.fields.filter((f) => f.required);
+    return requiredFields.every((field) => {
+      const value = credentials[field.name];
+      return value && value.trim().length > 0;
+    });
+  }, [credentialConfig, credentials]);
+
+  // Handle test connection
+  const handleTestConnection = async () => {
+    if (!hasRequiredCredentials) return;
+
+    setTesting(true);
+    setTestResult(null);
+
+    try {
+      const result = await testConnection(broker, credentials);
+      setTestResult(result);
+    } catch (error) {
+      console.error('Test connection error:', error);
+      setTestResult({
+        success: false,
+        status: 'failed',
+        message: 'An unexpected error occurred while testing the connection.',
+      });
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  // Clear test result when broker or credentials change
+  const handleCredentialChange = (name: string, value: string) => {
+    setCredentials((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+    // Clear previous test result when credentials change
+    setTestResult(null);
+  };
+
+  // Clear test result when broker changes
+  const handleBrokerChange = (value: BrokerType) => {
+    setBroker(value);
+    setCredentials({});
+    setTestResult(null);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,13 +139,6 @@ export function AccountForm({
     }
   };
 
-  const handleCredentialChange = (name: string, value: string) => {
-    setCredentials((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
@@ -111,7 +159,7 @@ export function AccountForm({
             <Label htmlFor="broker">Broker</Label>
             <Select
               value={broker}
-              onValueChange={(value) => setBroker(value as BrokerType)}
+              onValueChange={(value) => handleBrokerChange(value as BrokerType)}
               disabled={isEdit}
             >
               <SelectTrigger id="broker">
@@ -237,6 +285,46 @@ export function AccountForm({
                       />
                     </div>
                   ))}
+
+                  {/* Test Connection Button for Tradovate credentials */}
+                  <div className="space-y-3 pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full"
+                      onClick={handleTestConnection}
+                      disabled={!hasRequiredCredentials || testing}
+                    >
+                      {testing ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Testing Connection...
+                        </>
+                      ) : (
+                        <>
+                          <Wifi className="mr-2 h-4 w-4" />
+                          Test Connection
+                        </>
+                      )}
+                    </Button>
+
+                    {/* Test Result Display */}
+                    {testResult && (
+                      <Alert
+                        variant={testResult.success ? 'default' : 'destructive'}
+                        className={testResult.success ? 'border-chart-2' : ''}
+                      >
+                        {testResult.success ? (
+                          <CheckCircle2 className="h-4 w-4 text-chart-2" />
+                        ) : (
+                          <XCircle className="h-4 w-4" />
+                        )}
+                        <AlertDescription className="ml-2">
+                          {testResult.message}
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                  </div>
                 </div>
               </>
             ) : (
@@ -269,6 +357,48 @@ export function AccountForm({
                     />
                   </div>
                 ))}
+
+                {/* Test Connection Button */}
+                {!isEdit && (
+                  <div className="space-y-3 pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full"
+                      onClick={handleTestConnection}
+                      disabled={!hasRequiredCredentials || testing}
+                    >
+                      {testing ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Testing Connection...
+                        </>
+                      ) : (
+                        <>
+                          <Wifi className="mr-2 h-4 w-4" />
+                          Test Connection
+                        </>
+                      )}
+                    </Button>
+
+                    {/* Test Result Display */}
+                    {testResult && (
+                      <Alert
+                        variant={testResult.success ? 'default' : 'destructive'}
+                        className={testResult.success ? 'border-chart-2' : ''}
+                      >
+                        {testResult.success ? (
+                          <CheckCircle2 className="h-4 w-4 text-chart-2" />
+                        ) : (
+                          <XCircle className="h-4 w-4" />
+                        )}
+                        <AlertDescription className="ml-2">
+                          {testResult.message}
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                  </div>
+                )}
               </>
             )}
           </div>
