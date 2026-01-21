@@ -48,6 +48,9 @@ pytz==2023.3
 # NATS Integration (Optional - falls back to logging if not available)
 nats-py==2.6.0
 
+# Stripe Payments
+stripe>=7.0.0
+
 # Test Dependencies (ensure these are installed for running tests)
 # pytest==7.4.3 (already listed)
 # pytest-asyncio==0.21.1 (already listed)
