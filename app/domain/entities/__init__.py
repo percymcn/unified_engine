@@ -26,6 +26,7 @@ from app.domain.entities.signal import Signal
 from app.domain.entities.trade import Trade
 from app.domain.entities.order import Order
 from app.domain.entities.symbol_alias import SymbolAlias
+from app.domain.entities.futures_contract import FuturesContract
 
 __all__ = [
     "Account",
@@ -34,4 +35,5 @@ __all__ = [
     "Trade",
     "Order",
     "SymbolAlias",
+    "FuturesContract",
 ]
