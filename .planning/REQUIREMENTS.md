@@ -49,7 +49,7 @@ Requirements for v1.1 Production Ready with Monetization release.
 
 - [x] **SDK-01**: TradeLocker - 100% SDK coverage (all endpoints from official `tradelocker` package)
 - [ ] **SDK-02**: Tradovate - Full OAuth + all trading/account/market data endpoints
-- [ ] **SDK-03**: TopStep/ProjectX - All contracts, rollovers, order types, positions via `project-x-py`
+- [x] **SDK-03**: TopStep/ProjectX - All contracts, rollovers, order types, positions via `project-x-py`
 - [ ] **SDK-04**: MetaAPI (MT4/MT5) - Complete feature parity via `metaapi-cloud-sdk`
 - [ ] **SDK-05**: Document all supported features per broker in UI
 - [ ] **SDK-06**: Enterprise-complete: if SDK supports it, Tradeflow supports it
@@ -217,7 +217,7 @@ Which phases cover which requirements. Updated by create-roadmap.
 | SDK-02 | 16 | Complete |
 | CONN-03 | 16 | Complete |
 | CONN-04 | 16 | Complete |
-| SDK-03 | 17 | Not started |
+| SDK-03 | 17 | Complete |
 | SDK-04 | 18 | Not started |
 | SDK-05 | 18 | Not started |
 | SDK-06 | 18 | Not started |
