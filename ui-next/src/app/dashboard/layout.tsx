@@ -16,7 +16,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     <WebSocketProvider>
       <div className="flex h-screen bg-background">
         {/* Sidebar - hidden on mobile, visible on md+ */}
-        <Sidebar className="hidden md:flex" />
+        <Sidebar className="hidden md:flex shrink-0 relative z-10" />
 
         {/* Main content area */}
         <div className="flex flex-1 flex-col overflow-hidden">

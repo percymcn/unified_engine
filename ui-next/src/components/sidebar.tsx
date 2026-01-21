@@ -53,20 +53,23 @@ export function Sidebar({ className }: SidebarProps) {
       <nav className="flex-1 space-y-1 px-3 py-4">
         {/* Main Navigation */}
         {navigation.map((item) => {
-          const fullHref = `/dashboard${item.href}`;
-          const isActive = pathname === '/dashboard' ? item.href === '/' : pathname === fullHref;
+          const fullHref = `/dashboard${item.href === '/' ? '' : item.href}`;
+          // Improved active detection: exact match or nested route
+          const isActive = item.href === '/'
+            ? pathname === '/dashboard' || pathname === '/dashboard/'
+            : pathname === fullHref || pathname.startsWith(fullHref + '/');
           return (
             <Link
               key={item.name}
-              href={fullHref}
+              href={fullHref || '/dashboard'}
               className={cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors cursor-pointer',
                 isActive
                   ? 'bg-primary text-primary-foreground'
                   : 'text-muted-foreground hover:bg-muted hover:text-foreground'
               )}
             >
-              <item.icon className="h-5 w-5" />
+              <item.icon className="h-5 w-5 pointer-events-none" />
               {item.name}
             </Link>
           );
@@ -79,19 +82,20 @@ export function Sidebar({ className }: SidebarProps) {
           </p>
           {settingsNavigation.map((item) => {
             const fullHref = `/dashboard${item.href}`;
-            const isActive = pathname === fullHref;
+            // Active if exact match or nested route (e.g., /settings/accounts/edit)
+            const isActive = pathname === fullHref || pathname.startsWith(fullHref + '/');
             return (
               <Link
                 key={item.name}
                 href={fullHref}
                 className={cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors cursor-pointer',
                   isActive
                     ? 'bg-primary text-primary-foreground'
                     : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                 )}
               >
-                <item.icon className="h-5 w-5" />
+                <item.icon className="h-5 w-5 pointer-events-none" />
                 {item.name}
               </Link>
             );
