@@ -393,6 +393,28 @@ class SymbolAlias(Base):
     user = relationship("User", backref="symbol_aliases")
 
 
+class BrokerSymbolFormat(Base):
+    """
+    Stores detected symbol format patterns per account.
+
+    Auto-detected during connection testing to enable intelligent
+    symbol resolution without manual configuration.
+    """
+    __tablename__ = "broker_symbol_formats"
+    __table_args__ = {'extend_existing': True}
+
+    id = Column(Integer, primary_key=True, index=True)
+    account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False, unique=True, index=True)
+    detected_patterns = Column(JSON)  # {"suffix": ".pro", "prefix": "", "case": "upper", "confidence": 0.95}
+    sample_symbols = Column(JSON)     # ["EURUSD.pro", "GBPUSD.pro", "US30.pro"] - first 20 symbols
+    common_symbols_map = Column(JSON) # {"EURUSD": "EURUSD.pro", "US30": "US30.pro"} - mapped common symbols
+    detected_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    account = relationship("Account", backref="symbol_format")
+
+
 # Enhanced models import disabled - causes User relationship conflicts
 # These models require database schema updates before use
 # try:
