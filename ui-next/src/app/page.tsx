@@ -7,6 +7,8 @@ import { Features } from "@/components/landing/features";
 import { Stats } from "@/components/landing/stats";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { DemoSection } from "@/components/landing/demo-section";
+import { PricingSection } from "@/components/landing/pricing-section";
+import { Comparison } from "@/components/landing/comparison";
 
 export const metadata: Metadata = {
   title: "Tradeflow - Route TradingView Signals to Any Broker",
@@ -25,6 +27,8 @@ export default function Home() {
         <HowItWorks />
         <DemoSection />
         <Stats />
+        <PricingSection />
+        <Comparison />
       </main>
     </>
   );
