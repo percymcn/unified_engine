@@ -6,6 +6,11 @@ const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8765';
 /**
  * GET /api/webhook-configs
  * BFF pattern: Proxy webhook configs list request to backend
+ *
+ * Error handling strategy:
+ * - 401: Return unauthorized (user needs to log in)
+ * - 404: Return empty array (user has no configs yet - normal case)
+ * - Other errors: Return empty array to prevent UI crash (graceful degradation)
  */
 export async function GET() {
   try {
@@ -24,8 +29,24 @@ export async function GET() {
       },
     });
 
+    // Handle 404 gracefully - user just has no configs yet
+    if (response.status === 404) {
+      return NextResponse.json([]);
+    }
+
+    // Handle 401 - user needs to re-authenticate
+    if (response.status === 401) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
     if (!response.ok) {
-      throw new Error(`Backend returned ${response.status}`);
+      // Log error but return empty for better UX
+      console.error(`Backend returned ${response.status} for webhook-configs`);
+      // For other errors, return empty array to prevent UI crash
+      return NextResponse.json([]);
     }
 
     const configs = await response.json();
@@ -33,10 +54,8 @@ export async function GET() {
     return NextResponse.json(configs);
   } catch (error) {
     console.error('Error fetching webhook configs:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch webhook configs' },
-      { status: 500 }
-    );
+    // Return empty array on network errors to prevent UI crash
+    return NextResponse.json([]);
   }
 }
 
