@@ -20,7 +20,9 @@ Design Principles:
 """
 
 from app.domain.services.symbol_normalization_service import SymbolNormalizationService
+from app.domain.services.futures_contract_service import FuturesContractService
 
 __all__ = [
     "SymbolNormalizationService",
+    "FuturesContractService",
 ]
