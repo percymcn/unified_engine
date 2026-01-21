@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-01-21)
 
 ## Current Position
 
-Phase: 16 - Tradovate OAuth (IN PROGRESS)
-Plan: 2 of 4 complete
-Status: 16-02 complete, continuing with 16-03
-Last activity: 2026-01-21 - Completed 16-02-PLAN.md (Token Storage and Refresh Service)
+Phase: 16 - Tradovate OAuth (COMPLETE)
+Plan: 4 of 4 complete
+Status: Phase complete, ready for Phase 17
+Last activity: 2026-01-21 - Completed 16-04-PLAN.md (Frontend OAuth UI)
 
-Progress: [###########-----] 44% (v1.1) - Phase 16 in progress
+Progress: [############----] 47% (v1.1) - Phase 16 complete
 
 ## v1.1 Milestone Goals
 
@@ -49,7 +49,7 @@ Progress: [###########-----] 44% (v1.1) - Phase 16 in progress
 | 13 | Stripe Billing | 7 | Gap closure complete (4/6 plans) |
 | 14 | Landing Page | 11 | Complete (7/7 plans, incl. gap closure) |
 | 15 | TradeLocker SDK | 1 | Complete (1/1 plan) |
-| 16 | Tradovate OAuth | 3 | In progress (2/4 plans) |
+| 16 | Tradovate OAuth | 3 | Complete (4/4 plans) |
 | 17 | TopStep/ProjectX SDK | 1 | Not started |
 | 18 | MetaAPI SDK | 3 | Not started |
 | 19 | Broker Connections UI | 4 | Not started |
@@ -113,6 +113,9 @@ Progress: [###########-----] 44% (v1.1) - Phase 16 in progress
 | 16-02 | 5-minute refresh buffer before token expiry | Ensures tokens don't expire during API calls |
 | 16-02 | Idempotent migration for token columns | Handles cases where SQLAlchemy creates tables on startup |
 | 16-02 | Background task runs every 5 minutes | Proactive token refresh via asyncio loop |
+| 16-04 | Separate OAuth button component | Encapsulates OAuth initiation logic, reusable |
+| 16-04 | Tokens in URL fragment for callback | Fragments not sent to server, more secure |
+| 16-04 | Keep credential fields as fallback | Some users may prefer manual credential entry |
 
 ## Known Tech Debt
 
@@ -125,10 +128,10 @@ Progress: [###########-----] 44% (v1.1) - Phase 16 in progress
 
 ## Session Continuity
 
-Last session: 2026-01-21T18:07:00Z
-Stopped at: Completed 16-02-PLAN.md (Token Storage and Refresh Service)
+Last session: 2026-01-21T18:17:00Z
+Stopped at: Completed 16-04-PLAN.md (Frontend OAuth UI)
 Resume file: None
-Status: Phase 16 in progress, ready for 16-03
+Status: Phase 16 complete, ready for Phase 17
 
 ## Gap Closure Status
 
@@ -152,6 +155,5 @@ Status: Phase 16 in progress, ready for 16-03
 
 ## Next Steps
 
-1. Continue Phase 16 with 16-03 (OAuth callback and connection UI)
-2. Complete 16-04 (Integration test)
-3. Continue through Phases 17-23 for v1.1 completion
+1. Begin Phase 17 (TopStep/ProjectX SDK)
+2. Continue through Phases 18-23 for v1.1 completion
