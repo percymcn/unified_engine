@@ -64,9 +64,11 @@ export default function WebhooksPage() {
   const [baseUrl, setBaseUrl] = useState('');
 
   useEffect(() => {
-    // Get base URL from environment or construct from window.location
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8765';
-    setBaseUrl(backendUrl);
+    // Get base URL from environment - prefer WEBHOOK_BASE_URL for public-facing URLs
+    const webhookBaseUrl = process.env.NEXT_PUBLIC_WEBHOOK_BASE_URL ||
+                           process.env.NEXT_PUBLIC_BACKEND_URL ||
+                           'http://localhost:8765';
+    setBaseUrl(webhookBaseUrl);
 
     // Fetch webhook configs
     fetchConfigs();
