@@ -10,7 +10,42 @@ A signal routing engine that receives TradingView webhook alerts and executes tr
 
 If everything else fails, signals must reach brokers and trades must execute. The UI can be down, metrics can fail, but the signal pipeline cannot.
 
-## Current State (v1.0 Shipped)
+## Current Milestone: v1.1 Production Ready with Monetization
+
+**Goal:** Fix critical bugs, integrate official broker SDKs, polish UI/UX, add marketing landing page with Stripe subscription billing.
+
+**Target features:**
+
+**Critical Fixes:**
+- Fix "Failed to fetch webhook configs" API error
+- Replace hardcoded localhost with NEXT_PUBLIC_API_URL env var
+- Fix 5-10 second UI lag with loading skeletons and optimization
+
+**Broker SDK Integrations:**
+- TradeLocker — `pip install tradelocker` (official SDK, JWT auth)
+- Tradovate — OAuth 2.0 redirect flow (redirect to login, capture token callback)
+- TopStep/ProjectX — `pip install project-x-py`
+- MT4/MT5 — `pip install metaapi-cloud-sdk`
+
+**UI Enhancements:**
+- User Profile page (edit name/email/avatar, change password, notification prefs)
+- Settings page (position sizing defaults, risk rules, timezone)
+- Fix sidebar navigation (back button, active states, mobile menu)
+- Dashboard improvements (real-time updates, loading skeletons, quick actions)
+
+**Landing Page + Stripe:**
+- Marketing landing page at "/" (hero, features, pricing, testimonials)
+- Pricing plans: Free (1 broker), Pro ($29/mo all brokers)
+- Stripe integration (checkout, customer portal, webhooks)
+- Auth flow: Landing → Signup → Payment/Trial → Dashboard
+
+**OAuth Callback Pages:**
+- /auth/tradovate/callback — handle Tradovate OAuth redirect
+- /auth/callback — generic OAuth handler
+
+---
+
+## v1.0 Shipped
 
 **Shipped:** 2026-01-21
 
@@ -67,16 +102,41 @@ The v1.0 milestone delivered a complete refactor of the trading engine:
 
 ### Active
 
-<!-- Building toward these -->
+<!-- Building toward these — v1.1 -->
 
-(None — define requirements for next milestone with `/gsd:define-requirements`)
+**Critical Fixes:**
+- [ ] Fix webhook configs API error
+- [ ] Use NEXT_PUBLIC_API_URL env var (no hardcoded localhost)
+- [ ] Fix UI lag with loading skeletons
+
+**Broker SDKs:**
+- [ ] TradeLocker — official SDK with JWT auth
+- [ ] Tradovate — OAuth 2.0 redirect flow
+- [ ] TopStep/ProjectX — project-x-py SDK
+- [ ] MT4/MT5 — metaapi-cloud-sdk
+
+**UI/UX:**
+- [ ] User Profile page
+- [ ] Settings page (position sizing, risk rules, timezone)
+- [ ] Sidebar navigation fixes (back button, active states, mobile)
+- [ ] Dashboard real-time updates and loading states
+
+**Monetization:**
+- [ ] Marketing landing page at "/"
+- [ ] Stripe checkout integration
+- [ ] Stripe customer portal
+- [ ] Stripe webhooks for subscription management
+- [ ] Pricing tiers: Free (1 broker), Pro ($29/mo)
+
+**OAuth:**
+- [ ] /auth/tradovate/callback page
+- [ ] /auth/callback generic handler
 
 ### Out of Scope
 
 - Mobile app — web-first approach, PWA works
 - Additional broker integrations — stabilize current 5 first
 - Multi-tenancy — single-user/single-org for v1
-- Billing/payments — not a SaaS product yet
 - CI/CD pipeline — deployment scripts exist, manual for now
 - HA database — single PostgreSQL instance sufficient
 
@@ -100,9 +160,10 @@ The v1.0 milestone delivered a complete refactor of the trading engine:
 ## Constraints
 
 - **Tech Stack**: FastAPI backend, Next.js 14 frontend, PostgreSQL, Redis, Docker Swarm
-- **Auth**: Self-hosted JWT only (no external auth providers)
+- **Auth**: Self-hosted JWT only (no external auth providers for user auth)
 - **UI Framework**: shadcn/ui with dark theme, Tailwind CSS
-- **Broker SDKs**: Use existing SDKs in `broker_sdks/`
+- **Broker SDKs**: Official SDKs — tradelocker, project-x-py, metaapi-cloud-sdk
+- **Payments**: Stripe for subscriptions (checkout, portal, webhooks)
 - **Deployment**: Docker Swarm orchestration
 - **Backwards Compatible**: API endpoints preserved
 
@@ -122,4 +183,4 @@ The v1.0 milestone delivered a complete refactor of the trading engine:
 | DI container in FastAPI lifespan | Clean initialization and shutdown | ✓ Good |
 
 ---
-*Last updated: 2026-01-21 after v1.0 milestone*
+*Last updated: 2026-01-21 after starting v1.1 milestone*
