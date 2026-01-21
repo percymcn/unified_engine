@@ -28,6 +28,7 @@ import {
   ACCOUNT_TYPE_DISPLAY_NAMES,
   BROKER_CREDENTIAL_CONFIG,
 } from '@/types/account';
+import { TradovateOAuthButton } from './tradovate-oauth-button';
 
 interface AccountFormProps {
   open: boolean;
@@ -189,33 +190,87 @@ export function AccountForm({
 
           {/* Broker-Specific Credentials */}
           <div className="space-y-4 pt-4 border-t border-border">
-            <div>
-              <Label className="text-sm font-semibold">
-                {isEdit ? 'Update Credentials (optional)' : 'Credentials'}
-              </Label>
-              <p className="text-xs text-muted-foreground mt-1">
-                {isEdit
-                  ? 'Leave blank to keep existing credentials'
-                  : 'Required to connect to broker API'}
-              </p>
-            </div>
+            {broker === 'tradovate' && !isEdit ? (
+              <>
+                {/* OAuth option for Tradovate */}
+                <div className="p-4 bg-muted rounded-lg">
+                  <h4 className="font-medium mb-2">Connect via OAuth</h4>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Securely connect your Tradovate account using OAuth.
+                    You will be redirected to Tradovate to authorize access.
+                  </p>
+                  <TradovateOAuthButton />
+                </div>
 
-            {credentialConfig.fields.map((field) => (
-              <div key={field.name} className="space-y-2">
-                <Label htmlFor={field.name}>{field.label}</Label>
-                <Input
-                  id={field.name}
-                  name={field.name}
-                  type={field.type}
-                  value={credentials[field.name] || ''}
-                  onChange={(e) =>
-                    handleCredentialChange(field.name, e.target.value)
-                  }
-                  placeholder={field.placeholder}
-                  required={!isEdit && field.required}
-                />
-              </div>
-            ))}
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">
+                      Or use credentials
+                    </span>
+                  </div>
+                </div>
+
+                {/* Fallback credential fields */}
+                <div className="space-y-4 opacity-75">
+                  <div>
+                    <Label className="text-sm font-semibold">Credentials</Label>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Alternative: Enter credentials manually
+                    </p>
+                  </div>
+                  {credentialConfig.fields.map((field) => (
+                    <div key={field.name} className="space-y-2">
+                      <Label htmlFor={field.name}>{field.label}</Label>
+                      <Input
+                        id={field.name}
+                        name={field.name}
+                        type={field.type}
+                        value={credentials[field.name] || ''}
+                        onChange={(e) =>
+                          handleCredentialChange(field.name, e.target.value)
+                        }
+                        placeholder={field.placeholder}
+                        required={false}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Standard credential fields for other brokers */}
+                <div>
+                  <Label className="text-sm font-semibold">
+                    {isEdit ? 'Update Credentials (optional)' : 'Credentials'}
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {isEdit
+                      ? 'Leave blank to keep existing credentials'
+                      : 'Required to connect to broker API'}
+                  </p>
+                </div>
+
+                {credentialConfig.fields.map((field) => (
+                  <div key={field.name} className="space-y-2">
+                    <Label htmlFor={field.name}>{field.label}</Label>
+                    <Input
+                      id={field.name}
+                      name={field.name}
+                      type={field.type}
+                      value={credentials[field.name] || ''}
+                      onChange={(e) =>
+                        handleCredentialChange(field.name, e.target.value)
+                      }
+                      placeholder={field.placeholder}
+                      required={!isEdit && field.required}
+                    />
+                  </div>
+                ))}
+              </>
+            )}
           </div>
 
           <DialogFooter>
