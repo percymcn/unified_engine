@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-01-21)
 
 ## Current Position
 
-Phase: 19 - Broker Connections UI (PLANNED)
-Plan: 0 of 2 complete
-Status: Ready for execution
-Last activity: 2026-01-21 - Created 19-01-PLAN.md, 19-02-PLAN.md
+Phase: 19 - Broker Connections UI (IN PROGRESS)
+Plan: 1 of 2 complete
+Status: In progress
+Last activity: 2026-01-21 - Completed 19-01-PLAN.md (Backend connection test endpoint)
 
-Progress: [##############--] 58% (v1.1) - Phase 19 planned
+Progress: [##############--] 60% (v1.1) - Phase 19 in progress
 
 ## v1.1 Milestone Goals
 
@@ -52,7 +52,7 @@ Progress: [##############--] 58% (v1.1) - Phase 19 planned
 | 16 | Tradovate OAuth | 3 | Complete (4/4 plans) |
 | 17 | TopStep/ProjectX SDK | 1 | Complete (1/1 plan) |
 | 18 | MetaAPI SDK | 3 | Complete (1/1 plan) |
-| 19 | Broker Connections UI | 4 | Planned (2 plans) |
+| 19 | Broker Connections UI | 4 | In progress (1/2 plans) |
 | 20 | Symbol Mapping & Futures | 6 | Not started |
 | 21 | Multi-Account & Routing | 6 | Not started |
 | 22 | Risk Management | 16 | Not started |
@@ -125,6 +125,8 @@ Progress: [##############--] 58% (v1.1) - Phase 19 planned
 | 17-01 | SDK_AVAILABLE flag for conditional imports | Graceful degradation when SDK not installed |
 | 18-01 | Use metaapi-cloud-sdk as unified MT4/MT5 API | Official SDK provides better reliability, real-time streaming, cloud access |
 | 18-01 | Dual-mode MT4/MT5 with fallback to httpx | Maintains backward compatibility with self-hosted Manager API setups |
+| 19-01 | 10-second timeout for connection tests | Reasonable balance between allowing slow connections and not making users wait |
+| 19-01 | Dual-mode testing (SDK + fallback) | Matches existing executor patterns, ensures testing works even without SDKs |
 
 ## Known Tech Debt
 
@@ -137,10 +139,10 @@ Progress: [##############--] 58% (v1.1) - Phase 19 planned
 
 ## Session Continuity
 
-Last session: 2026-01-21T19:40:00Z
-Stopped at: Created Phase 19 plans (19-01-PLAN.md, 19-02-PLAN.md)
+Last session: 2026-01-21T20:10:00Z
+Stopped at: Completed 19-01-PLAN.md (Backend connection test endpoint)
 Resume file: None
-Status: Phase 19 planned, ready for execution
+Status: Phase 19 in progress, 19-02 ready for execution
 
 ## Gap Closure Status
 
@@ -165,7 +167,7 @@ Status: Phase 19 planned, ready for execution
 ## Next Steps
 
 1. Execute Phase 19 plans (Broker Connections UI):
-   - 19-01: Backend connection test endpoint
+   - ~~19-01: Backend connection test endpoint~~ (COMPLETE)
    - 19-02: Frontend status indicators and test button
 2. Execute Phase 20 (Symbol Mapping & Futures) - Symbol normalization system
 3. Execute Phase 21 (Multi-Account & Routing) - Account routing logic
