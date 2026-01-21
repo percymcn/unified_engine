@@ -19,4 +19,8 @@ Design Principles:
 - Services can call other domain services
 """
 
-__all__ = []
+from app.domain.services.symbol_normalization_service import SymbolNormalizationService
+
+__all__ = [
+    "SymbolNormalizationService",
+]
