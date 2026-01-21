@@ -23,10 +23,11 @@ v1.1 transforms Tradeflow from a working signal router into a production-ready S
 - [x] **Phase 17: TopStep/ProjectX SDK** - Migrate to project-x-py package
 - [x] **Phase 18: MetaAPI SDK** - MT4/MT5 via metaapi-cloud-sdk
 - [x] **Phase 19: Broker Connections UI** - Status indicators, test buttons, error handling
-- [ ] **Phase 20: Symbol Mapping & Futures** - Symbol aliases, rollover, expiration tracking
+- [x] **Phase 20: Symbol Mapping & Futures** - Symbol aliases, rollover, expiration tracking
 - [ ] **Phase 21: Multi-Account & Routing** - Multiple accounts per broker, routing rules
 - [ ] **Phase 22: Risk Management** - Trade limits, position sizing, drawdown controls
 - [ ] **Phase 23: User Settings & Dashboard** - Profile, settings, dashboard polish
+- [ ] **Phase 24: Enhanced Features & Monetization v2** - Full trading, trial system, 4-tier pricing
 
 ## Phase Details
 
@@ -196,25 +197,56 @@ v1.1 transforms Tradeflow from a working signal router into a production-ready S
 ### Phase 23: User Settings & Dashboard
 **Goal**: Polish user experience with profile, settings, and dashboard improvements
 **Depends on**: Phase 22
-**Requirements**: SET-01, SET-02, SET-03, SET-04, DASH-01, DASH-02, DASH-03, DASH-04, DASH-05, DASH-06
+**Requirements**: SET-01, SET-02, SET-03, SET-04, SET-05, SET-06, SET-07, DASH-01, DASH-02, DASH-03, DASH-04, DASH-05, DASH-06, DASH-07, DASH-08, DASH-09, DASH-10, DASH-11
 **Success Criteria** (what must be TRUE):
   1. User Profile page allows editing name, email, avatar
   2. Password change works with validation
   3. Timezone selection affects all displayed timestamps
   4. Notification preferences configurable
-  5. Dashboard has loading skeletons
-  6. WebSocket real-time updates work
-  7. Connection status overview shows all brokers at glance
-  8. Test webhook quick action works
-  9. Today's trades count metric displayed
-  10. Recent executions list shows last 10 trades
+  5. Dark/light mode toggle functional
+  6. Credit card update via Stripe portal
+  7. Dashboard header shows actual logged-in user
+  8. Dashboard has loading skeletons
+  9. WebSocket real-time updates work
+  10. Connection status overview shows all brokers at glance
+  11. Test webhook quick action works
+  12. Today's trades count metric displayed
+  13. Recent executions list shows last 10 trades
+  14. Equity chart (balance over time)
+  15. Trial status display (trades/days remaining)
+  16. Current open positions overview
+  17. Risk usage meters (positions vs max, daily trades vs max)
+  18. Recent rejected signals with reasons
 **Research**: Unlikely (UI polish, established patterns)
+**Plans**: TBD
+
+### Phase 24: Enhanced Features & Monetization v2
+**Goal**: Full trading features, trial system, 4-tier pricing, broker account selection, signal protection
+**Depends on**: Phase 23
+**Requirements**: TRIAL-01 through TRIAL-07, BILL-08 through BILL-11, ACCT-07 through ACCT-14, TRADE-01 through TRADE-12, SIGNAL-01 through SIGNAL-09, LAND-12 through LAND-14
+**Success Criteria** (what must be TRUE):
+  1. Free trial: 100 trades OR 3 days (whichever first)
+  2. Trial status tracked and displayed in dashboard
+  3. 4-tier pricing: $19.99 (1 broker), $39.99 (2), $69.99 (3), $129.99 (4)
+  4. Stripe products/prices updated for all tiers
+  5. Broker account selection UI per broker (TradeLocker, TopStep, Tradovate, MetaAPI)
+  6. Multi-account signal routing works
+  7. Full order types: market, limit, stop, stop-limit
+  8. SL/TP: fixed pips, fixed price, percentage
+  9. Trailing stop support
+  10. Position sizing: fixed lot, % balance, % equity, risk-based
+  11. Partial close and order modification
+  12. Signal deduplication: max positions per symbol, cooldown
+  13. Rejected signals logged and displayed
+  14. Landing page: testimonials, animated charts
+**Research**: Likely (SDK trading features, Stripe multi-tier)
+**Research topics**: Each broker SDK trading capabilities, Stripe product management, position sizing formulas
 **Plans**: TBD
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 12 → 13 → 14 → 15 → 16 → 17 → 18 → 19 → 20 → 21 → 22 → 23
+Phases execute in numeric order: 12 → 13 → 14 → 15 → 16 → 17 → 18 → 19 → 20 → 21 → 22 → 23 → 24
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -226,26 +258,30 @@ Phases execute in numeric order: 12 → 13 → 14 → 15 → 16 → 17 → 18 �
 | 17. TopStep/ProjectX SDK | 1/1 | ✅ Complete | 2026-01-21 |
 | 18. MetaAPI SDK | 1/1 | ✅ Complete | 2026-01-21 |
 | 19. Broker Connections UI | 2/2 | ✅ Complete | 2026-01-21 |
-| 20. Symbol Mapping & Futures | 0/4 | Planned | - |
+| 20. Symbol Mapping & Futures | 4/4 | ✅ Complete | 2026-01-21 |
 | 21. Multi-Account & Routing | 0/TBD | Not started | - |
 | 22. Risk Management | 0/TBD | Not started | - |
 | 23. User Settings & Dashboard | 0/TBD | Not started | - |
+| 24. Enhanced Features & Monetization v2 | 0/TBD | Not started | - |
 
 ## Milestone Summary
 
 ### v1.1 Production Ready with Monetization
 
-**Goal:** Transform Tradeflow into production-ready SaaS with Stripe billing, official broker SDKs, and comprehensive risk management.
+**Goal:** Transform Tradeflow into production-ready SaaS with Stripe billing, official broker SDKs, comprehensive risk management, full trading features, and 4-tier pricing.
 
-**Phases:** 12 (Phase 12-23)
-**Requirements:** 82 total
+**Phases:** 13 (Phase 12-24)
+**Requirements:** 127 total
 
 **Key Deliverables:**
 1. Production URLs and branding complete
-2. Stripe monetization (Free/Pro tiers)
-3. Enterprise-grade landing page
-4. All 4 broker SDKs using official packages
-5. Symbol mapping and futures rollover
-6. Multi-account support with routing
-7. Complete risk management system
-8. Polished user settings and dashboard
+2. Stripe monetization (4-tier pricing: $19.99-$129.99)
+3. Free trial system (100 trades OR 3 days)
+4. Enterprise-grade landing page with testimonials
+5. All 4 broker SDKs using official packages
+6. Symbol mapping and futures rollover
+7. Multi-account support with routing
+8. Full trading features (order types, SL/TP, position sizing)
+9. Signal protection and deduplication
+10. Complete risk management system
+11. Polished user settings and dashboard
