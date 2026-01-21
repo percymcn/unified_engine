@@ -50,6 +50,8 @@ class BrokerType(str, enum.Enum):
     TRUFOREX = "truforex"
     MT4 = "mt4"
     MT5 = "mt5"
+    TRADOVATE = "tradovate"
+    PROJECTX = "projectx"
 
 class User(Base):
     __tablename__ = "users"
@@ -363,6 +365,33 @@ class AccountStrategy(Base):
     # Relationships
     account = relationship("Account", backref="strategies")
     strategy = relationship("Strategy", backref="accounts")
+
+
+class SymbolAlias(Base):
+    """
+    Symbol alias mapping for TradingView to broker symbol resolution.
+
+    Stores user-defined and auto-detected symbol mappings to handle
+    variations like US30 -> US30.pro (TradeLocker) or US30 -> YM (Tradovate).
+    """
+    __tablename__ = "symbol_aliases"
+    __table_args__ = (
+        # Unique constraint: one mapping per user/source/broker combination
+        {'extend_existing': True},
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    source_symbol = Column(String(50), nullable=False, index=True)  # TradingView symbol
+    broker_type = Column(String(50), nullable=False, index=True)  # e.g., "tradelocker"
+    target_symbol = Column(String(50), nullable=False)  # Broker's format
+    is_auto_detected = Column(Boolean, default=False)  # True if system-generated
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    user = relationship("User", backref="symbol_aliases")
+
 
 # Enhanced models import disabled - causes User relationship conflicts
 # These models require database schema updates before use
