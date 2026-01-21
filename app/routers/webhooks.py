@@ -2,6 +2,7 @@ from fastapi import APIRouter, Request, HTTPException, status, Depends
 from sqlalchemy.orm import Session
 from typing import Dict, Any
 from datetime import datetime
+from decimal import Decimal
 import uuid
 import json
 
@@ -9,6 +10,9 @@ from app.db.database import get_db
 from app.models.models import WebhookLog, User
 from app.models.schemas import WebhookLog as WebhookLogSchema, WebhookLogCreate
 from app.routers.auth import get_current_user
+from app.dependencies import get_container
+from app.application.dto.signal_dto import ProcessSignalRequest
+from app.domain.enums import SignalSource, SignalAction
 
 router = APIRouter()
 
