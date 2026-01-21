@@ -45,23 +45,27 @@ class SymbolNormalizationService:
 
     # Common suffix patterns to strip for base symbol extraction
     # Ordered from most specific to least specific for greedy matching
+    # IMPORTANT: These patterns are designed to NOT strip valid symbol parts like "30" in "US30"
     SUFFIX_PATTERNS = [
         r'\.pro$',      # TradeLocker professional
         r'\.raw$',      # Raw spread accounts
         r'\.std$',      # Standard accounts
         r'\.mini$',     # Mini contracts
         r'\.micro$',    # Micro contracts
-        r'PR$',         # Suffix variant
-        r'RAW$',        # Suffix variant
-        r'STD$',        # Suffix variant
-        r'MINI$',       # Suffix variant
-        r'MICRO$',      # Suffix variant
-        r'_SB$',        # Spread betting
+        r'(?<=[A-Z])PR$',   # Suffix variant (must be preceded by letter)
+        r'(?<=[A-Z])RAW$',  # Suffix variant (must be preceded by letter)
+        r'(?<=[A-Z])STD$',  # Suffix variant (must be preceded by letter)
+        r'(?<=[A-Z])MINI$', # Suffix variant (must be preceded by letter)
+        r'(?<=[A-Z])MICRO$', # Suffix variant (must be preceded by letter)
+        r'_SB$',        # Spread betting (must have underscore)
         r'\.SB$',       # Spread betting variant
         r'\.r$',        # Short raw indicator
         r'\.s$',        # Short standard indicator
-        r'[_-]?\d{2}$', # Futures month codes like "NQ25" or "ES_25"
-        r'[FGHJKMNQUVXZ]\d{1,2}$',  # CME futures month codes (H25, M25, etc.)
+        # Futures month codes: only strip if separated by delimiter
+        r'[_-]\d{2}$',  # Separated futures codes like "ES_25" or "NQ-25"
+        # CME month codes: only strip single-letter month codes followed by year
+        # H=March, M=June, U=Sept, Z=Dec are front months
+        r'(?<=[A-Z])[HMUZ]\d{2}$',  # Front month futures (NQH25, ESM25)
     ]
 
     # Known symbol mappings for common instruments across brokers
