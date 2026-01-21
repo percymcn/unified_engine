@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AUTH_COOKIE_NAME } from '@/lib/auth';
 
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8000';
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8765';
 
 interface LoginRequest {
   username: string;
@@ -44,25 +44,32 @@ export async function POST(request: NextRequest): Promise<NextResponse<LoginResp
       );
     }
 
-    // Backend expects form data or query params
-    // Using URLSearchParams for form-urlencoded format
-    const formData = new URLSearchParams();
-    formData.append('username', username);
-    formData.append('password', password);
+    // Backend expects query parameters
+    const params = new URLSearchParams();
+    params.append('username', username);
+    params.append('password', password);
 
-    // Proxy request to backend
-    const backendResponse = await fetch(`${BACKEND_URL}/api/auth/login`, {
+    // Proxy request to backend with query params
+    const backendResponse = await fetch(`${BACKEND_URL}/api/v1/auth/login?${params.toString()}`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: formData.toString(),
     });
 
     // Handle backend errors
     if (!backendResponse.ok) {
       const errorData = await backendResponse.json().catch(() => ({}));
-      const errorMessage = errorData.detail || errorData.message || 'Authentication failed';
+
+      // Extract error message - handle various formats from backend
+      let errorMessage = 'Authentication failed';
+      if (typeof errorData.detail === 'string') {
+        errorMessage = errorData.detail;
+      } else if (Array.isArray(errorData.detail) && errorData.detail.length > 0) {
+        // FastAPI validation errors come as array of objects with 'msg' field
+        errorMessage = errorData.detail.map((e: { msg?: string }) => e.msg || 'Validation error').join(', ');
+      } else if (errorData.error && typeof errorData.error === 'string') {
+        errorMessage = errorData.error;
+      } else if (errorData.message) {
+        errorMessage = errorData.message;
+      }
 
       return NextResponse.json<LoginErrorResponse>(
         { success: false as const, error: errorMessage },
