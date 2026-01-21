@@ -35,8 +35,8 @@ export default function SymbolMappingPage() {
 
       // Extract unique broker types from accounts
       const brokers = new Set<string>();
-      if (accountsResponse && accountsResponse.accounts) {
-        accountsResponse.accounts.forEach((acc: { broker: string }) => {
+      if (accountsResponse && Array.isArray(accountsResponse)) {
+        accountsResponse.forEach((acc) => {
           brokers.add(acc.broker);
         });
       }
