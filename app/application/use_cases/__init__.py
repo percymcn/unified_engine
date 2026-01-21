@@ -26,6 +26,7 @@ from app.application.use_cases.manage_accounts import (
     UpdateAccountUseCase,
     DeleteAccountUseCase,
 )
+from app.application.use_cases.test_connection import TestConnectionUseCase
 
 __all__ = [
     # Signal use cases
@@ -46,4 +47,5 @@ __all__ = [
     "CreateAccountUseCase",
     "UpdateAccountUseCase",
     "DeleteAccountUseCase",
+    "TestConnectionUseCase",
 ]
