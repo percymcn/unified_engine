@@ -12,14 +12,26 @@ If everything else fails, signals must reach brokers and trades must execute. Th
 
 ## Current Milestone: v1.1 Production Ready with Monetization
 
-**Goal:** Fix critical bugs, integrate official broker SDKs, polish UI/UX, add marketing landing page with Stripe subscription billing.
+**Goal:** Rebrand to Tradeflow, fix critical bugs, integrate official broker SDKs, polish UI/UX, add marketing landing page with Stripe subscription billing.
 
 **Target features:**
+
+**Branding:**
+- Rename "Unified Engine" to "Tradeflow" everywhere
+
+**Infrastructure:**
+- Frontend: https://tradeflow.fluxeo.net (port 3456)
+- Backend: https://api.tradeflow.fluxeo.net (port 8765)
+- Backend bound to LAN IP for Caddy routing
 
 **Critical Fixes:**
 - Fix "Failed to fetch webhook configs" API error
 - Replace hardcoded localhost with NEXT_PUBLIC_API_URL env var
-- Fix 5-10 second UI lag with loading skeletons and optimization
+- Fix 5-10 second UI lag with loading skeletons
+- Fix desktop sidebar not clickable (works mobile, broken laptop)
+- Fix WebSocket "Disconnected" status
+- Fix webhook URLs showing localhost (should show public domain)
+- Fix dashboard showing "-" (fetch real data)
 
 **Broker SDK Integrations:**
 - TradeLocker — `pip install tradelocker` (official SDK, JWT auth)
@@ -104,10 +116,22 @@ The v1.0 milestone delivered a complete refactor of the trading engine:
 
 <!-- Building toward these — v1.1 -->
 
+**Branding:**
+- [ ] Rename "Unified Engine" to "Tradeflow" everywhere (code, UI, docs)
+
+**Infrastructure:**
+- [ ] Frontend URL: https://tradeflow.fluxeo.net (port 3456)
+- [ ] Backend URL: https://api.tradeflow.fluxeo.net (port 8765)
+- [ ] Backend bound to LAN IP for Caddy routing
+
 **Critical Fixes:**
 - [ ] Fix webhook configs API error
 - [ ] Use NEXT_PUBLIC_API_URL env var (no hardcoded localhost)
 - [ ] Fix UI lag with loading skeletons
+- [ ] Fix desktop sidebar not clickable (works on mobile, broken on laptop)
+- [ ] Fix WebSocket "Disconnected" status
+- [ ] Fix webhook URLs showing localhost (should show public domain)
+- [ ] Fix dashboard showing "-" (fetch real data from backend)
 
 **Broker SDKs:**
 - [ ] TradeLocker — official SDK with JWT auth

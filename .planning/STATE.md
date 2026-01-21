@@ -18,13 +18,15 @@ Progress: ░░░░░░░░░░░░░░░░ 0% (v1.1)
 
 ## v1.1 Milestone Goals
 
-**Goal:** Fix critical bugs, integrate official broker SDKs, polish UI/UX, add marketing landing page with Stripe subscription billing.
+**Goal:** Rebrand to Tradeflow, fix critical bugs, integrate official broker SDKs, polish UI/UX, add marketing landing page with Stripe subscription billing.
 
-**Requirements:** 18 active
+**Requirements:** 25 active
 
 | Category | Items |
 |----------|-------|
-| Critical Fixes | 3 |
+| Branding | 1 |
+| Infrastructure | 3 |
+| Critical Fixes | 7 |
 | Broker SDKs | 4 |
 | UI/UX | 4 |
 | Monetization | 5 |
