@@ -10,17 +10,17 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 ## Current Position
 
 Phase: 11 of 11 (Integration Wiring)
-Plan: 1/3 complete
+Plan: 2/3 complete
 Status: IN PROGRESS
-Last activity: 2026-01-21 - Completed 11-01-PLAN.md
+Last activity: 2026-01-21 - Completed 11-02-PLAN.md
 
-Progress: ████████████████░ 96% (gap closure in progress)
+Progress: ████████████████░ 97% (gap closure in progress)
 
 ### Phase 11 Plans - IN PROGRESS
 | Plan | Title | Wave | Status |
 |------|-------|------|--------|
 | 01 | Initialize DI Container in main.py | 1 | Complete |
-| 02 | Wire Webhook Router to Hexagonal Architecture | 2 | Pending |
+| 02 | Wire Webhook Router to Hexagonal Architecture | 2 | Complete |
 | 03 | Wire Accounts Router to Hexagonal Architecture | 2 | Pending |
 
 ### Phase 11 Wave Structure
@@ -162,9 +162,9 @@ Progress: ████████████████░ 96% (gap closure i
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 61
+- Total plans completed: 62
 - Average duration: ~7.9 min/plan
-- Total execution time: ~487 min
+- Total execution time: ~491 min
 
 **By Phase:**
 
@@ -180,11 +180,11 @@ Progress: ████████████████░ 96% (gap closure i
 | 8 | 4 | 50 min | 12.5 min |
 | 9 | 4 | 78 min | 19.5 min |
 | 10 | 4 | 24 min | 6 min |
-| 11 | 1 | 7 min | 7 min |
+| 11 | 2 | 11 min | 5.5 min |
 
 **Recent Trend:**
-- Last 5 plans: 10-02, 10-03, 10-04, 11-01
-- Trend: Phase 11 started (1/3 integration wiring plans), container initialized
+- Last 5 plans: 10-03, 10-04, 11-01, 11-02
+- Trend: Phase 11 in progress (2/3 integration wiring plans), webhook router wired
 
 ## Accumulated Context
 
@@ -379,6 +379,11 @@ Recent decisions affecting current work:
 - Container initialized in lifespan after database/Redis, before signal processor (11-01)
 - Container stored on app.state.container for router access via dependency injection (11-01)
 - Container shutdown before signal processor for clean broker disconnection (11-01)
+- Webhook routing handled by domain SignalService, not router (11-02)
+- ProcessSignalRequest uses empty target_account_ids - routing delegated to domain layer (11-02)
+- TradingView payload mapping: ticker→symbol, quantity→volume, action→action (11-02)
+- TrailHacker payload mapping: signal→action, size→volume, entry→price, stop→stop_loss, target→take_profit (11-02)
+- get_container(request) pattern for DI in route handlers (11-02)
 
 ### Pending Todos
 
@@ -399,14 +404,14 @@ From CONCERNS.md codebase audit:
 ## Session Continuity
 
 Last session: 2026-01-21
-Stopped at: Completed 11-01-PLAN.md (DI Container initialization)
+Stopped at: Completed 11-02-PLAN.md (Webhook router wiring)
 Resume file: None
-Status: Phase 11 in progress (1/3 plans complete)
+Status: Phase 11 in progress (2/3 plans complete)
 
 ### Milestone Audit Summary
 Audit found hexagonal architecture (Phases 3-5) built but not wired to API layer:
 - ~~DI Container never initialized in main.py~~ FIXED (11-01)
-- Webhook router uses old SignalProcessor (not ProcessSignalUseCase) - Plan 11-02
+- ~~Webhook router uses old SignalProcessor (not ProcessSignalUseCase)~~ FIXED (11-02)
 - Accounts router uses direct SQL (bypasses credential encryption) - Plan 11-03
 
 Phase 11 closes these gaps. Wave 1 complete, Wave 2 ready for execution.
