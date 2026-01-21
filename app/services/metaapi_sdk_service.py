@@ -890,3 +890,196 @@ class MetaAPISDKService:
                 "synchronized": False,
                 "error": str(e),
             }
+
+    # =========================================================================
+    # Real-time Streaming Support
+    # =========================================================================
+
+    def add_synchronization_listener(self, listener: Any) -> None:
+        """
+        Add a synchronization listener for real-time updates.
+
+        The listener should implement MetaAPI SynchronizationListener interface:
+        - on_symbol_price_updated(instance_index, price)
+        - on_symbol_prices_updated(instance_index, prices, equity, margin, free_margin, margin_level, account_currency_exchange_rate)
+        - on_position_updated(instance_index, position)
+        - on_position_removed(instance_index, position_id)
+        - on_pending_order_updated(instance_index, order)
+        - on_pending_order_completed(instance_index, order_id)
+        - on_order_completed(instance_index, order_id)
+        - on_deal_added(instance_index, deal)
+        - on_account_information_updated(instance_index, account_information)
+
+        Args:
+            listener: Synchronization listener implementing the interface
+        """
+        if not self._connection:
+            raise RuntimeError("Not connected")
+
+        self._connection.add_synchronization_listener(listener)
+        logger.info("Added synchronization listener")
+
+    def remove_synchronization_listener(self, listener: Any) -> None:
+        """
+        Remove a synchronization listener.
+
+        Args:
+            listener: Synchronization listener to remove
+        """
+        if not self._connection:
+            raise RuntimeError("Not connected")
+
+        self._connection.remove_synchronization_listener(listener)
+        logger.info("Removed synchronization listener")
+
+    async def subscribe_to_symbols(self, symbols: List[str]) -> Dict[str, bool]:
+        """
+        Subscribe to real-time market data for multiple symbols.
+
+        Args:
+            symbols: List of symbols to subscribe to
+
+        Returns:
+            Dict mapping symbol to subscription success status
+        """
+        if not self._connection:
+            raise RuntimeError("Not connected")
+
+        results = {}
+        for symbol in symbols:
+            try:
+                await self._connection.subscribe_to_market_data(symbol=symbol)
+                results[symbol] = True
+                logger.debug(f"Subscribed to {symbol}")
+            except Exception as e:
+                logger.error(f"Failed to subscribe to {symbol}: {e}")
+                results[symbol] = False
+
+        successful = sum(1 for v in results.values() if v)
+        logger.info(f"Subscribed to {successful}/{len(symbols)} symbols")
+        return results
+
+    async def unsubscribe_from_symbols(self, symbols: List[str]) -> Dict[str, bool]:
+        """
+        Unsubscribe from market data for multiple symbols.
+
+        Args:
+            symbols: List of symbols to unsubscribe from
+
+        Returns:
+            Dict mapping symbol to unsubscription success status
+        """
+        if not self._connection:
+            raise RuntimeError("Not connected")
+
+        results = {}
+        for symbol in symbols:
+            try:
+                await self._connection.unsubscribe_from_market_data(symbol=symbol)
+                results[symbol] = True
+            except Exception as e:
+                logger.error(f"Failed to unsubscribe from {symbol}: {e}")
+                results[symbol] = False
+
+        return results
+
+    def get_quotes_bulk(self, symbols: List[str]) -> Dict[str, Optional[Dict[str, Any]]]:
+        """
+        Get current quotes for multiple symbols from terminal state.
+
+        Args:
+            symbols: List of symbols to get quotes for
+
+        Returns:
+            Dict mapping symbol to quote data (or None if unavailable)
+        """
+        if not self._connection:
+            return {symbol: None for symbol in symbols}
+
+        results = {}
+        for symbol in symbols:
+            try:
+                price = self._connection.terminal_state.price(symbol)
+                if price:
+                    results[symbol] = {
+                        "symbol": price.get("symbol", symbol),
+                        "bid": float(price.get("bid", 0)),
+                        "ask": float(price.get("ask", 0)),
+                        "time": price.get("time", ""),
+                        "broker_time": price.get("brokerTime", ""),
+                    }
+                else:
+                    results[symbol] = None
+            except Exception as e:
+                logger.error(f"Get quote for {symbol} failed: {e}")
+                results[symbol] = None
+
+        return results
+
+    @property
+    def subscribed_symbols(self) -> List[str]:
+        """
+        Get list of currently subscribed symbols.
+
+        Returns:
+            List of symbol names with active subscriptions
+        """
+        if not self._connection or not self._connection.terminal_state:
+            return []
+
+        try:
+            # Get symbols with price data in terminal state
+            # This indicates an active subscription
+            return list(self._connection.terminal_state.prices.keys())
+        except Exception as e:
+            logger.error(f"Error getting subscribed symbols: {e}")
+            return []
+
+    async def wait_for_price(
+        self,
+        symbol: str,
+        timeout_seconds: float = 30.0
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Wait for price update on a symbol.
+
+        Subscribes if not already subscribed, then waits for price.
+
+        Args:
+            symbol: Symbol to wait for price on
+            timeout_seconds: Maximum time to wait
+
+        Returns:
+            Price dict when received, or None on timeout
+        """
+        if not self._connection:
+            raise RuntimeError("Not connected")
+
+        import asyncio
+
+        # Subscribe if needed
+        await self.subscribe_to_market_data(symbol)
+
+        # Poll for price with timeout
+        start_time = asyncio.get_event_loop().time()
+        while (asyncio.get_event_loop().time() - start_time) < timeout_seconds:
+            quote = self.get_quote(symbol)
+            if quote and quote.get("bid") and quote.get("ask"):
+                return quote
+            await asyncio.sleep(0.1)
+
+        logger.warning(f"Timeout waiting for price on {symbol}")
+        return None
+
+    @property
+    def streaming_enabled(self) -> bool:
+        """
+        Check if streaming connection is active and synchronized.
+
+        Returns:
+            True if connected and synchronized for streaming
+        """
+        if not self._connection:
+            return False
+
+        return self._is_connected and self._connection.synchronized
