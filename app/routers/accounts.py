@@ -8,6 +8,7 @@ from app.models.models import Account, User
 from app.models.schemas import Account as AccountSchema, AccountCreate, AccountUpdate
 from app.routers.auth import get_current_user
 from app.core.event_emitter import emit_account_event
+from app.core.billing import require_broker_slot
 from app.dependencies import get_container
 from app.application.dto.account_dto import (
     GetAccountsRequest,
@@ -59,9 +60,13 @@ async def get_accounts(
 async def create_account(
     request: Request,
     account: AccountCreate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_broker_slot),
 ):
-    """Create new trading account with encrypted credentials"""
+    """Create new trading account with encrypted credentials.
+
+    Requires available broker slot - Free tier limited to 1 broker connection.
+    Returns 403 if broker limit exceeded.
+    """
     container = get_container(request)
     use_case = container.create_account_use_case()
 
