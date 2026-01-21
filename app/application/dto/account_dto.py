@@ -57,6 +57,7 @@ class GetAccountsResponse:
 class ConnectAccountRequest:
     """Request to connect an account to broker"""
     account_id: str
+    oauth_tokens: Optional[dict] = None  # For OAuth-based brokers (e.g., Tradovate)
 
 
 @dataclass(frozen=True)
