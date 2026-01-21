@@ -218,9 +218,9 @@ Which phases cover which requirements. Updated by create-roadmap.
 | CONN-03 | 16 | Complete |
 | CONN-04 | 16 | Complete |
 | SDK-03 | 17 | Complete |
-| SDK-04 | 18 | Not started |
-| SDK-05 | 18 | Not started |
-| SDK-06 | 18 | Not started |
+| SDK-04 | 18 | Complete |
+| SDK-05 | 18 | Complete |
+| SDK-06 | 18 | Complete |
 | CONN-01 | 19 | Not started |
 | CONN-02 | 19 | Not started |
 | CONN-05 | 19 | Not started |
