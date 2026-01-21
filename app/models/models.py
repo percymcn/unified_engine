@@ -17,8 +17,7 @@ class UserRole(str, enum.Enum):
 
 class SubscriptionTier(str, enum.Enum):
     FREE = "free"
-    PREMIUM = "premium"
-    ENTERPRISE = "enterprise"
+    PRO = "pro"
 
 class AccountType(str, enum.Enum):
     LIVE = "live"
@@ -66,38 +65,23 @@ class User(Base):
     is_verified = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True)
     last_login = Column(DateTime(timezone=True))
-    
-    # Enhanced features
-    role = Column(String, default="free_user", index=True)  # Will reference Role model
-    role_id = Column(Integer, ForeignKey("roles.id"), index=True)
-    avatar_url = Column(String)
-    timezone = Column(String, default="UTC")
-    locale = Column(String, default="en")
-    
-    # Subscription
-    subscription_tier = Column(SQLEnum(SubscriptionTier), default=SubscriptionTier.FREE, index=True)
-    stripe_customer_id = Column(String, index=True)
-    
-    # Multi-tenancy
-    primary_organization_id = Column(Integer, ForeignKey("organizations.id"), index=True)
-    
-    # OAuth
-    oauth_provider = Column(String)  # google, github, microsoft
-    oauth_id = Column(String, index=True)
-    
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    
+
+    # Subscription fields
+    stripe_customer_id = Column(String, index=True)
+    subscription_tier = Column(String, default="free")  # free, pro
+    subscription_status = Column(String, default="active")  # active, past_due, canceled
+    subscription_ends_at = Column(DateTime(timezone=True))
+
     # Relationships
     accounts = relationship("Account", back_populates="owner")
     sessions = relationship("UserSession", back_populates="user")
     signals = relationship("Signal", back_populates="user")
-    role_obj = relationship("Role", foreign_keys=[role_id], back_populates="users")
-    subscription = relationship("UserSubscription", back_populates="user", uselist=False)
-    oauth_accounts = relationship("OAuthAccount", back_populates="user")
-    organizations = relationship("Organization", secondary="user_organizations", back_populates="members")
-    notifications = relationship("Notification", back_populates="user")
-    notification_preferences = relationship("NotificationPreference", back_populates="user", uselist=False)
+    # Relationships for database_models.py classes
+    webhooks = relationship("WebhookConfig", back_populates="user")
+    credentials = relationship("Credential", back_populates="user")
 
 class UserSession(Base):
     __tablename__ = "user_sessions"
@@ -380,13 +364,13 @@ class AccountStrategy(Base):
     account = relationship("Account", backref="strategies")
     strategy = relationship("Strategy", backref="accounts")
 
-# Import enhanced models (optional - only if they exist)
-try:
-    from app.models.enhanced_models import (
-        Organization, Role, Permission, UserSubscription, OAuthAccount,
-        Notification, NotificationPreference, AuditLog, UsageMetric,
-        user_organization_table, permission_role_table
-    )
-except ImportError:
-    # Enhanced models not available yet
-    pass
+# Enhanced models import disabled - causes User relationship conflicts
+# These models require database schema updates before use
+# try:
+#     from app.models.enhanced_models import (
+#         Organization, Role, Permission, UserSubscription, OAuthAccount,
+#         Notification, NotificationPreference, AuditLog, UsageMetric,
+#         user_organization_table, permission_role_table
+#     )
+# except ImportError:
+#     pass
