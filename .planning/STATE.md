@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-01-21)
 
 ## Current Position
 
-Phase: 17 - TopStep/ProjectX SDK (COMPLETE)
-Plan: 1 of 1 complete
-Status: Phase complete, ready for Phase 18
-Last activity: 2026-01-21 - Completed 17-01-PLAN.md (Migrate TopStep to project-x-py SDK)
+Phase: 18 - MetaAPI SDK (PLANNING)
+Plan: 1 of 1 planned, ready for execution
+Status: Planning complete, ready for execution
+Last activity: 2026-01-21 - Created 18-01-PLAN.md (MetaAPI SDK Integration)
 
-Progress: [#############---] 50% (v1.1) - Phase 17 complete
+Progress: [#############---] 50% (v1.1) - Phase 18 planning complete
 
 ## v1.1 Milestone Goals
 
