@@ -145,6 +145,9 @@ class Settings(BaseSettings):
     STRIPE_PUBLISHABLE_KEY: str = ""
     STRIPE_WEBHOOK_SECRET: str = ""
     STRIPE_PRO_PRICE_ID: str = ""  # Price ID for Pro tier ($29/mo)
+
+    # Frontend URL (for Stripe redirect URLs)
+    FRONTEND_URL: str = "https://tradeflow.fluxeo.net"
     
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
