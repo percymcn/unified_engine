@@ -48,6 +48,7 @@ from app.routers.webhook_config import router as webhook_config_router
 from app.routers.stripe_webhooks import router as stripe_webhooks_router
 from app.routers.billing import router as billing_router
 from app.routers.tradovate_oauth import router as tradovate_oauth_router
+from app.routers.symbol_aliases import router as symbol_aliases_router
 from app.core.event_emitter import event_emitter
 from app.tasks.token_refresh import refresh_expiring_tokens
 
@@ -207,6 +208,7 @@ app.include_router(webhook_config_router, prefix="/api/v1", tags=["webhook-confi
 app.include_router(stripe_webhooks_router)
 app.include_router(billing_router, tags=["billing"])
 app.include_router(tradovate_oauth_router, tags=["tradovate-oauth"])
+app.include_router(symbol_aliases_router, prefix="/api/v1/symbol-aliases", tags=["symbol-aliases"])
 
 # WebSocket endpoint
 @app.websocket("/ws")
