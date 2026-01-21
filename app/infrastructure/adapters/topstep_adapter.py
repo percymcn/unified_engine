@@ -25,16 +25,30 @@ class TopstepAdapter(BrokerPort):
 
     Wraps ProjectXExecutor and converts between domain value objects
     and executor primitives. Uses ProjectX Gateway API for TopStep accounts.
+
+    Supports both SDK mode (preferred) and httpx fallback mode.
     """
 
-    def __init__(self, executor: Optional[ProjectXExecutor] = None):
+    def __init__(
+        self,
+        executor: Optional[ProjectXExecutor] = None,
+        account_id: Optional[str] = None,
+        username: Optional[str] = None,
+        api_key: Optional[str] = None,
+    ):
         """
         Initialize TopStep adapter.
 
         Args:
             executor: Optional ProjectXExecutor instance. If None, created on connect.
+            account_id: Optional account ID to use
+            username: TopStep username (for SDK mode)
+            api_key: TopStep API key (for both modes)
         """
         self._executor = executor
+        self._account_id = account_id
+        self._username = username
+        self._api_key = api_key
 
     @property
     def broker_type(self) -> BrokerType:
@@ -53,7 +67,11 @@ class TopstepAdapter(BrokerPort):
         """
         try:
             if self._executor is None:
-                self._executor = ProjectXExecutor()
+                self._executor = ProjectXExecutor(
+                    account_id=self._account_id,
+                    username=self._username,
+                    api_key=self._api_key,
+                )
 
             success = await self._executor.initialize()
             if not success:
