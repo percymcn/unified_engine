@@ -32,26 +32,24 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Copy public assets (static files)
-COPY --from=builder /app/public ./public
-
 # Copy standalone build
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
 # Switch to non-root user
 USER nextjs
 
-# Expose port 3000
-EXPOSE 3000
+# Expose port 3456
+EXPOSE 3456
 
 # Set hostname and port
-ENV PORT=3000
+ENV PORT=3456
 ENV HOSTNAME="0.0.0.0"
 
 # Health check for Docker Swarm
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3456/api/health || exit 1
 
 # Start the application
 CMD ["node", "server.js"]
