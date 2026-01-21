@@ -161,7 +161,54 @@ class TradovateExecutor(BaseExecutor):
         else:
             logger.error(f"Tradovate password auth failed: {response.text}")
             return False
-    
+
+    async def _ensure_valid_token(self) -> bool:
+        """
+        Ensure token is valid, refreshing if necessary.
+
+        For OAuth mode, checks token expiry and refreshes via TradovateTokenService.
+        For password mode, always returns True (no refresh needed).
+
+        Returns:
+            True if token is valid (or successfully refreshed), False otherwise
+        """
+        if not self._use_oauth or not self._account_id:
+            return True  # Password mode doesn't need refresh
+
+        from app.db.database import SessionLocal
+        from app.services.tradovate_token_service import TradovateTokenService
+        from app.models.database_models import TradingAccount
+
+        db = SessionLocal()
+        try:
+            account = db.query(TradingAccount).filter(
+                TradingAccount.id == self._account_id
+            ).first()
+
+            if not account:
+                logger.error(f"Account {self._account_id} not found for token refresh")
+                return False
+
+            service = TradovateTokenService(db)
+            token = service.get_access_token(account)
+
+            if token:
+                # Update session with potentially refreshed token
+                self.session.headers.update({
+                    "Authorization": f"Bearer {token}"
+                })
+                self._oauth_token = token
+                self.access_token = token
+                return True
+
+            logger.error(f"Token refresh failed for account {self._account_id}")
+            return False
+        except Exception as e:
+            logger.error(f"Error ensuring valid token: {e}")
+            return False
+        finally:
+            db.close()
+
     async def _init_websocket(self):
         """Initialize WebSocket connection"""
         try:
