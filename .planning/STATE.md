@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-01-21)
 
 ## Current Position
 
-Phase: 19 - Broker Connections UI (COMPLETE)
-Plan: 2 of 2 complete
-Status: Phase complete
-Last activity: 2026-01-21 - Completed 19-02-PLAN.md (Frontend connection status UI)
+Phase: 20 - Symbol Mapping & Futures (PLANNED)
+Plan: 0 of 4 complete
+Status: Ready for execution
+Last activity: 2026-01-21 - Created Phase 20 plans (20-01 to 20-04)
 
-Progress: [###############-] 63% (v1.1) - Phase 19 complete, Phase 20 ready
+Progress: [###############-] 63% (v1.1) - Phase 20 planned, ready to execute
 
 ## v1.1 Milestone Goals
 
@@ -53,7 +53,7 @@ Progress: [###############-] 63% (v1.1) - Phase 19 complete, Phase 20 ready
 | 17 | TopStep/ProjectX SDK | 1 | Complete (1/1 plan) |
 | 18 | MetaAPI SDK | 3 | Complete (1/1 plan) |
 | 19 | Broker Connections UI | 4 | Complete (2/2 plans) |
-| 20 | Symbol Mapping & Futures | 6 | Not started |
+| 20 | Symbol Mapping & Futures | 6 | Planned (4 plans) |
 | 21 | Multi-Account & Routing | 6 | Not started |
 | 22 | Risk Management | 16 | Not started |
 | 23 | User Settings & Dashboard | 10 | Not started |
