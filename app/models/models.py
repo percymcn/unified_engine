@@ -415,6 +415,56 @@ class BrokerSymbolFormat(Base):
     account = relationship("Account", backref="symbol_format")
 
 
+class FuturesContract(Base):
+    """
+    Futures contract tracking for expiration and rollover management.
+
+    Stores contract specifications including expiration dates and
+    relationships between contract months for TopStep/ProjectX brokers.
+    """
+    __tablename__ = "futures_contracts"
+    __table_args__ = {'extend_existing': True}
+
+    id = Column(Integer, primary_key=True, index=True)
+    symbol_root = Column(String(10), nullable=False, index=True)  # "NQ", "ES", "CL"
+    contract_code = Column(String(20), nullable=False, unique=True, index=True)  # "NQH25"
+    month_code = Column(String(1), nullable=False)  # "H" (March)
+    year = Column(Integer, nullable=False)  # 2025
+    expiration_date = Column(DateTime(timezone=True), nullable=False)
+    last_trading_day = Column(DateTime(timezone=True), nullable=False)
+    rollover_date = Column(DateTime(timezone=True), nullable=False)
+    is_active = Column(Boolean, default=True)
+    next_contract = Column(String(20))  # "NQM25" (next quarter)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+
+class UserContractPosition(Base):
+    """
+    Tracks which futures contracts a user is trading per account.
+
+    Used for sending expiration notifications and rollover suggestions.
+    """
+    __tablename__ = "user_contract_positions"
+    __table_args__ = (
+        # Unique constraint: one position per user/account/contract
+        {'extend_existing': True},
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False, index=True)
+    contract_code = Column(String(20), nullable=False, index=True)  # "NQH25"
+    symbol_root = Column(String(10), nullable=False)  # "NQ"
+    last_traded_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    user = relationship("User", backref="contract_positions")
+    account = relationship("Account", backref="contract_positions")
+
+
 # Enhanced models import disabled - causes User relationship conflicts
 # These models require database schema updates before use
 # try:
