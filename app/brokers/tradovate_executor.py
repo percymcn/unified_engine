@@ -276,6 +276,11 @@ class TradovateExecutor(BaseExecutor):
     
     async def get_accounts(self) -> List[Account]:
         """Get all Tradovate accounts"""
+        # Ensure token is valid before API call
+        if not await self._ensure_valid_token():
+            logger.error("Token refresh failed, cannot get accounts")
+            return []
+
         try:
             response = await self.session.get("/account/list")
             if response.status_code == 200:
@@ -312,6 +317,11 @@ class TradovateExecutor(BaseExecutor):
     
     async def get_positions(self, account_id: Optional[str] = None) -> List[Position]:
         """Get open positions from Tradovate"""
+        # Ensure token is valid before API call
+        if not await self._ensure_valid_token():
+            logger.error("Token refresh failed, cannot get positions")
+            return []
+
         try:
             response = await self.session.get("/position/list")
             if response.status_code == 200:
@@ -355,6 +365,13 @@ class TradovateExecutor(BaseExecutor):
     
     async def place_order(self, order: OrderRequest) -> OrderResponse:
         """Place order with Tradovate"""
+        # Ensure token is valid before API call
+        if not await self._ensure_valid_token():
+            return OrderResponse(
+                success=False,
+                error="Token expired and refresh failed"
+            )
+
         try:
             # Map order types
             order_type_map = {
@@ -428,6 +445,13 @@ class TradovateExecutor(BaseExecutor):
     
     async def modify_order(self, order_id: str, modifications: Dict[str, Any]) -> OrderResponse:
         """Modify existing order in Tradovate"""
+        # Ensure token is valid before API call
+        if not await self._ensure_valid_token():
+            return OrderResponse(
+                success=False,
+                error="Token expired and refresh failed"
+            )
+
         try:
             modify_data = {
                 "orderId": int(order_id),
@@ -462,6 +486,13 @@ class TradovateExecutor(BaseExecutor):
     
     async def cancel_order(self, order_id: str) -> OrderResponse:
         """Cancel order in Tradovate"""
+        # Ensure token is valid before API call
+        if not await self._ensure_valid_token():
+            return OrderResponse(
+                success=False,
+                error="Token expired and refresh failed"
+            )
+
         try:
             cancel_data = {
                 "orderId": int(order_id)
@@ -494,6 +525,13 @@ class TradovateExecutor(BaseExecutor):
     
     async def close_position(self, position_id: str, quantity: Optional[float] = None) -> TradeResponse:
         """Close position in Tradovate"""
+        # Ensure token is valid before API call
+        if not await self._ensure_valid_token():
+            return TradeResponse(
+                success=False,
+                error="Token expired and refresh failed"
+            )
+
         try:
             # Get position details
             response = await self.session.get(f"/position/item?id={position_id}")
