@@ -16,9 +16,9 @@ v1.1 transforms Tradeflow from a working signal router into a production-ready S
 - Decimal phases (12.1, 12.2): Urgent insertions if needed
 
 - [x] **Phase 12: Critical Fixes & Infrastructure** - Fix broken UI, rebrand, configure public URLs
-- [ ] **Phase 13: Stripe Billing** - Payment infrastructure with checkout, portal, webhooks
-- [ ] **Phase 14: Landing Page** - Enterprise 2026 marketing page with pricing
-- [ ] **Phase 15: TradeLocker SDK** - Migrate to official tradelocker package
+- [x] **Phase 13: Stripe Billing** - Payment infrastructure with checkout, portal, webhooks
+- [x] **Phase 14: Landing Page** - Enterprise 2026 marketing page with pricing
+- [x] **Phase 15: TradeLocker SDK** - Migrate to official tradelocker package
 - [ ] **Phase 16: Tradovate OAuth** - Custom OAuth 2.0 implementation
 - [ ] **Phase 17: TopStep/ProjectX SDK** - Migrate to project-x-py package
 - [ ] **Phase 18: MetaAPI SDK** - MT4/MT5 via metaapi-cloud-sdk
@@ -219,9 +219,9 @@ Phases execute in numeric order: 12 → 13 → 14 → 15 → 16 → 17 → 18 �
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 12. Critical Fixes & Infrastructure | 5/5 | ✅ Complete | 2026-01-21 |
-| 13. Stripe Billing | 0/TBD | Not started | - |
-| 14. Landing Page | 0/TBD | Not started | - |
-| 15. TradeLocker SDK | 0/TBD | Not started | - |
+| 13. Stripe Billing | 6/6 | ✅ Complete | 2026-01-21 |
+| 14. Landing Page | 7/7 | ✅ Complete | 2026-01-21 |
+| 15. TradeLocker SDK | 1/1 | ✅ Complete | 2026-01-21 |
 | 16. Tradovate OAuth | 0/TBD | Not started | - |
 | 17. TopStep/ProjectX SDK | 0/TBD | Not started | - |
 | 18. MetaAPI SDK | 0/TBD | Not started | - |
