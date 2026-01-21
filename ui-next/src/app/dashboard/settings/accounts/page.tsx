@@ -1,5 +1,15 @@
+import { Suspense } from 'react';
 import { AccountList } from '@/components/accounts/account-list';
 import { BrokerHealthGrid } from '@/components/brokers/broker-health-grid';
+
+function AccountListSkeleton() {
+  return (
+    <div className="space-y-4">
+      <div className="h-24 bg-muted animate-pulse rounded-lg" />
+      <div className="h-24 bg-muted animate-pulse rounded-lg" />
+    </div>
+  );
+}
 
 export default function AccountsPage() {
   return (
@@ -17,7 +27,9 @@ export default function AccountsPage() {
         <h2 className="text-lg font-semibold tracking-tight mb-4">
           Broker Accounts
         </h2>
-        <AccountList />
+        <Suspense fallback={<AccountListSkeleton />}>
+          <AccountList />
+        </Suspense>
       </div>
 
       {/* Broker Health Grid */}
