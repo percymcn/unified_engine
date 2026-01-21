@@ -462,7 +462,35 @@ class MT4Executor(BaseExecutor):
             )
     
     async def modify_order(self, order_id: str, modifications: Dict[str, Any]) -> OrderResponse:
-        """Modify existing order in MT4"""
+        """Modify existing order in MT4."""
+        if self.is_using_sdk:
+            return await self._modify_order_sdk(order_id, modifications)
+        return await self._modify_order_httpx(order_id, modifications)
+
+    async def _modify_order_sdk(self, order_id: str, modifications: Dict[str, Any]) -> OrderResponse:
+        """Modify order via MetaAPI SDK."""
+        try:
+            result = await self._sdk_service.modify_order(
+                order_id=order_id,
+                open_price=modifications.get("price"),
+                stop_loss=modifications.get("stop_loss"),
+                take_profit=modifications.get("take_profit"),
+                volume=modifications.get("volume"),
+            )
+            return OrderResponse(
+                success=result.get("success", False),
+                order_id=order_id,
+                broker="mt4",
+                status="modified" if result.get("success") else "failed",
+                timestamp=datetime.now(),
+                error=result.get("error"),
+            )
+        except Exception as e:
+            logger.error(f"SDK modify_order failed: {e}")
+            return OrderResponse(success=False, error=str(e))
+
+    async def _modify_order_httpx(self, order_id: str, modifications: Dict[str, Any]) -> OrderResponse:
+        """Modify order via httpx (Manager API fallback)."""
         try:
             modify_data = {
                 "order": int(order_id),
@@ -470,9 +498,9 @@ class MT4Executor(BaseExecutor):
                 "sl": modifications.get("stop_loss", 0),
                 "tp": modifications.get("take_profit", 0)
             }
-            
+
             response = await self.session.put(f"/orders/{order_id}", json=modify_data)
-            
+
             if response.status_code == 200:
                 return OrderResponse(
                     success=True,
@@ -488,7 +516,7 @@ class MT4Executor(BaseExecutor):
                     success=False,
                     error=error_msg
                 )
-                
+
         except Exception as e:
             logger.error(f"Error modifying MT4 order: {e}")
             return OrderResponse(
@@ -497,10 +525,32 @@ class MT4Executor(BaseExecutor):
             )
     
     async def cancel_order(self, order_id: str) -> OrderResponse:
-        """Cancel order in MT4"""
+        """Cancel order in MT4."""
+        if self.is_using_sdk:
+            return await self._cancel_order_sdk(order_id)
+        return await self._cancel_order_httpx(order_id)
+
+    async def _cancel_order_sdk(self, order_id: str) -> OrderResponse:
+        """Cancel order via MetaAPI SDK."""
+        try:
+            result = await self._sdk_service.cancel_order(order_id=order_id)
+            return OrderResponse(
+                success=result.get("success", False),
+                order_id=order_id,
+                broker="mt4",
+                status="cancelled" if result.get("success") else "failed",
+                timestamp=datetime.now(),
+                error=result.get("error"),
+            )
+        except Exception as e:
+            logger.error(f"SDK cancel_order failed: {e}")
+            return OrderResponse(success=False, error=str(e))
+
+    async def _cancel_order_httpx(self, order_id: str) -> OrderResponse:
+        """Cancel order via httpx (Manager API fallback)."""
         try:
             response = await self.session.delete(f"/orders/{order_id}")
-            
+
             if response.status_code == 200:
                 return OrderResponse(
                     success=True,
@@ -516,7 +566,7 @@ class MT4Executor(BaseExecutor):
                     success=False,
                     error=error_msg
                 )
-                
+
         except Exception as e:
             logger.error(f"Error cancelling MT4 order: {e}")
             return OrderResponse(
@@ -525,7 +575,51 @@ class MT4Executor(BaseExecutor):
             )
     
     async def close_position(self, position_id: str, quantity: Optional[float] = None) -> TradeResponse:
-        """Close position in MT4"""
+        """Close position in MT4."""
+        if self.is_using_sdk:
+            return await self._close_position_sdk(position_id, quantity)
+        return await self._close_position_httpx(position_id, quantity)
+
+    async def _close_position_sdk(self, position_id: str, quantity: Optional[float] = None) -> TradeResponse:
+        """Close position via MetaAPI SDK."""
+        try:
+            # Get position info first for response details
+            positions = await self._sdk_service.get_positions()
+            position = None
+            for pos in positions:
+                if pos.get("id") == position_id:
+                    position = pos
+                    break
+
+            result = await self._sdk_service.close_position(
+                position_id=position_id,
+                volume=quantity,
+            )
+
+            if result.get("success"):
+                return TradeResponse(
+                    success=True,
+                    trade_id=result.get("order_id", position_id),
+                    broker="mt4",
+                    symbol=position.get("symbol", "") if position else "",
+                    side="sell" if position and position.get("side") == "buy" else "buy",
+                    quantity=quantity or (position.get("volume", 0) if position else 0),
+                    price=position.get("current_price", 0) if position else 0,
+                    pnl=position.get("unrealized_pnl", 0) if position else 0,
+                    commission=0.0,
+                    timestamp=datetime.now(),
+                )
+            else:
+                return TradeResponse(
+                    success=False,
+                    error=result.get("error", "Close position failed"),
+                )
+        except Exception as e:
+            logger.error(f"SDK close_position failed: {e}")
+            return TradeResponse(success=False, error=str(e))
+
+    async def _close_position_httpx(self, position_id: str, quantity: Optional[float] = None) -> TradeResponse:
+        """Close position via httpx (Manager API fallback)."""
         try:
             # Get position details first
             response = await self.session.get(f"/trades/{position_id}")
@@ -534,12 +628,12 @@ class MT4Executor(BaseExecutor):
                     success=False,
                     error="Position not found"
                 )
-            
+
             position = response.json()
-            
+
             # Determine close command (opposite of open command)
             close_cmd = 1 if position["cmd"] == 0 else 0  # OP_SELL if OP_BUY, vice versa
-            
+
             close_data = {
                 "login": position["login"],
                 "symbol": position["symbol"],
@@ -549,9 +643,9 @@ class MT4Executor(BaseExecutor):
                 "comment": f"Close position {position_id}",
                 "magic": position.get("magic", 0)
             }
-            
+
             response = await self.session.delete(f"/trades/{position_id}", json=close_data)
-            
+
             if response.status_code == 200:
                 result = response.json()
                 return TradeResponse(
@@ -573,7 +667,7 @@ class MT4Executor(BaseExecutor):
                     success=False,
                     error=error_msg
                 )
-                
+
         except Exception as e:
             logger.error(f"Error closing MT4 position: {e}")
             return TradeResponse(
@@ -582,12 +676,19 @@ class MT4Executor(BaseExecutor):
             )
     
     async def get_account_info(self, account_id: str) -> Optional[Account]:
-        """Get specific account information"""
+        """Get specific account information."""
+        if self.is_using_sdk:
+            accounts = await self._get_accounts_sdk()
+            return accounts[0] if accounts else None
+        return await self._get_account_info_httpx(account_id)
+
+    async def _get_account_info_httpx(self, account_id: str) -> Optional[Account]:
+        """Get account info via httpx (Manager API fallback)."""
         try:
             response = await self.session.get(f"/users/{account_id}")
             if response.status_code == 200:
                 user_data = response.json()
-                
+
                 account = Account(
                     id=str(user_data["login"]),
                     broker="mt4",
@@ -604,12 +705,12 @@ class MT4Executor(BaseExecutor):
                     created_at=datetime.fromtimestamp(user_data.get("regdate", 0)),
                     updated_at=datetime.now()
                 )
-                
+
                 return account
             else:
                 logger.error(f"Failed to get MT4 account {account_id}: {response.text}")
                 return None
-                
+
         except Exception as e:
             logger.error(f"Error getting MT4 account {account_id}: {e}")
             return None
@@ -638,7 +739,15 @@ class MT4Executor(BaseExecutor):
         return await self.initialize()
     
     async def get_orders(self) -> List[Dict[str, Any]]:
-        """Get pending orders from MT4"""
+        """Get pending orders from MT4."""
+        if self.is_using_sdk:
+            try:
+                return await self._sdk_service.get_orders()
+            except Exception as e:
+                logger.error(f"SDK get_orders failed: {e}")
+                return []
+
+        # Fallback to httpx
         try:
             response = await self.session.get("/orders")
             if response.status_code == 200:
@@ -649,9 +758,13 @@ class MT4Executor(BaseExecutor):
         except Exception as e:
             logger.error(f"Error getting MT4 orders: {e}")
             return []
-    
+
     async def get_quote(self, symbol: str) -> Optional[Dict[str, Any]]:
-        """Get quote for symbol from MT4"""
+        """Get quote for symbol from MT4."""
+        if self.is_using_sdk:
+            return self._sdk_service.get_quote(symbol)
+
+        # Fallback to httpx
         try:
             response = await self.session.get(f"/quote/{symbol}")
             if response.status_code == 200:
@@ -662,21 +775,34 @@ class MT4Executor(BaseExecutor):
         except Exception as e:
             logger.error(f"Error getting MT4 quote for {symbol}: {e}")
             return None
-    
+
     async def modify_position(
         self,
         position_id: str,
         stop_loss: Optional[float] = None,
         take_profit: Optional[float] = None
     ) -> Dict[str, Any]:
-        """Modify position in MT4"""
+        """Modify position in MT4."""
+        if self.is_using_sdk:
+            try:
+                result = await self._sdk_service.modify_position(
+                    position_id=position_id,
+                    stop_loss=stop_loss,
+                    take_profit=take_profit,
+                )
+                return result
+            except Exception as e:
+                logger.error(f"SDK modify_position failed: {e}")
+                return {"error": str(e)}
+
+        # Fallback to httpx
         try:
             modifications = {}
             if stop_loss is not None:
                 modifications["stop_loss"] = stop_loss
             if take_profit is not None:
                 modifications["take_profit"] = take_profit
-            
+
             response = await self.session.put(f"/positions/{position_id}", json=modifications)
             if response.status_code == 200:
                 return response.json()
@@ -686,7 +812,10 @@ class MT4Executor(BaseExecutor):
         except Exception as e:
             logger.error(f"Error modifying MT4 position {position_id}: {e}")
             return {"error": str(e)}
+
     def is_connected(self) -> bool:
-        """Check if broker is connected"""
+        """Check if broker is connected."""
+        if self._sdk_service:
+            return self._sdk_service.is_connected
         return hasattr(self, 'session') and self.session is not None and not self.session.is_closed
 
