@@ -73,6 +73,27 @@ class SignalStatus(enum.Enum):
     IGNORED = "ignored"
 
 
+class AccountGroup(Base):
+    """Account grouping for organizing trading accounts"""
+    __tablename__ = "account_groups"
+    __table_args__ = {'extend_existing': True}
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    name = Column(String(100), nullable=False)  # "Prop Firm Accounts", "Personal"
+    description = Column(String(500))
+    color = Column(String(7), default="#6366f1")  # Hex color for UI
+    icon = Column(String(50), default="folder")  # Icon name for UI
+    is_active = Column(Boolean, default=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    user = relationship("User")
+    accounts = relationship("TradingAccount", back_populates="group")
+
+
 class TradingAccount(Base):
     __tablename__ = "trading_accounts"
     __table_args__ = {'extend_existing': True}
@@ -103,6 +124,31 @@ class TradingAccount(Base):
     free_margin = Column(Float, default=0.0)
     margin_level = Column(Float, default=0.0)
 
+    # Position sizing settings
+    position_sizing_mode = Column(String(20), default="fixed")  # fixed, percent_balance, percent_equity, risk_based
+    fixed_lot_size = Column(Float, default=0.01)
+    percent_of_balance = Column(Float, default=1.0)
+    percent_of_equity = Column(Float, default=1.0)
+    risk_percent_per_trade = Column(Float, default=1.0)
+
+    # Risk limits
+    max_position_size = Column(Float)  # Maximum lots per position
+    max_daily_loss = Column(Float)  # Maximum daily loss in account currency
+    max_daily_loss_pct = Column(Float)  # Maximum daily loss as % of balance
+    max_drawdown_pct = Column(Float)  # Maximum drawdown % from peak
+    max_open_positions = Column(Integer)  # Maximum concurrent positions
+    max_daily_trades = Column(Integer)  # Maximum trades per day
+    trade_cooldown_seconds = Column(Integer)  # Minimum seconds between trades
+
+    # Account grouping
+    group_id = Column(Integer, ForeignKey("account_groups.id"))
+    group_name = Column(String(100))  # "Prop Firm", "Personal", etc. (cached for quick display)
+    group_color = Column(String(7))  # Hex color for UI grouping
+
+    # Routing preference
+    is_signal_enabled = Column(Boolean, default=True)  # Whether this account receives signals
+    signal_priority = Column(Integer, default=0)  # Priority when routing (higher = first)
+
     # Status
     is_active = Column(Boolean, default=True)
     is_connected = Column(Boolean, default=False)
@@ -115,6 +161,7 @@ class TradingAccount(Base):
 
     # Relationships (no back_populates - User.accounts refers to Account model, not TradingAccount)
     user = relationship("User")
+    group = relationship("AccountGroup", back_populates="accounts")
 
 
 class WebhookConfig(Base):
