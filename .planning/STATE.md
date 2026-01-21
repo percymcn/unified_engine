@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-01-21)
 
 ## Current Position
 
-Phase: 20 - Symbol Mapping & Futures (PLANNED)
-Plan: 0 of 4 complete
-Status: Ready for execution
-Last activity: 2026-01-21 - Created Phase 20 plans (20-01 to 20-04)
+Phase: 20 - Symbol Mapping & Futures (IN PROGRESS)
+Plan: 1 of 4 complete
+Status: In progress
+Last activity: 2026-01-21 - Completed 20-01-PLAN.md (Symbol Normalization Service)
 
-Progress: [###############-] 63% (v1.1) - Phase 20 planned, ready to execute
+Progress: [################] 65% (v1.1) - Phase 20 in progress
 
 ## v1.1 Milestone Goals
 
@@ -53,7 +53,7 @@ Progress: [###############-] 63% (v1.1) - Phase 20 planned, ready to execute
 | 17 | TopStep/ProjectX SDK | 1 | Complete (1/1 plan) |
 | 18 | MetaAPI SDK | 3 | Complete (1/1 plan) |
 | 19 | Broker Connections UI | 4 | Complete (2/2 plans) |
-| 20 | Symbol Mapping & Futures | 6 | Planned (4 plans) |
+| 20 | Symbol Mapping & Futures | 6 | In progress (1/4 plans) |
 | 21 | Multi-Account & Routing | 6 | Not started |
 | 22 | Risk Management | 16 | Not started |
 | 23 | User Settings & Dashboard | 10 | Not started |
@@ -130,6 +130,9 @@ Progress: [###############-] 63% (v1.1) - Phase 20 planned, ready to execute
 | 19-02 | Three-state status: connected/connecting/disconnected | Clear visual feedback with green/amber/red indicators |
 | 19-02 | Central error utility library for account errors | Maps technical errors to user-friendly messages with suggestions |
 | 19-02 | Test result clears on input change | Prevents stale test results from confusing users |
+| 20-01 | Preserve symbol numbers in normalization | US30, NAS100 are valid symbols - only strip delimited futures codes |
+| 20-01 | CME front months only (H/M/U/Z) | Only strip recognized CME month codes, not arbitrary letters |
+| 20-01 | User alias priority over known mappings | Custom user mappings should override system defaults |
 
 ## Known Tech Debt
 
@@ -142,10 +145,10 @@ Progress: [###############-] 63% (v1.1) - Phase 20 planned, ready to execute
 
 ## Session Continuity
 
-Last session: 2026-01-21T20:25:00Z
-Stopped at: Completed 19-02-PLAN.md (Frontend connection status UI)
+Last session: 2026-01-21T20:45:00Z
+Stopped at: Completed 20-01-PLAN.md (Symbol Normalization Service)
 Resume file: None
-Status: Phase 19 complete, Phase 20 ready for execution
+Status: Phase 20 in progress (1/4 plans complete)
 
 ## Gap Closure Status
 
@@ -172,9 +175,9 @@ Status: Phase 19 complete, Phase 20 ready for execution
 1. ~~Execute Phase 19 plans (Broker Connections UI)~~ (COMPLETE)
    - ~~19-01: Backend connection test endpoint~~ (COMPLETE)
    - ~~19-02: Frontend status indicators and test button~~ (COMPLETE)
-2. Execute Phase 20 plans (Symbol Mapping & Futures) - Ready
-   - 20-01: Symbol Normalization Service (SYM-01, SYM-04)
-   - 20-02: Symbol Auto-Detection (SYM-03)
+2. Execute Phase 20 plans (Symbol Mapping & Futures) - In progress
+   - ~~20-01: Symbol Normalization Service (SYM-01, SYM-04)~~ (COMPLETE)
+   - 20-02: Symbol Auto-Detection (SYM-03) - NEXT
    - 20-03: Symbol Mapping UI (SYM-02)
    - 20-04: Futures Contract Support (SYM-05, SYM-06)
 3. Execute Phase 21 (Multi-Account & Routing) - Account routing logic
