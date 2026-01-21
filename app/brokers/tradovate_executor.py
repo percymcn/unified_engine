@@ -20,27 +20,59 @@ logger = logging.getLogger(__name__)
 
 class TradovateExecutor(BaseExecutor):
     """Tradovate trading executor using REST API"""
-    
-    def __init__(self):
+
+    def __init__(
+        self,
+        account_id: Optional[int] = None,
+        access_token: Optional[str] = None,
+        environment: Optional[str] = None,
+    ):
+        """
+        Initialize Tradovate executor.
+
+        Args:
+            account_id: Database account ID (for OAuth mode token refresh)
+            access_token: OAuth access token (enables OAuth mode)
+            environment: "demo" or "live" (for OAuth mode API URL selection)
+        """
         config = settings.get_broker_config("tradovate")
         super().__init__(config)
         self.config = config
-        self.api_url = self.config.get("api_url")
-        self.ws_url = self.config.get("ws_url")
+
+        # OAuth mode settings
+        self._account_id = account_id
+        self._oauth_token = access_token
+        self._oauth_environment = environment
+        self._use_oauth = bool(access_token)
+
+        # Password mode settings (fallback)
         self.user_id = self.config.get("user_id")
         self.password = self.config.get("password")
         self.app_id = self.config.get("app_id")
         self.app_version = self.config.get("app_version")
         self.cid = self.config.get("cid")
         self.sec = self.config.get("sec")
+
+        # Set API URL based on mode
+        if self._use_oauth and environment:
+            self.api_url = (
+                "https://live.tradovate.com/v1"
+                if environment == "live"
+                else "https://demo.tradovate.com/v1"
+            )
+        else:
+            self.api_url = self.config.get("api_url")
+
+        self.ws_url = self.config.get("ws_url")
         self.session = None
         self.access_token = None
         self.ws_connection = None
+        self._is_connected = False
 
-        # Check for required credentials
-        self.is_available = bool(self.user_id and self.password)
+        # Check for required credentials (OAuth mode is always available if token provided)
+        self.is_available = bool(self._use_oauth or (self.user_id and self.password))
         if not self.is_available:
-            logger.warning("Tradovate executor disabled: credentials not configured")
+            logger.warning("Tradovate executor disabled: no OAuth token or credentials configured")
         
     async def initialize(self) -> bool:
         """Initialize Tradovate connection"""
