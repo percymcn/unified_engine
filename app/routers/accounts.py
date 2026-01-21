@@ -104,12 +104,22 @@ async def test_connection(
 
     response = await use_case.execute(dto_request)
 
-    return {
+    result = {
         "success": response.success,
         "status": response.status,
         "message": response.message,
         "details": response.details,
     }
+
+    # Include symbol detection info if available
+    if response.detected_format:
+        result["detected_format"] = response.detected_format
+    if response.symbol_map:
+        result["symbol_map"] = response.symbol_map
+    if response.sample_symbols:
+        result["sample_symbols"] = response.sample_symbols
+
+    return result
 
 
 @router.post("/")
