@@ -27,6 +27,11 @@ from app.application.use_cases.manage_accounts import (
     DeleteAccountUseCase,
 )
 from app.application.use_cases.test_connection import TestConnectionUseCase
+from app.application.use_cases.check_contract_expirations import (
+    CheckContractExpirationsUseCase,
+    RolloverNotification,
+    run_scheduled_check,
+)
 
 __all__ = [
     # Signal use cases
@@ -48,4 +53,8 @@ __all__ = [
     "UpdateAccountUseCase",
     "DeleteAccountUseCase",
     "TestConnectionUseCase",
+    # Contract expiration use cases
+    "CheckContractExpirationsUseCase",
+    "RolloverNotification",
+    "run_scheduled_check",
 ]
