@@ -1,361 +1,785 @@
-# Pitfalls Research: Unified Trading Engine Refactor
+# Pitfalls Research: v1.1 Risks
 
-**Researched:** 2026-01-19
-**Domain:** Trading system brownfield refactor (FastAPI → Hexagonal + React/Vite → Next.js)
-**Overall Confidence:** HIGH (verified with multiple sources, critical system context)
-
-## Question
-
-What are common mistakes when refactoring a live trading system to hexagonal architecture, migrating deprecated dependencies, building real-time WebSocket dashboards, and migrating from React/Vite to Next.js 14?
+**Researched:** 2026-01-20
+**Domain:** Stripe Integration, Broker OAuth, SDK Migration, Subscription Gating, Landing Pages
+**Confidence:** HIGH for Stripe/OAuth (official docs), MEDIUM for SDK migration (mixed sources)
 
 ## Executive Summary
 
-This brownfield refactor of a live trading system faces high risk due to:
-1. **Real money on the line** — mistakes cost actual funds, not just UX issues
-2. **90% test failure rate** — no safety net for refactoring
-3. **Critical crashes** — aioredis deprecation blocks development
-4. **Security vulnerabilities** — hardcoded keys, unencrypted credentials
+Adding monetization to a working trading platform carries significant risk of breaking existing functionality. The three highest-risk areas are:
 
-The research identified **27 specific pitfalls** across four dimensions, with **8 critical risks** requiring immediate attention in early phases. The most dangerous pattern: **refactoring without working tests**, which violates the fundamental "green to green" rule and eliminates early error detection.
+1. **Stripe webhook race conditions** - Out-of-order event delivery causing subscription state desync
+2. **Broker OAuth token expiration** - Each broker has different token lifetimes and refresh behaviors
+3. **Subscription gating scattered logic** - `if (user.plan === 'pro')` checks proliferating throughout codebase
 
----
-
-## Findings
-
-### Hexagonal Architecture Pitfalls
-
-| Pitfall | Warning Signs | Prevention | Phase | Confidence |
-|---------|---------------|------------|-------|------------|
-| **Refactoring without tests** | "Let's clean up code while fixing tests" | NEVER refactor when tests are failing. Fix 90/101 test suite FIRST, then refactor from green to green. | Phase 2 BLOCKS Phase 3 | HIGH |
-| **Designing database schema first** | Domain models have SQLAlchemy decorators, tables designed before use cases | Define ports, use cases, and domain models FIRST. Database adapter is the LAST step. Domain never imports SQLAlchemy. | Phase 3 → Phase 5 | HIGH |
-| **Anemic domain models** | Models are just data holders, business logic in "service" classes | Move business logic INTO domain entities. Signal.validate(), Trade.can_execute(), Account.has_balance() methods. | Phase 3 | HIGH |
-| **Over-engineering with layers** | Every entity has 3 DTOs, mappers, and interfaces before writing first use case | Start minimal: domain entities + port interfaces. Add DTOs/mappers only when crossing boundaries. Use thin abstractions first. | Phase 3-5 | HIGH |
-| **Applying to wrong project type** | Simple CRUD app gets hexagonal treatment | Trading system is RIGHT fit: complex domain (order routing, position tracking), multiple external integrations (5 brokers), needs testability. | N/A | HIGH |
-| **Interface placement errors** | Broker SDK types imported in domain layer, adapter interfaces in infrastructure | Port interfaces live in `app/domain/ports/`. Adapter implementations in `app/infrastructure/`. Domain NEVER imports infrastructure. | Phase 3, 5 | HIGH |
-| **Package structure sprawl** | `app/utils/`, `app/common/`, `app/dto/`, `app/config/` at root level alongside hexagonal layers | Strict structure: `app/domain/`, `app/application/`, `app/infrastructure/`, `app/api/`. Utils go IN the layer that needs them. | Phase 3-5 | MEDIUM |
-| **Big-bang migration** | "Let's rewrite the whole backend to hexagonal in one PR" | Incremental: Start with ONE bounded context (signal processing). Measure test coverage improvement. Then migrate broker executors one at a time. | Phase 3-5 | HIGH |
-| **Organizational buy-in failure** | Stakeholders ask "Why are we rewriting working code?" for 2 weeks | Set expectation: Phase 1-2 are stabilization (visible bug fixes). Phase 3-5 are architecture (enables future broker additions, reduces bug rate). | Phase 1-5 | MEDIUM |
-
-**Key Insight for This Project:**
-The codebase audit shows SYMPTOMS of missing hexagonal architecture:
-- Broker executors directly instantiate database sessions (no port abstraction)
-- Signal processing has no domain layer (all logic in FastAPI routes)
-- Tests import concrete broker SDKs instead of mocking ports
-
-Phase 3 research should catalog EXISTING domain logic scattered across routes/services to consolidate.
+The v1.1 milestone involves integrating with external systems (Stripe, broker OAuth) that operate asynchronously. **The core signal pipeline MUST remain isolated from subscription failures.**
 
 ---
 
-### Trading System Pitfalls
+## Stripe Integration Pitfalls
 
-| Pitfall | Warning Signs | Prevention | Phase | Confidence |
-|---------|---------------|------------|-------|------------|
-| **Over-optimization on historical data** | Backtest shows 90% win rate, live trading loses money | This is a SIGNAL ROUTING system, not a strategy optimizer. Focus: reliable execution, not profitable signals. Don't add "smart routing" that second-guesses user intent. | N/A (out of scope) | HIGH |
-| **Missing circuit breakers** | One broker outage causes 50 failed signals to queue, all retry simultaneously when broker recovers | Implement circuit breaker per broker. After 3 consecutive failures, stop sending orders for 30s. Prevents cascade when broker API is degraded. | Phase 5 | HIGH |
-| **Weak risk management** | No position limits, no daily loss limits, orders execute even when account balance insufficient | Add domain validation: `Account.can_place_order(order_size, current_positions)`. Fail BEFORE calling broker API. Log rejected orders for audit. | Phase 3 | HIGH |
-| **Ignoring transaction costs** | Signal says "BUY ES", system places market order with 2 tick slippage, user complains about losses | Document in UI: "Execution uses market orders. Expect slippage." Consider adding order type configuration (market vs limit with timeout). | Phase 9 | MEDIUM |
-| **Missing kill switch** | Bug causes infinite order loop, no way to stop it without killing container | Add emergency stop: Redis key `TRADING_DISABLED`. If set, webhook endpoint returns 503 and logs "Trading halted via kill switch". UI toggle in Phase 9. | Phase 1, 9 | HIGH |
-| **Inadequate production testing** | Works in dev with fake broker responses, fails in prod with real API latency | Existing test suite has THIS problem (90/101 failing). Phase 2 must add integration tests with REAL broker staging APIs, not just mocked responses. | Phase 2, 5 | HIGH |
-| **Insufficient logging/monitoring** | Signal executes, trade fails, no record of WHY (API error? validation? network?) | Every broker adapter MUST log: (1) Request sent, (2) Response received, (3) Error details if failed. Prometheus counter per broker per failure reason. | Phase 5, 10 | HIGH |
-| **Blame the system, not the mistake** | "TradeLocker integration is broken" when actually API key expired 3 days ago | Defensive error messages: "TradeLocker authentication failed. Check API key expiration in account settings." Guide user to fix. | Phase 5, 9 | MEDIUM |
+### Critical
 
-**Critical Risk:**
-Current codebase has **no circuit breakers** and **crashes on missing API keys** instead of graceful degradation. Phase 1 must implement fail-fast-with-logging, Phase 5 must add circuit breakers per broker.
+#### P-STRIPE-01: Webhook Race Conditions
 
-**Current Evidence:**
-- `CONCERNS.md` notes: "broker executors crash on missing API keys"
-- No retry logic visible in broker executor implementations
-- No health check per broker (only global `/healthz`)
+**What goes wrong:** Stripe does not guarantee delivery of events in the order they are generated. A `customer.subscription.updated` event can arrive before `customer.subscription.created`, or `invoice.paid` before `checkout.session.completed`. Your database shows "incomplete" status because that was the last event processed, even though payment succeeded.
 
----
+**Real-world impact:** Users pay successfully but show as unpaid. They can't access features. Support tickets flood in.
 
-### Real-Time Dashboard Pitfalls
+**Warning signs:**
+- Intermittent "subscription not found" errors in webhook handler logs
+- Users reporting they paid but don't have access
+- Database subscription status doesn't match Stripe dashboard
 
-| Pitfall | Warning Signs | Prevention | Phase | Confidence |
-|---------|---------------|------------|-------|------------|
-| **Unhandled WebSocket connection storms** | 100 browser tabs open, server runs out of memory, dashboard becomes unresponsive | Set max connections per user (5). Older connections dropped when limit reached. Use `ws://` connection limits in FastAPI WebSocket manager. | Phase 8 | HIGH |
-| **Infinite render loops** | Every WebSocket message triggers React setState, CPU hits 100%, browser tab freezes | Batch updates: collect messages for 100ms, then single setState. Use `useMemo` for trade log filtering. Limit displayed rows to 100 with virtualization. | Phase 8 | HIGH |
-| **Missing reconnection logic** | Network hiccup disconnects WebSocket, dashboard shows stale data forever | Implement exponential backoff reconnect: 1s, 2s, 4s, 8s, max 30s. Show "Reconnecting..." banner in UI. When reconnected, fetch last 10 minutes of missed data. | Phase 8 | HIGH |
-| **State synchronization issues** | Multiple server instances, WebSocket broadcasts only reach clients on same instance | Terminate WebSockets at horizontally scaled gateways. Use Redis pub/sub for fan-out to all instances. Current setup: single backend instance, so NOT a problem yet. Relevant for Phase 10 if scaling. | Phase 10 | MEDIUM |
-| **Security: Unencrypted WebSocket** | Dashboard uses `ws://` instead of `wss://`, credentials sent in plaintext | Use `wss://` in production. Nginx terminates TLS before proxying to backend. Add CSP header: `upgrade-insecure-requests`. | Phase 7, 10 | HIGH |
-| **Memory leak from unclosed connections** | Old WebSocket connections never cleaned up, memory grows over time | Implement heartbeat: server pings every 30s, client pongs. If no pong for 60s, server closes connection. Client must handle `onclose` and reconnect. | Phase 8 | HIGH |
-| **No authentication on WebSocket** | WebSocket endpoint accepts any connection, no JWT validation | Pass JWT as query param: `wss://api.example.com/ws?token=<jwt>`. Validate BEFORE upgrading connection. Reject with 401 if invalid/expired. | Phase 7 | HIGH |
+**Prevention strategy:**
+1. Treat webhooks as notifications, not state machines
+2. On any subscription-related webhook, fetch fresh state from Stripe API before updating local DB
+3. Use idempotency keys for all Stripe API calls
+4. Implement distributed locking (Redis) when processing webhooks for same customer
 
-**Current Evidence:**
-- Existing codebase has WebSocket endpoint (`/ws`) but no visible heartbeat/reconnection
-- No max connection limits in WebSocket manager
-- React/Vite UI likely has same patterns — check during Phase 7 migration
+**Code pattern to avoid:**
+```python
+# BAD: Assumes events arrive in order
+@webhook_handler("customer.subscription.created")
+def handle_created(event):
+    db.subscriptions.create(event.data)
 
-**Production Pitfall (HIGH):**
-"Real-time feels magical... until your dashboard meets traffic spikes, long-tail latencies, and 'why is memory climbing?' charts." Without heartbeat + max connections, this WILL happen in production under load.
+@webhook_handler("customer.subscription.updated")
+def handle_updated(event):
+    db.subscriptions.update(event.data)  # Fails if created hasn't arrived
+```
 
----
+**Correct pattern:**
+```python
+# GOOD: Fetch fresh state, upsert
+@webhook_handler("customer.subscription.*")
+async def handle_subscription(event):
+    subscription = await stripe.Subscription.retrieve(event.data.object.id)
+    await db.subscriptions.upsert(subscription)
+```
 
-### Migration Pitfalls (React/Vite → Next.js 14)
+**Phase mapping:** Stripe Integration phase - webhook handler design
 
-| Pitfall | Warning Signs | Prevention | Phase | Confidence |
-|---------|---------------|------------|-------|------------|
-| **Manual code splitting** | Vite config has manual dynamic imports, Next.js migration copies pattern | Delete manual code splitting. Next.js App Router does it automatically. Manually splitting makes performance WORSE (network waterfalls). | Phase 7 | HIGH |
-| **Missing root layout** | Next.js dev server crashes with "root layout not found" | App Router requires `app/layout.tsx`. Must wrap all pages. Add global dark theme provider here. | Phase 7 | HIGH |
-| **Forgetting to migrate environment variables** | Vite uses `import.meta.env.VITE_*`, Next.js build fails because undefined | Next.js uses `process.env.NEXT_PUBLIC_*` for client-side vars. Create `.env.local` with all vars. Add to `.gitignore`. Document required vars in README. | Phase 7 | HIGH |
-| **Porting react-router patterns** | Copying react-router `<Routes>` logic to Next.js | Delete react-router. Use Next.js file-based routing: `app/dashboard/page.tsx` → `/dashboard`. Use `useRouter()` for navigation, not `<Link>` from react-router. | Phase 7 | HIGH |
-| **Client/Server component confusion** | "use client" missing on components with useState, hydration errors in production | Next.js defaults to Server Components. Add `"use client"` directive at TOP of file for components using hooks (useState, useEffect, WebSocket). | Phase 7, 8 | HIGH |
-| **SSR/SSG misuse** | Dashboard with real-time data uses SSG (static site generation) | Dashboard MUST be client-side rendered (CSR). Use `"use client"` + useEffect for data fetching. SSR not needed for authenticated, real-time UI. | Phase 7 | MEDIUM |
-| **Large migration in one PR** | Rewriting entire UI in Next.js, switching auth, changing API client, redesigning layout simultaneously | Incremental: (1) Next.js shell + auth working, (2) Dashboard page only, (3) Config pages, (4) Delete old UI. Each step deployable. | Phase 7-9 | HIGH |
+**Severity:** CRITICAL - Will cause paying users to lose access
 
-**Why NOT to Migrate (Double Check):**
-Some teams migrated Next.js → Vite when SSR caused authentication issues with white-label clients. This project does NOT have those issues:
-- Single-user system (no multi-tenancy)
-- Authenticated dashboard (no public pages)
-- No white-label requirements
-
-Next.js is CORRECT choice for: (1) shadcn/ui native support, (2) API routes for BFF pattern, (3) better developer experience vs Vite SPA.
+**Sources:** [Stripe Webhooks Documentation](https://docs.stripe.com/webhooks), [Stripe Subscriptions Webhooks](https://docs.stripe.com/billing/subscriptions/webhooks)
 
 ---
 
-### Brownfield Refactor Pitfalls
+#### P-STRIPE-02: Test/Live Mode Secret Mismatch
 
-| Pitfall | Warning Signs | Prevention | Phase | Confidence |
-|---------|---------------|------------|-------|------------|
-| **Refactoring without automated tests** | "Let's refactor and fix tests at the same time" | NEVER. Phase 2 fixes 90/101 test suite BEFORE Phase 3 starts domain layer. This is the #1 rule of brownfield refactoring. | Phase 2 BLOCKS Phase 3-5 | HIGH |
-| **The "rewrite everything" temptation** | "This code is messy, let's start from scratch" | NO. Preserve existing broker SDKs in `broker_sdks/`. Preserve existing API contracts. Refactor INTERNAL structure only. Users don't see hexagonal architecture. | Phase 3-5 | HIGH |
-| **Large-scale refactoring** | Two-week refactoring sprint touching 50 files | Incremental: One bounded context per plan. Signal processing first. Then one broker adapter at a time. Each plan is 1-3 days max. | Phase 3-5 | HIGH |
-| **Skipping canary releases** | Deploy refactored backend to all production users at once | Use feature flags: `HEXAGONAL_SIGNAL_PROCESSING=true/false`. Gradually roll out. Compare error rates between old/new paths. | Phase 10 | MEDIUM |
-| **Ignoring existing domain knowledge** | Rewriting signal processing without understanding EXISTING routing rules | Before Phase 3, document CURRENT signal processing flow. What fields does TradingView send? What validation exists? What happens on error? Preserve this logic. | Phase 3 | HIGH |
-| **Not monitoring during migration** | Deploy refactored code, assume it works, no metrics comparison | Add Prometheus metrics: `signal_processing_duration_seconds` (old vs new path). Alert if new path is >2x slower or error rate >5%. | Phase 5, 10 | HIGH |
-| **Minimizing downtime naively** | "We can't afford downtime, so we'll deploy late Friday night" | Backwards compatibility + incremental rollout is BETTER than off-hours deployment. Webhook endpoints keep working. UI migration is separate (Phase 7-9). | Phase 10 | MEDIUM |
+**What goes wrong:** Using test mode webhook signing secret (whsec_...) in production while Stripe sends live mode events. Signature verification fails on every request even though code is correct.
 
-**Project-Specific Risk:**
-Current codebase is UNSTABLE (aioredis crash, 90% test failure). Traditional brownfield advice assumes "working but messy" code. This project is "broken and messy." Phase 1-2 stabilization is MANDATORY before architectural refactoring.
+**Real-world impact:** All webhooks rejected. No subscription updates. Users upgrade but system doesn't know.
 
-**Statistic:**
-Studies show developers spend 33% of time managing technical debt in legacy systems. Phase 1-2 clears the worst debt (crashes, test failures) so Phase 3-5 can focus on architecture without firefighting.
+**Warning signs:**
+- "Webhook signature verification failed" errors in production only
+- Works perfectly in test mode
+- Stripe dashboard shows webhooks being sent but failing
 
----
+**Prevention strategy:**
+1. Use separate environment variables: `STRIPE_WEBHOOK_SECRET_TEST`, `STRIPE_WEBHOOK_SECRET_LIVE`
+2. Validate `livemode` property in webhook payload matches expected environment
+3. Set up both test AND live webhook endpoints in Stripe dashboard
+4. Add deployment checklist item to verify webhook secrets
 
-## Critical Risks for This Project
+**Phase mapping:** Stripe Integration phase - environment configuration
 
-### 1. Refactoring Without Tests (HIGHEST RISK)
-**Why critical:** 90/101 tests failing = no safety net. Refactoring blind.
-**Mitigation:** Phase 2 is MANDATORY before Phase 3. All existing tests must pass. Add integration tests with real broker staging APIs.
-**Consequence if ignored:** Introduce regressions in signal processing, lose real money on failed trades, no way to detect until production.
+**Severity:** CRITICAL - Complete monetization failure in production
 
-### 2. aioredis Deprecation Crash (BLOCKS DEVELOPMENT)
-**Why critical:** Service crashes on import. Can't run backend locally or in staging.
-**Mitigation:** Phase 1 fixes this FIRST. Replace `import aioredis` with `from redis import asyncio as redis`. Update all `aioredis.create_redis_pool()` to `redis.Redis()`.
-**Consequence if ignored:** Cannot test ANY changes until this is fixed. Blocks all phases.
-
-### 3. Missing API Keys Crash Broker Executors
-**Why critical:** Production system must survive partial configuration. One broken broker shouldn't crash entire service.
-**Mitigation:** Phase 1 adds fail-fast-with-logging. If TradeLocker API key missing, log ERROR but continue startup. Mark broker as "unconfigured" in health check. Phase 5 adds circuit breaker per broker.
-**Consequence if ignored:** User misconfigures one broker, entire trading system goes down, all brokers offline.
-
-### 4. In-Memory Credential Storage
-**Why critical:** Service restart loses all broker credentials. Users must re-enter API keys every restart.
-**Mitigation:** Phase 6 migrates credentials to database with encryption. CREDENTIAL_ENCRYPTION_KEY from environment (Docker secret in Phase 10).
-**Consequence if ignored:** Poor user experience, potential lost trades if restart happens during market hours.
-
-### 5. No Circuit Breakers on Broker APIs
-**Why critical:** One broker outage causes retry storms, cascading failures, potential duplicate orders.
-**Mitigation:** Phase 5 adds circuit breaker per broker: 3 consecutive failures → open circuit for 30s. Exponential backoff on retries (1s, 2s, 4s max).
-**Consequence if ignored:** Broker API degradation causes 100 failed orders to queue, all retry simultaneously, overwhelm broker when it recovers, potential duplicate trades.
-
-### 6. WebSocket Memory Leak
-**Why critical:** Dashboard left open overnight, server runs out of memory, production system crashes.
-**Mitigation:** Phase 8 adds heartbeat (30s ping, 60s timeout) and max connections per user (5). Client reconnects on disconnect.
-**Consequence if ignored:** Production outage due to memory exhaustion. Difficult to diagnose because it happens SLOWLY over hours.
-
-### 7. Hardcoded API Keys in Source Code
-**Why critical:** Git history contains production credentials. Anyone with repo access can steal API keys and execute trades.
-**Mitigation:** Phase 1 removes hardcoded keys from source. Phase 6 uses encrypted database storage. Phase 10 uses Docker secrets for encryption key.
-**Consequence if ignored:** Security breach, unauthorized trading, potential regulatory issues.
-
-### 8. No Kill Switch
-**Why critical:** Bug causes infinite order loop, no way to stop without SSH-ing into server and killing process.
-**Mitigation:** Phase 1 adds Redis key `TRADING_DISABLED`. Webhook endpoint checks this FIRST. If set, return 503 and log. Phase 9 adds UI toggle.
-**Consequence if ignored:** Runaway order loop costs thousands in losses before manual intervention. Happened to Knight Capital ($440M loss in 45 minutes).
+**Sources:** [Stripe Go-Live Checklist](https://docs.stripe.com/get-started/checklist/go-live), [Debugging Stripe Webhook Errors](https://dev.to/nerdincode/debugging-stripe-webhook-signature-verification-errors-in-production-1h7c)
 
 ---
 
-## Phase-Specific Warnings
+#### P-STRIPE-03: Raw Body Manipulation
 
-### Phase 1 (Stability Fixes)
-**Watch for:**
-- ✓ **Temptation to "fix other stuff while we're here"** — NO. Only critical crashes. No feature additions, no refactoring.
-- ✓ **Not testing each fix in isolation** — Fix aioredis, test. Fix API key crashes, test. Don't bundle 4 fixes in one commit.
-- ✓ **Missing graceful degradation** — Broker missing API key should LOG ERROR, not crash. Service must start even if some brokers unconfigured.
+**What goes wrong:** Framework (FastAPI, Express) parses the request body before your webhook handler sees it. Stripe signature verification requires the raw, unmodified body. Any parsing breaks verification.
 
-### Phase 2 (Test Infrastructure)
-**Watch for:**
-- ✓ **Skipping flaky tests** — Don't `@pytest.mark.skip` tests that are "sometimes failing". Fix them or delete them. Flaky tests are worse than no tests.
-- ✓ **Mocking too much** — Integration tests should hit REAL broker staging APIs. Unit tests mock, integration tests don't.
-- ✓ **Not verifying tests detect failures** — After fixing tests, BREAK the code and confirm test fails. Ensures test actually validates behavior.
+**Real-world impact:** All webhook signature verifications fail. Looks like "signature failed" error but actual cause is body modification.
 
-### Phase 3-5 (Architecture Refactor)
-**Watch for:**
-- ✓ **Starting with database schema** — NO. Domain models come FIRST. Database adapter comes LAST.
-- ✓ **Over-engineering with DTOs** — Start with domain entities as DTOs. Add mapping layer ONLY when needed (e.g., database models differ from domain).
-- ✓ **Refactoring all brokers at once** — NO. Signal processing first. Then TradeLocker adapter. Then TopStep. One at a time, each with passing tests.
-- ✓ **Breaking existing API contracts** — Webhook endpoints (`/api/v1/webhooks/tradingview`) must keep EXACT same request/response format. Internal refactoring only.
-- ✓ **Anemic domain models** — If you write `SignalService.validate_signal(signal)`, STOP. It should be `signal.validate()`. Logic goes IN the entity.
+**Warning signs:**
+- Signature verification works with Stripe CLI but fails in production
+- Adding logging or middleware breaks webhooks
+- Works after disabling JSON parsing middleware
 
-### Phase 6 (Security Hardening)
-**Watch for:**
-- ✓ **Storing encryption key in database** — NO. It must come from environment/Docker secret. Otherwise: attacker dumps database, has key to decrypt credentials.
-- ✓ **Using reversible encryption wrong** — Credentials use AES-256 (reversible). API keys use bcrypt (one-way hash). Different use cases, different algorithms.
-- ✓ **Not testing credential survival** — Test: Store encrypted credential, restart service, verify credential still works. Current in-memory storage FAILS this test.
+**Prevention strategy:**
+```python
+# FastAPI: Get raw body BEFORE any JSON parsing
+@app.post("/webhooks/stripe")
+async def stripe_webhook(request: Request):
+    raw_body = await request.body()  # Raw bytes
+    sig_header = request.headers.get("stripe-signature")
+    event = stripe.Webhook.construct_event(raw_body, sig_header, webhook_secret)
+```
 
-### Phase 7-9 (UI Migration)
-**Watch for:**
-- ✓ **Porting Vite patterns to Next.js** — Delete react-router. Delete manual code splitting. Use Next.js conventions instead.
-- ✓ **Missing "use client" directive** — WebSocket components, forms, anything with useState needs `"use client"` at top of file. Missing this causes hydration errors.
-- ✓ **Not implementing WebSocket reconnection** — Network hiccup should not require page refresh. Client must reconnect automatically.
-- ✓ **Rendering 10,000 trade log rows** — Use virtualized list (react-window) or pagination. Rendering all rows freezes browser.
-- ✓ **Big migration in one PR** — NO. Phase 7 = auth + layout. Phase 8 = dashboard only. Phase 9 = config pages. Incremental.
+**Phase mapping:** Stripe Integration phase - webhook endpoint implementation
 
-### Phase 10 (Deployment)
-**Watch for:**
-- ✓ **Testing Docker Swarm deploy only in production** — Test stack deployment in LOCAL Swarm first. Use `docker swarm init` on dev machine. Verify health checks pass.
-- ✓ **Not using Docker secrets** — Database password, JWT secret, encryption key MUST be Docker secrets, not environment variables visible in `docker inspect`.
-- ✓ **Missing health check configuration** — Health check must validate: database connection, Redis connection, broker API reachability. Not just "HTTP 200 from root path".
-- ✓ **No rollback plan** — What if deployment fails? Can you rollback to previous image tag? Test rollback in staging BEFORE production deployment.
+**Severity:** CRITICAL - Prevents all webhook processing
+
+**Sources:** [Stripe Webhook Documentation](https://docs.stripe.com/webhooks)
 
 ---
 
-## Anti-Patterns to Avoid
+### High
 
-### "Fix Everything At Once"
-**What it looks like:**
-- Phase 1 PR: Fix aioredis, fix tests, refactor broker executors, migrate to hexagonal, add circuit breakers, implement kill switch, 50 files changed.
+#### P-STRIPE-04: 72-Hour Invoice Finalization Delay
 
-**Why it's bad:**
-- Impossible to review. Unclear which change broke what. Rollback all-or-nothing.
+**What goes wrong:** If Stripe doesn't receive a successful response (2xx) to `invoice.created` webhook, it delays finalizing ALL invoices with automatic collection for up to 72 hours.
 
-**Do instead:**
-- Phase 1 Plan 1: Fix aioredis only. 3 files changed.
-- Phase 1 Plan 2: Fix API key crashes. 5 files changed.
-- Phase 1 Plan 3: Add kill switch. 2 files changed.
-- Each plan is independently deployable and revertable.
+**Real-world impact:** Customers can't be billed for 3 days. Revenue delayed. Subscription activations stalled.
 
-### "Tests Are Slowing Us Down"
-**What it looks like:**
-- "We're in a hurry, let's refactor first and fix tests later."
+**Warning signs:**
+- `invoice.created` webhook returning errors or timing out
+- Invoices stuck in "draft" status
+- Subscription activations delayed by days
 
-**Why it's bad:**
-- The moment tests are broken, you lose ability to detect regressions. Refactoring without tests is guessing.
+**Prevention strategy:**
+1. `invoice.created` handler must return 200 quickly (async queue processing)
+2. Monitor webhook response times
+3. Set up alerting for webhook failures
+4. Don't do heavy processing synchronously in webhook handlers
 
-**Do instead:**
-- Phase 2 BLOCKS Phase 3. No exceptions. "Later" never comes.
+**Phase mapping:** Stripe Integration phase - webhook handler architecture
 
-### "This Code Is Inefficient, Let's Rewrite"
-**What it looks like:**
-- Signal processing takes 50ms, developer thinks "I can make this 10ms with a rewrite."
+**Severity:** HIGH - Delays all billing operations
 
-**Why it's bad:**
-- Existing code has BATTLE-TESTED edge case handling. Rewrite looks cleaner but misses edge cases. Ship buggy code that costs money.
+**Sources:** [Stripe Subscriptions Webhooks](https://docs.stripe.com/billing/subscriptions/webhooks)
 
-**Do instead:**
-- Only rewrite if: (1) Code is unmaintainable (not true here), (2) Performance is BLOCKING users (50ms is fine), or (3) Security vulnerability (then yes, rewrite).
+---
 
-### "Let's Add Smart Features During Refactor"
-**What it looks like:**
-- "While refactoring signal processing, let's add risk management rules that reject signals if position too large."
+#### P-STRIPE-05: Idempotency Key Caching Gotcha
 
-**Why it's bad:**
-- Mixing refactoring (preserve behavior) with feature addition (change behavior). If tests fail, is it refactoring bug or feature bug?
+**What goes wrong:** Stripe caches the result of the first request for a given idempotency key, including errors. If you retry with the same key after fixing the error condition, you get the cached error response.
 
-**Do instead:**
-- Refactor preserves exact behavior. Features come AFTER refactor is done and tested.
+**Example:** Customer has 25 subscriptions (max). You try to create #26, get error, delete some subscriptions, retry with same idempotency key - still get the "max subscriptions" error.
+
+**Prevention strategy:**
+1. Generate new idempotency key after any error response
+2. Only reuse keys for connection failures / timeouts
+3. Use UUIDs that include operation + timestamp
+
+**Phase mapping:** Stripe Integration phase - API client implementation
+
+**Severity:** HIGH - Stuck operations, frustrated users
+
+**Sources:** [Stripe Idempotent Requests](https://docs.stripe.com/api/idempotent_requests)
+
+---
+
+#### P-STRIPE-06: Checkout Session Subscription Timing (2025 API Change)
+
+**What goes wrong:** As of 2025-03-31.basil API version, Checkout Sessions postpone subscription creation until AFTER payment completes. Old code expecting subscription to exist immediately after session creation breaks.
+
+**Warning signs:**
+- "Subscription not found" errors immediately after checkout
+- Code that worked in 2024 fails in 2025
+- Upgrade to stripe-python v18 breaks flows
+
+**Prevention strategy:**
+1. Check Stripe API changelog before upgrading SDK
+2. Listen for `checkout.session.completed` before accessing subscription
+3. Test checkout flow after any Stripe SDK upgrade
+
+**Phase mapping:** Stripe Integration phase - Checkout implementation
+
+**Severity:** HIGH - Breaks new customer onboarding
+
+**Sources:** [Stripe Migration Guide v18](https://github.com/stripe/stripe-node/wiki/Migration-guide-for-v18)
+
+---
+
+### Medium
+
+#### P-STRIPE-07: Synchronous Webhook Processing
+
+**What goes wrong:** Processing webhooks synchronously. Stripe sends many events simultaneously during subscription lifecycle. Server becomes overloaded, requests timeout, webhooks marked as failed.
+
+**Prevention strategy:**
+1. Return 200 immediately after signature verification
+2. Queue webhook payload for async processing (Redis queue, Celery)
+3. Single worker pattern prevents race conditions
+4. Implement dead letter queue for failed processing
+
+**Phase mapping:** Stripe Integration phase - infrastructure design
+
+**Severity:** MEDIUM - Scalability issues under load
+
+**Sources:** [Stigg Best Practices](https://www.stigg.io/blog-posts/best-practices-i-wish-we-knew-when-integrating-stripe-webhooks)
+
+---
+
+#### P-STRIPE-08: Missing Trial End Payment Method Check
+
+**What goes wrong:** User starts trial without payment method. Trial ends. `customer.subscription.trial_will_end` fires 3 days before. You don't prompt for payment method. Subscription fails to renew.
+
+**Prevention strategy:**
+1. Listen for `customer.subscription.trial_will_end`
+2. Check if customer has valid payment method
+3. Send email prompting to add payment method
+4. Consider requiring payment method at signup (Stripe supports this)
+
+**Phase mapping:** Stripe Integration phase - subscription lifecycle
+
+**Severity:** MEDIUM - Trial conversion failure
+
+**Sources:** [Stripe Subscriptions Webhooks](https://docs.stripe.com/billing/subscriptions/webhooks)
+
+---
+
+## Broker OAuth Pitfalls
+
+### Critical
+
+#### P-OAUTH-01: Token Expiration Variation
+
+**What goes wrong:** Each broker has different token lifetimes. Code assumes "tokens last a while" without checking expiration. Trades fail at 3am when token expired overnight.
+
+**Broker-specific lifetimes:**
+| Broker | Access Token | Refresh Token | Notes |
+|--------|-------------|---------------|-------|
+| Tradovate | ~1 hour | ~7 days | Must refresh before expiry |
+| Schwab | ~30 min | 7 days mandatory re-auth | Cannot be automated beyond 7 days |
+| IBKR | ~24 hours | N/A - re-auth required daily | Manual login required |
+| Questrade | 30 min | 3 days, single-use | Each refresh gives new refresh token |
+
+**Warning signs:**
+- Trades fail intermittently, especially overnight/weekends
+- 401 errors appearing in broker logs
+- Users reporting "disconnected" status
+
+**Prevention strategy:**
+1. Store token expiry timestamp in database
+2. Proactive refresh: Refresh tokens when >50% lifetime used
+3. Implement token refresh before EVERY trade, not on error
+4. Alert users when refresh token approaching expiry (Schwab 7-day limit)
+
+**Code pattern:**
+```python
+async def ensure_valid_token(account):
+    if account.token_expires_at < (datetime.now() + timedelta(minutes=5)):
+        await refresh_token(account)
+    return account.access_token
+```
+
+**Phase mapping:** Broker OAuth phase - token management
+
+**Severity:** CRITICAL - Silent trade failures
+
+**Sources:** [Tradier OAuth](https://documentation.tradier.com/brokerage-api/oauth/refresh-token), [Questrade API Security](https://www.questrade.com/api/documentation/security), [Schwab OAuth Guide](https://developer.schwab.com/user-guides/apis-and-apps/oauth-restart-vs-refresh-token)
+
+---
+
+#### P-OAUTH-02: Schwab 7-Day Re-authentication
+
+**What goes wrong:** Schwab Trader API (formerly TD Ameritrade) requires manual re-authentication every 7 days. No automation possible. Users must re-login weekly or trades fail.
+
+**Real-world impact:** Users go on vacation, forget to re-auth, miss week of signals.
+
+**Warning signs:**
+- Schwab users reporting weekly disconnections
+- Support tickets spike every Monday
+- "Session expired" errors exactly 7 days after setup
+
+**Prevention strategy:**
+1. Track last authentication timestamp per account
+2. Send email reminder at day 5 and day 6
+3. Display prominent warning in dashboard when approaching expiry
+4. Consider: Is Schwab integration worth the UX friction?
+
+**Phase mapping:** Broker OAuth phase - Schwab-specific handling
+
+**Severity:** CRITICAL - Architectural limitation, no workaround
+
+**Sources:** [Schwab Developer Portal](https://developer.schwab.com/), [TD Ameritrade API Status](https://blog.traderspost.io/article/does-td-ameritrade-have-api)
+
+---
+
+### High
+
+#### P-OAUTH-03: IBKR Daily Re-authentication
+
+**What goes wrong:** Interactive Brokers requires authentication every 24 hours AND does a nightly system reset that disconnects all clients. Algorithmic trading systems that expect persistent connections fail.
+
+**Warning signs:**
+- IBKR connections failing daily at the same time
+- "Gateway not connected" errors around midnight EST
+- Users expecting 24/7 automation disappointed
+
+**Prevention strategy:**
+1. Document IBKR limitations clearly to users
+2. Implement automatic reconnection after nightly reset
+3. Queue signals received during reset, execute after reconnection
+4. Consider if IBKR is suitable for signal routing use case
+
+**Phase mapping:** Broker OAuth phase - IBKR-specific handling
+
+**Severity:** HIGH - Daily disruption by design
+
+**Sources:** [Electronic Trading Hub - Brokerages](https://electronictradinghub.com/brokerages-suck-navigating-the-challenges-of-live-algo-trading/)
+
+---
+
+#### P-OAUTH-04: Scope Revocation Cascade
+
+**What goes wrong:** If user revokes a single scope in broker OAuth settings, the entire token may be invalidated. Or, a scope change requires complete re-authorization, invalidating existing tokens.
+
+**Warning signs:**
+- Token suddenly invalid without expiry
+- "Insufficient permissions" errors
+- User reports changing settings in broker account
+
+**Prevention strategy:**
+1. Request minimum necessary scopes upfront
+2. Check scope validity on each API call
+3. Graceful degradation when specific scopes revoked
+4. Re-prompt for authorization when scope errors detected
+
+**Phase mapping:** Broker OAuth phase - error handling
+
+**Severity:** HIGH - Unexpected authentication failures
+
+**Sources:** [OAuth 2.0 Token Revocation](https://curity.io/resources/learn/oauth-revoke/)
+
+---
+
+#### P-OAUTH-05: Refresh Token Single-Use (Questrade)
+
+**What goes wrong:** Questrade refresh tokens are single-use. Using a refresh token returns a new refresh token. If you use an old refresh token (due to race condition or retry), you get invalid token error. Both tokens become invalid.
+
+**Warning signs:**
+- Intermittent auth failures with Questrade
+- "Invalid refresh token" errors after retries
+- Works sometimes, fails sometimes
+
+**Prevention strategy:**
+1. Atomic token refresh with database lock
+2. Never retry refresh with same token
+3. Store both old and new refresh tokens, mark old as "used"
+4. If refresh fails, require user re-authentication
+
+**Phase mapping:** Broker OAuth phase - Questrade-specific handling
+
+**Severity:** HIGH - Race condition causes auth cascade failure
+
+**Sources:** [Questrade API Documentation](https://www.questrade.com/api)
+
+---
+
+## SDK Migration Pitfalls
+
+### Breaking Changes
+
+#### P-SDK-01: Custom Client to Official SDK Authentication Differences
+
+**What goes wrong:** Your custom broker clients use one authentication method. Official SDKs may use different methods, headers, or flows. Direct replacement breaks authentication.
+
+**Current Tradeflow state:** Custom clients in `/app/brokers/` using direct HTTP calls. Migration to official SDKs requires authentication refactor.
+
+**Specific differences observed:**
+- TradeLocker: Custom uses `brand-api-key` header; official SDK uses JWT
+- Tradovate: Custom stores credentials in config; OAuth requires redirect flow
+- Alpaca: Custom uses `APCA-API-KEY-ID` header; SDK uses `AlpacaTradingClient`
+
+**Prevention strategy:**
+1. Run custom and SDK implementations in parallel during migration
+2. Compare response formats between custom and SDK
+3. Migrate one broker at a time, not all at once
+4. Keep rollback path to custom implementation
+
+**Phase mapping:** SDK Migration phase - per-broker implementation
+
+**Severity:** HIGH - Breaking change to working system
+
+---
+
+#### P-SDK-02: Response Format Changes
+
+**What goes wrong:** Custom clients parse responses one way. Official SDKs return different object structures, field names, or types. Code expecting old format crashes.
+
+**Example Alpaca:**
+- Old SDK (`alpaca-trade-api`): Returns dicts
+- New SDK (`alpaca-py`): Returns typed objects with `_raw` property
+
+**Prevention strategy:**
+1. Create adapter layer between SDK and domain
+2. Map SDK responses to internal domain objects
+3. Unit test response mapping thoroughly
+4. Use `_raw` property in alpaca-py if dict format needed
+
+**Phase mapping:** SDK Migration phase - response mapping
+
+**Severity:** HIGH - Runtime errors in production
+
+**Sources:** [Alpaca-py GitHub](https://github.com/alpacahq/alpaca-py)
+
+---
+
+#### P-SDK-03: Multiple Client Classes (Alpaca)
+
+**What goes wrong:** alpaca-py has many client classes (`StockHistoricalDataClient`, `CryptoDataStream`, `TradingClient`, etc.). Developers confuse which client for which operation, instantiate wrong client, get confusing errors.
+
+**Prevention strategy:**
+1. Document which Alpaca client class for each operation
+2. Create wrapper that exposes only needed operations
+3. Integration tests for each broker operation type
+
+**Phase mapping:** SDK Migration phase - Alpaca implementation
+
+**Severity:** MEDIUM - Developer confusion, runtime errors
+
+**Sources:** [Alpaca SDKs Documentation](https://docs.alpaca.markets/docs/sdks-and-tools)
+
+---
+
+### Authentication Differences
+
+#### P-SDK-04: Alpaca Paper vs Live URL
+
+**What goes wrong:** Alpaca defaults to LIVE trading. Forgetting to specify paper URL results in real trades with real money during testing.
+
+**Prevention strategy:**
+```python
+# ALWAYS explicit about environment
+client = TradingClient(
+    api_key,
+    secret_key,
+    paper=True  # EXPLICIT - never rely on default
+)
+```
+
+**Phase mapping:** SDK Migration phase - environment configuration
+
+**Severity:** CRITICAL - Unintended real trades
+
+**Sources:** [Alpaca API Docs](https://docs.alpaca.markets/)
+
+---
+
+#### P-SDK-05: Rate Limit Differences
+
+**What goes wrong:** Different brokers have vastly different rate limits. Code that works with high-limit broker fails with low-limit broker.
+
+| Broker | Rate Limit |
+|--------|-----------|
+| Alpaca | 200/minute |
+| Tradier | 120/minute |
+| IBKR | 50 orders/second |
+
+**Prevention strategy:**
+1. Implement per-broker rate limiting
+2. Use exponential backoff on 429 responses
+3. Queue orders if rate limit approached
+4. Log rate limit headers from responses
+
+**Phase mapping:** SDK Migration phase - rate limit handling
+
+**Severity:** MEDIUM - Trade delays or failures
+
+**Sources:** [Alpaca Broker FAQs](https://docs.alpaca.markets/docs/broker-api-faq)
+
+---
+
+## Subscription Gating Pitfalls
+
+### UX Issues
+
+#### P-GATE-01: Scattered Billing Logic
+
+**What goes wrong:** Subscription checks scattered throughout codebase: `if (user.plan === 'pro')` everywhere. Impossible to audit what's gated, test components in isolation, or change pricing tiers.
+
+**Real-world impact:** Changing from "Pro $29/mo" to "Pro $39/mo + Growth $29/mo" requires finding and updating dozens of checks.
+
+**Prevention strategy:**
+1. Centralize gating in FeatureGate component/decorator
+2. Define feature-to-tier mapping in single config file
+3. Components should not know about billing
+4. Use entitlement system, not plan string checks
+
+```typescript
+// BAD: Scattered checks
+if (user.plan === 'pro') {
+  showFeature();
+}
+
+// GOOD: Centralized gating
+<FeatureGate feature="multi-broker">
+  <MultiBrokerConfig />
+</FeatureGate>
+```
+
+**Phase mapping:** Subscription Gating phase - architecture design
+
+**Severity:** HIGH - Technical debt, maintenance nightmare
+
+**Sources:** [Feature Gating SaaS Article](https://dev.to/aniefon_umanah_ac5f21311c/feature-gating-how-we-built-a-freemium-saas-without-duplicating-components-1lo6)
+
+---
+
+#### P-GATE-02: Breaking Existing Users
+
+**What goes wrong:** Adding subscription gating to features that existing users already use. Without grandfathering, loyal users suddenly lose access.
+
+**Warning signs:**
+- Angry emails from beta users
+- "Feature I was using is now locked" complaints
+- Churn spike after monetization launch
+
+**Prevention strategy:**
+1. Identify all existing users before launching gating
+2. Grandfather existing users on "Legacy" plan
+3. Or: Give existing users time-limited Pro access
+4. Communicate changes clearly before enforcement
+
+**Phase mapping:** Subscription Gating phase - user migration
+
+**Severity:** HIGH - User trust destruction
+
+---
+
+### Race Conditions
+
+#### P-GATE-03: Subscription State Cache Staleness
+
+**What goes wrong:** User upgrades subscription. Webhook processes. But cached subscription state in app still shows "free". User can't access features until cache expires.
+
+**Warning signs:**
+- Users reporting "I just paid but still can't access"
+- Features unlock "eventually" (after cache TTL)
+- Works after logout/login
+
+**Prevention strategy:**
+1. Invalidate subscription cache on any subscription webhook
+2. Or: Always fetch fresh from Stripe for feature checks
+3. Or: Use Stripe Customer Portal which handles this
+4. WebSocket push subscription state updates to connected clients
+
+**Phase mapping:** Subscription Gating phase - cache invalidation
+
+**Severity:** MEDIUM - UX frustration after payment
+
+---
+
+#### P-GATE-04: Mid-Trade Subscription Expiry
+
+**What goes wrong:** User's subscription expires exactly during trade execution. Signal received, validated against "pro" plan, execution starts, subscription expires, execution fails or partially completes.
+
+**Specific to Tradeflow:** User has 5 brokers configured (Pro feature). Subscription expires. Signal comes in. Should it execute to all 5? Only 1? None?
+
+**Prevention strategy:**
+1. Subscription check at signal receipt, not during execution
+2. Once signal accepted, execute regardless of subscription state
+3. Grace period: Allow execution for 24 hours after expiry
+4. Clear policy: "Signals in flight complete; new signals blocked"
+
+**Phase mapping:** Subscription Gating phase - edge case handling
+
+**Severity:** MEDIUM - Partial trade execution is dangerous
+
+---
+
+## Landing Page Pitfalls
+
+### Conversion Killers
+
+#### P-LANDING-01: Buzzword-Stuffed Copy
+
+**What goes wrong:** Landing page filled with "AI-powered", "seamless", "revolutionary" without specific value. 95% of B2B landing pages suffer this. Zero differentiation, zero conversions.
+
+**Warning signs:**
+- High traffic, low signups
+- Users can't explain what product does
+- Copy sounds like every competitor
+
+**Prevention strategy:**
+1. Lead with specific problem: "Miss a signal, miss the trade"
+2. Quantify value: "Execute TradingView alerts in <500ms"
+3. Show, don't tell: Actual product screenshots, not stock photos
+4. Social proof: Specific user testimonials with results
+
+**Phase mapping:** Landing Page phase - copywriting
+
+**Severity:** HIGH - Wasted marketing spend
+
+**Sources:** [SaaS Landing Page Best Practices](https://www.grafit.agency/blog/saas-landing-page-best-practices), [B2B Landing Page Mistakes](https://www.exitfive.com/articles/8-reasons-your-b2b-landing-pages-arent-converting)
+
+---
+
+#### P-LANDING-02: Multiple CTAs Killing Conversions
+
+**What goes wrong:** Landing page has "Start Free Trial", "Book Demo", "Contact Sales", "Download Whitepaper". User confused, takes no action. Adding more CTAs can decrease conversions by 266%.
+
+**Prevention strategy:**
+1. Single primary CTA: "Start Free Trial"
+2. One secondary CTA max: "See Pricing"
+3. Remove all other actions from landing page
+4. A/B test CTA copy, not CTA count
+
+**Phase mapping:** Landing Page phase - CTA design
+
+**Severity:** HIGH - Conversion rate destruction
+
+**Sources:** [Landing Page Mistakes 2025](https://moosend.com/blog/landing-page-mistakes/)
+
+---
+
+### Technical Issues
+
+#### P-LANDING-03: Mobile Performance
+
+**What goes wrong:** Landing page designed for desktop, force-fit to mobile. Heavy images, long load times on mobile networks. 50%+ of traffic is mobile, but page loads in 8 seconds.
+
+**Warning signs:**
+- High mobile bounce rate in analytics
+- PageSpeed Insights mobile score <50
+- Users complaining about slow page
+
+**Prevention strategy:**
+1. Mobile-first design, not desktop-down
+2. Target <3 second load time on 3G
+3. Lazy load images below fold
+4. Use WebP/AVIF image formats
+5. Test on real mobile devices, not just DevTools
+
+**Phase mapping:** Landing Page phase - performance optimization
+
+**Severity:** HIGH - Losing half your potential users
+
+**Sources:** [Webstacks SaaS Conversions](https://www.webstacks.com/blog/website-conversions-for-saas-businesses)
+
+---
+
+#### P-LANDING-04: Homepage as Landing Page
+
+**What goes wrong:** Driving paid traffic to homepage instead of dedicated landing page. Homepage has navigation, blog links, about page - a hundred ways to leave without converting.
+
+**Prevention strategy:**
+1. Create dedicated `/signup` landing page
+2. Remove navigation from conversion pages
+3. Match ad copy to landing page copy
+4. Track conversions per traffic source
+
+**Phase mapping:** Landing Page phase - page architecture
+
+**Severity:** MEDIUM - Wasted ad spend
+
+**Sources:** [B2B Landing Page Mistakes](https://www.exitfive.com/articles/8-reasons-your-b2b-landing-pages-arent-converting)
+
+---
+
+#### P-LANDING-05: No Interactive Demo
+
+**What goes wrong:** Static screenshots feel outdated in 2025. Prospects expect to try product before signup. No demo = no differentiation from competitors.
+
+**Prevention strategy:**
+1. Embed interactive product tour on landing page
+2. Show actual dashboard with demo data
+3. Let users configure a sample signal routing rule
+4. Video demo at minimum
+
+**Phase mapping:** Landing Page phase - demo experience
+
+**Severity:** MEDIUM - Lower conversion vs competitors
+
+**Sources:** [KlientBoost SaaS Landing Pages](https://www.klientboost.com/landing-pages/saas-landing-page/)
+
+---
+
+## Prevention Checklist
+
+### Stripe Integration Phase
+
+- [ ] Design webhook handlers to fetch fresh state from Stripe, not trust event order
+- [ ] Implement idempotency key generation strategy (new key after errors)
+- [ ] Configure separate webhook secrets for test/live environments
+- [ ] Set up webhook endpoint to receive raw body before JSON parsing
+- [ ] Implement async webhook processing with queue (return 200 immediately)
+- [ ] Add monitoring for webhook response times (<5 seconds)
+- [ ] Handle `invoice.created` to prevent 72-hour finalization delay
+- [ ] Implement `trial_will_end` handler for payment method check
+- [ ] Review Stripe 2025-03-31 API changelog before SDK upgrade
+- [ ] Test complete checkout flow in both test and live modes
+
+### Broker OAuth Phase
+
+- [ ] Document token lifetimes for each broker in code comments
+- [ ] Implement proactive token refresh (before expiry, not on error)
+- [ ] Add Schwab 7-day re-auth reminder system
+- [ ] Handle IBKR daily reset with automatic reconnection
+- [ ] Implement atomic token refresh with database locking
+- [ ] Store token expiration timestamp, not just token value
+- [ ] Create per-broker error handling for auth failures
+- [ ] Alert users when refresh tokens approaching expiry
+
+### SDK Migration Phase
+
+- [ ] Run custom and SDK implementations in parallel during migration
+- [ ] Migrate one broker at a time with rollback capability
+- [ ] Create adapter layer between SDK and domain objects
+- [ ] Unit test response mapping for each broker SDK
+- [ ] Explicitly specify paper vs live environment (never rely on defaults)
+- [ ] Implement per-broker rate limiting
+- [ ] Document which SDK client class for each operation type
+- [ ] Integration test each broker after SDK migration
+
+### Subscription Gating Phase
+
+- [ ] Design centralized FeatureGate component/decorator
+- [ ] Create feature-to-tier mapping configuration
+- [ ] Identify existing users for grandfathering
+- [ ] Plan grace period policy for expired subscriptions
+- [ ] Implement cache invalidation on subscription webhooks
+- [ ] Define policy for in-flight signals during subscription changes
+- [ ] Ensure signal pipeline isolated from subscription failures
+- [ ] Test upgrade/downgrade flows end-to-end
+
+### Landing Page Phase
+
+- [ ] Write specific, benefit-focused copy (not buzzwords)
+- [ ] Single primary CTA per page
+- [ ] Target <3 second mobile load time
+- [ ] Create dedicated landing page separate from homepage
+- [ ] Include interactive demo or video walkthrough
+- [ ] Mobile-first responsive design
+- [ ] Set up conversion tracking per traffic source
+- [ ] A/B test headline and CTA copy
 
 ---
 
 ## Sources
 
-### PRIMARY SOURCES (HIGH Confidence)
+### Primary (HIGH confidence)
+- [Stripe Webhooks Documentation](https://docs.stripe.com/webhooks)
+- [Stripe Subscriptions Webhooks](https://docs.stripe.com/billing/subscriptions/webhooks)
+- [Stripe Idempotent Requests](https://docs.stripe.com/api/idempotent_requests)
+- [Stripe Go-Live Checklist](https://docs.stripe.com/get-started/checklist/go-live)
+- [Stripe Migration Guide v18](https://github.com/stripe/stripe-node/wiki/Migration-guide-for-v18)
+- [Alpaca-py GitHub](https://github.com/alpacahq/alpaca-py)
+- [Alpaca SDKs Documentation](https://docs.alpaca.markets/docs/sdks-and-tools)
+- [Schwab Developer Portal](https://developer.schwab.com/)
 
-**Hexagonal Architecture:**
-- [Hexagonal Architecture: Common pitfalls | Medium](https://medium.com/@allousas/hexagonal-architecture-common-pitfalls-f155e12388a3)
-- [On Hexagonal architecture: Common mistakes (Part 2) | sapalo.dev](https://sapalo.dev/2021/02/02/reflections-on-hexagonal-architecture-design/)
-- [Hexagonal / Onion Architecture in a Real Java Codebase: Migration Strategies | Java Code Geeks](https://www.javacodegeeks.com/2025/10/hexagonal-onion-architecture-in-a-real-java-codebase-migration-strategies.html)
-- [AWS Prescriptive Guidance: Hexagonal architecture pattern](https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/hexagonal-architecture.html)
+### Secondary (MEDIUM confidence)
+- [Debugging Stripe Webhook Errors](https://dev.to/nerdincode/debugging-stripe-webhook-signature-verification-errors-in-production-1h7c)
+- [Electronic Trading Hub - Brokerages](https://electronictradinghub.com/brokerages-suck-navigating-the-challenges-of-live-algo-trading/)
+- [Questrade API Documentation](https://www.questrade.com/api)
+- [OAuth 2.0 Token Revocation](https://curity.io/resources/learn/oauth-revoke/)
+- [Feature Gating SaaS Article](https://dev.to/aniefon_umanah_ac5f21311c/feature-gating-how-we-built-a-freemium-saas-without-duplicating-components-1lo6)
+- [SaaS Landing Page Best Practices](https://www.grafit.agency/blog/saas-landing-page-best-practices)
+- [B2B Landing Page Mistakes](https://www.exitfive.com/articles/8-reasons-your-b2b-landing-pages-arent-converting)
 
-**Trading Systems:**
-- [5 Common Algorithmic Trading Mistakes and Automated Solutions | NURP](https://nurp.com/wisdom/common-algorithmic-trading-errors-and-solutions/)
-- [EFX Algo: Top Algo Trading Mistakes & How to Avoid Them](https://efxalgo.com/2025/12/18/top-algo-trading-mistakes-and-how-to-avoid-them/)
-- [5 Mistakes to Avoid in Algo Trading | Intrinio](https://intrinio.com/blog/5-common-mistakes-to-avoid-when-using-automated-trading-systems)
-
-**WebSocket Real-Time:**
-- [10 WebSocket Scaling Patterns for Real-Time Dashboards | Medium](https://medium.com/@sparknp1/10-websocket-scaling-patterns-for-real-time-dashboards-1e9dc4681741)
-- [WebSocket Scale in 2025: Architecting Real-Time Systems | VideoSDK](https://www.videosdk.live/developer-hub/websocket/websocket-scale)
-- [WebSocket architecture best practices | Ably](https://ably.com/topic/websocket-architecture-best-practices)
-- [WebSockets At Scale: One Machine, Millions Happy | Medium](https://medium.com/@chopra.kanta.73/websockets-at-scale-one-machine-millions-happy-12d3835936c3)
-
-**Next.js Migration:**
-- [Migrating: Vite | Next.js Official Documentation](https://nextjs.org/docs/app/guides/migrating/from-vite)
-- [Next.js Upgrading: Migrating from Vite | GeeksforGeeks](https://www.geeksforgeeks.org/reactjs/next-js-upgrading-migrating-from-vite/)
-- [Step-by-Step Guide to Convert a React Vite App to Next.js | LinkedIn](https://www.linkedin.com/pulse/step-by-step-guide-convert-react-vite-app-nextjs-oluwatosin-gbenga-mdsle)
-
-**Brownfield Refactoring:**
-- [Brownfield vs Greenfield: Choosing the Right Path | Nalashaa](https://www.nalashaa.com/brownfield-vs-greenfield/)
-- [Brownfield software development: expert help for legacy code | madewithlove](https://madewithlove.com/brownfield/)
-- [Guide to Creating a Successful Brownfield Software Project | &PLUS](https://www.andplus.com/creating-a-successful-brownfield-project)
-
-**Deprecated Library Migration:**
-- [How to manage deprecated libraries | LabEx](https://labex.io/tutorials/c-how-to-manage-deprecated-libraries-418491)
-- [Modernization: Developing your code migration strategy | Red Hat](https://www.redhat.com/en/blog/modernization-developing-your-code-migration-strategy)
-- [How to plan a successful legacy system migration strategy | Future Processing](https://www.future-processing.com/blog/legacy-system-migration-strategy/)
-
-**Secrets Management:**
-- [Secrets Management Cheat Sheet | OWASP](https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html)
-- [Secrets Management: A Comprehensive Guide for 2025 | Shadecoder](https://www.shadecoder.com/topics/secrets-management-a-comprehensive-guide-for-2025)
-- [What Is Secrets Management? Best Practices for 2025 | StrongDM](https://www.strongdm.com/blog/secrets-management)
-- [Secrets Management Tools: The Complete 2025 Guide | Pulumi](https://www.pulumi.com/blog/secrets-management-tools-guide/)
-
-**Testing & TDD:**
-- [How to write good unit tests: Write failing tests first | Just Some Code](https://canro91.github.io/2021/02/05/FailingTest/)
-- [Refactoring When Tests Are Failing | Ovid [blogs.perl.org]](https://blogs.perl.org/users/ovid/2012/12/refactoring-when-tests-are-failing.html)
-- [When to Refactor and When to Rewrite Automation Test Cases | testRigor](https://testrigor.com/blog/when-to-refactor-and-when-to-rewrite-automation-test-cases/)
-
-**aioredis Deprecation:**
-- [Migrating to v2.0 | aioredis Documentation](https://aioredis.readthedocs.io/en/v2.0.1/migration/)
-- [What is the difference between aioredis v2.0 and redis-py asyncio? | Redis](https://redis.io/kb/doc/26366kjrif/what-is-the-difference-between-aioredis-v2-0-and-redis-py-asyncio)
-- [Aioredis is now in redis-py 4.2.0rc1! | GitHub Issue](https://github.com/aio-libs/aioredis-py/issues/1301)
-
-**Celery Production:**
-- [Celery Task Resilience: Advanced Strategies | GitGuardian](https://blog.gitguardian.com/celery-tasks-retries-errors/)
-- [Celery Best Practices | Deni Bertović](https://denibertovic.com/posts/celery-best-practices/)
-- [5 tips for writing production-ready Celery tasks | Wolt Careers](https://careers.wolt.com/en/blog/tech/5-tips-for-writing-production-ready-celery-tasks)
-
-**API Error Handling:**
-- [API Error Handling: Best Practices | Zee Palm](https://www.zeepalm.com/blog/api-error-handling-best-practices)
-- [10 API Security Best Practices for 2025 | GlobalDots](https://www.globaldots.com/resources/blog/10-api-security-best-practices/)
-- [API Failure: 7 Causes and How to Fix Them | APIsec](https://www.apisec.ai/blog/api-failure-7-causes-and-how-to-fix-them)
-
-### SECONDARY SOURCES (MEDIUM Confidence)
-
-**Industry Statistics:**
-- Verizon 2025 Data Breach Investigations Report (cited in OWASP/Shadecoder articles): 88% of breaches involved compromised credentials
-- IBM Cost of a Data Breach Report 2025 (cited): Average breach cost $4.88M
-- Stripe Developer Survey (cited in madewithlove): Developers spend 33% time on technical debt
-- Knight Capital 2012 incident (widely documented): $440M loss in 45 minutes from runaway trading algorithm
+### Tertiary (LOW confidence - needs validation)
+- [TD Ameritrade API Status](https://blog.traderspost.io/article/does-td-ameritrade-have-api) - verify current Schwab API state
+- [Stigg Best Practices](https://www.stigg.io/blog-posts/best-practices-i-wish-we-knew-when-integrating-stripe-webhooks) - unable to fetch, title-based reference
 
 ---
 
 ## Metadata
 
-**Research Date:** 2026-01-19
-**Valid Until:** 2026-02-19 (30 days — stable patterns, not fast-moving tech)
-**Confidence Breakdown:**
-- Hexagonal Architecture: HIGH (multiple authoritative sources, AWS guidance, consistent patterns)
-- Trading Systems: HIGH (industry best practices, real incident reports)
-- WebSocket Real-Time: HIGH (production scaling patterns from VideoSDK, Ably)
-- Next.js Migration: HIGH (official Next.js documentation, verified community guides)
-- Brownfield Refactoring: HIGH (established software engineering patterns)
-- Project-Specific Risks: HIGH (derived from actual codebase audit in CONCERNS.md)
+**Confidence breakdown:**
+- Stripe pitfalls: HIGH - Official Stripe documentation extensively consulted
+- OAuth pitfalls: MEDIUM-HIGH - Mix of official docs and developer experience reports
+- SDK migration: MEDIUM - Based on SDK documentation and community reports
+- Subscription gating: MEDIUM - General SaaS patterns, not trading-specific
+- Landing page: MEDIUM - Marketing best practices, not technical verification
 
-**Unverified Claims:** None (all claims backed by multiple sources or codebase evidence)
-
-**Open Questions:**
-1. What is the CURRENT retry logic in broker executors? (Need to check code in Phase 5 research)
-2. Are there existing circuit breakers anywhere? (CONCERNS.md doesn't mention, likely no)
-3. What is the WebSocket message rate in production? (Unknown, affects Phase 8 batching strategy)
+**Research date:** 2026-01-20
+**Valid until:** 60 days for Stripe/OAuth (APIs stable), 30 days for landing page best practices

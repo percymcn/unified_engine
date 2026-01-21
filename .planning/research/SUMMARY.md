@@ -1,178 +1,196 @@
-# Research Summary: Unified Trading Engine Refactor
+# Research Summary: v1.1 Production Ready with Monetization
 
-**Project:** Trading Signal Routing Engine
-**Research Date:** 2026-01-19
-**Documents:** 4 research files (STACK.md, FEATURES.md, ARCHITECTURE.md, PITFALLS.md)
+**Researched:** 2026-01-21
+**Domain:** Trading SaaS + Stripe Billing + Official Broker SDKs
+**Milestone:** v1.1 (subsequent to shipped v1.0)
 
-## Executive Synthesis
+## Executive Summary
 
-This research establishes a solid foundation for refactoring the Unified Trading Engine from organic growth to clean hexagonal architecture. Key findings converge on these principles:
+v1.1 adds Stripe subscription billing and migrates from custom broker implementations to official SDKs. The existing hexagonal architecture provides clean integration points: new `PaymentPort` for Stripe, updated broker adapters behind existing `BrokerPort`.
 
-1. **Fix tests before refactoring** — 90/101 failing tests = no safety net. Phase 2 is mandatory.
-2. **Domain-first, database-last** — Domain entities have zero external imports. Database adapters come after use cases.
-3. **Circuit breakers are critical** — Trading systems need per-broker failure isolation (3 failures → 30s open circuit).
-4. **SSE > WebSocket for trading data** — Unidirectional updates (market data, signals) use SSE for 50% lower overhead.
-5. **Stay in your lane** — This is a routing dashboard, not a trading platform. Don't build charting or strategy tools.
+**Critical findings:**
 
-## Stack Decisions
+1. **Stripe integration is straightforward** — Official Python SDK (14.2.0) and Stripe.js (8.6.1) provide everything needed. Webhook handling is the main complexity.
 
-| Layer | Technology | Version | Rationale |
-|-------|------------|---------|-----------|
-| Backend Framework | FastAPI | 0.104.1+ | Keep existing, async/await for all I/O |
-| Validation | Pydantic | 2.12.5 | Rust core, 2-5x faster than v1 |
-| ORM | SQLAlchemy | 2.0+ | Async engine, repository pattern |
-| DI Container | dependency-injector | 4.48.3 | Hexagonal architecture, non-HTTP contexts |
-| Cache | redis (not aioredis) | 4.x+ | aioredis is deprecated, use `from redis import asyncio` |
-| Frontend Framework | Next.js | 14 (App Router) | SSR, shadcn native, API routes for BFF |
-| UI Components | shadcn/ui | Latest | Tailwind-based, dark mode ready |
-| State Management | Zustand + TanStack Query | 4.x + v5 | Client state + server state separation |
-| Charts | Tremor | Latest | Built on Recharts, 80% less code for dashboards |
+2. **4 of 5 brokers have official SDKs** — TradeLocker (0.56.2), ProjectX (3.5.9), MetaAPI (29.1.1) all have official Python SDKs. Only Tradovate requires custom OAuth implementation.
 
-## Architecture Structure
+3. **Subscription gating belongs in application layer** — Domain defines `SubscriptionTier` on User entity; enforcement happens in use cases, not domain logic.
+
+4. **Webhook race conditions are the #1 Stripe pitfall** — Events arrive out of order. Must treat webhooks as notifications and fetch fresh state from Stripe API.
+
+5. **Each broker has different auth** — TradeLocker (JWT), Tradovate (OAuth 2.0), ProjectX (API key), MetaAPI (token). No unified pattern.
+
+## Key Stack Additions
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| stripe (Python) | 14.2.0 | Billing API |
+| @stripe/stripe-js | 8.6.1 | Frontend |
+| tradelocker | 0.56.2 | TradeLocker SDK |
+| project-x-py | 3.5.9 | TopStep/ProjectX SDK |
+| metaapi-cloud-sdk | 29.1.1 | MT4/MT5 via MetaAPI |
+
+## Feature Categories
+
+| Category | Table Stakes | Differentiators |
+|----------|--------------|-----------------|
+| Billing | Pricing page, checkout, portal | Trial period, usage metrics |
+| Broker Auth | Connection status, credential input | OAuth flows, token refresh |
+| Settings | Timezone, password change | Position sizing defaults |
+| Dashboard | Signal status, broker health | Webhook debugging |
+
+## Architecture Integration
 
 ```
-app/
-├── domain/                     # Zero external imports
-│   ├── entities/               # Signal, Order, Position, Account
-│   ├── value_objects/          # Symbol, Price, Quantity
-│   ├── services/               # RiskCalculator, SignalValidator
-│   └── ports/                  # BrokerPort, SignalRepository (Protocol)
-├── application/                # Use cases orchestrating domain
-│   ├── use_cases/              # ProcessSignalUseCase, ExecuteOrderUseCase
-│   ├── ports/                  # Port interfaces (alternate location)
-│   └── dto/                    # Data transfer objects
-├── infrastructure/             # All external dependencies
-│   ├── adapters/
-│   │   ├── inbound/            # FastAPI routers, WebSocket handlers
-│   │   └── outbound/           # Broker executors, repositories, cache
-│   └── di_container.py         # Dependency injection setup
-└── main.py                     # Application entry point
+┌──────────────────────────────────────────────────────────────┐
+│                       FRONTEND                                │
+│  Next.js 14 with Route Groups                                │
+│  ├── (marketing)/ → Landing, Pricing                         │
+│  └── (dashboard)/ → Protected app                            │
+│      ├── /auth/tradovate/callback                            │
+│      └── /auth/callback                                       │
+└───────────────────────┬──────────────────────────────────────┘
+                        │ BFF Pattern
+┌───────────────────────▼──────────────────────────────────────┐
+│                    APPLICATION LAYER                          │
+│  ├── ManageSubscriptionUseCase (Stripe events → User state)  │
+│  ├── LinkBrokerAccountUseCase (OAuth callback → credentials) │
+│  └── FeatureGate (subscription tier → feature access)        │
+└───────────────────────┬──────────────────────────────────────┘
+                        │ Ports
+┌───────────────────────▼──────────────────────────────────────┐
+│                  INFRASTRUCTURE LAYER                         │
+│  ├── StripeAdapter (implements PaymentPort)                  │
+│  ├── TradeLockerAdapter → tradelocker SDK                    │
+│  ├── TopStepAdapter → project-x-py SDK                       │
+│  ├── MetaApiAdapter → metaapi-cloud-sdk                      │
+│  └── TradovateAdapter → custom OAuth 2.0                     │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-**Key rules:**
-- Domain imports: Only stdlib and other domain modules
-- Application imports: Domain + port interfaces
-- Infrastructure imports: Everything (domain, application, external libs)
+## Critical Pitfalls to Avoid
 
-## Feature Priorities
+| Pitfall | Severity | Prevention |
+|---------|----------|------------|
+| Stripe webhook race conditions | CRITICAL | Fetch fresh state on every event |
+| Test/Live key mismatch | CRITICAL | Verify webhook secret matches environment |
+| Tradovate token expiry | HIGH | 1-hour limit, proactive renewal required |
+| Scattered subscription checks | HIGH | Centralized FeatureGate component |
+| Existing user lockout | HIGH | Grandfather existing users on billing launch |
 
-### Phase 1 MVP (Table Stakes)
-- Real-time signal feed
-- Per-broker execution status with errors
-- Broker health monitoring
-- Trade log with filtering
-- Account balance per broker
-- Pause/resume controls
-- Alert notifications (browser)
+## Confidence Assessment
 
-### Phase 2+ Differentiators
-- Comprehensive audit trail
-- Multi-account aggregation
-- Performance analytics
-- Webhook replay/testing
-- Pre-trade risk checks
-
-### Anti-Features (Don't Build)
-- Charting (TradingView does this)
-- Strategy builder/backtesting
-- Social/copy trading network
-- News feeds, economic calendars
-- Paper trading (use broker sandboxes)
-
-## Critical Risks (Immediate Attention)
-
-| Risk | Phase | Mitigation |
-|------|-------|------------|
-| **aioredis deprecation crash** | 1 | Replace with `from redis import asyncio as redis` |
-| **Missing API keys crash service** | 1 | Graceful degradation, log ERROR but continue |
-| **90% test failure rate** | 2 | BLOCKS Phase 3 — fix all tests before refactoring |
-| **No kill switch** | 1 | Redis key `TRADING_DISABLED`, webhook checks first |
-| **No circuit breakers** | 5 | Per-broker: 3 failures → 30s open circuit |
-| **In-memory credentials** | 6 | Encrypted database storage, key from env |
-| **WebSocket memory leak** | 8 | Heartbeat 30s/60s timeout, max 5 connections/user |
-| **Hardcoded API keys** | 1 | Remove from source, env/secrets only |
-
-## Migration Strategy
-
-1. **Phase 1 (Stability):** Fix crashes ONLY. No refactoring.
-2. **Phase 2 (Tests):** Get 101/101 tests passing. No refactoring.
-3. **Phase 3-5 (Architecture):** One bounded context at a time:
-   - Extract domain (Signal, Risk) from SignalProcessor
-   - Move BaseExecutor to application/ports
-   - Refactor executors one-by-one (TradeLocker → TopStep → ...)
-4. **Phase 6 (Security):** Credentials to encrypted DB, encryption key from Docker secrets
-5. **Phase 7-9 (UI):** Incremental Next.js migration:
-   - Phase 7: Shell + auth
-   - Phase 8: Dashboard only
-   - Phase 9: Config pages
-6. **Phase 10 (Deploy):** Docker Swarm with secrets, health checks, rollback plan
-
-## Key Implementation Patterns
-
-### Port Interface (Python Protocol)
-```python
-from typing import Protocol
-from domain.entities import Signal, Order
-
-class BrokerPort(Protocol):
-    async def place_order(self, signal: Signal) -> Order: ...
-    async def get_account_info(self) -> Account: ...
-```
-
-### Use Case
-```python
-class ProcessSignalUseCase:
-    def __init__(self, signal_repo: SignalRepository, broker: BrokerPort):
-        self.signal_repo = signal_repo
-        self.broker = broker
-
-    async def execute(self, signal_data: dict) -> dict:
-        signal = Signal.from_dict(signal_data)
-        if not signal.validate():
-            return {"success": False, "error": "Invalid signal"}
-        await self.signal_repo.save(signal)
-        order = await self.broker.place_order(signal)
-        return {"success": True, "order_id": order.id}
-```
-
-### FastAPI Dependency Injection
-```python
-def get_process_signal_use_case(
-    repo: SignalRepository = Depends(get_signal_repository),
-    broker: BrokerPort = Depends(get_broker_adapter)
-) -> ProcessSignalUseCase:
-    return ProcessSignalUseCase(repo, broker)
-```
-
-## Research Confidence
-
-| Document | Confidence | Valid Until |
-|----------|------------|-------------|
-| STACK.md | HIGH | ~60 days (Python stable, Next.js faster-moving) |
-| FEATURES.md | MEDIUM | ~60 days (validate with users) |
-| ARCHITECTURE.md | HIGH | ~30 days (stable patterns) |
-| PITFALLS.md | HIGH | ~30 days (stable anti-patterns) |
-
-## Open Questions for Phase Planning
-
-1. **Broker API capabilities:** What execution status detail do TradeLocker, TopStep, Tradovate, MT4, MT5 APIs expose?
-2. **Multi-account priority:** What % of users need aggregation vs single-account? (Affects Phase 2/3 priority)
-3. **WebSocket message rate:** Current production rate affects Phase 8 batching strategy
-4. **Existing retry logic:** Need to audit broker executors before Phase 5 circuit breaker design
+| Area | Confidence | Reason |
+|------|------------|--------|
+| Stripe integration | HIGH | Official SDK, comprehensive docs |
+| TradeLocker SDK | HIGH | Official, PyPI verified |
+| ProjectX SDK | HIGH | Official, PyPI verified |
+| MetaAPI SDK | HIGH | Official, PyPI verified |
+| Tradovate OAuth | MEDIUM | No official SDK, community patterns |
+| Landing page conversion | LOW | Marketing best practices, needs A/B testing |
 
 ---
 
-## Next Action
+## Implications for Roadmap
 
-Research complete. Ready for Phase 1 planning.
+Based on research, suggested phase structure:
 
-**Recommended:** `/gsd:plan-phase 1`
+### Phase 1: Critical Fixes & Infrastructure
+**Rationale:** Fix broken functionality before adding features. Users can't test new features if basics don't work.
+- Fix desktop sidebar, WebSocket, webhook URLs, dashboard data
+- Configure public URLs (tradeflow.fluxeo.net)
+- Bind backend to LAN IP
+- **Addresses:** All "Critical Fixes" requirements
+- **Avoids:** Users abandoning due to broken UI
 
-Phase 1 success criteria:
-1. Backend starts without aioredis import errors
-2. Backend starts without broker initialization crashes (even with missing API keys)
-3. NATS connection failure doesn't crash the service
-4. No hardcoded API keys in source code
+### Phase 2: Branding
+**Rationale:** Rename before marketing launch to avoid confusion.
+- Rename "Unified Engine" → "Tradeflow" everywhere
+- Update UI text, API responses, docs
+- **Simple scope:** Low risk, quick win
+
+### Phase 3: Stripe Foundation
+**Rationale:** Must have billing infrastructure before landing page.
+- Create `PaymentPort` and `StripeAdapter`
+- Implement webhook handler with idempotency
+- Add `stripe_customer_id` to User model
+- **Addresses:** Billing infrastructure
+- **Avoids:** Webhook race conditions (handle fresh state fetch)
+
+### Phase 4: Landing Page
+**Rationale:** Needs Stripe products configured first.
+- Marketing landing page at "/"
+- Pricing comparison table
+- Call-to-action to signup
+- **Addresses:** Marketing landing page requirement
+- **Depends on:** Phase 3 (Stripe products exist)
+
+### Phase 5: Subscription Gating
+**Rationale:** Gate features after landing page so conversion flow works.
+- FeatureGate component (centralized)
+- Middleware for subscription status
+- Checkout → Trial → Dashboard flow
+- **Avoids:** Scattered subscription checks
+- **Avoids:** Existing user lockout (grandfather existing)
+
+### Phase 6: Broker SDK Migration
+**Rationale:** High risk, do after monetization stabilizes.
+- Update TradeLocker adapter to use official SDK
+- Update TopStep adapter to use project-x-py
+- Update MetaAPI adapter for MT4/MT5
+- **Uses:** Official SDKs from STACK.md
+- **Avoids:** Breaking existing signal execution
+
+### Phase 7: Tradovate OAuth
+**Rationale:** Custom implementation, needs dedicated focus.
+- OAuth 2.0 redirect flow
+- /auth/tradovate/callback page
+- Token storage with Fernet encryption
+- Token refresh (1-hour limit)
+- **Lower confidence:** MEDIUM (no official SDK)
+- **Likely needs:** Deeper research during implementation
+
+### Phase 8: UI Enhancements
+**Rationale:** Polish after core functionality complete.
+- User Profile page
+- Settings page (timezone, position sizing)
+- Dashboard improvements
+- **Deferred:** Can ship v1.1 without these if needed
+
+### Phase ordering rationale:
+
+1. **Fixes first** — Can't demo or test if sidebar doesn't click
+2. **Branding second** — Clean slate before marketing
+3. **Billing before landing** — Need Stripe products to show pricing
+4. **Landing before gating** — Need somewhere to convert users
+5. **Broker SDKs late** — High risk, existing functionality works
+6. **OAuth last among brokers** — Lowest confidence, needs most research
+7. **UI polish at end** — Nice-to-have, not blocking monetization
+
+### Research flags for phases:
+
+- **Phase 3 (Stripe):** Standard patterns, research complete
+- **Phase 5 (Gating):** May need UX research for trial flow
+- **Phase 7 (Tradovate):** NEEDS deeper research (no official SDK, conflicting community reports)
+- **Phase 6 (Broker SDKs):** Research complete, but test each migration carefully
 
 ---
-*Research synthesized: 2026-01-19*
+
+## Open Questions
+
+1. **TopStep API pricing ($29/mo)** — Should Tradeflow absorb or pass through?
+2. **MetaAPI quote limits** — Free tier: 1 tick/2.5s. Sufficient for signal routing?
+3. **Existing user migration** — How to grandfather v1.0 users on billing launch?
+4. **Tradovate token refresh** — Community reports conflicting info. Test actual behavior.
+
+---
+
+## Files in This Research
+
+| File | Purpose |
+|------|---------|
+| STACK.md | SDKs, versions, integration patterns |
+| FEATURES.md | Table stakes, differentiators, complexity |
+| ARCHITECTURE.md | Component boundaries, data flow, build order |
+| PITFALLS.md | Common mistakes, prevention strategies |
+| SUMMARY.md | This file — executive summary + roadmap implications |
