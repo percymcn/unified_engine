@@ -172,7 +172,11 @@ Status: Phase 19 complete, Phase 20 ready for execution
 1. ~~Execute Phase 19 plans (Broker Connections UI)~~ (COMPLETE)
    - ~~19-01: Backend connection test endpoint~~ (COMPLETE)
    - ~~19-02: Frontend status indicators and test button~~ (COMPLETE)
-2. Execute Phase 20 (Symbol Mapping & Futures) - Symbol normalization system
+2. Execute Phase 20 plans (Symbol Mapping & Futures) - Ready
+   - 20-01: Symbol Normalization Service (SYM-01, SYM-04)
+   - 20-02: Symbol Auto-Detection (SYM-03)
+   - 20-03: Symbol Mapping UI (SYM-02)
+   - 20-04: Futures Contract Support (SYM-05, SYM-06)
 3. Execute Phase 21 (Multi-Account & Routing) - Account routing logic
 4. Execute Phase 22 (Risk Management) - Position limits, drawdown protection
 5. Execute Phase 23 (User Settings & Dashboard) - User preferences, dashboard enhancements

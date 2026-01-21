@@ -156,7 +156,7 @@ v1.1 transforms Tradeflow from a working signal router into a production-ready S
   6. Contract expiration tracking with auto-roll notifications
 **Research**: Likely (broker-specific symbol formats)
 **Research topics**: Each broker's symbol naming conventions, futures rollover dates
-**Plans**: TBD
+**Plans**: 4 (20-01 Symbol Normalization Service, 20-02 Symbol Auto-Detection, 20-03 Symbol Mapping UI, 20-04 Futures Contract Support)
 
 ### Phase 21: Multi-Account & Routing
 **Goal**: Support multiple accounts per broker with flexible signal routing
@@ -226,7 +226,7 @@ Phases execute in numeric order: 12 → 13 → 14 → 15 → 16 → 17 → 18 �
 | 17. TopStep/ProjectX SDK | 1/1 | ✅ Complete | 2026-01-21 |
 | 18. MetaAPI SDK | 1/1 | ✅ Complete | 2026-01-21 |
 | 19. Broker Connections UI | 2/2 | ✅ Complete | 2026-01-21 |
-| 20. Symbol Mapping & Futures | 0/TBD | Not started | - |
+| 20. Symbol Mapping & Futures | 0/4 | Planned | - |
 | 21. Multi-Account & Routing | 0/TBD | Not started | - |
 | 22. Risk Management | 0/TBD | Not started | - |
 | 23. User Settings & Dashboard | 0/TBD | Not started | - |
