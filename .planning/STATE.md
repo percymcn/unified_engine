@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-01-21)
 
 ## Current Position
 
-Phase: 12 - Critical Fixes & Infrastructure
-Plan: 04 of 5 complete
-Status: In progress
-Last activity: 2026-01-21 - Completed 12-04-PLAN.md (Webhook Config Loading & Error Handling)
+Phase: 13 - Stripe Billing
+Plan: 0 of TBD
+Status: Not started
+Last activity: 2026-01-21 - Completed Phase 12 (Critical Fixes & Infrastructure)
 
-Progress: [####------------] 8% (v1.1)
+Progress: [##--------------] 8% (v1.1) - 1/12 phases complete
 
 ## v1.1 Milestone Goals
 
@@ -24,10 +24,10 @@ Progress: [####------------] 8% (v1.1)
 
 | Category | Items | Phase |
 |----------|-------|-------|
-| Branding | 1 | 12 |
-| Infrastructure | 3 | 12 |
-| Critical Fixes | 7 | 12 |
-| UI Navigation | 3 | 12 |
+| Branding | 1 | 12 ✓ |
+| Infrastructure | 3 | 12 ✓ |
+| Critical Fixes | 7 | 12 ✓ |
+| UI Navigation | 3 | 12 ✓ |
 | Billing | 7 | 13 |
 | Landing Page | 11 | 14 |
 | TradeLocker SDK | 1 | 15 |
@@ -45,7 +45,7 @@ Progress: [####------------] 8% (v1.1)
 
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
-| 12 | Critical Fixes & Infrastructure | 14 | In progress (4/5 plans) |
+| 12 | Critical Fixes & Infrastructure | 14 | ✅ Complete (5/5 plans) |
 | 13 | Stripe Billing | 7 | Not started |
 | 14 | Landing Page | 11 | Not started |
 | 15 | TradeLocker SDK | 1 | Not started |
@@ -72,6 +72,8 @@ Progress: [####------------] 8% (v1.1)
 | 12-01 | Environment variable layering for webhooks | WEBHOOK_BASE_URL > BACKEND_URL > localhost for flexible deployment |
 | 12-01 | Separate BACKEND_URL and NEXT_PUBLIC_BACKEND_URL | Server-side vs client-side distinction in Next.js |
 | 12-01 | Default port 8765 everywhere | Consistency with FastAPI backend configuration |
+| 12-02 | BFF pattern for dashboard stats | Aggregate signals/accounts/trades in single API call |
+| 12-02 | Return zeros on API failure | Graceful degradation, better UX than error messages |
 | 12-03 | Sidebar shrink-0 + z-10 for stacking | Prevent flex compression and ensure sidebar stays above content |
 | 12-03 | Controlled Sheet state for mobile menu | Use pathname effect to auto-close on navigation |
 | 12-03 | startsWith() for nested route detection | Active state works for /settings/accounts/edit, etc. |
@@ -79,10 +81,12 @@ Progress: [####------------] 8% (v1.1)
 | 12-04 | Preserve 401 errors in BFF routes | Auth errors should still propagate to trigger login redirect |
 | 12-04 | Skeleton loading states matching page layout | Smooth transition from loading to content |
 | 12-04 | Retry button in all error states | Recoverable errors should be retryable |
+| 12-05 | Cloudflare Tunnel over Caddy | User already using Cloudflare for routing |
+| 12-05 | Frontend port 3456, backend port 8765 | Avoid port conflicts |
 
 ## Known Tech Debt
 
-- Dashboard stats use placeholder data
+- ~~Dashboard stats use placeholder data~~ (FIXED in 12-02)
 - WebSocket event bridge incomplete (workaround: manual ws_manager calls)
 - asyncpg not installed (graceful degradation)
 - npm audit: 3 high severity vulnerabilities (dev-only, eslint-related)
@@ -91,12 +95,13 @@ Progress: [####------------] 8% (v1.1)
 
 ## Session Continuity
 
-Last session: 2026-01-21T03:57:00Z
-Stopped at: Completed 12-04-PLAN.md
+Last session: 2026-01-21T08:45:00Z
+Stopped at: Completed Phase 12
 Resume file: None
-Status: Ready for 12-05-PLAN.md
+Status: Ready for Phase 13 planning
 
 ## Next Steps
 
-1. Execute 12-05-PLAN.md - Final plan in Phase 12
-2. Complete Phase 12 and proceed to Phase 13 (Stripe Billing)
+1. `/gsd:plan-phase 13` - Plan Stripe Billing integration
+2. Execute Phase 13 plans
+3. Continue through Phases 14-23 for v1.1 completion

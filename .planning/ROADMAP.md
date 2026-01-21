@@ -15,7 +15,7 @@ v1.1 transforms Tradeflow from a working signal router into a production-ready S
 - Integer phases (12, 13, 14): Planned v1.1 work
 - Decimal phases (12.1, 12.2): Urgent insertions if needed
 
-- [ ] **Phase 12: Critical Fixes & Infrastructure** - Fix broken UI, rebrand, configure public URLs
+- [x] **Phase 12: Critical Fixes & Infrastructure** - Fix broken UI, rebrand, configure public URLs
 - [ ] **Phase 13: Stripe Billing** - Payment infrastructure with checkout, portal, webhooks
 - [ ] **Phase 14: Landing Page** - Enterprise 2026 marketing page with pricing
 - [ ] **Phase 15: TradeLocker SDK** - Migrate to official tradelocker package
@@ -218,7 +218,7 @@ Phases execute in numeric order: 12 → 13 → 14 → 15 → 16 → 17 → 18 �
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 12. Critical Fixes & Infrastructure | 0/TBD | Not started | - |
+| 12. Critical Fixes & Infrastructure | 5/5 | ✅ Complete | 2026-01-21 |
 | 13. Stripe Billing | 0/TBD | Not started | - |
 | 14. Landing Page | 0/TBD | Not started | - |
 | 15. TradeLocker SDK | 0/TBD | Not started | - |
