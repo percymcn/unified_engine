@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,7 +16,7 @@ interface BillingStatus {
   can_manage: boolean;
 }
 
-export default function BillingSettingsPage() {
+function BillingPageContent() {
   const [billing, setBilling] = useState<BillingStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [portalLoading, setPortalLoading] = useState(false);
@@ -66,7 +66,7 @@ export default function BillingSettingsPage() {
       if (data.portal_url) {
         window.location.href = data.portal_url;
       }
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: "Failed to open billing portal",
@@ -89,7 +89,7 @@ export default function BillingSettingsPage() {
       if (data.checkout_url) {
         window.location.href = data.checkout_url;
       }
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: "Failed to start checkout",
@@ -217,5 +217,33 @@ export default function BillingSettingsPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function BillingPageSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold">Billing</h1>
+        <p className="text-muted-foreground">Manage your subscription and billing</p>
+      </div>
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-6 w-32" />
+          <Skeleton className="h-4 w-48" />
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-10 w-40" />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+export default function BillingSettingsPage() {
+  return (
+    <Suspense fallback={<BillingPageSkeleton />}>
+      <BillingPageContent />
+    </Suspense>
   );
 }

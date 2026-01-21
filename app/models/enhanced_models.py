@@ -104,7 +104,7 @@ class Organization(Base):
     
     # Relationships
     owner = relationship("User", foreign_keys=[owner_id], backref="owned_organizations")
-    members = relationship("User", secondary=user_organization_table, back_populates="organizations")
+    members = relationship("User", secondary=user_organization_table)  # No back_populates - User doesn't have this relationship
     accounts = relationship("Account", back_populates="organization")
 
 class Role(Base):
@@ -121,7 +121,7 @@ class Role(Base):
     
     # Relationships
     permissions = relationship("Permission", secondary=permission_role_table, back_populates="roles")
-    users = relationship("User", back_populates="role_obj")
+    # users relationship removed - User doesn't have role_obj relationship (no role_id column in DB)
 
 class Permission(Base):
     """RBAC: Permissions"""
@@ -174,8 +174,8 @@ class UserSubscription(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
-    # Relationships
-    user = relationship("User", back_populates="subscription")
+    # Relationships - no back_populates since User doesn't have this relationship
+    user = relationship("User")
 
 class OAuthAccount(Base):
     """OAuth provider accounts"""
@@ -194,8 +194,8 @@ class OAuthAccount(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # Relationships
-    user = relationship("User", back_populates="oauth_accounts")
+    # Relationships - no back_populates since User doesn't have this relationship
+    user = relationship("User")
 
 class Notification(Base):
     """Enhanced notification system"""
@@ -232,8 +232,8 @@ class Notification(Base):
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
-    # Relationships
-    user = relationship("User", back_populates="notifications")
+    # Relationships - no back_populates since User doesn't have this relationship
+    user = relationship("User")
     organization = relationship("Organization", backref="notifications")
 
 class NotificationPreference(Base):
@@ -265,8 +265,8 @@ class NotificationPreference(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
-    # Relationships
-    user = relationship("User", back_populates="notification_preferences", uselist=False)
+    # Relationships - no back_populates since User doesn't have this relationship
+    user = relationship("User", uselist=False)
 
 class AuditLog(Base):
     """Audit logging for compliance and security"""

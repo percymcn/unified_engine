@@ -212,7 +212,7 @@ export function WebhookConfigForm({
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                Signals that don't match any rule will be sent to this account
+                Signals that don&apos;t match any rule will be sent to this account
               </p>
             </div>
           </div>

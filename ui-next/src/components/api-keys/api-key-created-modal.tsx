@@ -39,7 +39,7 @@ export function ApiKeyCreatedModal({ apiKey, open, onClose }: ApiKeyCreatedModal
         <DialogHeader>
           <DialogTitle>API Key Created</DialogTitle>
           <DialogDescription>
-            Your API key has been created successfully. Make sure to copy it now as you won't be able to see it again.
+            Your API key has been created successfully. Make sure to copy it now as you won&apos;t be able to see it again.
           </DialogDescription>
         </DialogHeader>
 
@@ -52,7 +52,7 @@ export function ApiKeyCreatedModal({ apiKey, open, onClose }: ApiKeyCreatedModal
                   This key will only be shown once
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Please copy it now and store it in a secure location. If you lose this key, you'll need to create a new one.
+                  Please copy it now and store it in a secure location. If you lose this key, you&apos;ll need to create a new one.
                 </p>
               </div>
             </div>
@@ -106,7 +106,7 @@ export function ApiKeyCreatedModal({ apiKey, open, onClose }: ApiKeyCreatedModal
 
         <DialogFooter>
           <Button onClick={onClose}>
-            I've saved my API key
+            I&apos;ve saved my API key
           </Button>
         </DialogFooter>
       </DialogContent>
