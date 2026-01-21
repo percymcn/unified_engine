@@ -32,31 +32,57 @@ class MT5Adapter(BrokerPort):
     MT5 broker adapter implementing domain BrokerPort.
 
     Wraps MT5Executor and converts between domain value objects
-    and executor primitives. Uses MT5 Manager API.
+    and executor primitives. Supports both MetaAPI SDK and Manager API.
     """
 
-    def __init__(self, executor: Optional[MT5Executor] = None):
-        """Initialize adapter with optional executor instance"""
+    def __init__(
+        self,
+        executor: Optional[MT5Executor] = None,
+        metaapi_token: Optional[str] = None,
+        metaapi_account_id: Optional[str] = None,
+    ):
+        """
+        Initialize MT5 adapter.
+
+        Args:
+            executor: Optional pre-configured MT5Executor instance.
+                     If None, creates new executor on connect().
+            metaapi_token: Optional MetaAPI token for SDK mode.
+            metaapi_account_id: Optional MetaAPI account ID for SDK mode.
+        """
         self._executor = executor
         self._account_id: Optional[str] = None
+        self._metaapi_token = metaapi_token
+        self._metaapi_account_id = metaapi_account_id
 
     @property
     def broker_type(self) -> BrokerType:
         """Return MT5 broker type"""
         return BrokerType.MT5
 
+    @property
+    def is_using_sdk(self) -> bool:
+        """Check if using MetaAPI SDK mode."""
+        return self._executor is not None and self._executor.is_using_sdk
+
     async def connect(self) -> bool:
         """
-        Establish connection to MT5 broker.
+        Establish connection to MT5 (via MetaAPI SDK or Manager API).
         Returns True if connection successful.
         """
         try:
             if self._executor is None:
-                self._executor = MT5Executor()
+                self._executor = MT5Executor(
+                    metaapi_token=self._metaapi_token,
+                    metaapi_account_id=self._metaapi_account_id,
+                )
 
             success = await self._executor.initialize()
             if not success:
                 logger.warning("MT5 connection failed during initialization")
+            else:
+                mode = "MetaAPI SDK" if self._executor.is_using_sdk else "Manager API"
+                logger.info(f"MT5 adapter connected via {mode}")
             return success
         except Exception as e:
             logger.error(f"MT5 connection error: {e}")
@@ -78,21 +104,40 @@ class MT5Adapter(BrokerPort):
         """
         Authenticate with MT5 broker using provided credentials.
 
-        Args:
-            credentials: Dict with 'account_id' and optional broker credentials
+        Credentials dict should contain:
+        For MetaAPI SDK mode:
+        - metaapi_token: MetaAPI API token
+        - metaapi_account_id: MetaAPI account ID
+
+        For Manager API mode (fallback):
+        - account_id: MT5 account ID
+        - login: MT5 account login (optional)
+        - password: MT5 account password (optional)
 
         Returns:
             True if authentication successful
         """
         try:
-            self._account_id = credentials.get("account_id")
+            # Check for MetaAPI credentials
+            if credentials.get("metaapi_token") and credentials.get("metaapi_account_id"):
+                self._metaapi_token = credentials["metaapi_token"]
+                self._metaapi_account_id = credentials["metaapi_account_id"]
+                self._account_id = credentials["metaapi_account_id"]
+            else:
+                # Store account_id for later use (Manager API mode)
+                self._account_id = credentials.get("account_id")
 
-            # If executor not initialized, connect first
-            if self._executor is None:
-                await self.connect()
+            # (Re)create executor with new credentials if needed
+            if self._executor is None or (self._metaapi_token and not self._executor.is_using_sdk):
+                self._executor = MT5Executor(
+                    metaapi_token=self._metaapi_token,
+                    metaapi_account_id=self._metaapi_account_id,
+                )
 
-            # MT5Executor authentication happens during connect/initialize
-            return await self.is_connected()
+            # Connect if not already connected
+            if not await self.is_connected():
+                return await self.connect()
+            return True
         except Exception as e:
             logger.error(f"MT5 authentication error: {e}")
             return False
