@@ -54,6 +54,7 @@ from app.application.use_cases import (
     CreateAccountUseCase,
     UpdateAccountUseCase,
     DeleteAccountUseCase,
+    TestConnectionUseCase,
 )
 from app.infrastructure.repositories.credential_repository import CredentialRepository
 
@@ -259,6 +260,10 @@ class Container:
             account_repository=account_repo,
             credential_repository=credential_repo,
         )
+
+    def test_connection_use_case(self) -> TestConnectionUseCase:
+        """Create TestConnectionUseCase (no dependencies needed)."""
+        return TestConnectionUseCase()
 
     # Direct access to infrastructure
     def broker_adapter(self, broker_type: BrokerType) -> BrokerPort:

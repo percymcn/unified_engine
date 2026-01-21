@@ -17,8 +17,17 @@ from app.application.dto.account_dto import (
     DeleteAccountRequest,
     ConnectAccountRequest,
     SyncAccountRequest,
+    TestConnectionRequest,
 )
 from app.domain.enums import BrokerType, AccountType
+from pydantic import BaseModel
+
+
+class TestConnectionBody(BaseModel):
+    """Request body for connection test endpoint"""
+    broker: str
+    credentials: dict
+
 
 router = APIRouter()
 
@@ -55,6 +64,53 @@ async def get_accounts(
         ],
         "total": response.total,
     }
+
+@router.post("/test-connection")
+async def test_connection(
+    request: Request,
+    body: TestConnectionBody,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Test broker connection with provided credentials before saving.
+
+    Tests authentication with the broker and returns detailed status.
+    Does not save credentials or create an account.
+
+    Returns:
+        - success: Whether connection succeeded
+        - status: "connected" | "failed" | "timeout"
+        - message: Human-readable description
+        - details: Optional broker-specific details
+    """
+    container = get_container(request)
+    use_case = container.test_connection_use_case()
+
+    # Validate broker type
+    try:
+        broker_type = BrokerType(body.broker.lower())
+    except ValueError:
+        valid_brokers = [b.value for b in BrokerType]
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid broker type: {body.broker}. Valid options: {valid_brokers}"
+        )
+
+    # Execute use case
+    dto_request = TestConnectionRequest(
+        broker=broker_type,
+        credentials=body.credentials,
+    )
+
+    response = await use_case.execute(dto_request)
+
+    return {
+        "success": response.success,
+        "status": response.status,
+        "message": response.message,
+        "details": response.details,
+    }
+
 
 @router.post("/")
 async def create_account(

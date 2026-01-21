@@ -141,3 +141,19 @@ class DeleteAccountResponse:
     account_id: str
     deleted: bool
     error: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class TestConnectionRequest:
+    """Request to test broker connection before saving account"""
+    broker: BrokerType
+    credentials: dict  # Credential fields vary by broker
+
+
+@dataclass(frozen=True)
+class TestConnectionResponse:
+    """Response for connection test"""
+    success: bool
+    status: str  # "connected" | "failed" | "timeout"
+    message: str
+    details: Optional[dict] = None
