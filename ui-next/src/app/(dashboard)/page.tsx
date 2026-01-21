@@ -40,7 +40,7 @@ export default function DashboardPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
         <p className="text-muted-foreground">
-          Welcome to Unified Engine. Monitor your trading signals and accounts.
+          Welcome to Tradeflow. Monitor your trading signals and accounts.
         </p>
       </div>
 
