@@ -56,12 +56,12 @@ Requirements for v1.1 Production Ready with Monetization release.
 
 ### Broker Connections
 
-- [ ] **CONN-01**: Connection status indicators (green/amber/red) for each broker
-- [ ] **CONN-02**: Connection test button to validate credentials before save
+- [x] **CONN-01**: Connection status indicators (green/amber/red) for each broker
+- [x] **CONN-02**: Connection test button to validate credentials before save
 - [ ] **CONN-03**: Tradovate OAuth 2.0 redirect flow (/auth/tradovate/callback)
 - [ ] **CONN-04**: Generic OAuth callback handler (/auth/callback)
-- [ ] **CONN-05**: Last sync timestamp visible per account
-- [ ] **CONN-06**: Clear error messages on connection failure
+- [x] **CONN-05**: Last sync timestamp visible per account
+- [x] **CONN-06**: Clear error messages on connection failure
 
 ### Billing
 
@@ -221,10 +221,10 @@ Which phases cover which requirements. Updated by create-roadmap.
 | SDK-04 | 18 | Complete |
 | SDK-05 | 18 | Complete |
 | SDK-06 | 18 | Complete |
-| CONN-01 | 19 | Not started |
-| CONN-02 | 19 | Not started |
-| CONN-05 | 19 | Not started |
-| CONN-06 | 19 | Not started |
+| CONN-01 | 19 | Complete |
+| CONN-02 | 19 | Complete |
+| CONN-05 | 19 | Complete |
+| CONN-06 | 19 | Complete |
 | SYM-01 | 20 | Not started |
 | SYM-02 | 20 | Not started |
 | SYM-03 | 20 | Not started |
