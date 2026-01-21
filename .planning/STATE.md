@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-01-21)
 
 ## Current Position
 
-Phase: 20 - Symbol Mapping & Futures (IN PROGRESS)
-Plan: 3 of 4 complete
-Status: In progress
-Last activity: 2026-01-21 - Completed 20-03-PLAN.md (Symbol Mapping UI)
+Phase: 20 - Symbol Mapping & Futures (COMPLETE)
+Plan: 4 of 4 complete
+Status: Phase complete
+Last activity: 2026-01-21 - Completed 20-04-PLAN.md (Futures Contract Support)
 
-Progress: [##################] 71% (v1.1) - Phase 20 in progress
+Progress: [####################] 75% (v1.1) - Phase 20 complete
 
 ## v1.1 Milestone Goals
 
@@ -53,7 +53,7 @@ Progress: [##################] 71% (v1.1) - Phase 20 in progress
 | 17 | TopStep/ProjectX SDK | 1 | Complete (1/1 plan) |
 | 18 | MetaAPI SDK | 3 | Complete (1/1 plan) |
 | 19 | Broker Connections UI | 4 | Complete (2/2 plans) |
-| 20 | Symbol Mapping & Futures | 6 | In progress (3/4 plans) |
+| 20 | Symbol Mapping & Futures | 6 | Complete (4/4 plans) |
 | 21 | Multi-Account & Routing | 6 | Not started |
 | 22 | Risk Management | 16 | Not started |
 | 23 | User Settings & Dashboard | 10 | Not started |
@@ -140,6 +140,9 @@ Progress: [##################] 71% (v1.1) - Phase 20 in progress
 | 20-03 | Return aliases grouped by broker for UI | Cleaner rendering, single API call for grouped view |
 | 20-03 | Auto vs Custom badges for alias source | Visual distinction helps users understand mapping origin |
 | 20-03 | Edit mode only allows target symbol change | Source/broker define mapping identity |
+| 20-04 | Third Friday expiration for equity indices | Standard CME practice for ES, NQ, YM, RTY |
+| 20-04 | 3-day default rollover window | Typical institutional practice before expiration |
+| 20-04 | Three notification tiers: warning, urgent, critical | Escalating urgency at 7d, 3d, 1d before expiration |
 
 ## Known Tech Debt
 
@@ -152,10 +155,10 @@ Progress: [##################] 71% (v1.1) - Phase 20 in progress
 
 ## Session Continuity
 
-Last session: 2026-01-21T23:18:35Z
-Stopped at: Completed 20-03-PLAN.md (Symbol Mapping UI)
+Last session: 2026-01-21T23:38:55Z
+Stopped at: Completed 20-04-PLAN.md (Futures Contract Support)
 Resume file: None
-Status: Phase 20 in progress (3/4 plans complete)
+Status: Phase 20 complete, ready for Phase 21
 
 ## Gap Closure Status
 
@@ -182,11 +185,11 @@ Status: Phase 20 in progress (3/4 plans complete)
 1. ~~Execute Phase 19 plans (Broker Connections UI)~~ (COMPLETE)
    - ~~19-01: Backend connection test endpoint~~ (COMPLETE)
    - ~~19-02: Frontend status indicators and test button~~ (COMPLETE)
-2. Execute Phase 20 plans (Symbol Mapping & Futures) - In progress
+2. ~~Execute Phase 20 plans (Symbol Mapping & Futures)~~ (COMPLETE)
    - ~~20-01: Symbol Normalization Service (SYM-01, SYM-04)~~ (COMPLETE)
    - ~~20-02: Symbol Auto-Detection (SYM-03)~~ (COMPLETE)
    - ~~20-03: Symbol Mapping UI (SYM-02)~~ (COMPLETE)
-   - 20-04: Futures Contract Support (SYM-05, SYM-06) - NEXT
+   - ~~20-04: Futures Contract Support (SYM-05, SYM-06)~~ (COMPLETE)
 3. Execute Phase 21 (Multi-Account & Routing) - Account routing logic
 4. Execute Phase 22 (Risk Management) - Position limits, drawdown protection
 5. Execute Phase 23 (User Settings & Dashboard) - User preferences, dashboard enhancements
