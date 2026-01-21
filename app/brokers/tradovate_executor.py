@@ -12,8 +12,9 @@ import websockets
 from app.brokers.base_executor import BaseExecutor
 from app.core.config import settings
 from app.models.pydantic_schemas import (
-    OrderRequest, OrderResponse, Position, Account, 
-    TradeRequest, TradeResponse
+    OrderRequest, Position, Account, TradeRequest,
+    ExecutorOrderResponse as OrderResponse,
+    ExecutorTradeResponse as TradeResponse,
 )
 
 logger = logging.getLogger(__name__)

@@ -319,6 +319,35 @@ class TradeResponse(BaseModel):
     created_at: datetime
 
 
+# Executor-specific schemas (for broker executors internal use)
+class ExecutorOrderResponse(BaseModel):
+    """Order response for broker executor operations"""
+    success: bool
+    error: Optional[str] = None
+    order_id: Optional[str] = None
+    broker: Optional[str] = None
+    status: Optional[str] = None
+    filled_quantity: Optional[float] = None
+    filled_price: Optional[float] = None
+    commission: Optional[float] = None
+    timestamp: Optional[datetime] = None
+
+
+class ExecutorTradeResponse(BaseModel):
+    """Trade response for broker executor operations"""
+    success: bool
+    error: Optional[str] = None
+    trade_id: Optional[str] = None
+    broker: Optional[str] = None
+    symbol: Optional[str] = None
+    side: Optional[str] = None
+    quantity: Optional[float] = None
+    price: Optional[float] = None
+    pnl: Optional[float] = None
+    commission: Optional[float] = None
+    timestamp: Optional[datetime] = None
+
+
 class WebhookRequest(BaseModel):
     """Webhook request"""
     source: str
