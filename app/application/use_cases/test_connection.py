@@ -2,16 +2,18 @@
 Test Connection Use Case
 
 Tests broker connections with provided credentials before saving accounts.
+Includes symbol format detection for successful connections.
 """
 import asyncio
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
 from app.domain.enums import BrokerType
 from app.application.dto.account_dto import (
     TestConnectionRequest,
     TestConnectionResponse,
 )
+from app.domain.services.symbol_format_detector import SymbolFormatDetector
 
 logger = logging.getLogger(__name__)
 
@@ -24,12 +26,41 @@ class TestConnectionUseCase:
     Use case for testing broker connections before saving account.
 
     Tests credentials by attempting to authenticate with the broker
-    and returns detailed status information.
+    and returns detailed status information. On successful connection,
+    also detects symbol format patterns for auto-configuration.
     """
 
     def __init__(self):
-        """Initialize with no dependencies - creates temporary connections."""
-        pass
+        """Initialize with symbol format detector."""
+        self._format_detector = SymbolFormatDetector()
+
+    def _detect_symbols(
+        self,
+        symbols: List[str]
+    ) -> tuple[Optional[Dict[str, Any]], Optional[Dict[str, str]], Optional[List[str]]]:
+        """
+        Detect symbol format from available symbols.
+
+        Returns:
+            Tuple of (detected_format, symbol_map, sample_symbols)
+        """
+        if not symbols:
+            return None, None, None
+
+        try:
+            detected_format = self._format_detector.detect_format(symbols)
+            symbol_map = self._format_detector.build_symbol_map(symbols, detected_format)
+            sample_symbols = symbols[:20]  # First 20 for UI preview
+
+            logger.info(
+                f"Detected symbol format: {detected_format.get('suffix', 'none')}, "
+                f"mapped {len(symbol_map)} common symbols"
+            )
+
+            return detected_format, symbol_map, sample_symbols
+        except Exception as e:
+            logger.warning(f"Symbol format detection failed: {e}")
+            return None, None, symbols[:20] if symbols else None
 
     async def execute(self, request: TestConnectionRequest) -> TestConnectionResponse:
         """
@@ -117,12 +148,29 @@ class TestConnectionUseCase:
 
                     success = await wrapper.initialize()
                     if success:
+                        # Get symbols for format detection
+                        symbols = []
+                        try:
+                            instruments = await wrapper.get_all_instruments()
+                            if instruments is not None and hasattr(instruments, 'to_dict'):
+                                records = instruments.to_dict('records')
+                                symbols = [inst.get('name', inst.get('symbol', '')) for inst in records]
+                        except Exception as e:
+                            logger.warning(f"Failed to get TradeLocker symbols: {e}")
+
                         wrapper.shutdown()
+
+                        # Detect symbol format
+                        detected_format, symbol_map, sample_symbols = self._detect_symbols(symbols)
+
                         return TestConnectionResponse(
                             success=True,
                             status="connected",
                             message="Successfully connected to TradeLocker via SDK",
-                            details={"mode": "sdk", "server": server}
+                            details={"mode": "sdk", "server": server},
+                            detected_format=detected_format,
+                            symbol_map=symbol_map,
+                            sample_symbols=sample_symbols,
                         )
                     else:
                         return TestConnectionResponse(
@@ -157,11 +205,27 @@ class TestConnectionUseCase:
                     ) as client:
                         response = await client.get("/accounts")
                         if response.status_code == 200:
+                            # Get symbols for format detection
+                            symbols = []
+                            try:
+                                sym_response = await client.get("/instruments")
+                                if sym_response.status_code == 200:
+                                    instruments_data = sym_response.json()
+                                    symbols = [inst.get("symbol", "") for inst in instruments_data]
+                            except Exception as e:
+                                logger.warning(f"Failed to get TradeLocker symbols: {e}")
+
+                            # Detect symbol format
+                            detected_format, symbol_map, sample_symbols = self._detect_symbols(symbols)
+
                             return TestConnectionResponse(
                                 success=True,
                                 status="connected",
                                 message="Successfully connected to TradeLocker via Brand API",
-                                details={"mode": "brand_api"}
+                                details={"mode": "brand_api"},
+                                detected_format=detected_format,
+                                symbol_map=symbol_map,
+                                sample_symbols=sample_symbols,
                             )
                         elif response.status_code == 401:
                             return TestConnectionResponse(
@@ -249,12 +313,32 @@ class TestConnectionUseCase:
 
                     if response.status_code == 200:
                         result = response.json()
-                        if result.get("accessToken"):
+                        access_token = result.get("accessToken")
+                        if access_token:
+                            # Get symbols for format detection
+                            symbols = []
+                            try:
+                                sym_response = await client.get(
+                                    f"{api_url}/contract/find",
+                                    headers={"Authorization": f"Bearer {access_token}"}
+                                )
+                                if sym_response.status_code == 200:
+                                    contracts = sym_response.json()
+                                    symbols = [c.get("name", c.get("symbol", "")) for c in contracts]
+                            except Exception as e:
+                                logger.warning(f"Failed to get Tradovate symbols: {e}")
+
+                            # Detect symbol format
+                            detected_format, symbol_map, sample_symbols = self._detect_symbols(symbols)
+
                             return TestConnectionResponse(
                                 success=True,
                                 status="connected",
                                 message="Successfully authenticated with Tradovate",
-                                details={"environment": environment, "mode": "password"}
+                                details={"environment": environment, "mode": "password"},
+                                detected_format=detected_format,
+                                symbol_map=symbol_map,
+                                sample_symbols=sample_symbols,
                             )
                         else:
                             return TestConnectionResponse(
@@ -321,12 +405,28 @@ class TestConnectionUseCase:
 
                     success = await service.connect()
                     if success:
+                        # Get symbols for format detection
+                        symbols = []
+                        try:
+                            contracts = await service.get_contracts()
+                            if contracts:
+                                symbols = [c.get("name", c.get("symbol", "")) for c in contracts]
+                        except Exception as e:
+                            logger.warning(f"Failed to get ProjectX symbols: {e}")
+
                         await service.disconnect()
+
+                        # Detect symbol format
+                        detected_format, symbol_map, sample_symbols = self._detect_symbols(symbols)
+
                         return TestConnectionResponse(
                             success=True,
                             status="connected",
                             message="Successfully connected to ProjectX/TopStep via SDK",
-                            details={"mode": "sdk"}
+                            details={"mode": "sdk"},
+                            detected_format=detected_format,
+                            symbol_map=symbol_map,
+                            sample_symbols=sample_symbols,
                         )
             except ImportError:
                 pass
@@ -347,11 +447,40 @@ class TestConnectionUseCase:
                     )
 
                     if response.status_code == 200:
+                        # Get auth token from response
+                        auth_token = None
+                        try:
+                            auth_data = response.json()
+                            auth_token = auth_data.get("token")
+                        except Exception:
+                            # Response might be plain text token
+                            auth_token = response.text.strip()
+
+                        # Get symbols for format detection
+                        symbols = []
+                        if auth_token:
+                            try:
+                                sym_response = await client.get(
+                                    f"{api_url}/Contract/Search",
+                                    headers={"Authorization": f"Bearer {auth_token}"}
+                                )
+                                if sym_response.status_code == 200:
+                                    contracts = sym_response.json()
+                                    symbols = [c.get("name", c.get("symbol", "")) for c in contracts]
+                            except Exception as e:
+                                logger.warning(f"Failed to get ProjectX symbols: {e}")
+
+                        # Detect symbol format
+                        detected_format, symbol_map, sample_symbols = self._detect_symbols(symbols)
+
                         return TestConnectionResponse(
                             success=True,
                             status="connected",
                             message="Successfully authenticated with ProjectX/TopStep",
-                            details={"mode": "httpx"}
+                            details={"mode": "httpx"},
+                            detected_format=detected_format,
+                            symbol_map=symbol_map,
+                            sample_symbols=sample_symbols,
                         )
                     elif response.status_code == 401:
                         return TestConnectionResponse(
@@ -416,12 +545,28 @@ class TestConnectionUseCase:
 
                         success = await service.connect()
                         if success:
+                            # Get symbols for format detection
+                            symbols = []
+                            try:
+                                symbol_list = await service.get_symbols()
+                                if symbol_list:
+                                    symbols = [s.get("symbol", s.get("name", "")) for s in symbol_list]
+                            except Exception as e:
+                                logger.warning(f"Failed to get {platform_upper} symbols: {e}")
+
                             await service.disconnect()
+
+                            # Detect symbol format
+                            detected_format, symbol_map, sample_symbols = self._detect_symbols(symbols)
+
                             return TestConnectionResponse(
                                 success=True,
                                 status="connected",
                                 message=f"Successfully connected to {platform_upper} via MetaAPI SDK",
-                                details={"mode": "metaapi_sdk", "platform": platform}
+                                details={"mode": "metaapi_sdk", "platform": platform},
+                                detected_format=detected_format,
+                                symbol_map=symbol_map,
+                                sample_symbols=sample_symbols,
                             )
                         else:
                             return TestConnectionResponse(
@@ -472,11 +617,39 @@ class TestConnectionUseCase:
                         )
 
                         if response.status_code == 200:
+                            # Get auth token from response
+                            auth_token = None
+                            try:
+                                auth_data = response.json()
+                                auth_token = auth_data.get("token") or auth_data.get("access_token")
+                            except Exception:
+                                pass
+
+                            # Get symbols for format detection
+                            symbols = []
+                            if auth_token:
+                                try:
+                                    sym_response = await client.get(
+                                        "/symbols",
+                                        headers={"Authorization": f"Bearer {auth_token}"}
+                                    )
+                                    if sym_response.status_code == 200:
+                                        symbols_data = sym_response.json()
+                                        symbols = [s.get("symbol", s.get("name", "")) for s in symbols_data]
+                                except Exception as e:
+                                    logger.warning(f"Failed to get {platform_upper} symbols: {e}")
+
+                            # Detect symbol format
+                            detected_format, symbol_map, sample_symbols = self._detect_symbols(symbols)
+
                             return TestConnectionResponse(
                                 success=True,
                                 status="connected",
                                 message=f"Successfully connected to {platform_upper} via Manager API",
-                                details={"mode": "manager_api", "platform": platform}
+                                details={"mode": "manager_api", "platform": platform},
+                                detected_format=detected_format,
+                                symbol_map=symbol_map,
+                                sample_symbols=sample_symbols,
                             )
                         elif response.status_code == 401:
                             return TestConnectionResponse(
