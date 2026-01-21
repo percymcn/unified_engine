@@ -77,7 +77,7 @@ class TradovateExecutor(BaseExecutor):
     async def initialize(self) -> bool:
         """Initialize Tradovate connection"""
         if not self.is_available:
-            logger.info("Tradovate skipped: credentials not configured")
+            logger.info("Tradovate skipped: no OAuth token or credentials configured")
             return False
 
         try:
@@ -86,39 +86,80 @@ class TradovateExecutor(BaseExecutor):
                 base_url=self.api_url,
                 timeout=30.0
             )
-            
-            # Authenticate and get access token
-            auth_data = {
-                "username": self.user_id,
-                "password": self.password,
-                "appId": self.app_id,
-                "appVersion": self.app_version,
-                "cid": self.cid,
-                "sec": self.sec
-            }
-            
-            response = await self.session.post("/auth/accesstokenrequest", json=auth_data)
-            if response.status_code == 200:
-                auth_result = response.json()
-                self.access_token = auth_result.get("accessToken")
-                
-                # Set authorization header
-                self.session.headers.update({
-                    "Authorization": f"Bearer {self.access_token}"
-                })
-                
-                # Initialize WebSocket connection
-                await self._init_websocket()
-                
-                self.is_connected = True
-                logger.info("Tradovate executor initialized successfully")
-                return True
+
+            if self._use_oauth:
+                # OAuth mode - token already available
+                return await self._initialize_oauth()
             else:
-                logger.error(f"Tradovate auth failed: {response.text}")
-                return False
-                
+                # Password mode - authenticate with credentials
+                return await self._initialize_password()
+
         except Exception as e:
             logger.error(f"Tradovate initialization failed: {e}")
+            return False
+
+    async def _initialize_oauth(self) -> bool:
+        """Initialize with OAuth token."""
+        if not self._oauth_token:
+            logger.error("OAuth token not provided")
+            return False
+
+        # Set authorization header
+        self.session.headers.update({
+            "Authorization": f"Bearer {self._oauth_token}"
+        })
+
+        # Verify token by fetching account info
+        try:
+            response = await self.session.get("/account/list")
+            if response.status_code == 200:
+                self.access_token = self._oauth_token
+                self._is_connected = True
+                logger.info("Tradovate executor initialized via OAuth")
+                return True
+            elif response.status_code == 401:
+                logger.error("OAuth token invalid or expired")
+                return False
+            else:
+                logger.error(f"OAuth verification failed: {response.text}")
+                return False
+        except Exception as e:
+            logger.error(f"OAuth initialization error: {e}")
+            return False
+
+    async def _initialize_password(self) -> bool:
+        """Initialize with username/password."""
+        if not self.user_id or not self.password:
+            logger.info("Tradovate skipped: credentials not configured")
+            return False
+
+        auth_data = {
+            "username": self.user_id,
+            "password": self.password,
+            "appId": self.app_id,
+            "appVersion": self.app_version,
+            "cid": self.cid,
+            "sec": self.sec
+        }
+
+        response = await self.session.post("/auth/accesstokenrequest", json=auth_data)
+        if response.status_code == 200:
+            auth_result = response.json()
+            self.access_token = auth_result.get("accessToken")
+
+            # Set authorization header
+            self.session.headers.update({
+                "Authorization": f"Bearer {self.access_token}"
+            })
+
+            # Initialize WebSocket connection
+            await self._init_websocket()
+
+            self._is_connected = True
+            logger.info("Tradovate executor initialized via password")
+            return True
+        else:
+            logger.error(f"Tradovate password auth failed: {response.text}")
             return False
     
     async def _init_websocket(self):
@@ -183,7 +224,7 @@ class TradovateExecutor(BaseExecutor):
             await self.ws_connection.close()
         if self.session:
             await self.session.aclose()
-        self.is_connected = False
+        self._is_connected = False
         logger.info("Tradovate executor disconnected")
     
     async def get_accounts(self) -> List[Account]:
@@ -536,5 +577,5 @@ class TradovateExecutor(BaseExecutor):
 
     def is_connected(self) -> bool:
         """Check if broker is connected"""
-        return hasattr(self, 'session') and self.session is not None and not self.session.is_closed
+        return self._is_connected and hasattr(self, 'session') and self.session is not None and not self.session.is_closed
 
