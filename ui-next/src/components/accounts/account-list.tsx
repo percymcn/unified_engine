@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Plus, Loader2 } from 'lucide-react';
@@ -21,6 +22,21 @@ import {
   updateAccount,
   deleteAccount,
 } from '@/lib/api/accounts';
+import { useToast } from '@/hooks/use-toast';
+
+// Helper to get error message from OAuth error codes
+function getErrorMessage(error: string): string {
+  switch (error) {
+    case 'access_denied':
+      return 'You denied access to your Tradovate account';
+    case 'missing_params':
+      return 'OAuth response was incomplete';
+    case 'token_exchange_failed':
+      return 'Failed to exchange authorization code';
+    default:
+      return `Connection error: ${error}`;
+  }
+}
 
 export function AccountList() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -29,6 +45,100 @@ export function AccountList() {
   const [editingAccount, setEditingAccount] = useState<Account | undefined>();
   const [deletingAccount, setDeletingAccount] = useState<Account | undefined>();
   const [deleting, setDeleting] = useState(false);
+  const [processingOAuth, setProcessingOAuth] = useState(false);
+
+  const searchParams = useSearchParams();
+  const { toast } = useToast();
+
+  // Handle OAuth connect with tokens from callback
+  const handleOAuthConnect = useCallback(async (tokens: {
+    access_token: string;
+    refresh_token?: string;
+    expires_in: number;
+    environment: string;
+  }) => {
+    try {
+      // Create account with OAuth tokens
+      const response = await fetch('/api/accounts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          account_id: `tradovate_${tokens.environment}_${Date.now()}`,
+          broker: 'tradovate',
+          account_type: tokens.environment === 'live' ? 'live' : 'demo',
+          oauth_tokens: tokens,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create account');
+      }
+
+      const newAccount = await response.json();
+      setAccounts((prev) => [...prev, newAccount]);
+
+      toast({
+        title: 'Account Connected',
+        description: 'Your Tradovate account has been connected successfully.',
+      });
+    } catch (error) {
+      console.error('OAuth account creation error:', error);
+      toast({
+        title: 'Connection Failed',
+        description: 'Failed to save account credentials',
+        variant: 'destructive',
+      });
+    }
+  }, [toast]);
+
+  // Handle OAuth callback on mount
+  useEffect(() => {
+    // Check for OAuth callback
+    const connected = searchParams.get('tradovate_connected');
+    const error = searchParams.get('error');
+
+    if (error) {
+      toast({
+        title: 'Connection Failed',
+        description: getErrorMessage(error),
+        variant: 'destructive',
+      });
+      // Clean URL
+      window.history.replaceState({}, '', '/dashboard/settings/accounts');
+      return;
+    }
+
+    if (connected === 'true') {
+      setProcessingOAuth(true);
+
+      // Extract tokens from URL fragment
+      const hash = window.location.hash;
+      if (hash.startsWith('#tokens=')) {
+        try {
+          const tokensJson = decodeURIComponent(hash.slice(8));
+          const tokens = JSON.parse(tokensJson);
+
+          // Create account with OAuth tokens
+          handleOAuthConnect(tokens).finally(() => {
+            setProcessingOAuth(false);
+          });
+        } catch (e) {
+          console.error('Failed to parse tokens:', e);
+          toast({
+            title: 'Connection Failed',
+            description: 'Failed to process OAuth response',
+            variant: 'destructive',
+          });
+          setProcessingOAuth(false);
+        }
+      } else {
+        setProcessingOAuth(false);
+      }
+
+      // Clean URL (remove fragment and query params)
+      window.history.replaceState({}, '', '/dashboard/settings/accounts');
+    }
+  }, [searchParams, toast, handleOAuthConnect]);
 
   // Fetch accounts on mount
   useEffect(() => {
@@ -82,10 +192,13 @@ export function AccountList() {
     );
   };
 
-  if (loading) {
+  if (loading || processingOAuth) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mr-2" />
+        <span className="text-muted-foreground">
+          {processingOAuth ? 'Connecting Tradovate account...' : 'Loading accounts...'}
+        </span>
       </div>
     );
   }
