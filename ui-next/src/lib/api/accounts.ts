@@ -1,4 +1,14 @@
-import { Account, AccountCreate, AccountBalance } from '@/types/account';
+import { Account, AccountCreate, AccountBalance, BrokerType } from '@/types/account';
+
+/**
+ * Response from connection test
+ */
+export interface TestConnectionResult {
+  success: boolean;
+  status: 'connected' | 'failed' | 'timeout';
+  message: string;
+  details?: Record<string, unknown>;
+}
 
 /**
  * Get all accounts for the authenticated user
@@ -93,4 +103,27 @@ export async function getAccountBalance(id: number): Promise<AccountBalance> {
   }
 
   return response.json();
+}
+
+/**
+ * Test broker connection with credentials before saving
+ * Does not create an account - just validates credentials
+ */
+export async function testConnection(
+  broker: BrokerType,
+  credentials: Record<string, string>
+): Promise<TestConnectionResult> {
+  const response = await fetch('/api/accounts/test-connection', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ broker, credentials }),
+  });
+
+  // Always parse response - error info is in the body
+  const result = await response.json();
+
+  // Return the result regardless of status - it contains success/failure info
+  return result as TestConnectionResult;
 }
