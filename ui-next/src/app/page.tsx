@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { LandingHeader } from "@/components/landing/header";
 import { Hero } from "@/components/landing/hero";
 import { SocialProof } from "@/components/landing/social-proof";
+import { Features } from "@/components/landing/features";
 import { Stats } from "@/components/landing/stats";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { DemoSection } from "@/components/landing/demo-section";
@@ -20,7 +21,7 @@ export default function Home() {
       <main>
         <Hero />
         <SocialProof />
-        {/* Features section will be added by 14-02 */}
+        <Features />
         <HowItWorks />
         <DemoSection />
         <Stats />
