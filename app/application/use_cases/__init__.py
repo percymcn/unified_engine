@@ -32,6 +32,19 @@ from app.application.use_cases.check_contract_expirations import (
     RolloverNotification,
     run_scheduled_check,
 )
+from app.application.use_cases.update_account_settings import (
+    UpdateAccountSettingsUseCase,
+    GetAccountSettingsUseCase,
+)
+from app.application.use_cases.manage_account_groups import (
+    CreateAccountGroupUseCase,
+    GetAccountGroupsUseCase,
+    GetAccountGroupUseCase,
+    UpdateAccountGroupUseCase,
+    DeleteAccountGroupUseCase,
+    AddAccountToGroupUseCase,
+    RemoveAccountFromGroupUseCase,
+)
 
 __all__ = [
     # Signal use cases
@@ -57,4 +70,15 @@ __all__ = [
     "CheckContractExpirationsUseCase",
     "RolloverNotification",
     "run_scheduled_check",
+    # Account settings use cases
+    "UpdateAccountSettingsUseCase",
+    "GetAccountSettingsUseCase",
+    # Account group use cases
+    "CreateAccountGroupUseCase",
+    "GetAccountGroupsUseCase",
+    "GetAccountGroupUseCase",
+    "UpdateAccountGroupUseCase",
+    "DeleteAccountGroupUseCase",
+    "AddAccountToGroupUseCase",
+    "RemoveAccountFromGroupUseCase",
 ]

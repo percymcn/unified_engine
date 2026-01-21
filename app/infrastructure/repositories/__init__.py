@@ -23,6 +23,7 @@ from app.infrastructure.repositories.order_repository import SQLAlchemyOrderRepo
 from app.infrastructure.repositories.account_repository import SQLAlchemyAccountRepository
 from app.infrastructure.repositories.position_repository import SQLAlchemyPositionRepository
 from app.infrastructure.repositories.symbol_alias_repository import SQLAlchemySymbolAliasRepository
+from app.infrastructure.repositories.account_group_repository import AccountGroupRepository
 
 __all__ = [
     "SQLAlchemySignalRepository",
@@ -31,4 +32,5 @@ __all__ = [
     "SQLAlchemyAccountRepository",
     "SQLAlchemyPositionRepository",
     "SQLAlchemySymbolAliasRepository",
+    "AccountGroupRepository",
 ]
