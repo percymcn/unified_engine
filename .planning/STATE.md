@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-01-21)
 
 ## Current Position
 
-Phase: 14 - Landing Page
-Plan: 5 of 6 complete
-Status: In progress
-Last activity: 2026-01-21 - Completed 14-05-PLAN.md (Demo Section & How It Works)
+Phase: 14 - Landing Page (COMPLETE)
+Plan: 6 of 6 complete
+Status: Phase complete
+Last activity: 2026-01-21 - Completed 14-06-PLAN.md (Footer, FAQ & SEO)
 
-Progress: [#########-------] 35% (v1.1) - Phase 14 in progress
+Progress: [##########------] 38% (v1.1) - Phase 14 complete, ready for Phase 15
 
 ## v1.1 Milestone Goals
 
@@ -47,7 +47,7 @@ Progress: [#########-------] 35% (v1.1) - Phase 14 in progress
 |-------|------|--------------|--------|
 | 12 | Critical Fixes & Infrastructure | 14 | Complete (5/5 plans) |
 | 13 | Stripe Billing | 7 | Gap closure complete (4/6 plans) |
-| 14 | Landing Page | 11 | In progress (4/6 plans) |
+| 14 | Landing Page | 11 | Complete (6/6 plans) |
 | 15 | TradeLocker SDK | 1 | Not started |
 | 16 | Tradovate OAuth | 3 | Not started |
 | 17 | TopStep/ProjectX SDK | 1 | Not started |
@@ -98,6 +98,9 @@ Progress: [#########-------] 35% (v1.1) - Phase 14 in progress
 | 14-03 | Hardcoded metrics for now | 10K+ signals, 99.9% uptime, 5 brokers, <100ms - to be dynamic later |
 | 14-04 | Free tier CTA to /register, Pro to /api/billing/checkout | Different user journeys: Free starts registration, Pro goes to Stripe |
 | 14-04 | Comparison table color-coded icons | Green check (true), red X (false), yellow dash (varies) for clarity |
+| 14-06 | Radix accordion for FAQ | Consistent with existing UI component library |
+| 14-06 | Twitter card metadata alongside Open Graph | Better social sharing coverage |
+| 14-06 | Dynamic copyright year | Uses new Date().getFullYear() to stay current |
 
 ## Known Tech Debt
 
@@ -110,10 +113,10 @@ Progress: [#########-------] 35% (v1.1) - Phase 14 in progress
 
 ## Session Continuity
 
-Last session: 2026-01-21T16:52:00Z
-Stopped at: Completed 14-05-PLAN.md (Demo Section & How It Works)
+Last session: 2026-01-21T16:57:51Z
+Stopped at: Completed 14-06-PLAN.md (Footer, FAQ & SEO)
 Resume file: None
-Status: Ready for 14-06-PLAN.md (Footer & CTA Section)
+Status: Phase 14 complete, ready for Phase 15 (TradeLocker SDK)
 
 ## Gap Closure Status
 
@@ -130,6 +133,6 @@ Status: Ready for 14-06-PLAN.md (Footer & CTA Section)
 
 ## Next Steps
 
-1. Continue Phase 14 with 14-05 (FAQ Section)
-2. Complete remaining landing page plans (14-05 and 14-06)
-3. Continue through Phases 15-23 for v1.1 completion
+1. Begin Phase 15 (TradeLocker SDK integration)
+2. Continue through Phases 16-23 for v1.1 completion
+3. Landing page is now complete and ready for production
