@@ -7,7 +7,6 @@ import {
   Users,
   Signal,
   History,
-  Settings,
   Activity,
   Key,
   Webhook,
@@ -46,7 +45,7 @@ export function Sidebar({ className }: SidebarProps) {
       <div className="flex h-16 items-center gap-2 border-b border-border px-6">
         <Activity className="h-6 w-6 text-primary" />
         <span className="text-lg font-semibold text-foreground">
-          Unified Engine
+          Tradeflow
         </span>
       </div>
 
@@ -103,7 +102,7 @@ export function Sidebar({ className }: SidebarProps) {
       {/* Footer */}
       <div className="border-t border-border p-4">
         <p className="text-xs text-muted-foreground">
-          Trading Signal Router v1.0
+          Tradeflow v1.1
         </p>
       </div>
     </div>
