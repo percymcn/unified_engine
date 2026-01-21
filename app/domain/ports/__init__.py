@@ -29,6 +29,7 @@ from app.domain.ports.repository_port import (
     PositionRepository,
 )
 from app.domain.ports.event_port import EventPort, DomainEvent, EventType
+from app.domain.ports.symbol_alias_repository_port import SymbolAliasRepository
 
 __all__ = [
     # Broker Port
@@ -40,6 +41,7 @@ __all__ = [
     "OrderRepository",
     "AccountRepository",
     "PositionRepository",
+    "SymbolAliasRepository",
     # Event Port
     "EventPort",
     "DomainEvent",
