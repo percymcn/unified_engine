@@ -22,6 +22,9 @@ from app.application.use_cases.manage_accounts import (
     GetAccountUseCase,
     ConnectAccountUseCase,
     SyncAccountUseCase,
+    CreateAccountUseCase,
+    UpdateAccountUseCase,
+    DeleteAccountUseCase,
 )
 
 __all__ = [
@@ -40,4 +43,7 @@ __all__ = [
     "GetAccountUseCase",
     "ConnectAccountUseCase",
     "SyncAccountUseCase",
+    "CreateAccountUseCase",
+    "UpdateAccountUseCase",
+    "DeleteAccountUseCase",
 ]

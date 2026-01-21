@@ -86,3 +86,57 @@ class SyncAccountResponse:
     synced_at: datetime
     positions_count: int = 0
     orders_count: int = 0
+
+
+@dataclass(frozen=True)
+class CreateAccountRequest:
+    """Request to create a new account"""
+    user_id: int
+    broker: BrokerType
+    account_type: AccountType
+    credentials: dict  # Will be encrypted via CredentialRepository
+    account_id: str  # Broker account ID
+    currency: str = "USD"
+    leverage: int = 100
+    server: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class CreateAccountResponse:
+    """Response for account creation"""
+    account_id: str
+    broker: BrokerType
+    is_active: bool
+    error: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class UpdateAccountRequest:
+    """Request to update account"""
+    account_id: str
+    credentials: Optional[dict] = None  # Will be re-encrypted if provided
+    leverage: Optional[int] = None
+    is_active: Optional[bool] = None
+
+
+@dataclass(frozen=True)
+class UpdateAccountResponse:
+    """Response for account update"""
+    account_id: str
+    updated: bool
+    error: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class DeleteAccountRequest:
+    """Request to delete account"""
+    account_id: str
+    user_id: int  # For ownership verification
+
+
+@dataclass(frozen=True)
+class DeleteAccountResponse:
+    """Response for account deletion"""
+    account_id: str
+    deleted: bool
+    error: Optional[str] = None

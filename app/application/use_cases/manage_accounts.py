@@ -24,6 +24,12 @@ from app.application.dto.account_dto import (
     ConnectAccountResponse,
     SyncAccountRequest,
     SyncAccountResponse,
+    CreateAccountRequest,
+    CreateAccountResponse,
+    UpdateAccountRequest,
+    UpdateAccountResponse,
+    DeleteAccountRequest,
+    DeleteAccountResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -226,3 +232,199 @@ class SyncAccountUseCase:
             positions_count=len(positions),
             orders_count=len(orders),
         )
+
+
+class CreateAccountUseCase:
+    """Use case for creating a new account with encrypted credentials"""
+
+    def __init__(
+        self,
+        account_repository: AccountRepository,
+        credential_repository,  # CredentialRepository from infrastructure
+    ):
+        self._account_repo = account_repository
+        self._credential_repo = credential_repository
+
+    async def execute(self, request: CreateAccountRequest) -> CreateAccountResponse:
+        """Create new account with encrypted credentials"""
+        try:
+            import uuid
+
+            # Create domain account entity
+            account = Account(
+                id=AccountId(str(uuid.uuid4())),
+                user_id=request.user_id,
+                broker=request.broker,
+                account_type=request.account_type,
+                balance=Money(Decimal("0"), request.currency),
+                equity=Money(Decimal("0"), request.currency),
+                margin=Money(Decimal("0"), request.currency),
+                leverage=request.leverage,
+                currency=request.currency,
+                server=request.server,
+                is_active=True,
+                is_connected=False,
+            )
+
+            # Save account to repository
+            saved_account = await self._account_repo.save(account)
+
+            # Store credentials encrypted in separate table
+            credential_id = str(uuid.uuid4())
+            await self._credential_repo.create(
+                credential_id=credential_id,
+                user_id=request.user_id,
+                name=f"{request.broker.value} - {request.account_id}",
+                credential_type="broker",
+                service=request.broker.value,
+                credential_data={
+                    "account_id": request.account_id,
+                    **request.credentials,
+                },
+                description=f"Credentials for {request.broker.value} account {request.account_id}",
+            )
+
+            logger.info(f"Account created: {saved_account.id.value} with encrypted credentials")
+
+            return CreateAccountResponse(
+                account_id=saved_account.id.value,
+                broker=saved_account.broker,
+                is_active=saved_account.is_active,
+            )
+
+        except Exception as e:
+            logger.exception(f"Failed to create account: {e}")
+            return CreateAccountResponse(
+                account_id="",
+                broker=request.broker,
+                is_active=False,
+                error=str(e),
+            )
+
+
+class UpdateAccountUseCase:
+    """Use case for updating account"""
+
+    def __init__(
+        self,
+        account_repository: AccountRepository,
+        credential_repository,  # CredentialRepository from infrastructure
+    ):
+        self._account_repo = account_repository
+        self._credential_repo = credential_repository
+
+    async def execute(self, request: UpdateAccountRequest) -> UpdateAccountResponse:
+        """Update account metadata and optionally re-encrypt credentials"""
+        try:
+            # Get account
+            account = await self._account_repo.get_by_id(AccountId(request.account_id))
+            if account is None:
+                return UpdateAccountResponse(
+                    account_id=request.account_id,
+                    updated=False,
+                    error="Account not found",
+                )
+
+            # Update account fields
+            if request.leverage is not None:
+                object.__setattr__(account, 'leverage', request.leverage)
+
+            if request.is_active is not None:
+                if request.is_active:
+                    account.activate()
+                else:
+                    account.deactivate()
+
+            # Save account
+            await self._account_repo.save(account)
+
+            # Update credentials if provided
+            if request.credentials is not None:
+                # Find credential for this account/broker
+                credentials = await self._credential_repo.list_by_user(
+                    user_id=account.user_id,
+                    service=account.broker.value,
+                    active_only=True,
+                )
+
+                if credentials:
+                    # Rotate the first matching credential
+                    await self._credential_repo.rotate(
+                        credential_id=credentials[0].id,
+                        new_credential_data=request.credentials,
+                    )
+
+            logger.info(f"Account updated: {request.account_id}")
+
+            return UpdateAccountResponse(
+                account_id=request.account_id,
+                updated=True,
+            )
+
+        except Exception as e:
+            logger.exception(f"Failed to update account: {e}")
+            return UpdateAccountResponse(
+                account_id=request.account_id,
+                updated=False,
+                error=str(e),
+            )
+
+
+class DeleteAccountUseCase:
+    """Use case for deleting account and its credentials"""
+
+    def __init__(
+        self,
+        account_repository: AccountRepository,
+        credential_repository,  # CredentialRepository from infrastructure
+    ):
+        self._account_repo = account_repository
+        self._credential_repo = credential_repository
+
+    async def execute(self, request: DeleteAccountRequest) -> DeleteAccountResponse:
+        """Delete account and soft-delete its credentials"""
+        try:
+            # Get account
+            account = await self._account_repo.get_by_id(AccountId(request.account_id))
+            if account is None:
+                return DeleteAccountResponse(
+                    account_id=request.account_id,
+                    deleted=False,
+                    error="Account not found",
+                )
+
+            # Verify ownership
+            if account.user_id != request.user_id:
+                return DeleteAccountResponse(
+                    account_id=request.account_id,
+                    deleted=False,
+                    error="Unauthorized",
+                )
+
+            # Soft delete credentials first
+            credentials = await self._credential_repo.list_by_user(
+                user_id=account.user_id,
+                service=account.broker.value,
+                active_only=True,
+            )
+
+            for cred in credentials:
+                await self._credential_repo.soft_delete(cred.id)
+
+            # Delete account
+            await self._account_repo.delete(AccountId(request.account_id))
+
+            logger.info(f"Account deleted: {request.account_id}")
+
+            return DeleteAccountResponse(
+                account_id=request.account_id,
+                deleted=True,
+            )
+
+        except Exception as e:
+            logger.exception(f"Failed to delete account: {e}")
+            return DeleteAccountResponse(
+                account_id=request.account_id,
+                deleted=False,
+                error=str(e),
+            )

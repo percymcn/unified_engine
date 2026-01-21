@@ -51,7 +51,11 @@ from app.application.use_cases import (
     GetAccountUseCase,
     ConnectAccountUseCase,
     SyncAccountUseCase,
+    CreateAccountUseCase,
+    UpdateAccountUseCase,
+    DeleteAccountUseCase,
 )
+from app.infrastructure.repositories.credential_repository import CredentialRepository
 
 
 class Container:
@@ -134,12 +138,13 @@ class Container:
             SQLAlchemyOrderRepository(session),
             SQLAlchemyAccountRepository(session),
             SQLAlchemyPositionRepository(session),
+            CredentialRepository(session),
         )
 
     # Use case factories
     def process_signal_use_case(self) -> ProcessSignalUseCase:
         """Create ProcessSignalUseCase with injected dependencies."""
-        signal_repo, _, _, account_repo, _ = self._get_repositories()
+        signal_repo, _, _, account_repo, _, _ = self._get_repositories()
         return ProcessSignalUseCase(
             signal_repository=signal_repo,
             account_repository=account_repo,
@@ -149,17 +154,17 @@ class Container:
 
     def get_signal_use_case(self) -> GetSignalUseCase:
         """Create GetSignalUseCase with injected dependencies."""
-        signal_repo, _, _, _, _ = self._get_repositories()
+        signal_repo, _, _, _, _, _ = self._get_repositories()
         return GetSignalUseCase(signal_repository=signal_repo)
 
     def list_signals_use_case(self) -> ListSignalsUseCase:
         """Create ListSignalsUseCase with injected dependencies."""
-        signal_repo, _, _, _, _ = self._get_repositories()
+        signal_repo, _, _, _, _, _ = self._get_repositories()
         return ListSignalsUseCase(signal_repository=signal_repo)
 
     def place_order_use_case(self) -> PlaceOrderUseCase:
         """Create PlaceOrderUseCase with injected dependencies."""
-        _, trade_repo, order_repo, account_repo, position_repo = self._get_repositories()
+        _, trade_repo, order_repo, account_repo, position_repo, _ = self._get_repositories()
         return PlaceOrderUseCase(
             trade_repository=trade_repo,
             order_repository=order_repo,
@@ -171,7 +176,7 @@ class Container:
 
     def close_position_use_case(self) -> ClosePositionUseCase:
         """Create ClosePositionUseCase with injected dependencies."""
-        _, trade_repo, order_repo, account_repo, position_repo = self._get_repositories()
+        _, trade_repo, order_repo, account_repo, position_repo, _ = self._get_repositories()
         return ClosePositionUseCase(
             trade_repository=trade_repo,
             order_repository=order_repo,
@@ -183,7 +188,7 @@ class Container:
 
     def modify_position_use_case(self) -> ModifyPositionUseCase:
         """Create ModifyPositionUseCase with injected dependencies."""
-        _, trade_repo, order_repo, account_repo, position_repo = self._get_repositories()
+        _, trade_repo, order_repo, account_repo, position_repo, _ = self._get_repositories()
         return ModifyPositionUseCase(
             trade_repository=trade_repo,
             order_repository=order_repo,
@@ -195,27 +200,27 @@ class Container:
 
     def get_positions_use_case(self) -> GetPositionsUseCase:
         """Create GetPositionsUseCase with injected dependencies."""
-        _, _, _, _, position_repo = self._get_repositories()
+        _, _, _, _, position_repo, _ = self._get_repositories()
         return GetPositionsUseCase(position_repository=position_repo)
 
     def get_trades_use_case(self) -> GetTradesUseCase:
         """Create GetTradesUseCase with injected dependencies."""
-        _, trade_repo, _, _, _ = self._get_repositories()
+        _, trade_repo, _, _, _, _ = self._get_repositories()
         return GetTradesUseCase(trade_repository=trade_repo)
 
     def get_accounts_use_case(self) -> GetAccountsUseCase:
         """Create GetAccountsUseCase with injected dependencies."""
-        _, _, _, account_repo, _ = self._get_repositories()
+        _, _, _, account_repo, _, _ = self._get_repositories()
         return GetAccountsUseCase(account_repository=account_repo)
 
     def get_account_use_case(self) -> GetAccountUseCase:
         """Create GetAccountUseCase with injected dependencies."""
-        _, _, _, account_repo, _ = self._get_repositories()
+        _, _, _, account_repo, _, _ = self._get_repositories()
         return GetAccountUseCase(account_repository=account_repo)
 
     def connect_account_use_case(self) -> ConnectAccountUseCase:
         """Create ConnectAccountUseCase with injected dependencies."""
-        _, _, _, account_repo, _ = self._get_repositories()
+        _, _, _, account_repo, _, _ = self._get_repositories()
         return ConnectAccountUseCase(
             account_repository=account_repo,
             brokers=self._broker_adapters,
@@ -223,12 +228,36 @@ class Container:
 
     def sync_account_use_case(self) -> SyncAccountUseCase:
         """Create SyncAccountUseCase with injected dependencies."""
-        _, _, order_repo, account_repo, position_repo = self._get_repositories()
+        _, _, order_repo, account_repo, position_repo, _ = self._get_repositories()
         return SyncAccountUseCase(
             account_repository=account_repo,
             position_repository=position_repo,
             order_repository=order_repo,
             brokers=self._broker_adapters,
+        )
+
+    def create_account_use_case(self) -> CreateAccountUseCase:
+        """Create CreateAccountUseCase with injected dependencies."""
+        _, _, _, account_repo, _, credential_repo = self._get_repositories()
+        return CreateAccountUseCase(
+            account_repository=account_repo,
+            credential_repository=credential_repo,
+        )
+
+    def update_account_use_case(self) -> UpdateAccountUseCase:
+        """Create UpdateAccountUseCase with injected dependencies."""
+        _, _, _, account_repo, _, credential_repo = self._get_repositories()
+        return UpdateAccountUseCase(
+            account_repository=account_repo,
+            credential_repository=credential_repo,
+        )
+
+    def delete_account_use_case(self) -> DeleteAccountUseCase:
+        """Create DeleteAccountUseCase with injected dependencies."""
+        _, _, _, account_repo, _, credential_repo = self._get_repositories()
+        return DeleteAccountUseCase(
+            account_repository=account_repo,
+            credential_repository=credential_repo,
         )
 
     # Direct access to infrastructure
