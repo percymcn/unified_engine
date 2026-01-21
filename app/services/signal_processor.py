@@ -21,12 +21,13 @@ from app.brokers.tradelocker_executor import TradeLockerExecutor
 from app.brokers.tradovate_executor import TradovateExecutor
 from app.brokers.projectx_executor import ProjectXExecutor
 from app.db.database import get_db
+from app.domain.services.symbol_normalization_service import SymbolNormalizationService
 
 logger = logging.getLogger(__name__)
 
 class SignalProcessor:
     """Unified signal processor for all brokers"""
-    
+
     def __init__(self):
         self.brokers = {
             "mt4": MT4Executor(),
@@ -37,6 +38,7 @@ class SignalProcessor:
         }
         self.active_connections = {}
         self.signal_queue = asyncio.Queue()
+        self.symbol_service = SymbolNormalizationService()
         
     async def initialize(self):
         """Initialize all broker connections"""
@@ -164,7 +166,7 @@ class SignalProcessor:
                     "valid": False,
                     "error": f"Unsupported broker: {signal_request.broker}"
                 }
-            
+
             # Check if broker is connected
             broker = self.brokers[signal_request.broker]
             if not broker.is_connected:
@@ -172,7 +174,7 @@ class SignalProcessor:
                     "valid": False,
                     "error": f"Broker {signal_request.broker} is not connected"
                 }
-            
+
             # Validate account
             account = await broker.get_account_info(signal_request.account_id)
             if not account:
@@ -180,15 +182,36 @@ class SignalProcessor:
                     "valid": False,
                     "error": f"Account {signal_request.account_id} not found"
                 }
-            
-            # Validate symbol
+
+            # Get available symbols and resolve the signal symbol
             symbols = await broker.get_symbols()
+            original_symbol = signal_request.symbol
+
+            # Try to resolve symbol if not directly available
             if signal_request.symbol not in symbols:
-                return {
-                    "valid": False,
-                    "error": f"Symbol {signal_request.symbol} not available"
-                }
-            
+                # Get user_id from signal_request if available, default to 0 for system
+                user_id = getattr(signal_request, 'user_id', 0) or 0
+
+                resolved_symbol = await self._resolve_symbol_for_broker(
+                    source_symbol=signal_request.symbol,
+                    user_id=user_id,
+                    broker_type=signal_request.broker,
+                    available_symbols=symbols
+                )
+
+                if resolved_symbol and resolved_symbol != signal_request.symbol:
+                    logger.info(
+                        f"Symbol resolved: {original_symbol} -> {resolved_symbol} "
+                        f"for broker {signal_request.broker}"
+                    )
+                    # Update signal request with resolved symbol
+                    signal_request.symbol = resolved_symbol
+                elif resolved_symbol is None:
+                    return {
+                        "valid": False,
+                        "error": f"Symbol {signal_request.symbol} not available on {signal_request.broker}"
+                    }
+
             # Risk management checks
             risk_check = await self._check_risk_limits(signal_request)
             if not risk_check["passed"]:
@@ -196,15 +219,79 @@ class SignalProcessor:
                     "valid": False,
                     "error": risk_check["error"]
                 }
-            
-            return {"valid": True}
-            
+
+            return {"valid": True, "resolved_symbol": signal_request.symbol}
+
         except Exception as e:
             logger.error(f"Error validating signal: {e}")
             return {
                 "valid": False,
                 "error": f"Validation error: {str(e)}"
             }
+
+    async def _resolve_symbol_for_broker(
+        self,
+        source_symbol: str,
+        user_id: int,
+        broker_type: str,
+        available_symbols: List[str]
+    ) -> Optional[str]:
+        """
+        Resolve TradingView symbol to broker format.
+
+        Uses SymbolNormalizationService for resolution:
+        1. Check user aliases first
+        2. Check auto-detected aliases
+        3. Check known static mappings
+        4. Try fuzzy matching against available symbols
+
+        Args:
+            source_symbol: TradingView symbol
+            user_id: User ID for alias lookup
+            broker_type: Target broker type
+            available_symbols: List of symbols available on broker
+
+        Returns:
+            Resolved symbol or original if no match (graceful degradation)
+        """
+        try:
+            # Try to get alias repository for user-specific resolution
+            alias_repository = None
+            try:
+                from app.infrastructure.repositories.symbol_alias_repository import SQLAlchemySymbolAliasRepository
+                from sqlalchemy.ext.asyncio import AsyncSession
+                from app.db.database import get_async_session
+
+                # Only use repository if user_id is valid
+                if user_id and user_id > 0:
+                    async for session in get_async_session():
+                        alias_repository = SQLAlchemySymbolAliasRepository(session)
+                        break
+            except Exception as e:
+                logger.debug(f"Could not initialize alias repository: {e}")
+
+            # Use normalization service for resolution
+            resolved = await self.symbol_service.resolve_symbol(
+                user_id=user_id or 0,
+                source_symbol=source_symbol,
+                broker_type=broker_type,
+                available_symbols=available_symbols,
+                alias_repository=alias_repository
+            )
+
+            if resolved:
+                return resolved
+
+            # Fallback to original symbol (let broker handle error)
+            logger.warning(
+                f"Could not resolve symbol {source_symbol} for {broker_type}, "
+                f"using original"
+            )
+            return source_symbol
+
+        except Exception as e:
+            logger.error(f"Error resolving symbol: {e}")
+            return source_symbol
     
     async def _check_risk_limits(self, signal_request: SignalRequest) -> Dict[str, Any]:
         """Check risk management limits"""
