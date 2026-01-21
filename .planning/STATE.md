@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-21)
 ## Current Position
 
 Phase: 16 - Tradovate OAuth (IN PROGRESS)
-Plan: 1 of 4 complete
-Status: 16-01 complete, continuing with 16-02
-Last activity: 2026-01-21 - Completed 16-01-PLAN.md (OAuth backend endpoints)
+Plan: 2 of 4 complete
+Status: 16-02 complete, continuing with 16-03
+Last activity: 2026-01-21 - Completed 16-02-PLAN.md (Token Storage and Refresh Service)
 
-Progress: [###########-----] 43% (v1.1) - Phase 16 in progress
+Progress: [###########-----] 44% (v1.1) - Phase 16 in progress
 
 ## v1.1 Milestone Goals
 
@@ -49,7 +49,7 @@ Progress: [###########-----] 43% (v1.1) - Phase 16 in progress
 | 13 | Stripe Billing | 7 | Gap closure complete (4/6 plans) |
 | 14 | Landing Page | 11 | Complete (7/7 plans, incl. gap closure) |
 | 15 | TradeLocker SDK | 1 | Complete (1/1 plan) |
-| 16 | Tradovate OAuth | 3 | In progress (1/4 plans) |
+| 16 | Tradovate OAuth | 3 | In progress (2/4 plans) |
 | 17 | TopStep/ProjectX SDK | 1 | Not started |
 | 18 | MetaAPI SDK | 3 | Not started |
 | 19 | Broker Connections UI | 4 | Not started |
@@ -110,6 +110,9 @@ Progress: [###########-----] 43% (v1.1) - Phase 16 in progress
 | 16-01 | In-memory OAuth state store | Simple for single-instance; needs Redis for multi-instance production |
 | 16-01 | Tokens in URL fragment | Fragment not sent to server, frontend reads via JavaScript |
 | 16-01 | BFF pattern for OAuth callback | Server-side token exchange, no CORS issues, secure |
+| 16-02 | 5-minute refresh buffer before token expiry | Ensures tokens don't expire during API calls |
+| 16-02 | Idempotent migration for token columns | Handles cases where SQLAlchemy creates tables on startup |
+| 16-02 | Background task runs every 5 minutes | Proactive token refresh via asyncio loop |
 
 ## Known Tech Debt
 
@@ -122,10 +125,10 @@ Progress: [###########-----] 43% (v1.1) - Phase 16 in progress
 
 ## Session Continuity
 
-Last session: 2026-01-21T18:05:00Z
-Stopped at: Completed 16-01-PLAN.md (Tradovate OAuth Backend Endpoints)
+Last session: 2026-01-21T18:07:00Z
+Stopped at: Completed 16-02-PLAN.md (Token Storage and Refresh Service)
 Resume file: None
-Status: Phase 16 in progress, ready for 16-02
+Status: Phase 16 in progress, ready for 16-03
 
 ## Gap Closure Status
 
@@ -149,6 +152,6 @@ Status: Phase 16 in progress, ready for 16-02
 
 ## Next Steps
 
-1. Continue Phase 16 with 16-02 (Token storage and refresh)
-2. Complete 16-03 (Connection UI) and 16-04 (Integration test)
+1. Continue Phase 16 with 16-03 (OAuth callback and connection UI)
+2. Complete 16-04 (Integration test)
 3. Continue through Phases 17-23 for v1.1 completion
