@@ -3,8 +3,12 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Activity, Users, Signal, TrendingUp } from 'lucide-react';
+import { Activity, Users, Signal, TrendingUp, CalendarClock } from 'lucide-react';
 import { BrokerHealthGrid } from '@/components/brokers/broker-health-grid';
+import {
+  ExpirationAlerts,
+  FuturesInfo,
+} from '@/components/positions/expiration-badge';
 
 interface DashboardStats {
   activeSignals: number;
@@ -22,6 +26,8 @@ export default function DashboardPage() {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [expiringContracts, setExpiringContracts] = useState<FuturesInfo[]>([]);
+  const [contractsLoading, setContractsLoading] = useState(true);
 
   useEffect(() => {
     async function fetchStats() {
@@ -41,7 +47,22 @@ export default function DashboardPage() {
       }
     }
 
+    async function fetchExpiringContracts() {
+      try {
+        const response = await fetch('/api/dashboard/contracts?days=7');
+        if (response.ok) {
+          const data = await response.json();
+          setExpiringContracts(data);
+        }
+      } catch (err) {
+        console.error('Error fetching expiring contracts:', err);
+      } finally {
+        setContractsLoading(false);
+      }
+    }
+
     fetchStats();
+    fetchExpiringContracts();
   }, []);
 
   const formatCurrency = (value: number): string => {
@@ -51,6 +72,14 @@ export default function DashboardPage() {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(value);
+  };
+
+  const handleRollover = (contract: FuturesInfo) => {
+    // For now, just log the rollover action
+    // In the future, this could open a modal or navigate to account settings
+    console.log('Rollover requested for:', contract.contractCode, '->', contract.nextContract);
+    // Could navigate to accounts page with pre-filled symbol
+    window.location.href = `/dashboard/settings/accounts?rollover=${contract.contractCode}`;
   };
 
   const statCards = [
@@ -115,6 +144,22 @@ export default function DashboardPage() {
           </Card>
         ))}
       </div>
+
+      {/* Contract Expiration Alerts */}
+      {!contractsLoading && expiringContracts.length > 0 && (
+        <Card>
+          <CardHeader className="flex flex-row items-center gap-2">
+            <CalendarClock className="h-5 w-5 text-amber-500" />
+            <CardTitle>Contract Expirations</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ExpirationAlerts
+              alerts={expiringContracts}
+              onRollover={handleRollover}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Broker Connections */}
       <div>
