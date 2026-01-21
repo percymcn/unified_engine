@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-01-21)
 
 ## Current Position
 
-Phase: 16 - Tradovate OAuth (PLANNED)
-Plan: 0 of 4 complete
-Status: Planning complete, ready for execution
-Last activity: 2026-01-21 - Created plans 16-01 through 16-04 (Tradovate OAuth)
+Phase: 16 - Tradovate OAuth (IN PROGRESS)
+Plan: 1 of 4 complete
+Status: 16-01 complete, continuing with 16-02
+Last activity: 2026-01-21 - Completed 16-01-PLAN.md (OAuth backend endpoints)
 
-Progress: [###########-----] 42% (v1.1) - Phase 16 planned, ready for execution
+Progress: [###########-----] 43% (v1.1) - Phase 16 in progress
 
 ## v1.1 Milestone Goals
 
@@ -49,7 +49,7 @@ Progress: [###########-----] 42% (v1.1) - Phase 16 planned, ready for execution
 | 13 | Stripe Billing | 7 | Gap closure complete (4/6 plans) |
 | 14 | Landing Page | 11 | Complete (7/7 plans, incl. gap closure) |
 | 15 | TradeLocker SDK | 1 | Complete (1/1 plan) |
-| 16 | Tradovate OAuth | 3 | Not started |
+| 16 | Tradovate OAuth | 3 | In progress (1/4 plans) |
 | 17 | TopStep/ProjectX SDK | 1 | Not started |
 | 18 | MetaAPI SDK | 3 | Not started |
 | 19 | Broker Connections UI | 4 | Not started |
@@ -107,6 +107,9 @@ Progress: [###########-----] 42% (v1.1) - Phase 16 planned, ready for execution
 | 15-01 | Dual-mode TradeLocker (SDK + Brand API) | SDK preferred for user auth, Brand API fallback for broker integrations |
 | 15-01 | ThreadPoolExecutor for async SDK wrapper | Sync SDK must not block async event loop, max_workers=3 |
 | 15-01 | Keep WebSocket separate from SDK | SDK doesn't expose WebSocket, needed for real-time updates |
+| 16-01 | In-memory OAuth state store | Simple for single-instance; needs Redis for multi-instance production |
+| 16-01 | Tokens in URL fragment | Fragment not sent to server, frontend reads via JavaScript |
+| 16-01 | BFF pattern for OAuth callback | Server-side token exchange, no CORS issues, secure |
 
 ## Known Tech Debt
 
@@ -119,10 +122,10 @@ Progress: [###########-----] 42% (v1.1) - Phase 16 planned, ready for execution
 
 ## Session Continuity
 
-Last session: 2026-01-21T17:48:00Z
-Stopped at: Completed 15-01-PLAN.md (TradeLocker SDK Migration)
+Last session: 2026-01-21T18:05:00Z
+Stopped at: Completed 16-01-PLAN.md (Tradovate OAuth Backend Endpoints)
 Resume file: None
-Status: Phase 15 complete, ready for Phase 16 (Tradovate OAuth)
+Status: Phase 16 in progress, ready for 16-02
 
 ## Gap Closure Status
 
@@ -146,6 +149,6 @@ Status: Phase 15 complete, ready for Phase 16 (Tradovate OAuth)
 
 ## Next Steps
 
-1. Begin Phase 16 (Tradovate OAuth integration)
-2. Continue through Phases 17-23 for v1.1 completion
-3. TradeLocker SDK migration complete - using official package with async wrapper
+1. Continue Phase 16 with 16-02 (Token storage and refresh)
+2. Complete 16-03 (Connection UI) and 16-04 (Integration test)
+3. Continue through Phases 17-23 for v1.1 completion
