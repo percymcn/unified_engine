@@ -109,11 +109,16 @@ class Settings(BaseSettings):
     TRADOVATE_OAUTH_REDIRECT_URI: str = "https://tradeflow.fluxeo.net/api/auth/tradovate/callback"
     TRADOVATE_OAUTH_ENVIRONMENT: str = "demo"  # "demo" or "live"
     
-    # ProjectX/TopStep Configuration
-    PROJECTX_API_URL: str = "https://gateway.projectx.com/api/v1"
+    # ProjectX/TopStep Configuration (Legacy - httpx fallback)
+    PROJECTX_API_URL: str = "https://gateway-api.s2f.projectx.com/api"
     PROJECTX_WS_URL: str = "wss://gateway.projectx.com/ws"
     PROJECTX_API_TOKEN: Optional[str] = None
     PROJECTX_ENV: str = "LIVE"  # LIVE or DEMO
+
+    # ProjectX SDK Configuration (project-x-py SDK - preferred)
+    PROJECT_X_USERNAME: Optional[str] = None  # TopStep username/email
+    PROJECT_X_API_KEY: Optional[str] = None  # TopStep API key
+    PROJECT_X_ACCOUNT_NAME: Optional[str] = None  # Optional account name to select
     
     # MT4 Configuration
     MT4_API_URL: str = "http://localhost:8080/api"
@@ -298,7 +303,11 @@ class Settings(BaseSettings):
                 "api_url": self.PROJECTX_API_URL,
                 "ws_url": self.PROJECTX_WS_URL,
                 "api_token": self.PROJECTX_API_TOKEN,
-                "environment": self.PROJECTX_ENV
+                "environment": self.PROJECTX_ENV,
+                # SDK credentials (preferred over httpx)
+                "username": self.PROJECT_X_USERNAME,
+                "api_key": self.PROJECT_X_API_KEY,
+                "account_name": self.PROJECT_X_ACCOUNT_NAME,
             },
             "mt4": {
                 "api_url": self.MT4_API_URL,
