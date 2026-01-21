@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-21)
 ## Current Position
 
 Phase: 20 - Symbol Mapping & Futures (IN PROGRESS)
-Plan: 1 of 4 complete
+Plan: 2 of 4 complete
 Status: In progress
-Last activity: 2026-01-21 - Completed 20-01-PLAN.md (Symbol Normalization Service)
+Last activity: 2026-01-21 - Completed 20-02-PLAN.md (Symbol Auto-Detection)
 
-Progress: [################] 65% (v1.1) - Phase 20 in progress
+Progress: [#################] 68% (v1.1) - Phase 20 in progress
 
 ## v1.1 Milestone Goals
 
@@ -53,7 +53,7 @@ Progress: [################] 65% (v1.1) - Phase 20 in progress
 | 17 | TopStep/ProjectX SDK | 1 | Complete (1/1 plan) |
 | 18 | MetaAPI SDK | 3 | Complete (1/1 plan) |
 | 19 | Broker Connections UI | 4 | Complete (2/2 plans) |
-| 20 | Symbol Mapping & Futures | 6 | In progress (1/4 plans) |
+| 20 | Symbol Mapping & Futures | 6 | In progress (2/4 plans) |
 | 21 | Multi-Account & Routing | 6 | Not started |
 | 22 | Risk Management | 16 | Not started |
 | 23 | User Settings & Dashboard | 10 | Not started |
@@ -133,6 +133,10 @@ Progress: [################] 65% (v1.1) - Phase 20 in progress
 | 20-01 | Preserve symbol numbers in normalization | US30, NAS100 are valid symbols - only strip delimited futures codes |
 | 20-01 | CME front months only (H/M/U/Z) | Only strip recognized CME month codes, not arbitrary letters |
 | 20-01 | User alias priority over known mappings | Custom user mappings should override system defaults |
+| 20-02 | Pattern-based detection over explicit configuration | Reduces manual setup, works across brokers |
+| 20-02 | Confidence scoring for detection quality | UI can warn when low confidence |
+| 20-02 | User aliases take priority over auto-detected | User customizations always override system |
+| 20-02 | Don't fail account creation if alias creation fails | Graceful degradation |
 
 ## Known Tech Debt
 
@@ -145,10 +149,10 @@ Progress: [################] 65% (v1.1) - Phase 20 in progress
 
 ## Session Continuity
 
-Last session: 2026-01-21T20:45:00Z
-Stopped at: Completed 20-01-PLAN.md (Symbol Normalization Service)
+Last session: 2026-01-21T20:55:51Z
+Stopped at: Completed 20-02-PLAN.md (Symbol Auto-Detection)
 Resume file: None
-Status: Phase 20 in progress (1/4 plans complete)
+Status: Phase 20 in progress (2/4 plans complete)
 
 ## Gap Closure Status
 
@@ -177,8 +181,8 @@ Status: Phase 20 in progress (1/4 plans complete)
    - ~~19-02: Frontend status indicators and test button~~ (COMPLETE)
 2. Execute Phase 20 plans (Symbol Mapping & Futures) - In progress
    - ~~20-01: Symbol Normalization Service (SYM-01, SYM-04)~~ (COMPLETE)
-   - 20-02: Symbol Auto-Detection (SYM-03) - NEXT
-   - 20-03: Symbol Mapping UI (SYM-02)
+   - ~~20-02: Symbol Auto-Detection (SYM-03)~~ (COMPLETE)
+   - 20-03: Symbol Mapping UI (SYM-02) - NEXT
    - 20-04: Futures Contract Support (SYM-05, SYM-06)
 3. Execute Phase 21 (Multi-Account & Routing) - Account routing logic
 4. Execute Phase 22 (Risk Management) - Position limits, drawdown protection
