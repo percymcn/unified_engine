@@ -42,7 +42,7 @@ export function FAQ() {
           Frequently Asked Questions
         </h2>
         <p className="text-center text-muted-foreground mb-12 max-w-2xl mx-auto">
-          Got questions? We've got answers.
+          Got questions? We&apos;ve got answers.
         </p>
 
         <div className="max-w-3xl mx-auto">
