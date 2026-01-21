@@ -1,5 +1,7 @@
 'use client';
 
+import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -19,11 +21,19 @@ interface HeaderProps {
 }
 
 export function Header({ user }: HeaderProps) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const pathname = usePathname();
+
+  // Close mobile menu when pathname changes (navigation occurred)
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
+
   return (
     <header className="flex h-16 items-center justify-between border-b border-border bg-card px-4 md:px-6">
       {/* Mobile menu button - only visible on mobile */}
       <div className="md:hidden">
-        <Sheet>
+        <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
           <SheetTrigger asChild>
             <Button variant="ghost" size="icon" className="h-9 w-9">
               <Menu className="h-5 w-5" />
