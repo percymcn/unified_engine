@@ -113,6 +113,9 @@ Progress: [############----] 47% (v1.1) - Phase 16 complete
 | 16-02 | 5-minute refresh buffer before token expiry | Ensures tokens don't expire during API calls |
 | 16-02 | Idempotent migration for token columns | Handles cases where SQLAlchemy creates tables on startup |
 | 16-02 | Background task runs every 5 minutes | Proactive token refresh via asyncio loop |
+| 16-03 | Dual-mode auth: OAuth when token provided, password fallback | Backward compatible authentication strategy |
+| 16-03 | Lazy token refresh via _ensure_valid_token() | Refresh tokens before each API call for OAuth mode |
+| 16-03 | ExecutorOrderResponse/ExecutorTradeResponse schemas | Separate executor layer types from API layer types |
 | 16-04 | Separate OAuth button component | Encapsulates OAuth initiation logic, reusable |
 | 16-04 | Tokens in URL fragment for callback | Fragments not sent to server, more secure |
 | 16-04 | Keep credential fields as fallback | Some users may prefer manual credential entry |
