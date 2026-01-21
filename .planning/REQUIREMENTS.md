@@ -214,9 +214,9 @@ Which phases cover which requirements. Updated by create-roadmap.
 | LAND-10 | 14 | Not started |
 | LAND-11 | 14 | Not started |
 | SDK-01 | 15 | Complete |
-| SDK-02 | 16 | Not started |
-| CONN-03 | 16 | Not started |
-| CONN-04 | 16 | Not started |
+| SDK-02 | 16 | Complete |
+| CONN-03 | 16 | Complete |
+| CONN-04 | 16 | Complete |
 | SDK-03 | 17 | Not started |
 | SDK-04 | 18 | Not started |
 | SDK-05 | 18 | Not started |
