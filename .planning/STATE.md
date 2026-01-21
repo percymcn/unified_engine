@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-01-21)
 
 ## Current Position
 
-Phase: 14 - Landing Page (COMPLETE)
-Plan: 6 of 6 complete
+Phase: 14 - Landing Page (COMPLETE with gap closure)
+Plan: 7 of 7 complete (including gap closure)
 Status: Phase complete
-Last activity: 2026-01-21 - Completed 14-06-PLAN.md (Footer, FAQ & SEO)
+Last activity: 2026-01-21 - Completed 14-07-PLAN.md (Gap Closure - Middleware & Register Page)
 
-Progress: [##########------] 38% (v1.1) - Phase 14 complete, ready for Phase 15
+Progress: [##########------] 38% (v1.1) - Phase 14 complete with gaps closed, ready for Phase 15
 
 ## v1.1 Milestone Goals
 
@@ -47,7 +47,7 @@ Progress: [##########------] 38% (v1.1) - Phase 14 complete, ready for Phase 15
 |-------|------|--------------|--------|
 | 12 | Critical Fixes & Infrastructure | 14 | Complete (5/5 plans) |
 | 13 | Stripe Billing | 7 | Gap closure complete (4/6 plans) |
-| 14 | Landing Page | 11 | Complete (6/6 plans) |
+| 14 | Landing Page | 11 | Complete (7/7 plans, incl. gap closure) |
 | 15 | TradeLocker SDK | 1 | Not started |
 | 16 | Tradovate OAuth | 3 | Not started |
 | 17 | TopStep/ProjectX SDK | 1 | Not started |
@@ -101,6 +101,9 @@ Progress: [##########------] 38% (v1.1) - Phase 14 complete, ready for Phase 15
 | 14-06 | Radix accordion for FAQ | Consistent with existing UI component library |
 | 14-06 | Twitter card metadata alongside Open Graph | Better social sharing coverage |
 | 14-06 | Dynamic copyright year | Uses new Date().getFullYear() to stay current |
+| 14-07 | Middleware allows landing page for unauthenticated | NextResponse.next() instead of redirect to /login |
+| 14-07 | Full registration form at /register | Better UX than redirect to /login?mode=register |
+| 14-07 | Dark theme registration page | Matches landing page aesthetic |
 
 ## Known Tech Debt
 
@@ -113,10 +116,10 @@ Progress: [##########------] 38% (v1.1) - Phase 14 complete, ready for Phase 15
 
 ## Session Continuity
 
-Last session: 2026-01-21T16:57:51Z
-Stopped at: Completed 14-06-PLAN.md (Footer, FAQ & SEO)
+Last session: 2026-01-21T17:18:00Z
+Stopped at: Completed 14-07-PLAN.md (Gap Closure - Middleware & Register Page)
 Resume file: None
-Status: Phase 14 complete, ready for Phase 15 (TradeLocker SDK)
+Status: Phase 14 complete with all gaps closed, ready for Phase 15 (TradeLocker SDK)
 
 ## Gap Closure Status
 
@@ -130,6 +133,13 @@ Status: Phase 14 complete, ready for Phase 15 (TradeLocker SDK)
 2. GET /api/billing/portal - Stripe Customer Portal URL
 3. GET /api/billing/status - Subscription status
 4. GET /api/billing/plans - Plan details
+
+**Phase 14 Verification Results (2026-01-21):**
+- 14-07 executed: Fixed middleware redirect, added /register page
+
+**Gaps Closed by 14-07:**
+1. Middleware allows "/" for unauthenticated visitors (was redirecting to /login)
+2. /register page exists (CTAs were pointing to non-existent page)
 
 ## Next Steps
 
