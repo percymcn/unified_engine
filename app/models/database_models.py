@@ -1,5 +1,9 @@
 """
-Comprehensive Database Models for Unified Trading Engine
+Database Models for Unified Trading Engine
+
+This module contains ORM models unique to the infrastructure layer.
+Shared models (User, Signal, Trade, Position, Order) are imported from models.py
+to avoid duplicate SQLAlchemy mapper registrations.
 """
 from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text, JSON, Enum, Index
 from sqlalchemy.orm import relationship
@@ -10,7 +14,11 @@ import enum
 # Import Base from the centralized database module
 from app.db.database import Base
 
+# Import shared models from models.py to avoid duplicate mapper registrations
+from app.models.models import User, Signal, Trade, Position, Order
 
+
+# Enums unique to this module
 class BrokerType(enum.Enum):
     TRADELOCKER = "tradelocker"
     TRADOVATE = "tradovate"
@@ -65,31 +73,9 @@ class SignalStatus(enum.Enum):
     IGNORED = "ignored"
 
 
-class User(Base):
-    __tablename__ = "users"
-
-    id = Column(Integer, primary_key=True, index=True)
-    email = Column(String(255), unique=True, index=True, nullable=False)
-    username = Column(String(100), unique=True, index=True, nullable=False)
-    hashed_password = Column(String(255), nullable=False)
-    full_name = Column(String(255))
-    is_active = Column(Boolean, default=True)
-    is_verified = Column(Boolean, default=False)
-    is_superuser = Column(Boolean, default=False)
-    api_key = Column(String(255), unique=True, index=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    last_login = Column(DateTime)
-
-    # Relationships
-    accounts = relationship("TradingAccount", back_populates="user", cascade="all, delete-orphan")
-    signals = relationship("Signal", back_populates="user", cascade="all, delete-orphan")
-    webhooks = relationship("WebhookConfig", back_populates="user", cascade="all, delete-orphan")
-    credentials = relationship("Credential", back_populates="user", cascade="all, delete-orphan")
-
-
 class TradingAccount(Base):
     __tablename__ = "trading_accounts"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
@@ -103,6 +89,10 @@ class TradingAccount(Base):
     api_secret = Column(String(500))
     access_token = Column(Text)
     refresh_token = Column(Text)
+
+    # OAuth token management
+    token_expires_at = Column(DateTime)
+    oauth_environment = Column(String(10))  # "demo" or "live"
 
     # Account Info
     currency = Column(String(10), default="USD")
@@ -123,169 +113,13 @@ class TradingAccount(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # Relationships
-    user = relationship("User", back_populates="accounts")
-    positions = relationship("Position", back_populates="account", cascade="all, delete-orphan")
-    orders = relationship("Order", back_populates="account", cascade="all, delete-orphan")
-    trades = relationship("Trade", back_populates="account", cascade="all, delete-orphan")
-
-
-class Position(Base):
-    __tablename__ = "positions"
-
-    id = Column(Integer, primary_key=True, index=True)
-    account_id = Column(Integer, ForeignKey("trading_accounts.id"), nullable=False)
-
-    # Position Details
-    symbol = Column(String(50), nullable=False, index=True)
-    side = Column(Enum(OrderSide), nullable=False)
-    quantity = Column(Float, nullable=False)
-    entry_price = Column(Float, nullable=False)
-    current_price = Column(Float)
-
-    # Risk Management
-    stop_loss = Column(Float)
-    take_profit = Column(Float)
-    trailing_stop = Column(Float)
-
-    # P&L
-    unrealized_pnl = Column(Float, default=0.0)
-    realized_pnl = Column(Float, default=0.0)
-    commission = Column(Float, default=0.0)
-    swap = Column(Float, default=0.0)
-
-    # Status
-    status = Column(Enum(PositionStatus), default=PositionStatus.OPEN)
-
-    # Broker Info
-    broker_position_id = Column(String(255), unique=True, index=True)
-    broker_data = Column(JSON)
-
-    # Timestamps
-    opened_at = Column(DateTime, default=datetime.utcnow)
-    closed_at = Column(DateTime)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    # Relationships
-    account = relationship("TradingAccount", back_populates="positions")
-
-
-class Order(Base):
-    __tablename__ = "orders"
-
-    id = Column(Integer, primary_key=True, index=True)
-    account_id = Column(Integer, ForeignKey("trading_accounts.id"), nullable=False)
-
-    # Order Details
-    symbol = Column(String(50), nullable=False, index=True)
-    side = Column(Enum(OrderSide), nullable=False)
-    order_type = Column(Enum(OrderType), nullable=False)
-    quantity = Column(Float, nullable=False)
-    filled_quantity = Column(Float, default=0.0)
-
-    # Pricing
-    price = Column(Float)  # Limit/Stop price
-    trigger_price = Column(Float)  # For stop orders
-    average_fill_price = Column(Float)
-
-    # Risk Management
-    stop_loss = Column(Float)
-    take_profit = Column(Float)
-
-    # Status
-    status = Column(Enum(OrderStatus), default=OrderStatus.PENDING)
-
-    # Broker Info
-    broker_order_id = Column(String(255), unique=True, index=True)
-    broker_data = Column(JSON)
-
-    # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow)
-    filled_at = Column(DateTime)
-    cancelled_at = Column(DateTime)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    # Error info
-    error_message = Column(Text)
-
-    # Relationships
-    account = relationship("TradingAccount", back_populates="orders")
-
-
-class Trade(Base):
-    __tablename__ = "trades"
-
-    id = Column(Integer, primary_key=True, index=True)
-    account_id = Column(Integer, ForeignKey("trading_accounts.id"), nullable=False)
-
-    # Trade Details
-    symbol = Column(String(50), nullable=False, index=True)
-    side = Column(Enum(OrderSide), nullable=False)
-    quantity = Column(Float, nullable=False)
-    entry_price = Column(Float, nullable=False)
-    exit_price = Column(Float)
-
-    # P&L
-    gross_pnl = Column(Float, default=0.0)
-    commission = Column(Float, default=0.0)
-    swap = Column(Float, default=0.0)
-    net_pnl = Column(Float, default=0.0)
-
-    # Broker Info
-    broker_trade_id = Column(String(255), unique=True, index=True)
-    broker_data = Column(JSON)
-
-    # Timestamps
-    opened_at = Column(DateTime, default=datetime.utcnow)
-    closed_at = Column(DateTime)
-
-    # Relationships
-    account = relationship("TradingAccount", back_populates="trades")
-
-
-class Signal(Base):
-    __tablename__ = "signals"
-
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-
-    # Signal Source
-    source = Column(String(100), nullable=False, index=True)  # tradingview, trailhacker, custom
-    source_id = Column(String(255))
-
-    # Signal Details
-    symbol = Column(String(50), nullable=False, index=True)
-    action = Column(String(50), nullable=False)  # BUY, SELL, CLOSE, MODIFY
-    quantity = Column(Float)
-    price = Column(Float)
-    stop_loss = Column(Float)
-    take_profit = Column(Float)
-
-    # Routing
-    target_accounts = Column(JSON)  # List of account IDs
-    target_broker = Column(Enum(BrokerType))
-
-    # Status
-    status = Column(Enum(SignalStatus), default=SignalStatus.RECEIVED)
-
-    # Execution Results
-    execution_results = Column(JSON)
-    error_message = Column(Text)
-
-    # Raw Data
-    raw_payload = Column(JSON)
-
-    # Timestamps
-    received_at = Column(DateTime, default=datetime.utcnow)
-    processed_at = Column(DateTime)
-    executed_at = Column(DateTime)
-
-    # Relationships
-    user = relationship("User", back_populates="signals")
+    # Relationships (no back_populates - User.accounts refers to Account model, not TradingAccount)
+    user = relationship("User")
 
 
 class WebhookConfig(Base):
     __tablename__ = "webhook_configs"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
@@ -322,6 +156,7 @@ class WebhookConfig(Base):
 
 class PerformanceMetrics(Base):
     __tablename__ = "performance_metrics"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
     account_id = Column(Integer, ForeignKey("trading_accounts.id"), nullable=False)
@@ -360,6 +195,7 @@ class PerformanceMetrics(Base):
 
 class AuditLog(Base):
     __tablename__ = "audit_logs"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
@@ -384,19 +220,6 @@ class AuditLog(Base):
 
     # Timestamp
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
-
-
-class SystemConfig(Base):
-    __tablename__ = "system_config"
-
-    id = Column(Integer, primary_key=True, index=True)
-    key = Column(String(255), unique=True, nullable=False, index=True)
-    value = Column(Text)
-    value_type = Column(String(50))  # string, int, float, bool, json
-    description = Column(Text)
-    is_encrypted = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class Credential(Base):
@@ -435,4 +258,5 @@ class Credential(Base):
 
     __table_args__ = (
         Index('ix_credentials_user_service', 'user_id', 'service'),
+        {'extend_existing': True}
     )
