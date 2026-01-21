@@ -28,12 +28,15 @@ import {
   regenerateWebhookKey,
 } from '@/lib/api/routing';
 import { getAccounts } from '@/lib/api/accounts';
-import { Plus, Loader2 } from 'lucide-react';
+import { Plus, RefreshCw } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function RoutingConfigPage() {
   const [configs, setConfigs] = useState<WebhookConfig[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editingConfig, setEditingConfig] = useState<WebhookConfig | undefined>();
   const [deletingConfig, setDeletingConfig] = useState<WebhookConfig | undefined>();
@@ -46,14 +49,16 @@ export default function RoutingConfigPage() {
   const loadData = async () => {
     try {
       setLoading(true);
+      setError(null);
       const [configsData, accountsData] = await Promise.all([
         getWebhookConfigs(),
         getAccounts(),
       ]);
       setConfigs(configsData);
       setAccounts(accountsData);
-    } catch (error) {
-      console.error('Failed to load data:', error);
+    } catch (err) {
+      console.error('Failed to load data:', err);
+      setError('Unable to load configurations. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -137,10 +142,47 @@ export default function RoutingConfigPage() {
     setEditingConfig(undefined);
   };
 
+  // Loading state with skeletons
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="space-y-6">
+        {/* Header skeleton */}
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-9 w-48" />
+            <Skeleton className="h-5 w-80" />
+          </div>
+          <Skeleton className="h-10 w-40" />
+        </div>
+        {/* Card skeletons */}
+        <div className="grid gap-6">
+          <Skeleton className="h-48 w-full rounded-lg" />
+          <Skeleton className="h-48 w-full rounded-lg" />
+        </div>
+      </div>
+    );
+  }
+
+  // Error state with retry
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Signal Routing</h1>
+          <p className="text-muted-foreground">
+            Configure webhook endpoints and routing rules for incoming signals
+          </p>
+        </div>
+        <Alert variant="destructive">
+          <AlertTitle>Error Loading Configurations</AlertTitle>
+          <AlertDescription className="flex items-center justify-between">
+            <span>{error}</span>
+            <Button variant="outline" size="sm" onClick={loadData} className="ml-4">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Retry
+            </Button>
+          </AlertDescription>
+        </Alert>
       </div>
     );
   }
