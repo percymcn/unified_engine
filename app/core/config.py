@@ -102,6 +102,12 @@ class Settings(BaseSettings):
     TRADOVATE_APP_VERSION: str = "1.0.0"
     TRADOVATE_CID: str = "TradingEngine"
     TRADOVATE_SEC: str = "TradingEngine"
+
+    # Tradovate OAuth
+    TRADOVATE_CLIENT_ID: Optional[str] = None
+    TRADOVATE_CLIENT_SECRET: Optional[str] = None
+    TRADOVATE_OAUTH_REDIRECT_URI: str = "https://tradeflow.fluxeo.net/api/auth/tradovate/callback"
+    TRADOVATE_OAUTH_ENVIRONMENT: str = "demo"  # "demo" or "live"
     
     # ProjectX/TopStep Configuration
     PROJECTX_API_URL: str = "https://gateway.projectx.com/api/v1"
