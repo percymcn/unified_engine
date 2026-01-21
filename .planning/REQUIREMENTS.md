@@ -181,12 +181,93 @@ Which phases cover which requirements. Updated by create-roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (populated by /gsd:create-roadmap) | | |
+| BRAND-01 | 12 | Not started |
+| INFRA-01 | 12 | Not started |
+| INFRA-02 | 12 | Not started |
+| INFRA-03 | 12 | Not started |
+| FIX-01 | 12 | Not started |
+| FIX-02 | 12 | Not started |
+| FIX-03 | 12 | Not started |
+| FIX-04 | 12 | Not started |
+| FIX-05 | 12 | Not started |
+| FIX-06 | 12 | Not started |
+| FIX-07 | 12 | Not started |
+| NAV-01 | 12 | Not started |
+| NAV-02 | 12 | Not started |
+| NAV-03 | 12 | Not started |
+| BILL-01 | 13 | Not started |
+| BILL-02 | 13 | Not started |
+| BILL-03 | 13 | Not started |
+| BILL-04 | 13 | Not started |
+| BILL-05 | 13 | Not started |
+| BILL-06 | 13 | Not started |
+| BILL-07 | 13 | Not started |
+| LAND-01 | 14 | Not started |
+| LAND-02 | 14 | Not started |
+| LAND-03 | 14 | Not started |
+| LAND-04 | 14 | Not started |
+| LAND-05 | 14 | Not started |
+| LAND-06 | 14 | Not started |
+| LAND-07 | 14 | Not started |
+| LAND-08 | 14 | Not started |
+| LAND-09 | 14 | Not started |
+| LAND-10 | 14 | Not started |
+| LAND-11 | 14 | Not started |
+| SDK-01 | 15 | Not started |
+| SDK-02 | 16 | Not started |
+| CONN-03 | 16 | Not started |
+| CONN-04 | 16 | Not started |
+| SDK-03 | 17 | Not started |
+| SDK-04 | 18 | Not started |
+| SDK-05 | 18 | Not started |
+| SDK-06 | 18 | Not started |
+| CONN-01 | 19 | Not started |
+| CONN-02 | 19 | Not started |
+| CONN-05 | 19 | Not started |
+| CONN-06 | 19 | Not started |
+| SYM-01 | 20 | Not started |
+| SYM-02 | 20 | Not started |
+| SYM-03 | 20 | Not started |
+| SYM-04 | 20 | Not started |
+| SYM-05 | 20 | Not started |
+| SYM-06 | 20 | Not started |
+| ACCT-01 | 21 | Not started |
+| ACCT-02 | 21 | Not started |
+| ACCT-03 | 21 | Not started |
+| ACCT-04 | 21 | Not started |
+| ACCT-05 | 21 | Not started |
+| ACCT-06 | 21 | Not started |
+| RISK-01 | 22 | Not started |
+| RISK-02 | 22 | Not started |
+| RISK-03 | 22 | Not started |
+| RISK-04 | 22 | Not started |
+| RISK-05 | 22 | Not started |
+| RISK-06 | 22 | Not started |
+| RISK-07 | 22 | Not started |
+| RISK-08 | 22 | Not started |
+| RISK-09 | 22 | Not started |
+| RISK-10 | 22 | Not started |
+| RISK-11 | 22 | Not started |
+| RISK-12 | 22 | Not started |
+| RISK-13 | 22 | Not started |
+| RISK-14 | 22 | Not started |
+| RISK-15 | 22 | Not started |
+| RISK-16 | 22 | Not started |
+| SET-01 | 23 | Not started |
+| SET-02 | 23 | Not started |
+| SET-03 | 23 | Not started |
+| SET-04 | 23 | Not started |
+| DASH-01 | 23 | Not started |
+| DASH-02 | 23 | Not started |
+| DASH-03 | 23 | Not started |
+| DASH-04 | 23 | Not started |
+| DASH-05 | 23 | Not started |
+| DASH-06 | 23 | Not started |
 
 **Coverage:**
-- v1.1 requirements: 72 total
-- Mapped to phases: 0
-- Unmapped: 72 (roadmap not yet created)
+- v1.1 requirements: 82 total
+- Mapped to phases: 82
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-01-21*
