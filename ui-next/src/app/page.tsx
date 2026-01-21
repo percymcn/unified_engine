@@ -15,7 +15,19 @@ import { Footer } from "@/components/landing/footer";
 export const metadata: Metadata = {
   title: "Tradeflow - Route TradingView Signals to Any Broker",
   description:
-    "Automatically route your TradingView alerts to TradeLocker, Tradovate, TopStep, and MetaTrader. Start free.",
+    "Automatically route your TradingView alerts to TradeLocker, Tradovate, TopStep, and MetaTrader. Start free, no coding required.",
+  openGraph: {
+    title: "Tradeflow - Route TradingView Signals to Any Broker",
+    description:
+      "Automatically route your TradingView alerts to any broker. Start free.",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Tradeflow - Route TradingView Signals to Any Broker",
+    description:
+      "Automatically route your TradingView alerts to any broker. Start free.",
+  },
 };
 
 export default function Home() {
