@@ -49,6 +49,7 @@ from app.routers.stripe_webhooks import router as stripe_webhooks_router
 from app.routers.billing import router as billing_router
 from app.routers.tradovate_oauth import router as tradovate_oauth_router
 from app.core.event_emitter import event_emitter
+from app.tasks.token_refresh import refresh_expiring_tokens
 
 # Configure structured logging
 from app.core.logging_config import setup_logging
@@ -119,7 +120,8 @@ async def lifespan(app: FastAPI):
         # Start background tasks
         asyncio.create_task(websocket_manager.start_heartbeat())
         asyncio.create_task(monitor_system_health())
-        
+        asyncio.create_task(tradovate_token_refresh_loop())
+
         logger.info("🎉 Unified Trading Engine started successfully!")
         
     except Exception as e:
@@ -461,7 +463,7 @@ async def monitor_system_health():
             if not redis_ok:
                 logger.warning("Redis connection lost, attempting to reconnect...")
                 redis_client._connect()
-            
+
             # Check broker connections
             for name, broker in signal_processor.brokers.items():
                 try:
@@ -476,13 +478,29 @@ async def monitor_system_health():
                         logger.info(f"✅ Reconnected to {name}")
                     except Exception as e:
                         logger.error(f"❌ Failed to reconnect to {name}: {e}")
-            
+
             # Wait before next check
             await asyncio.sleep(settings.HEALTH_CHECK_INTERVAL)
-            
+
         except Exception as e:
             logger.error(f"Health monitoring error: {e}")
             await asyncio.sleep(60)  # Wait longer on error
+
+
+# Background task for Tradovate token refresh
+async def tradovate_token_refresh_loop():
+    """Periodically refresh expiring Tradovate OAuth tokens."""
+    # Token refresh interval: 5 minutes
+    REFRESH_INTERVAL_SECONDS = 300
+
+    while True:
+        try:
+            await refresh_expiring_tokens()
+        except Exception as e:
+            logger.error(f"Token refresh loop error: {e}")
+
+        # Wait before next refresh check
+        await asyncio.sleep(REFRESH_INTERVAL_SECONDS)
 
 # Enhanced Exception handlers
 @app.exception_handler(HTTPException)
