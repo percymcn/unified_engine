@@ -36,6 +36,25 @@ from app.application.dto.account_dto import (
     SyncAccountResponse,
 )
 
+from app.application.dto.account_settings_dto import (
+    PositionSizingMode,
+    AccountSettingsRequest,
+    AccountSettingsResponse,
+    GetAccountSettingsRequest,
+)
+
+from app.application.dto.account_group_dto import (
+    CreateAccountGroupRequest,
+    UpdateAccountGroupRequest,
+    DeleteAccountGroupRequest,
+    GetAccountGroupsRequest,
+    AddAccountToGroupRequest,
+    RemoveAccountFromGroupRequest,
+    AccountGroupResponse,
+    AccountGroupListResponse,
+    AccountGroupOperationResponse,
+)
+
 __all__ = [
     # Signal DTOs
     "ProcessSignalRequest",
@@ -62,4 +81,19 @@ __all__ = [
     "ConnectAccountResponse",
     "SyncAccountRequest",
     "SyncAccountResponse",
+    # Account Settings DTOs
+    "PositionSizingMode",
+    "AccountSettingsRequest",
+    "AccountSettingsResponse",
+    "GetAccountSettingsRequest",
+    # Account Group DTOs
+    "CreateAccountGroupRequest",
+    "UpdateAccountGroupRequest",
+    "DeleteAccountGroupRequest",
+    "GetAccountGroupsRequest",
+    "AddAccountToGroupRequest",
+    "RemoveAccountFromGroupRequest",
+    "AccountGroupResponse",
+    "AccountGroupListResponse",
+    "AccountGroupOperationResponse",
 ]
