@@ -57,6 +57,9 @@ tradelocker>=0.56.0
 # ProjectX Official SDK (TopStep)
 project-x-py>=3.5.0
 
+# MetaAPI Cloud SDK (MT4/MT5)
+metaapi-cloud-sdk>=29.0.0
+
 # Test Dependencies (ensure these are installed for running tests)
 # pytest==7.4.3 (already listed)
 # pytest-asyncio==0.21.1 (already listed)
