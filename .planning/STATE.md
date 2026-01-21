@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-21)
 ## Current Position
 
 Phase: 14 - Landing Page
-Plan: 3 of 6 complete
+Plan: 4 of 6 complete
 Status: In progress
-Last activity: 2026-01-21 - Completed 14-03-PLAN.md (Social Proof & Trust Signals Section)
+Last activity: 2026-01-21 - Completed 14-04-PLAN.md (Pricing Section & Comparison)
 
-Progress: [#######---------] 31% (v1.1) - Phase 14 in progress
+Progress: [########--------] 33% (v1.1) - Phase 14 in progress
 
 ## v1.1 Milestone Goals
 
@@ -47,7 +47,7 @@ Progress: [#######---------] 31% (v1.1) - Phase 14 in progress
 |-------|------|--------------|--------|
 | 12 | Critical Fixes & Infrastructure | 14 | Complete (5/5 plans) |
 | 13 | Stripe Billing | 7 | Gap closure complete (4/6 plans) |
-| 14 | Landing Page | 11 | In progress (3/6 plans) |
+| 14 | Landing Page | 11 | In progress (4/6 plans) |
 | 15 | TradeLocker SDK | 1 | Not started |
 | 16 | Tradovate OAuth | 3 | Not started |
 | 17 | TopStep/ProjectX SDK | 1 | Not started |
@@ -96,6 +96,8 @@ Progress: [#######---------] 31% (v1.1) - Phase 14 in progress
 | 14-03 | Intersection Observer for stats entrance animation | Scroll-triggered reveal without external animation library |
 | 14-03 | Green accent color for trust icons | Positive/secure association for credibility |
 | 14-03 | Hardcoded metrics for now | 10K+ signals, 99.9% uptime, 5 brokers, <100ms - to be dynamic later |
+| 14-04 | Free tier CTA to /register, Pro to /api/billing/checkout | Different user journeys: Free starts registration, Pro goes to Stripe |
+| 14-04 | Comparison table color-coded icons | Green check (true), red X (false), yellow dash (varies) for clarity |
 
 ## Known Tech Debt
 
@@ -108,10 +110,10 @@ Progress: [#######---------] 31% (v1.1) - Phase 14 in progress
 
 ## Session Continuity
 
-Last session: 2026-01-21T16:40:43Z
-Stopped at: Completed 14-03-PLAN.md (Social Proof & Trust Signals Section)
+Last session: 2026-01-21T16:45:30Z
+Stopped at: Completed 14-04-PLAN.md (Pricing Section & Comparison)
 Resume file: None
-Status: Ready for 14-04-PLAN.md (Pricing Section)
+Status: Ready for 14-05-PLAN.md (FAQ Section)
 
 ## Gap Closure Status
 
@@ -128,6 +130,6 @@ Status: Ready for 14-04-PLAN.md (Pricing Section)
 
 ## Next Steps
 
-1. Continue Phase 14 with 14-04 (Pricing Section)
-2. Complete remaining landing page plans (14-04 through 14-06)
+1. Continue Phase 14 with 14-05 (FAQ Section)
+2. Complete remaining landing page plans (14-05 and 14-06)
 3. Continue through Phases 15-23 for v1.1 completion
