@@ -123,10 +123,42 @@ class ConnectAccountUseCase:
             if not account.is_active:
                 raise AccountDisabledError("Account is disabled")
 
-            # Get broker adapter
-            broker = self._brokers.get(account.broker)
-            if broker is None:
-                raise BrokerConnectionError(f"No adapter for broker: {account.broker}")
+            # Handle Tradovate OAuth specially
+            if account.broker == BrokerType.TRADOVATE and request.oauth_tokens:
+                from app.infrastructure.adapters.tradovate_adapter import TradovateAdapter
+                from app.services.tradovate_token_service import TradovateTokenService
+                from app.db.database import SessionLocal
+                from app.models.database_models import TradingAccount
+
+                # Store OAuth tokens
+                db = SessionLocal()
+                try:
+                    db_account = db.query(TradingAccount).filter(
+                        TradingAccount.id == int(request.account_id)
+                    ).first()
+                    if db_account:
+                        service = TradovateTokenService(db)
+                        service.store_tokens(
+                            account=db_account,
+                            access_token=request.oauth_tokens["access_token"],
+                            refresh_token=request.oauth_tokens.get("refresh_token"),
+                            expires_in=request.oauth_tokens.get("expires_in", 3600),
+                            environment=request.oauth_tokens.get("environment", "demo"),
+                        )
+                finally:
+                    db.close()
+
+                # Create adapter with OAuth
+                broker = TradovateAdapter(
+                    account_id=int(request.account_id),
+                    access_token=request.oauth_tokens["access_token"],
+                    environment=request.oauth_tokens.get("environment", "demo"),
+                )
+            else:
+                # Get broker adapter from pre-configured pool
+                broker = self._brokers.get(account.broker)
+                if broker is None:
+                    raise BrokerConnectionError(f"No adapter for broker: {account.broker}")
 
             # Connect to broker
             connected = await broker.connect()
