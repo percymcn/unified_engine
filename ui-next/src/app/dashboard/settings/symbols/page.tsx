@@ -102,7 +102,7 @@ export default function SymbolMappingPage() {
             <h1 className="text-2xl font-bold tracking-tight">Symbol Mapping</h1>
           </div>
           <p className="text-muted-foreground mt-1">
-            Configure how TradingView symbols map to your broker's format
+            Configure how TradingView symbols map to your broker&apos;s format
           </p>
         </div>
         <div className="flex gap-2">
@@ -137,11 +137,11 @@ export default function SymbolMappingPage() {
             <Info className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
             <div className="space-y-1 text-sm">
               <p>
-                <strong>Symbol mapping</strong> translates TradingView symbols to your broker's format.
+                <strong>Symbol mapping</strong> translates TradingView symbols to your broker&apos;s format.
               </p>
               <p className="text-muted-foreground">
-                For example, when you send a signal for "US30" from TradingView, your broker might
-                expect "US30.pro" (TradeLocker) or "YM" (Tradovate). Auto-detected mappings are
+                For example, when you send a signal for &quot;US30&quot; from TradingView, your broker might
+                expect &quot;US30.pro&quot; (TradeLocker) or &quot;YM&quot; (Tradovate). Auto-detected mappings are
                 discovered when you test your broker connection.
               </p>
             </div>
