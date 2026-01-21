@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-01-21)
 
 ## Current Position
 
-Phase: 14 - Landing Page (COMPLETE with gap closure)
-Plan: 7 of 7 complete (including gap closure)
+Phase: 15 - TradeLocker SDK (COMPLETE)
+Plan: 1 of 1 complete
 Status: Phase complete
-Last activity: 2026-01-21 - Completed 14-07-PLAN.md (Gap Closure - Middleware & Register Page)
+Last activity: 2026-01-21 - Completed 15-01-PLAN.md (TradeLocker SDK Migration)
 
-Progress: [##########------] 38% (v1.1) - Phase 14 complete with gaps closed, ready for Phase 15
+Progress: [###########-----] 42% (v1.1) - Phase 15 complete, ready for Phase 16
 
 ## v1.1 Milestone Goals
 
@@ -48,7 +48,7 @@ Progress: [##########------] 38% (v1.1) - Phase 14 complete with gaps closed, re
 | 12 | Critical Fixes & Infrastructure | 14 | Complete (5/5 plans) |
 | 13 | Stripe Billing | 7 | Gap closure complete (4/6 plans) |
 | 14 | Landing Page | 11 | Complete (7/7 plans, incl. gap closure) |
-| 15 | TradeLocker SDK | 1 | Not started |
+| 15 | TradeLocker SDK | 1 | Complete (1/1 plan) |
 | 16 | Tradovate OAuth | 3 | Not started |
 | 17 | TopStep/ProjectX SDK | 1 | Not started |
 | 18 | MetaAPI SDK | 3 | Not started |
@@ -104,6 +104,9 @@ Progress: [##########------] 38% (v1.1) - Phase 14 complete with gaps closed, re
 | 14-07 | Middleware allows landing page for unauthenticated | NextResponse.next() instead of redirect to /login |
 | 14-07 | Full registration form at /register | Better UX than redirect to /login?mode=register |
 | 14-07 | Dark theme registration page | Matches landing page aesthetic |
+| 15-01 | Dual-mode TradeLocker (SDK + Brand API) | SDK preferred for user auth, Brand API fallback for broker integrations |
+| 15-01 | ThreadPoolExecutor for async SDK wrapper | Sync SDK must not block async event loop, max_workers=3 |
+| 15-01 | Keep WebSocket separate from SDK | SDK doesn't expose WebSocket, needed for real-time updates |
 
 ## Known Tech Debt
 
@@ -116,10 +119,10 @@ Progress: [##########------] 38% (v1.1) - Phase 14 complete with gaps closed, re
 
 ## Session Continuity
 
-Last session: 2026-01-21T17:18:00Z
-Stopped at: Completed 14-07-PLAN.md (Gap Closure - Middleware & Register Page)
+Last session: 2026-01-21T17:48:00Z
+Stopped at: Completed 15-01-PLAN.md (TradeLocker SDK Migration)
 Resume file: None
-Status: Phase 14 complete with all gaps closed, ready for Phase 15 (TradeLocker SDK)
+Status: Phase 15 complete, ready for Phase 16 (Tradovate OAuth)
 
 ## Gap Closure Status
 
@@ -143,6 +146,6 @@ Status: Phase 14 complete with all gaps closed, ready for Phase 15 (TradeLocker 
 
 ## Next Steps
 
-1. Begin Phase 15 (TradeLocker SDK integration)
-2. Continue through Phases 16-23 for v1.1 completion
-3. Landing page is now complete and ready for production
+1. Begin Phase 16 (Tradovate OAuth integration)
+2. Continue through Phases 17-23 for v1.1 completion
+3. TradeLocker SDK migration complete - using official package with async wrapper
