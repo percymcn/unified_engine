@@ -29,14 +29,14 @@ Requirements for v1.1 Production Ready with Monetization release.
 
 ### Symbol Mapping
 
-- [ ] **SYM-01**: Handle symbol suffix variations (US30, US30.pro, US30PR, US30.raw)
-- [ ] **SYM-02**: Custom symbol mapping per broker (user configurable UI)
-- [ ] **SYM-03**: Auto-detect broker symbol format on connection
-- [ ] **SYM-04**: Symbol alias system (map TradingView symbol to each broker's format)
-- [ ] **SYM-05**: Support futures contract rollover (especially TopStep/ProjectX)
-- [ ] **SYM-06**: Contract expiration tracking and auto-roll notifications
+- [x] **SYM-01**: Handle symbol suffix variations (US30, US30.pro, US30PR, US30.raw)
+- [x] **SYM-02**: Custom symbol mapping per broker (user configurable UI)
+- [x] **SYM-03**: Auto-detect broker symbol format on connection
+- [x] **SYM-04**: Symbol alias system (map TradingView symbol to each broker's format)
+- [x] **SYM-05**: Support futures contract rollover (especially TopStep/ProjectX)
+- [x] **SYM-06**: Contract expiration tracking and auto-roll notifications
 
-### Multi-Account
+### Multi-Account & Broker Selection
 
 - [ ] **ACCT-01**: Users can connect multiple accounts per broker
 - [ ] **ACCT-02**: Users can connect multiple brokers simultaneously
@@ -44,6 +44,14 @@ Requirements for v1.1 Production Ready with Monetization release.
 - [ ] **ACCT-04**: Per-account position sizing rules
 - [ ] **ACCT-05**: Per-account risk limits (max position, daily loss)
 - [ ] **ACCT-06**: Account grouping ("Prop Firm Accounts", "Personal Accounts")
+- [ ] **ACCT-07**: TradeLocker SDK: Fetch all accounts (live, demo), checkbox selection UI
+- [ ] **ACCT-08**: TopStep/ProjectX SDK: Fetch all accounts (live, evaluation, express)
+- [ ] **ACCT-09**: Tradovate: Fetch all accounts via API, show type/status
+- [ ] **ACCT-10**: MetaAPI (MT4/MT5): Fetch all connected accounts, show login/server/type
+- [ ] **ACCT-11**: Checkbox list per broker - user picks which accounts receive signals
+- [ ] **ACCT-12**: Support routing signals to multiple accounts simultaneously
+- [ ] **ACCT-13**: Store selected account IDs per user in database
+- [ ] **ACCT-14**: Handle different broker ID formats dynamically
 
 ### Broker SDKs (Full Implementation)
 
@@ -54,6 +62,33 @@ Requirements for v1.1 Production Ready with Monetization release.
 - [ ] **SDK-05**: Document all supported features per broker in UI
 - [ ] **SDK-06**: Enterprise-complete: if SDK supports it, Tradeflow supports it
 
+### Trading Features (Full SDK Coverage)
+
+- [ ] **TRADE-01**: Order types: market, limit, stop, stop-limit (all SDKs)
+- [ ] **TRADE-02**: Stop loss: fixed pips, fixed price, percentage
+- [ ] **TRADE-03**: Take profit: fixed pips, fixed price, percentage
+- [ ] **TRADE-04**: Trailing stop: fixed pips, percentage
+- [ ] **TRADE-05**: Position sizing: fixed lot size mode
+- [ ] **TRADE-06**: Position sizing: percentage of balance mode
+- [ ] **TRADE-07**: Position sizing: percentage of equity mode
+- [ ] **TRADE-08**: Position sizing: risk-based (X% risk per trade)
+- [ ] **TRADE-09**: Partial close support
+- [ ] **TRADE-10**: Modify existing orders (SL/TP adjustment)
+- [ ] **TRADE-11**: Break-even automation
+- [ ] **TRADE-12**: Research each SDK documentation for full feature list
+
+### Signal Protection & Deduplication
+
+- [ ] **SIGNAL-01**: Max positions per symbol (e.g., max 1 open position on US30)
+- [ ] **SIGNAL-02**: Max total positions across all symbols (e.g., max 10 total)
+- [ ] **SIGNAL-03**: Max trades per day per symbol
+- [ ] **SIGNAL-04**: Max trades per day total
+- [ ] **SIGNAL-05**: Signal cooldown per symbol (ignore same signal within X seconds)
+- [ ] **SIGNAL-06**: If position already open for symbol, ignore duplicate entry signals
+- [ ] **SIGNAL-07**: All signal limits configurable per user in settings
+- [ ] **SIGNAL-08**: Log rejected signals with reason (duplicate, limit reached, etc.)
+- [ ] **SIGNAL-09**: Dashboard shows rejected signal notifications with reasons
+
 ### Broker Connections
 
 - [x] **CONN-01**: Connection status indicators (green/amber/red) for each broker
@@ -63,15 +98,29 @@ Requirements for v1.1 Production Ready with Monetization release.
 - [x] **CONN-05**: Last sync timestamp visible per account
 - [x] **CONN-06**: Clear error messages on connection failure
 
-### Billing
+### Free Trial
 
-- [ ] **BILL-01**: Pricing page with tier comparison (Free vs Pro)
+- [ ] **TRIAL-01**: Free trial with dual limit: 100 trades OR 3 days (whichever first)
+- [ ] **TRIAL-02**: Track trade count per user in database
+- [ ] **TRIAL-03**: Track trial start date per user
+- [ ] **TRIAL-04**: Dashboard shows remaining trades AND days left
+- [ ] **TRIAL-05**: Block signal execution when either limit reached
+- [ ] **TRIAL-06**: Show upgrade prompt when trial exhausted
+- [ ] **TRIAL-07**: After trial expiry, user must select paid tier to continue
+
+### Billing (4-Tier Pricing)
+
+- [ ] **BILL-01**: Pricing page with 4-tier comparison
 - [ ] **BILL-02**: Stripe Checkout integration (self-service purchase)
 - [ ] **BILL-03**: Stripe Customer Portal (update payment, cancel, invoices)
-- [ ] **BILL-04**: Free tier with 1 broker connection limit
-- [ ] **BILL-05**: Pro tier ($29/mo) with unlimited broker connections
-- [ ] **BILL-06**: Stripe webhook handling for subscription events
-- [ ] **BILL-07**: Feature gating based on subscription tier
+- [ ] **BILL-04**: Tier 1: 1 broker - $19.99/month
+- [ ] **BILL-05**: Tier 2: 2 brokers - $39.99/month
+- [ ] **BILL-06**: Tier 3: 3 brokers - $69.99/month
+- [ ] **BILL-07**: Tier 4: All 4 brokers (everything) - $129.99/month
+- [ ] **BILL-08**: Update Stripe products/prices for all tiers
+- [ ] **BILL-09**: Update landing page pricing section with all tiers
+- [ ] **BILL-10**: Feature gating for broker count per tier
+- [ ] **BILL-11**: Stripe webhook handling for subscription events
 
 ### Landing Page
 
@@ -79,13 +128,16 @@ Requirements for v1.1 Production Ready with Monetization release.
 - [ ] **LAND-02**: Hero section with compelling value proposition
 - [ ] **LAND-03**: Social proof (logos, testimonials, stats)
 - [ ] **LAND-04**: Feature showcase with animations
-- [ ] **LAND-05**: Clear, competitive pricing section
+- [ ] **LAND-05**: Clear, competitive pricing section (4 tiers)
 - [ ] **LAND-06**: Trust signals (security badges, uptime stats)
 - [ ] **LAND-07**: Mobile-first responsive design
 - [ ] **LAND-08**: Fast loading, SEO optimized
 - [ ] **LAND-09**: Competitor comparison section
 - [ ] **LAND-10**: Live demo or video walkthrough
 - [ ] **LAND-11**: Top-of-the-line polish that stands out in 2026 market
+- [ ] **LAND-12**: Customer testimonials section (realistic placeholder reviews)
+- [ ] **LAND-13**: Animated trading chart graphic (line chart moving up/down)
+- [ ] **LAND-14**: Captivating social proof that converts visitors
 
 ### User Settings
 
@@ -93,6 +145,9 @@ Requirements for v1.1 Production Ready with Monetization release.
 - [ ] **SET-02**: Password change form (current + new with validation)
 - [ ] **SET-03**: Timezone selection dropdown for all timestamps
 - [ ] **SET-04**: Notification preferences (trade alerts, errors, daily summary)
+- [ ] **SET-05**: Dark/light mode toggle
+- [ ] **SET-06**: Update/add credit card via Stripe customer portal
+- [ ] **SET-07**: Dashboard header must show ACTUAL logged-in user's username/email
 
 ### Dashboard
 
@@ -102,6 +157,11 @@ Requirements for v1.1 Production Ready with Monetization release.
 - [ ] **DASH-04**: Quick action: Test webhook button
 - [ ] **DASH-05**: Today's trades count metric
 - [ ] **DASH-06**: Recent executions list (last 10 trades)
+- [ ] **DASH-07**: Equity chart (balance over time graph)
+- [ ] **DASH-08**: Trial status display: "X trades remaining" or "X days left"
+- [ ] **DASH-09**: Current open positions overview
+- [ ] **DASH-10**: Risk usage meters (positions used vs max, daily trades vs max)
+- [ ] **DASH-11**: Recent rejected signals with reasons
 
 ### UI Navigation
 
@@ -225,18 +285,61 @@ Which phases cover which requirements. Updated by create-roadmap.
 | CONN-02 | 19 | Complete |
 | CONN-05 | 19 | Complete |
 | CONN-06 | 19 | Complete |
-| SYM-01 | 20 | Not started |
-| SYM-02 | 20 | Not started |
-| SYM-03 | 20 | Not started |
-| SYM-04 | 20 | Not started |
-| SYM-05 | 20 | Not started |
-| SYM-06 | 20 | Not started |
+| SYM-01 | 20 | Complete |
+| SYM-02 | 20 | Complete |
+| SYM-03 | 20 | Complete |
+| SYM-04 | 20 | Complete |
+| SYM-05 | 20 | Complete |
+| SYM-06 | 20 | Complete |
 | ACCT-01 | 21 | Not started |
 | ACCT-02 | 21 | Not started |
 | ACCT-03 | 21 | Not started |
 | ACCT-04 | 21 | Not started |
 | ACCT-05 | 21 | Not started |
 | ACCT-06 | 21 | Not started |
+| ACCT-07 | 24 | Not started |
+| ACCT-08 | 24 | Not started |
+| ACCT-09 | 24 | Not started |
+| ACCT-10 | 24 | Not started |
+| ACCT-11 | 24 | Not started |
+| ACCT-12 | 24 | Not started |
+| ACCT-13 | 24 | Not started |
+| ACCT-14 | 24 | Not started |
+| TRADE-01 | 24 | Not started |
+| TRADE-02 | 24 | Not started |
+| TRADE-03 | 24 | Not started |
+| TRADE-04 | 24 | Not started |
+| TRADE-05 | 24 | Not started |
+| TRADE-06 | 24 | Not started |
+| TRADE-07 | 24 | Not started |
+| TRADE-08 | 24 | Not started |
+| TRADE-09 | 24 | Not started |
+| TRADE-10 | 24 | Not started |
+| TRADE-11 | 24 | Not started |
+| TRADE-12 | 24 | Not started |
+| SIGNAL-01 | 24 | Not started |
+| SIGNAL-02 | 24 | Not started |
+| SIGNAL-03 | 24 | Not started |
+| SIGNAL-04 | 24 | Not started |
+| SIGNAL-05 | 24 | Not started |
+| SIGNAL-06 | 24 | Not started |
+| SIGNAL-07 | 24 | Not started |
+| SIGNAL-08 | 24 | Not started |
+| SIGNAL-09 | 24 | Not started |
+| TRIAL-01 | 24 | Not started |
+| TRIAL-02 | 24 | Not started |
+| TRIAL-03 | 24 | Not started |
+| TRIAL-04 | 24 | Not started |
+| TRIAL-05 | 24 | Not started |
+| TRIAL-06 | 24 | Not started |
+| TRIAL-07 | 24 | Not started |
+| BILL-08 | 24 | Not started |
+| BILL-09 | 24 | Not started |
+| BILL-10 | 24 | Not started |
+| BILL-11 | 24 | Not started |
+| LAND-12 | 24 | Not started |
+| LAND-13 | 24 | Not started |
+| LAND-14 | 24 | Not started |
 | RISK-01 | 22 | Not started |
 | RISK-02 | 22 | Not started |
 | RISK-03 | 22 | Not started |
@@ -257,18 +360,26 @@ Which phases cover which requirements. Updated by create-roadmap.
 | SET-02 | 23 | Not started |
 | SET-03 | 23 | Not started |
 | SET-04 | 23 | Not started |
+| SET-05 | 23 | Not started |
+| SET-06 | 23 | Not started |
+| SET-07 | 23 | Not started |
 | DASH-01 | 23 | Not started |
 | DASH-02 | 23 | Not started |
 | DASH-03 | 23 | Not started |
 | DASH-04 | 23 | Not started |
 | DASH-05 | 23 | Not started |
 | DASH-06 | 23 | Not started |
+| DASH-07 | 23 | Not started |
+| DASH-08 | 23 | Not started |
+| DASH-09 | 23 | Not started |
+| DASH-10 | 23 | Not started |
+| DASH-11 | 23 | Not started |
 
 **Coverage:**
-- v1.1 requirements: 82 total
-- Mapped to phases: 82
+- v1.1 requirements: 127 total
+- Mapped to phases: 127
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-01-21*
-*Last updated: 2026-01-21 after initial definition*
+*Last updated: 2026-01-21 after adding new Phase 24 requirements (TRIAL, TRADE, SIGNAL, ACCT, BILL, LAND enhancements)*
