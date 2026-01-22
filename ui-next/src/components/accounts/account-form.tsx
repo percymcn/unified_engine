@@ -28,10 +28,79 @@ import {
   AccountType,
   BROKER_DISPLAY_NAMES,
   ACCOUNT_TYPE_DISPLAY_NAMES,
-  BROKER_CREDENTIAL_CONFIG,
 } from '@/types/account';
+import {
+  getBrokerCredentialSchema,
+  mapCredentialsToBackend,
+  type CredentialField,
+} from '@/lib/brokers/credentialSchemas';
 import { TradovateOAuthButton } from './tradovate-oauth-button';
 import { testConnection, TestConnectionResult } from '@/lib/api/accounts';
+
+/**
+ * Credential field input component
+ * Handles different field types (text, password, select) with proper labels
+ */
+function CredentialFieldInput({
+  field,
+  value,
+  onChange,
+  required,
+  broker,
+}: {
+  field: CredentialField;
+  value: string;
+  onChange: (value: string) => void;
+  required: boolean;
+  broker: BrokerType;
+}) {
+  // Special label handling for TradeLocker username field
+  const displayLabel =
+    field.name === 'username' && broker === 'tradelocker'
+      ? 'Email'
+      : field.label;
+
+  if (field.type === 'select' && field.options) {
+    return (
+      <div className="space-y-2">
+        <Label htmlFor={field.name}>{displayLabel}</Label>
+        <Select value={value} onValueChange={onChange}>
+          <SelectTrigger id={field.name}>
+            <SelectValue placeholder={field.description || `Select ${displayLabel}`} />
+          </SelectTrigger>
+          <SelectContent>
+            {field.options.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {field.description && (
+          <p className="text-xs text-muted-foreground">{field.description}</p>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={field.name}>{displayLabel}</Label>
+      <Input
+        id={field.name}
+        name={field.name}
+        type={field.type === 'password' ? 'password' : field.type === 'number' ? 'number' : 'text'}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={field.description || field.label}
+        required={required}
+      />
+      {field.description && (
+        <p className="text-xs text-muted-foreground">{field.description}</p>
+      )}
+    </div>
+  );
+}
 
 interface AccountFormProps {
   open: boolean;
@@ -64,19 +133,19 @@ export function AccountForm({
   const [testResult, setTestResult] = useState<TestConnectionResult | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
-  // Get broker-specific credential fields
-  const credentialConfig = BROKER_CREDENTIAL_CONFIG[broker];
+  // Get broker-specific credential schema
+  const credentialSchema = getBrokerCredentialSchema(broker);
+  const allFields = useMemo(() => {
+    return [...credentialSchema.requiredFields, ...credentialSchema.optionalFields];
+  }, [credentialSchema]);
 
   // Check if all required credentials are filled
   const hasRequiredCredentials = useMemo(() => {
-    if (!credentialConfig) return false;
-
-    const requiredFields = credentialConfig.fields.filter((f) => f.required);
-    return requiredFields.every((field) => {
+    return credentialSchema.requiredFields.every((field) => {
       const value = credentials[field.name];
       return value && value.trim().length > 0;
     });
-  }, [credentialConfig, credentials]);
+  }, [credentialSchema, credentials]);
 
   // Handle test connection
   const handleTestConnection = async () => {
@@ -86,7 +155,14 @@ export function AccountForm({
     setTestResult(null);
 
     try {
-      const result = await testConnection(broker, credentials);
+      // Map UI credentials to backend format
+      const backendCredentials = mapCredentialsToBackend(broker, credentials);
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Test connection - credential keys:', Object.keys(backendCredentials));
+      }
+      
+      const result = await testConnection(broker, backendCredentials);
       setTestResult(result);
     } catch (error) {
       console.error('Test connection error:', error);
@@ -123,13 +199,20 @@ export function AccountForm({
     setFormError(null);
 
     try {
+      // Map UI credentials to backend format
+      const backendCredentials = mapCredentialsToBackend(broker, credentials);
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Create account - credential keys:', Object.keys(backendCredentials));
+      }
+
       const data: AccountCreate = {
         account_id: accountId,
         broker,
         account_type: accountType,
         currency,
         leverage: parseInt(leverage),
-        ...credentials,
+        broker_config: backendCredentials,
       };
 
       await onSubmit(data);
@@ -274,21 +357,15 @@ export function AccountForm({
                       Alternative: Enter credentials manually
                     </p>
                   </div>
-                  {credentialConfig.fields.map((field) => (
-                    <div key={field.name} className="space-y-2">
-                      <Label htmlFor={field.name}>{field.label}</Label>
-                      <Input
-                        id={field.name}
-                        name={field.name}
-                        type={field.type}
-                        value={credentials[field.name] || ''}
-                        onChange={(e) =>
-                          handleCredentialChange(field.name, e.target.value)
-                        }
-                        placeholder={field.placeholder}
-                        required={false}
-                      />
-                    </div>
+                  {allFields.map((field) => (
+                    <CredentialFieldInput
+                      key={field.name}
+                      field={field}
+                      value={credentials[field.name] || ''}
+                      onChange={(value) => handleCredentialChange(field.name, value)}
+                      required={false}
+                      broker={broker}
+                    />
                   ))}
 
                   {/* Test Connection Button for Tradovate credentials */}
@@ -346,21 +423,15 @@ export function AccountForm({
                   </p>
                 </div>
 
-                {credentialConfig.fields.map((field) => (
-                  <div key={field.name} className="space-y-2">
-                    <Label htmlFor={field.name}>{field.label}</Label>
-                    <Input
-                      id={field.name}
-                      name={field.name}
-                      type={field.type}
-                      value={credentials[field.name] || ''}
-                      onChange={(e) =>
-                        handleCredentialChange(field.name, e.target.value)
-                      }
-                      placeholder={field.placeholder}
-                      required={!isEdit && field.required}
-                    />
-                  </div>
+                {allFields.map((field) => (
+                  <CredentialFieldInput
+                    key={field.name}
+                    field={field}
+                    value={credentials[field.name] || ''}
+                    onChange={(value) => handleCredentialChange(field.name, value)}
+                    required={!isEdit && field.required}
+                    broker={broker}
+                  />
                 ))}
 
                 {/* Test Connection Button */}
