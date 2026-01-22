@@ -9,20 +9,17 @@ import {
   SheetContent,
   SheetTrigger,
 } from '@/components/ui/sheet';
+import { Skeleton } from '@/components/ui/skeleton';
 import { UserNav } from '@/components/user-nav';
 import { Sidebar } from '@/components/sidebar';
 import { ConnectionStatusIndicator } from '@/components/connection-status';
+import { ThemeToggle } from '@/components/theme-toggle';
+import { useUser } from '@/providers/user-provider';
 
-interface HeaderProps {
-  user?: {
-    email?: string;
-    name?: string;
-  };
-}
-
-export function Header({ user }: HeaderProps) {
+export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const pathname = usePathname();
+  const { user, loading } = useUser();
 
   // Close mobile menu when pathname changes (navigation occurred)
   useEffect(() => {
@@ -56,8 +53,24 @@ export function Header({ user }: HeaderProps) {
         {/* WebSocket connection status indicator */}
         <ConnectionStatusIndicator />
 
+        {/* Theme toggle */}
+        <ThemeToggle />
+
         {/* User navigation */}
-        <UserNav user={user} />
+        {loading ? (
+          <Skeleton className="h-8 w-8 rounded-full" />
+        ) : (
+          <UserNav
+            user={
+              user
+                ? {
+                    email: user.email,
+                    name: user.full_name || user.username,
+                  }
+                : undefined
+            }
+          />
+        )}
       </div>
     </header>
   );
