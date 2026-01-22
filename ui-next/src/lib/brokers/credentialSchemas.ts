@@ -65,13 +65,15 @@ export interface BrokerCredentialSchema {
  * 
  * Supports two authentication modes:
  * 1. SDK mode (preferred): Uses username/password/server
- * 2. Brand API mode (fallback): Uses API key
+ * 2. Brand API mode (fallback/required for some brokers): Uses API key
+ * 
+ * Note: Some brokers (e.g., GATESFX) require Brand API and don't support SDK mode.
  */
 export const TRADELOCKER_SCHEMA: BrokerCredentialSchema = {
   broker: 'tradelocker',
   displayName: 'TradeLocker',
   requiredFields: [
-    // SDK mode fields
+    // SDK mode fields (required unless Brand API is required)
     {
       name: 'username',
       backendName: 'username',
@@ -98,7 +100,7 @@ export const TRADELOCKER_SCHEMA: BrokerCredentialSchema = {
       required: true,
       type: 'string',
       label: 'Server',
-      description: 'TradeLocker server name (e.g., "Demo Server", "Live Server")',
+      description: 'TradeLocker server name (e.g., "Demo Server", "Live Server", "GATESFX")',
       storageLocation: 'credentials',
       storageColumn: 'encrypted_data',
     },
@@ -121,14 +123,24 @@ export const TRADELOCKER_SCHEMA: BrokerCredentialSchema = {
       required: false,
       type: 'password',
       label: 'API Key (Brand API Mode)',
-      description: 'TradeLocker Brand API key (alternative to username/password)',
+      description: 'TradeLocker Brand API key. Required for brokers like GATESFX. Alternative to username/password.',
       storageLocation: 'trading_accounts',
       storageColumn: 'api_key',
+    },
+    {
+      name: 'environment_url',
+      backendName: 'environment_url',
+      required: false,
+      type: 'string',
+      label: 'Environment URL (Brand API)',
+      description: 'Environment URL for Brand API mode (e.g., https://live.tradelocker.com)',
+      storageLocation: 'credentials',
+      storageColumn: 'encrypted_data',
     },
   ],
   testConnectionEndpoint: '/api/v1/accounts/test-connection',
   createAccountEndpoint: '/api/v1/accounts/',
-  notes: 'Provide either (username, password, server) for SDK mode or (api_key) for Brand API mode.',
+  notes: 'Provide either (username, password, server) for SDK mode or (api_key) for Brand API mode. Some brokers (e.g., GATESFX) require Brand API.',
 };
 
 /**

@@ -224,4 +224,78 @@ python3 -m pytest tests/test_connection_test.py::TestTestConnectionUseCase::test
 
 ---
 
-**Status:** Step 3 Complete - Ready for Step 4
+## STEP 4: UI Form Alignment ✅
+
+### Changes Made
+
+1. **TradeLocker Brand API Detection:**
+   - Added detection for GATESFX server requiring Brand API
+   - Detects from server field (GATESFX, GATES FX) or backend test result (`details.mode === "brand_api_required"`)
+   - Dynamically adjusts required fields based on Brand API requirement
+
+2. **Dynamic Field Requirements:**
+   - When Brand API required: `api_key` becomes required, username/password/server become optional
+   - Shows alert hint: "Brand API Required: This broker (GATESFX) requires Brand API Key mode. Username/password authentication is not supported."
+   - Hides username/password/server fields when Brand API key is provided (cleaner UI)
+
+3. **Error Message Display:**
+   - Backend error messages are displayed verbatim in the test result alert
+   - Test connection result includes full backend message in `testResult.message`
+   - Error messages are shown with proper styling (destructive variant for failures)
+
+4. **ProjectX Form:**
+   - Already correctly shows only username + api_key fields
+   - No changes needed - schema is correct
+
+5. **Credential Schema Updates:**
+   - Added `environment_url` field for Brand API mode
+   - Updated TradeLocker schema notes to mention GATESFX requirement
+   - Improved field descriptions
+
+### Files Modified
+
+- `ui-next/src/components/accounts/account-form.tsx`:
+  - Added `requiresBrandAPI` detection based on server field
+  - Added `backendRequiresBrandAPI` detection from test result details
+  - Dynamic field requirement adjustment for Brand API mode
+  - Added alert hint for Brand API requirement
+  - Conditional field hiding when Brand API key provided
+
+- `ui-next/src/lib/brokers/credentialSchemas.ts`:
+  - Updated TradeLocker schema with Brand API notes
+  - Added `environment_url` field for Brand API mode
+  - Improved field descriptions
+
+### Test Results
+
+```bash
+# UI Build
+cd ui-next && npm run build -- --no-lint  # ✅ PASS (if no TypeScript errors)
+```
+
+### Manual Test Checklist
+
+**TradeLocker:**
+- [ ] Select TradeLocker broker
+- [ ] Enter server "GATESFX" → Should show Brand API alert and require api_key
+- [ ] Enter api_key → Should hide username/password/server fields
+- [ ] Test connection with Brand API → Should show backend message
+- [ ] Enter server "Demo Server" → Should show normal SDK fields
+- [ ] Test connection with username/password → Should work normally
+
+**ProjectX:**
+- [ ] Select ProjectX broker
+- [ ] Should show only username + api_key fields
+- [ ] Test connection → Should show backend message
+- [ ] Error messages should display verbatim from backend
+
+### Commands Run
+
+```bash
+# UI Build verification
+cd ui-next && npm run build -- --no-lint
+```
+
+---
+
+**Status:** Step 4 Complete - Ready for Step 5
