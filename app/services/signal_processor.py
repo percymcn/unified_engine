@@ -22,6 +22,12 @@ from app.brokers.tradovate_executor import TradovateExecutor
 from app.brokers.projectx_executor import ProjectXExecutor
 from app.db.database import get_db
 from app.domain.services.symbol_normalization_service import SymbolNormalizationService
+from app.services.signal_deduplication_service import (
+    SignalDeduplicationService,
+    DuplicateCheckResult,
+    DeduplicationScope
+)
+from app.models.database_models import RejectedSignal, RejectedSignalReason, TradingAccount
 
 logger = logging.getLogger(__name__)
 
@@ -321,6 +327,104 @@ class SignalProcessor:
         except Exception as e:
             logger.error(f"Error checking risk limits: {e}")
             return {"passed": True}  # Allow on error
+
+    async def _check_deduplication(
+        self,
+        signal_request: SignalRequest,
+        account_id: int,
+        user_id: int
+    ) -> Dict[str, Any]:
+        """
+        Check for duplicate entry signals.
+
+        Prevents entering a new position when one already exists in the same direction.
+        Close/exit signals bypass this check. Reversal signals are allowed.
+
+        Args:
+            signal_request: The incoming signal request
+            account_id: Internal account ID (not account number)
+            user_id: User ID for global scope and rejection logging
+
+        Returns:
+            Dict with 'passed' bool and 'error' string if blocked
+        """
+        try:
+            db = next(get_db())
+
+            # Get user to check deduplication settings
+            from app.models.models import User
+            user = db.query(User).filter(User.id == user_id).first()
+
+            # Check if deduplication is enabled for this user (default: True)
+            enable_deduplication = getattr(user, 'enable_deduplication', True) if user else True
+            if not enable_deduplication:
+                logger.debug(f"Deduplication disabled for user {user_id}")
+                return {"passed": True}
+
+            # Get deduplication scope (default: per_account)
+            scope_str = getattr(user, 'deduplication_scope', 'per_account') if user else 'per_account'
+            scope = DeduplicationScope.GLOBAL if scope_str == 'global' else DeduplicationScope.PER_ACCOUNT
+
+            # Create deduplication service and check
+            dedup_service = SignalDeduplicationService(db)
+            result = dedup_service.check_duplicate_entry(
+                account_id=account_id,
+                symbol=signal_request.symbol,
+                action=signal_request.action,
+                user_id=user_id,
+                scope=scope
+            )
+
+            if result.is_duplicate:
+                # Log rejection to database
+                self._log_duplicate_rejection(
+                    db=db,
+                    user_id=user_id,
+                    account_id=account_id,
+                    signal_request=signal_request,
+                    result=result
+                )
+
+                return {
+                    "passed": False,
+                    "error": f"Duplicate entry: position already open for {signal_request.symbol} in {result.existing_direction} direction"
+                }
+
+            return {"passed": True}
+
+        except Exception as e:
+            logger.error(f"Error checking deduplication: {e}")
+            return {"passed": True}  # Allow on error (fail open)
+
+    def _log_duplicate_rejection(
+        self,
+        db: Session,
+        user_id: int,
+        account_id: int,
+        signal_request: SignalRequest,
+        result: DuplicateCheckResult
+    ):
+        """Log a duplicate entry rejection to the database"""
+        try:
+            rejection = RejectedSignal(
+                user_id=user_id,
+                account_id=account_id,
+                symbol=signal_request.symbol,
+                action=signal_request.action,
+                quantity=signal_request.quantity,
+                source=getattr(signal_request, 'source', 'unknown'),
+                reason=RejectedSignalReason.DUPLICATE_ENTRY,
+                reason_detail=f"Position already open in {result.existing_direction} direction (ID: {result.existing_position_id})",
+                limit_value=1.0,  # Max positions per symbol per direction
+                current_value=1.0,  # Existing position count
+                original_payload=signal_request.dict() if hasattr(signal_request, 'dict') else None
+            )
+            db.add(rejection)
+            db.commit()
+            logger.info(f"Logged duplicate entry rejection for account {account_id}, symbol {signal_request.symbol}")
+        except Exception as e:
+            logger.error(f"Failed to log duplicate rejection: {e}")
+            db.rollback()
 
     async def _calculate_position_size(
         self,

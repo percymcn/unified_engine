@@ -282,6 +282,7 @@ class RejectedSignalReason(enum.Enum):
     DRAWDOWN = "drawdown"
     RISK_REWARD = "risk_reward"
     DISABLED = "disabled"
+    DUPLICATE_ENTRY = "duplicate_entry"  # Position already open for symbol in same direction
 
 
 class RejectedSignal(Base):
