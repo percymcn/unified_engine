@@ -135,12 +135,16 @@ export function AccountForm({
 
   // Get broker-specific credential schema
   const credentialSchema = getBrokerCredentialSchema(broker);
+  const isBrokerSupported = credentialSchema !== null;
+  
   const allFields = useMemo(() => {
+    if (!credentialSchema) return [];
     return [...credentialSchema.requiredFields, ...credentialSchema.optionalFields];
   }, [credentialSchema]);
 
   // Check if all required credentials are filled
   const hasRequiredCredentials = useMemo(() => {
+    if (!credentialSchema) return false;
     return credentialSchema.requiredFields.every((field) => {
       const value = credentials[field.name];
       return value && value.trim().length > 0;
@@ -201,6 +205,13 @@ export function AccountForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Block submit for unsupported brokers
+    if (!isBrokerSupported) {
+      setFormError('This broker is not yet supported. Please select a supported broker.');
+      return;
+    }
+    
     setSubmitting(true);
     setFormError(null);
 
@@ -332,7 +343,14 @@ export function AccountForm({
 
           {/* Broker-Specific Credentials */}
           <div className="space-y-4 pt-4 border-t border-border">
-            {broker === 'tradovate' && !isEdit ? (
+            {!isBrokerSupported ? (
+              <Alert variant="destructive">
+                <XCircle className="h-4 w-4" />
+              <AlertDescription className="ml-2">
+                This broker isn&apos;t mapped yet. Credential schemas are only available for brokers with confirmed backend support.
+              </AlertDescription>
+              </Alert>
+            ) : broker === 'tradovate' && !isEdit ? (
               <>
                 {/* OAuth option for Tradovate */}
                 <div className="p-4 bg-muted rounded-lg">
@@ -502,7 +520,7 @@ export function AccountForm({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={submitting}>
+            <Button type="submit" disabled={submitting || !isBrokerSupported}>
               {submitting
                 ? 'Saving...'
                 : isEdit

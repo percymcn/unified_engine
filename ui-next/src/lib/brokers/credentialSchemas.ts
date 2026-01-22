@@ -5,9 +5,16 @@
  * Maps UI field names to backend API field names and storage locations.
  * 
  * Generated from backend code analysis - DO NOT MODIFY without updating backend.
+ * 
+ * Note: Only includes brokers with confirmed backend executor/test connection support.
+ * Other brokers (e.g., truforex) may exist in types but are not supported here.
  */
 
-export type BrokerType = 'tradelocker' | 'tradovate' | 'projectx' | 'topstep' | 'truforex' | 'mt4' | 'mt5';
+// Supported brokers only (with backend executors)
+export type SupportedBrokerType = 'tradelocker' | 'tradovate' | 'projectx' | 'topstep' | 'mt4' | 'mt5';
+
+// Accept any broker type (from account.ts) but only return schemas for supported ones
+export type BrokerType = SupportedBrokerType | string;
 
 /**
  * Credential field definition
@@ -38,7 +45,7 @@ export interface CredentialField {
  */
 export interface BrokerCredentialSchema {
   /** Broker type */
-  broker: BrokerType;
+  broker: SupportedBrokerType;
   /** Display name */
   displayName: string;
   /** Required fields */
@@ -371,81 +378,58 @@ export const MT5_SCHEMA: BrokerCredentialSchema = {
 };
 
 /**
- * TruForex Credential Schema
- * 
- * Note: TruForex integration details to be determined.
- * Using placeholder schema based on similar broker patterns.
- */
-export const TRUFOREX_SCHEMA: BrokerCredentialSchema = {
-  broker: 'truforex',
-  displayName: 'TruForex',
-  requiredFields: [
-    {
-      name: 'apiKey',
-      backendName: 'api_key',
-      required: true,
-      type: 'password',
-      label: 'API Key',
-      description: 'Your TruForex API key',
-      storageLocation: 'trading_accounts',
-      storageColumn: 'api_key',
-    },
-    {
-      name: 'apiSecret',
-      backendName: 'api_secret',
-      required: true,
-      type: 'password',
-      label: 'API Secret',
-      description: 'Your TruForex API secret',
-      storageLocation: 'trading_accounts',
-      storageColumn: 'api_secret',
-    },
-  ],
-  optionalFields: [],
-  testConnectionEndpoint: '/api/v1/accounts/test-connection',
-  createAccountEndpoint: '/api/v1/accounts/',
-  notes: 'TruForex credential requirements to be confirmed.',
-};
-
-/**
  * All broker credential schemas
+ * 
+ * Only includes brokers with confirmed backend support:
+ * - TradeLocker, Tradovate, ProjectX, TopStep, MT4, MT5
  */
-export const BROKER_CREDENTIAL_SCHEMAS: Record<BrokerType, BrokerCredentialSchema> = {
+export const BROKER_CREDENTIAL_SCHEMAS: Record<SupportedBrokerType, BrokerCredentialSchema> = {
   tradelocker: TRADELOCKER_SCHEMA,
   tradovate: TRADOVATE_SCHEMA,
   projectx: PROJECTX_SCHEMA,
   topstep: TOPSTEP_SCHEMA,
-  truforex: TRUFOREX_SCHEMA,
   mt4: MT4_SCHEMA,
   mt5: MT5_SCHEMA,
 };
 
 /**
  * Get credential schema for a broker
+ * 
+ * Returns null if broker is not supported (no backend executor/test connection)
  */
-export function getBrokerCredentialSchema(broker: BrokerType): BrokerCredentialSchema {
-  return BROKER_CREDENTIAL_SCHEMAS[broker];
+export function getBrokerCredentialSchema(broker: BrokerType): BrokerCredentialSchema | null {
+  // Type guard: check if broker is in supported list
+  if (broker in BROKER_CREDENTIAL_SCHEMAS) {
+    return BROKER_CREDENTIAL_SCHEMAS[broker as SupportedBrokerType];
+  }
+  return null;
 }
 
 /**
  * Get all required fields for a broker
+ * Returns empty array if broker is not supported
  */
 export function getRequiredFields(broker: BrokerType): CredentialField[] {
-  return getBrokerCredentialSchema(broker).requiredFields;
+  const schema = getBrokerCredentialSchema(broker);
+  return schema?.requiredFields || [];
 }
 
 /**
  * Get all optional fields for a broker
+ * Returns empty array if broker is not supported
  */
 export function getOptionalFields(broker: BrokerType): CredentialField[] {
-  return getBrokerCredentialSchema(broker).optionalFields;
+  const schema = getBrokerCredentialSchema(broker);
+  return schema?.optionalFields || [];
 }
 
 /**
  * Get all fields (required + optional) for a broker
+ * Returns empty array if broker is not supported
  */
 export function getAllFields(broker: BrokerType): CredentialField[] {
   const schema = getBrokerCredentialSchema(broker);
+  if (!schema) return [];
   return [...schema.requiredFields, ...schema.optionalFields];
 }
 
@@ -471,12 +455,15 @@ export function mapCredentialsToBackend(
 
 /**
  * Map backend API credential object to UI format
+ * Returns empty object if broker is not supported
  */
 export function mapCredentialsFromBackend(
   broker: BrokerType,
   credentials: Record<string, unknown>
 ): Record<string, unknown> {
   const allFields = getAllFields(broker);
+  if (allFields.length === 0) return {};
+  
   const mapped: Record<string, unknown> = {};
 
   for (const field of allFields) {
