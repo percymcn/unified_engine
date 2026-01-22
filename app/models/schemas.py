@@ -397,3 +397,24 @@ class BrokerResponse(BaseModel):
     error_message: Optional[str] = None
     execution_time_ms: Optional[int] = None
     raw_response: Optional[Dict[str, Any]] = None
+
+
+# User Preferences Schemas
+class NotificationPreferences(BaseModel):
+    trade_alerts: bool = True
+    error_notifications: bool = True
+    daily_summary: bool = False
+    email_notifications: bool = True
+
+
+class PreferencesResponse(BaseModel):
+    timezone: str = "UTC"
+    notification_preferences: NotificationPreferences
+
+    class Config:
+        from_attributes = True
+
+
+class PreferencesUpdate(BaseModel):
+    timezone: Optional[str] = None
+    notification_preferences: Optional[NotificationPreferences] = None

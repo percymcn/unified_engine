@@ -63,6 +63,7 @@ class User(Base):
     hashed_password = Column(String)  # Nullable for OAuth users
     full_name = Column(String)
     phone = Column(String)
+    avatar_url = Column(String(500))  # User profile avatar URL
     status = Column(SQLEnum(UserStatus), default=UserStatus.ACTIVE)
     is_verified = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True)
