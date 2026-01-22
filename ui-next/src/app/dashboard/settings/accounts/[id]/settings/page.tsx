@@ -1,12 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Loader2, ArrowLeft, Settings, Shield, GitBranch } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AccountSettingsForm } from '@/components/accounts/account-settings-form';
 import { Account, AccountSettings, AccountGroup, BROKER_DISPLAY_NAMES } from '@/types/account';
@@ -15,7 +14,6 @@ import { useToast } from '@/hooks/use-toast';
 
 export default function AccountSettingsPage() {
   const params = useParams();
-  const router = useRouter();
   const { toast } = useToast();
   const accountId = Number(params.id);
 
@@ -28,6 +26,7 @@ export default function AccountSettingsPage() {
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accountId]);
 
   const loadData = async () => {
