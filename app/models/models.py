@@ -77,6 +77,22 @@ class User(Base):
     subscription_status = Column(String, default="active")  # active, past_due, canceled
     subscription_ends_at = Column(DateTime(timezone=True))
 
+    # Global risk settings (defaults for all accounts)
+    default_max_daily_trades = Column(Integer)  # Default max trades per day
+    default_max_open_positions = Column(Integer)  # Default max concurrent positions
+    default_max_daily_loss = Column(Float)  # Default max daily loss $
+    default_max_daily_loss_pct = Column(Float)  # Default max daily loss %
+    default_max_drawdown_pct = Column(Float)  # Default max drawdown %
+    default_trade_cooldown_seconds = Column(Integer)  # Default cooldown
+
+    # Global position sizing defaults
+    default_position_sizing_mode = Column(String(20), default="fixed")
+    default_fixed_lot_size = Column(Float, default=0.01)
+    default_risk_percent_per_trade = Column(Float, default=1.0)
+
+    # Global risk enforcement toggle
+    risk_management_enabled = Column(Boolean, default=True)
+
     # Relationships
     accounts = relationship("Account", back_populates="owner")
     sessions = relationship("UserSession", back_populates="user")
