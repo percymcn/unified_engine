@@ -9,7 +9,7 @@ import logging
 
 from app.db.database import get_db
 from app.models.models import WebhookLog, User
-from app.models.database_models import WebhookConfig, TradingAccount
+from app.models.database_models import WebhookConfig, TradingAccount, RejectedSignal, RejectedSignalReason
 from app.models.schemas import WebhookLog as WebhookLogSchema, WebhookLogCreate
 from app.routers.auth import get_current_user
 from app.dependencies import get_container
@@ -21,6 +21,13 @@ from app.domain.services.routing_service import (
     RoutingStrategy,
     build_signal_data,
 )
+from app.domain.services import (
+    RiskEnforcementService,
+    AccountRiskSettings,
+    DailyCounterService,
+)
+from app.infrastructure.repositories import get_daily_counter_repository
+from app.infrastructure.adapters.position_counter_adapter import PositionCounterAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -399,6 +406,118 @@ async def process_routed_signal(
 
         logger.info(f"Routing signal to {len(target_account_ids)} accounts: {target_account_ids}")
 
+        # RISK ENFORCEMENT: Check risk limits for each target account
+        # Build account lookup for risk settings
+        accounts_by_id = {a.id: a for a in accounts}
+        symbol = signal_data.get("symbol", "UNKNOWN")
+        action_str = signal_data.get("action", "buy").lower()
+
+        # Initialize risk enforcement service
+        counter_repo = get_daily_counter_repository()
+        counter_service = DailyCounterService(counter_repo)
+        position_counter = PositionCounterAdapter(session=db)
+        risk_service = RiskEnforcementService(
+            counter_service=counter_service,
+            position_counter=position_counter,
+        )
+
+        # Track which accounts pass risk checks
+        approved_account_ids = []
+        blocked_accounts = []
+
+        for account_id in target_account_ids:
+            account = accounts_by_id.get(account_id)
+            if not account:
+                continue
+
+            # Build risk settings from account
+            risk_settings = AccountRiskSettings.from_account(account)
+
+            # Evaluate risk limits
+            evaluation = await risk_service.evaluate(
+                account_id=account_id,
+                symbol=symbol,
+                action=action_str,
+                settings=risk_settings,
+            )
+
+            if evaluation.passed:
+                approved_account_ids.append(account_id)
+            else:
+                # Log rejection
+                violation = evaluation.first_violation
+                if violation:
+                    try:
+                        # Map reason string to enum
+                        reason_map = {
+                            "daily_limit": RejectedSignalReason.DAILY_LIMIT,
+                            "concurrent_limit": RejectedSignalReason.CONCURRENT_LIMIT,
+                            "symbol_limit": RejectedSignalReason.SYMBOL_LIMIT,
+                            "cooldown": RejectedSignalReason.COOLDOWN,
+                            "daily_loss": RejectedSignalReason.DAILY_LOSS,
+                            "drawdown": RejectedSignalReason.DRAWDOWN,
+                            "risk_reward": RejectedSignalReason.RISK_REWARD,
+                            "disabled": RejectedSignalReason.DISABLED,
+                        }
+                        reason_enum = reason_map.get(violation.reason, RejectedSignalReason.DISABLED)
+
+                        rejected = RejectedSignal(
+                            user_id=webhook_config.user_id,
+                            account_id=account_id,
+                            symbol=symbol,
+                            action=action_str,
+                            quantity=float(signal_data.get("quantity", 1) or 1),
+                            source=webhook_config.source,
+                            reason=reason_enum,
+                            reason_detail=violation.detail,
+                            limit_value=violation.limit_value,
+                            current_value=violation.current_value,
+                            webhook_config_id=webhook_config.id,
+                            original_payload=payload,
+                        )
+                        db.add(rejected)
+                        logger.info(
+                            f"Risk blocked account {account_id} for signal {symbol} {action_str}: "
+                            f"{violation.detail}"
+                        )
+                    except Exception as e:
+                        logger.error(f"Failed to log rejected signal: {e}")
+
+                blocked_accounts.append({
+                    "account_id": account_id,
+                    "reason": violation.reason if violation else "unknown",
+                    "detail": violation.detail if violation else "Risk check failed",
+                })
+
+        # Commit rejected signals
+        if blocked_accounts:
+            try:
+                db.commit()
+            except Exception as e:
+                logger.error(f"Failed to commit rejected signals: {e}")
+                db.rollback()
+
+        # If all accounts blocked, return early with blocked info
+        if not approved_account_ids:
+            logger.warning(f"All accounts blocked by risk limits for signal: {signal_data}")
+            webhook_config.failed_signals = (webhook_config.failed_signals or 0) + 1
+            db.commit()
+            return {
+                "success": False,
+                "blocked": True,
+                "error": "All target accounts blocked by risk limits",
+                "webhook_id": webhook_id,
+                "blocked_accounts": blocked_accounts,
+                "processing_time_ms": int((datetime.utcnow() - start_time).total_seconds() * 1000),
+            }
+
+        # Use approved accounts for signal execution
+        target_account_ids = approved_account_ids
+        logger.info(
+            f"Risk check passed: {len(approved_account_ids)} accounts approved, "
+            f"{len(blocked_accounts)} blocked"
+        )
+
         # Apply symbol/action filters if configured
         if webhook_config.symbol_filter:
             symbol = signal_data.get("symbol", "").upper()
@@ -463,6 +582,16 @@ async def process_routed_signal(
         success = use_case_result.status.value not in ["failed", "rejected"]
         if success:
             webhook_config.successful_signals = (webhook_config.successful_signals or 0) + 1
+
+            # INCREMENT DAILY COUNTERS for successfully executed trades
+            # This is critical for daily trade limit enforcement
+            signal_symbol = signal_data.get("symbol", "UNKNOWN")
+            for account_id in target_account_ids:
+                try:
+                    await counter_service.increment_trades(account_id, signal_symbol)
+                    logger.debug(f"Incremented trade counter for account {account_id}, symbol {signal_symbol}")
+                except Exception as e:
+                    logger.error(f"Failed to increment counter for account {account_id}: {e}")
         else:
             webhook_config.failed_signals = (webhook_config.failed_signals or 0) + 1
 
@@ -478,6 +607,11 @@ async def process_routed_signal(
             "errors": use_case_result.errors,
             "processing_time_ms": int((datetime.utcnow() - start_time).total_seconds() * 1000),
         }
+
+        # Include risk-blocked accounts info if any
+        if blocked_accounts:
+            result["risk_blocked_accounts"] = blocked_accounts
+            result["risk_blocked_count"] = len(blocked_accounts)
 
         # Update webhook log
         db_webhook.processed = success
