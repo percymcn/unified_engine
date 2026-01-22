@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-21)
 ## Current Position
 
 Phase: 22 - Risk Management (IN PROGRESS)
-Plan: 2 of 4 complete
-Status: 22-02 complete, continuing with 22-03
-Last activity: 2026-01-22 - Completed 22-02 Position Sizing Engine
+Plan: 3 of 4 complete
+Status: 22-03 complete, continuing with 22-04
+Last activity: 2026-01-22 - Completed 22-03 Drawdown & Loss Tracking
 
-Progress: [##########################] 83% (v1.1) - Phase 22 in progress
+Progress: [##########################] 84% (v1.1) - Phase 22 in progress
 
 ## v1.1 Milestone Goals
 
@@ -161,6 +161,11 @@ Progress: [##########################] 83% (v1.1) - Phase 22 in progress
 | 22-02 | Default symbol specs for 30+ instruments | Forex, indices, futures defaults with broker API fallback |
 | 22-02 | Auto-refresh balance after trades | Ensures accurate dynamic position sizing for next trade |
 | 22-02 | Graceful fallback for position sizing | Use signal quantity if calculation fails, prevents trade rejection |
+| 22-03 | Daily P&L tracks realized and unrealized separately | Total P&L = realized + unrealized for accurate loss limit checks |
+| 22-03 | Drawdown from peak equity (high water mark) | More accurate than starting balance, tracks true account performance |
+| 22-03 | Risk-reward bypasses if no SL/TP | Allows flexibility for signals without explicit stop/target prices |
+| 22-03 | Risk services are optional dependencies | Graceful degradation for backward compatibility |
+| 22-03 | Daily loss limits halt trading until next day | Prevents cascading losses, resets on new trading day |
 
 ## Known Tech Debt
 
@@ -174,9 +179,9 @@ Progress: [##########################] 83% (v1.1) - Phase 22 in progress
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed 22-02-PLAN.md (Position Sizing Engine)
-Resume file: .planning/phases/22-risk-management/22-03-PLAN.md
-Status: Phase 22 in progress, 22-03 next
+Stopped at: Completed 22-03-PLAN.md (Drawdown & Loss Tracking)
+Resume file: .planning/phases/22-risk-management/22-04-PLAN.md
+Status: Phase 22 in progress, 22-04 next
 
 ## Gap Closure Status
 
@@ -203,7 +208,7 @@ Status: Phase 22 in progress, 22-03 next
 1. Continue Phase 22 (Risk Management) - IN PROGRESS
    - ~~22-01: Risk Enforcement Service~~ (COMPLETE)
    - ~~22-02: Position Sizing Engine (RISK-05, RISK-06, RISK-07, RISK-08, RISK-13)~~ (COMPLETE)
-   - 22-03: Drawdown & Loss Tracking (RISK-09, RISK-10, RISK-14) - NEXT
-   - 22-04: Risk Management UI (RISK-15, RISK-16)
+   - ~~22-03: Drawdown & Loss Tracking (RISK-09, RISK-10, RISK-14)~~ (COMPLETE)
+   - 22-04: Risk Management UI (RISK-15, RISK-16) - NEXT
 2. Execute Phase 23 (User Settings & Dashboard) - User preferences, dashboard enhancements
 3. Execute Phase 24 (Enhanced Features & Monetization v2) - Trial, 4-tier pricing, full trading
