@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-01-21)
 
 ## Current Position
 
-Phase: 24 - Enhanced Features & Monetization v2 (PLANNED)
-Plan: 0 of 8 complete (8 plans ready for execution)
-Status: Phase 24 planned with 8 plans in 3 waves
-Last activity: 2026-01-22 - Completed Phase 24 planning (8 PLAN.md files created)
+Phase: 24 - Enhanced Features & Monetization v2 (IN PROGRESS)
+Plan: 4 of 8 complete (Wave 1 partial)
+Status: Phase 24 in progress - Wave 1 executing
+Last activity: 2026-01-22 - Completed 24-06-PLAN.md (Broker Account Selection Backend)
 
-Progress: [##############################] 100% (v1.1) - Phase 23 complete
+Progress: [############################__] 93% (v1.1+) - Phase 24 Wave 1 partial
 
 ## v1.1 Milestone Goals
 
@@ -57,7 +57,7 @@ Progress: [##############################] 100% (v1.1) - Phase 23 complete
 | 21 | Multi-Account & Routing | 6 | Complete (3/3 plans) |
 | 22 | Risk Management | 16 | Complete (4/4 plans) |
 | 23 | User Settings & Dashboard | 18 | Complete (5/5 plans) |
-| 24 | Enhanced Features & Monetization v2 | 43 | Planned (0/8 plans) |
+| 24 | Enhanced Features & Monetization v2 | 43 | In Progress (4/8 plans) |
 
 ## Previous Milestone
 
@@ -188,6 +188,9 @@ Progress: [##############################] 100% (v1.1) - Phase 23 complete
 | 23-03 | next-themes with attribute="class" | Tailwind CSS uses class-based dark mode |
 | 23-03 | UserProvider inside WebSocketProvider | User context available to all dashboard components |
 | 23-03 | useUser hook returns { user, loading, error, refetch } | Standard pattern for data fetching hooks |
+| 24-06 | Handle different broker ID formats dynamically | TradeLocker (numeric), ProjectX (alphanumeric), Tradovate (numeric), MetaAPI (UUID) |
+| 24-06 | Use existing is_signal_enabled field for account selection | TradingAccount model already has is_signal_enabled boolean field |
+| 24-06 | Three routing modes: specific account, broker type, all selected | Covers all use cases from single account to broadcast |
 
 ## Known Tech Debt
 
@@ -201,9 +204,9 @@ Progress: [##############################] 100% (v1.1) - Phase 23 complete
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed 23-03-PLAN.md (Theme & User Context)
+Stopped at: Completed 24-06-PLAN.md (Broker Account Selection Backend)
 Resume file: None
-Status: Phase 23 complete, v1.1 milestone achieved
+Status: Phase 24 Wave 1 in progress
 
 ## Gap Closure Status
 
