@@ -217,6 +217,8 @@ export async function getAccountSettings(accountId: number): Promise<AccountSett
       maxOpenPositions: data.risk_limits.max_open_positions,
       maxDailyTrades: data.risk_limits.max_daily_trades,
       tradeCooldownSeconds: data.risk_limits.trade_cooldown_seconds,
+      defaultStopLoss: data.risk_limits.default_stop_loss ?? null,
+      defaultTakeProfit: data.risk_limits.default_take_profit ?? null,
     },
     grouping: {
       groupId: data.grouping.group_id,
@@ -276,6 +278,16 @@ export async function updateAccountSettings(
   if (settings.tradeCooldownSeconds !== undefined) {
     payload.trade_cooldown_seconds = settings.tradeCooldownSeconds;
   }
+  // NOTE: defaultStopLoss and defaultTakeProfit are stored in broker-specific units
+  // (pips/points/percent) as they cannot be converted to absolute prices without
+  // an entry price. Backend should handle conversion when these defaults are used
+  // with a signal that has an entry price. Backend conversion is not yet implemented.
+  if (settings.defaultStopLoss !== undefined) {
+    payload.default_stop_loss = settings.defaultStopLoss;
+  }
+  if (settings.defaultTakeProfit !== undefined) {
+    payload.default_take_profit = settings.defaultTakeProfit;
+  }
   if (settings.groupId !== undefined) {
     payload.group_id = settings.groupId;
   }
@@ -318,6 +330,8 @@ export async function updateAccountSettings(
       maxOpenPositions: data.risk_limits.max_open_positions,
       maxDailyTrades: data.risk_limits.max_daily_trades,
       tradeCooldownSeconds: data.risk_limits.trade_cooldown_seconds,
+      defaultStopLoss: data.risk_limits.default_stop_loss ?? null,
+      defaultTakeProfit: data.risk_limits.default_take_profit ?? null,
     },
     grouping: {
       groupId: data.grouping.group_id,

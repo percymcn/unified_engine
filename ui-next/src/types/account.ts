@@ -104,6 +104,13 @@ export interface AccountSettings {
     maxOpenPositions: number | null;
     maxDailyTrades: number | null;
     tradeCooldownSeconds: number | null;
+    // Default stop loss/take profit in broker-specific units (pips/points/percent)
+    // NOTE: These are stored in broker-specific units because they cannot be converted
+    // to absolute prices without an entry price. When used with a signal, the backend
+    // should convert them using the signal's entry price. Backend conversion is not
+    // yet implemented, so these are stored as metadata for future enhancement.
+    defaultStopLoss: number | null;
+    defaultTakeProfit: number | null;
   };
   grouping: {
     groupId: number | null;
@@ -130,6 +137,10 @@ export interface AccountSettingsUpdate {
   maxOpenPositions?: number | null;
   maxDailyTrades?: number | null;
   tradeCooldownSeconds?: number | null;
+  // Default stop loss/take profit in broker-specific units (pips/points/percent)
+  // Stored as metadata - backend should convert to absolute prices when used with signals
+  defaultStopLoss?: number | null;
+  defaultTakeProfit?: number | null;
   groupId?: number | null;
   isSignalEnabled?: boolean;
   signalPriority?: number;
