@@ -92,15 +92,12 @@ export function useWebSocket(
         setReconnectAttempts(0);
         onConnect?.();
 
-        // Start heartbeat response handler - respond to server pings
+        // Start heartbeat - send ping to keep connection alive
         heartbeatIntervalRef.current = setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) {
-            // Send a ping to keep connection alive
             try {
               ws.send(JSON.stringify({
-                type: 'heartbeat',
-                data: { client_time: new Date().toISOString() },
-                timestamp: new Date().toISOString(),
+                type: 'ping',
               }));
             } catch {
               // Ignore send errors during heartbeat

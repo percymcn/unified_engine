@@ -4,8 +4,8 @@ import { getTokenFromCookies } from '@/lib/auth';
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8765';
 
 /**
- * GET /api/users/me/preferences
- * Proxy to backend to get user preferences
+ * GET /api/risk/settings
+ * Proxy to backend to get risk settings
  */
 export async function GET() {
   try {
@@ -18,7 +18,7 @@ export async function GET() {
       );
     }
 
-    const response = await fetch(`${BACKEND_URL}/api/v1/users/me/preferences`, {
+    const response = await fetch(`${BACKEND_URL}/api/v1/risk/settings`, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
@@ -26,15 +26,14 @@ export async function GET() {
     });
 
     if (!response.ok) {
-      // Return error from backend
-      const error = await response.json().catch(() => ({ detail: 'Failed to fetch preferences' }));
+      const error = await response.json().catch(() => ({ detail: 'Failed to fetch risk settings' }));
       return NextResponse.json(error, { status: response.status });
     }
 
     const data = await response.json();
     return NextResponse.json(data);
   } catch (error) {
-    console.error('Error fetching preferences:', error);
+    console.error('Error fetching risk settings:', error);
     return NextResponse.json(
       { detail: 'Internal server error' },
       { status: 500 }
@@ -43,8 +42,8 @@ export async function GET() {
 }
 
 /**
- * PUT /api/users/me/preferences
- * Proxy to backend to update user preferences
+ * PUT /api/risk/settings
+ * Proxy to backend to update risk settings
  */
 export async function PUT(request: NextRequest) {
   try {
@@ -59,7 +58,7 @@ export async function PUT(request: NextRequest) {
 
     const body = await request.json();
 
-    const response = await fetch(`${BACKEND_URL}/api/v1/users/me/preferences`, {
+    const response = await fetch(`${BACKEND_URL}/api/v1/risk/settings`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -69,15 +68,14 @@ export async function PUT(request: NextRequest) {
     });
 
     if (!response.ok) {
-      // Return error from backend
-      const error = await response.json().catch(() => ({ detail: 'Failed to update preferences' }));
+      const error = await response.json().catch(() => ({ detail: 'Failed to update risk settings' }));
       return NextResponse.json(error, { status: response.status });
     }
 
     const data = await response.json();
     return NextResponse.json(data);
   } catch (error) {
-    console.error('Error updating preferences:', error);
+    console.error('Error updating risk settings:', error);
     return NextResponse.json(
       { detail: 'Internal server error' },
       { status: 500 }

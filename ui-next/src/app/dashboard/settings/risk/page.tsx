@@ -33,16 +33,48 @@ export default function RiskSettingsPage() {
   }, []);
 
   async function fetchSettings() {
-    const res = await fetch("/api/v1/risk/settings");
-    if (res.ok) {
-      setSettings(await res.json());
+    try {
+      const res = await fetch("/api/risk/settings");
+      if (res.ok) {
+        setSettings(await res.json());
+      } else {
+        console.error("Failed to fetch risk settings:", res.status);
+        // Set defaults if fetch fails
+        setSettings({
+          default_max_daily_trades: null,
+          default_max_open_positions: null,
+          default_max_daily_loss: null,
+          default_max_daily_loss_pct: null,
+          default_max_drawdown_pct: null,
+          default_trade_cooldown_seconds: null,
+          default_position_sizing_mode: "fixed",
+          default_fixed_lot_size: 0.01,
+          default_risk_percent_per_trade: 1.0,
+          risk_management_enabled: true,
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching risk settings:", error);
+      // Set defaults on error
+      setSettings({
+        default_max_daily_trades: null,
+        default_max_open_positions: null,
+        default_max_daily_loss: null,
+        default_max_daily_loss_pct: null,
+        default_max_drawdown_pct: null,
+        default_trade_cooldown_seconds: null,
+        default_position_sizing_mode: "fixed",
+        default_fixed_lot_size: 0.01,
+        default_risk_percent_per_trade: 1.0,
+        risk_management_enabled: true,
+      });
     }
   }
 
   async function saveSettings() {
     setSaving(true);
     try {
-      const res = await fetch("/api/v1/risk/settings", {
+      const res = await fetch("/api/risk/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(settings),
