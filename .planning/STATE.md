@@ -198,6 +198,10 @@ Progress: [#############################_] 96% (v1.1+) - Phase 24 Wave 1 near co
 | 24-03 | Fail open on deduplication errors | Prevents legitimate trades from being blocked due to infrastructure issues |
 | 24-03 | Deduplication settings on User model (not account) | Simplicity; scope setting handles account distinction |
 | 24-03 | DUPLICATE_ENTRY as new RejectedSignalReason | Clearer audit trail than reusing SYMBOL_LIMIT |
+| 24-01 | Trial auto-starts on first signal execution | No manual start required, zero friction UX |
+| 24-01 | Trial status stored permanently in database | Efficient queries without re-calculating dates |
+| 24-01 | Fail-open on trial check errors | System issues don't block legitimate trades |
+| 24-01 | Trial rejections logged to RejectedSignal | Analytics on trial expiration patterns |
 
 ## Known Tech Debt
 
@@ -211,7 +215,7 @@ Progress: [#############################_] 96% (v1.1+) - Phase 24 Wave 1 near co
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed 24-03-PLAN.md (Signal Deduplication)
+Stopped at: Completed 24-01-PLAN.md (Trial System Backend)
 Resume file: None
 Status: Phase 24 Wave 1 complete (5/5), Wave 2 pending (0/3)
 
