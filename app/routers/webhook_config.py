@@ -1,7 +1,7 @@
 """Webhook Configuration Router for Signal Routing"""
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import List, Optional, Any
 from pydantic import BaseModel, Field
 import secrets
 
@@ -14,26 +14,45 @@ router = APIRouter(prefix="/webhook-configs", tags=["webhook-configs"])
 
 
 # Pydantic Schemas
+class RoutingCondition(BaseModel):
+    """Condition for rule-based routing"""
+    field: str = Field(..., description="Field to match: symbol, action, source, strategy_name")
+    operator: str = Field(..., description="Operator: eq, neq, contains, starts_with, in, gt, lt")
+    value: Any = Field(..., description="Value to compare against")
+
+
 class RoutingRuleCreate(BaseModel):
-    condition: dict = Field(..., description="Condition object with field, operator, value")
-    target_account_id: int
-    priority: int = 0
+    """Single routing rule"""
+    condition: RoutingCondition
+    target_account_id: int = Field(..., description="Account ID to route to if condition matches")
+    priority: int = Field(0, description="Rule priority (higher = evaluated first)")
+    name: Optional[str] = Field(None, description="Human-readable rule name")
+    description: Optional[str] = Field(None, description="Rule description")
 
 
 class WebhookConfigCreate(BaseModel):
-    name: str
+    """Create a new webhook configuration"""
+    name: str = Field(..., description="Display name for this webhook config")
     source: str = Field(..., description="Source: tradingview, trailhacker, or custom")
-    default_account_id: Optional[int] = None
-    routing_rules: Optional[List[dict]] = []
-    symbol_filter: Optional[List[str]] = None
-    action_filter: Optional[List[str]] = None
-    is_active: bool = True
+    routing_strategy: str = Field(
+        "default_only",
+        description="Routing strategy: all_accounts, specific_accounts, rules_based, default_only"
+    )
+    default_account_id: Optional[int] = Field(None, description="Default account for fallback")
+    specific_account_ids: Optional[List[int]] = Field(None, description="Account IDs for specific_accounts strategy")
+    routing_rules: Optional[List[dict]] = Field([], description="Routing rules for rules_based strategy")
+    symbol_filter: Optional[List[str]] = Field(None, description="Symbols to accept (whitelist)")
+    action_filter: Optional[List[str]] = Field(None, description="Actions to accept (whitelist)")
+    is_active: bool = Field(True, description="Whether this config is active")
 
 
 class WebhookConfigUpdate(BaseModel):
+    """Update webhook configuration"""
     name: Optional[str] = None
     source: Optional[str] = None
+    routing_strategy: Optional[str] = None
     default_account_id: Optional[int] = None
+    specific_account_ids: Optional[List[int]] = None
     routing_rules: Optional[List[dict]] = None
     symbol_filter: Optional[List[str]] = None
     action_filter: Optional[List[str]] = None
@@ -41,11 +60,14 @@ class WebhookConfigUpdate(BaseModel):
 
 
 class WebhookConfigResponse(BaseModel):
+    """Webhook configuration response"""
     id: int
     name: str
     webhook_key: str
     source: str
+    routing_strategy: Optional[str] = "default_only"
     default_account_id: Optional[int] = None
+    specific_account_ids: Optional[List[int]] = None
     routing_rules: Optional[List[dict]] = []
     symbol_filter: Optional[List[str]] = None
     action_filter: Optional[List[str]] = None
@@ -97,6 +119,19 @@ async def create_webhook_config(
                 detail="Default account not found"
             )
 
+    # Validate specific account IDs if provided
+    if config.specific_account_ids:
+        for aid in config.specific_account_ids:
+            account = db.query(TradingAccount).filter(
+                TradingAccount.id == aid,
+                TradingAccount.user_id == current_user.id
+            ).first()
+            if not account:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Account {aid} not found in specific_account_ids"
+                )
+
     # Validate target accounts in routing rules
     if config.routing_rules:
         for rule in config.routing_rules:
@@ -111,13 +146,23 @@ async def create_webhook_config(
                         detail=f"Account {rule['target_account_id']} not found in routing rules"
                     )
 
+    # Validate routing_strategy
+    valid_strategies = ['all_accounts', 'specific_accounts', 'rules_based', 'default_only']
+    if config.routing_strategy not in valid_strategies:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid routing_strategy. Must be one of: {valid_strategies}"
+        )
+
     # Create webhook config
     db_config = WebhookConfig(
         user_id=current_user.id,
         name=config.name,
         webhook_key=generate_webhook_key(),
         source=config.source,
+        routing_strategy=config.routing_strategy,
         default_account_id=config.default_account_id,
+        specific_account_ids=config.specific_account_ids,
         routing_rules=config.routing_rules,
         symbol_filter=config.symbol_filter,
         action_filter=config.action_filter,
@@ -183,6 +228,19 @@ async def update_webhook_config(
                 detail="Default account not found"
             )
 
+    # Validate specific account IDs if being updated
+    if config_update.specific_account_ids is not None:
+        for aid in config_update.specific_account_ids:
+            account = db.query(TradingAccount).filter(
+                TradingAccount.id == aid,
+                TradingAccount.user_id == current_user.id
+            ).first()
+            if not account:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Account {aid} not found in specific_account_ids"
+                )
+
     # Validate target accounts in routing rules if being updated
     if config_update.routing_rules is not None:
         for rule in config_update.routing_rules:
@@ -196,6 +254,15 @@ async def update_webhook_config(
                         status_code=status.HTTP_400_BAD_REQUEST,
                         detail=f"Account {rule['target_account_id']} not found in routing rules"
                     )
+
+    # Validate routing_strategy if being updated
+    if config_update.routing_strategy is not None:
+        valid_strategies = ['all_accounts', 'specific_accounts', 'rules_based', 'default_only']
+        if config_update.routing_strategy not in valid_strategies:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid routing_strategy. Must be one of: {valid_strategies}"
+            )
 
     # Update fields
     for field, value in config_update.dict(exclude_unset=True).items():
