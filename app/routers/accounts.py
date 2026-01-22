@@ -26,12 +26,23 @@ from app.application.dto.account_settings_dto import (
 )
 from app.domain.enums import BrokerType, AccountType
 from pydantic import BaseModel, Field
+from datetime import datetime
 
 
 class TestConnectionBody(BaseModel):
     """Request body for connection test endpoint"""
     broker: str
     credentials: dict
+
+
+class SelectAccountBody(BaseModel):
+    """Request body for account selection toggle"""
+    selected: bool
+
+
+class FetchAvailableAccountsBody(BaseModel):
+    """Optional request body for fetching available accounts"""
+    credentials: Optional[dict] = None  # Override stored credentials
 
 
 router = APIRouter()
@@ -125,6 +136,303 @@ async def test_connection(
         result["sample_symbols"] = response.sample_symbols
 
     return result
+
+
+@router.get("/available/{broker_type}")
+async def get_available_accounts(
+    request: Request,
+    broker_type: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Fetch available accounts from broker SDK.
+
+    Returns list of accounts available on the broker, with selection status
+    cross-referenced against stored TradingAccounts.
+
+    Args:
+        broker_type: Broker type (tradelocker, projectx, tradovate, mt4, mt5)
+
+    Returns:
+        List of available accounts with:
+        - id: Broker's account ID
+        - name: Account name
+        - account_type: live, demo, evaluation, express
+        - balance: Account balance (if available)
+        - currency: Account currency
+        - is_stored: Whether account exists in database
+        - is_selected: Whether account is selected to receive signals (is_signal_enabled)
+        - stored_account_id: Database account ID (if stored)
+    """
+    from app.services.account_fetcher_service import AccountFetcherService
+    from app.models.database_models import TradingAccount, BrokerType as DBBrokerType
+    from app.core.encryption import decrypt
+
+    # Validate broker type
+    try:
+        broker_enum = BrokerType(broker_type.lower())
+    except ValueError:
+        valid_brokers = [b.value for b in BrokerType]
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid broker type: {broker_type}. Valid options: {valid_brokers}"
+        )
+
+    # Get stored accounts for this broker to extract credentials
+    stored_accounts = db.query(TradingAccount).filter(
+        TradingAccount.user_id == current_user.id,
+        TradingAccount.broker == DBBrokerType(broker_type.lower()),
+        TradingAccount.is_active == True
+    ).all()
+
+    if not stored_accounts:
+        return {
+            "broker_type": broker_type,
+            "accounts": [],
+            "message": "No stored accounts for this broker. Connect an account first."
+        }
+
+    # Use first stored account's credentials to fetch available accounts
+    account = stored_accounts[0]
+    credentials = {}
+
+    # Build credentials from stored account
+    if account.api_key:
+        try:
+            credentials["api_key"] = decrypt(account.api_key)
+        except Exception:
+            credentials["api_key"] = account.api_key
+    if account.api_secret:
+        try:
+            credentials["api_secret"] = decrypt(account.api_secret)
+        except Exception:
+            credentials["api_secret"] = account.api_secret
+    if account.access_token:
+        try:
+            credentials["access_token"] = decrypt(account.access_token)
+        except Exception:
+            credentials["access_token"] = account.access_token
+    if account.oauth_environment:
+        credentials["environment"] = account.oauth_environment
+
+    # Add any extra metadata credentials
+    if account.extra_metadata:
+        for key in ["username", "email", "password", "server", "token", "account_id", "metaapi_account_id"]:
+            if key in account.extra_metadata:
+                credentials[key] = account.extra_metadata[key]
+
+    # Fetch available accounts from broker
+    fetcher = AccountFetcherService()
+    try:
+        broker_accounts = await fetcher.fetch_all_accounts(
+            user_id=current_user.id,
+            broker_type=broker_type,
+            credentials=credentials
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch accounts from broker: {str(e)}"
+        )
+
+    # Build lookup of stored accounts by account_number (external ID)
+    stored_lookup = {acc.account_number: acc for acc in stored_accounts}
+
+    # Combine broker accounts with stored info
+    result_accounts = []
+    for broker_acc in broker_accounts:
+        stored = stored_lookup.get(broker_acc.id) or stored_lookup.get(str(broker_acc.id))
+
+        result_accounts.append({
+            "id": broker_acc.id,
+            "name": broker_acc.name,
+            "account_type": broker_acc.account_type,
+            "balance": broker_acc.balance,
+            "equity": broker_acc.equity,
+            "currency": broker_acc.currency,
+            "server": broker_acc.server,
+            "login": broker_acc.login,
+            "broker_type": broker_acc.broker_type,
+            "is_active": broker_acc.is_active,
+            "is_stored": stored is not None,
+            "is_selected": stored.is_signal_enabled if stored else False,
+            "stored_account_id": stored.id if stored else None,
+        })
+
+    return {
+        "broker_type": broker_type,
+        "accounts": result_accounts,
+        "total": len(result_accounts),
+    }
+
+
+@router.put("/{account_id}/select")
+async def toggle_account_selection(
+    request: Request,
+    account_id: int,
+    body: SelectAccountBody,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Toggle account selection for signal routing.
+
+    When selected=True, the account will receive trading signals.
+    When selected=False, the account will not receive signals.
+
+    Args:
+        account_id: Database account ID (not broker account ID)
+        body: { "selected": boolean }
+
+    Returns:
+        Updated account selection status
+    """
+    from app.models.database_models import TradingAccount
+
+    # Get account
+    account = db.query(TradingAccount).filter(
+        TradingAccount.id == account_id,
+        TradingAccount.user_id == current_user.id
+    ).first()
+
+    if not account:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Account {account_id} not found"
+        )
+
+    # Update selection status
+    account.is_signal_enabled = body.selected
+    account.updated_at = datetime.utcnow()
+    db.commit()
+
+    return {
+        "account_id": account.id,
+        "account_number": account.account_number,
+        "broker": account.broker.value,
+        "is_selected": account.is_signal_enabled,
+        "message": f"Account {'selected' if body.selected else 'deselected'} for signal routing"
+    }
+
+
+@router.post("/sync-all")
+async def sync_all_accounts(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Re-fetch and sync accounts from all connected brokers.
+
+    Updates stored accounts with latest balance/equity from brokers.
+    Identifies new accounts available on brokers (but doesn't auto-add them).
+
+    Returns:
+        Sync results per broker including:
+        - updated_count: Accounts updated with fresh data
+        - new_available_count: New accounts detected on broker
+        - error: Any errors during sync
+    """
+    from app.services.account_fetcher_service import AccountFetcherService
+    from app.models.database_models import TradingAccount, BrokerType as DBBrokerType
+    from app.core.encryption import decrypt
+
+    # Get all stored accounts grouped by broker
+    stored_accounts = db.query(TradingAccount).filter(
+        TradingAccount.user_id == current_user.id,
+        TradingAccount.is_active == True
+    ).all()
+
+    if not stored_accounts:
+        return {
+            "synced": False,
+            "message": "No accounts to sync",
+            "results": []
+        }
+
+    # Group by broker
+    accounts_by_broker = {}
+    for acc in stored_accounts:
+        broker = acc.broker.value
+        if broker not in accounts_by_broker:
+            accounts_by_broker[broker] = []
+        accounts_by_broker[broker].append(acc)
+
+    fetcher = AccountFetcherService()
+    results = []
+
+    for broker_type, accounts in accounts_by_broker.items():
+        result = {
+            "broker": broker_type,
+            "updated_count": 0,
+            "new_available_count": 0,
+            "error": None
+        }
+
+        try:
+            # Use first account's credentials
+            account = accounts[0]
+            credentials = {}
+
+            if account.api_key:
+                try:
+                    credentials["api_key"] = decrypt(account.api_key)
+                except Exception:
+                    credentials["api_key"] = account.api_key
+            if account.access_token:
+                try:
+                    credentials["access_token"] = decrypt(account.access_token)
+                except Exception:
+                    credentials["access_token"] = account.access_token
+            if account.oauth_environment:
+                credentials["environment"] = account.oauth_environment
+            if account.extra_metadata:
+                for key in ["username", "email", "password", "server", "token"]:
+                    if key in account.extra_metadata:
+                        credentials[key] = account.extra_metadata[key]
+
+            # Fetch accounts from broker
+            broker_accounts = await fetcher.fetch_all_accounts(
+                user_id=current_user.id,
+                broker_type=broker_type,
+                credentials=credentials
+            )
+
+            # Build lookup for matching
+            stored_lookup = {acc.account_number: acc for acc in accounts}
+
+            # Update matching accounts
+            for broker_acc in broker_accounts:
+                stored = stored_lookup.get(broker_acc.id) or stored_lookup.get(str(broker_acc.id))
+
+                if stored:
+                    # Update with fresh data
+                    if broker_acc.balance is not None:
+                        stored.balance = broker_acc.balance
+                    if broker_acc.equity is not None:
+                        stored.equity = broker_acc.equity
+                    stored.last_sync = datetime.utcnow()
+                    result["updated_count"] += 1
+                else:
+                    # New account available on broker
+                    result["new_available_count"] += 1
+
+            db.commit()
+
+        except Exception as e:
+            result["error"] = str(e)
+
+        results.append(result)
+
+    total_updated = sum(r["updated_count"] for r in results)
+    total_new = sum(r["new_available_count"] for r in results)
+
+    return {
+        "synced": True,
+        "message": f"Synced {total_updated} accounts. {total_new} new accounts available.",
+        "results": results
+    }
 
 
 @router.post("/")
