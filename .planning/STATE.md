@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-01-21)
 
 ## Current Position
 
-Phase: 24 - Enhanced Features & Monetization v2 (IN PROGRESS)
-Plan: 8 of 8 complete (Wave 2: 2/3)
-Status: Phase 24 in progress - Wave 2 nearly complete
-Last activity: 2026-01-22 - Completed 24-04-PLAN.md (Trial UI & Upgrade Prompts)
+Phase: 24 - Enhanced Features & Monetization v2 (COMPLETE)
+Plan: 8 of 8 complete (Wave 2: 3/3)
+Status: Phase 24 complete - All Wave 2 plans done
+Last activity: 2026-01-22 - Completed 24-07-PLAN.md (Broker Account Selection UI)
 
-Progress: [##############################] 99% (v1.1+) - Phase 24 Wave 2 nearly complete
+Progress: [##############################] 100% (v1.1+) - Phase 24 complete
 
 ## v1.1 Milestone Goals
 
@@ -57,7 +57,7 @@ Progress: [##############################] 99% (v1.1+) - Phase 24 Wave 2 nearly 
 | 21 | Multi-Account & Routing | 6 | Complete (3/3 plans) |
 | 22 | Risk Management | 16 | Complete (4/4 plans) |
 | 23 | User Settings & Dashboard | 18 | Complete (5/5 plans) |
-| 24 | Enhanced Features & Monetization v2 | 43 | In Progress (8/8 plans - Wave 2: 2/3) |
+| 24 | Enhanced Features & Monetization v2 | 43 | Complete (8/8 plans) |
 
 ## Previous Milestone
 
@@ -214,6 +214,10 @@ Progress: [##############################] 99% (v1.1+) - Phase 24 Wave 2 nearly 
 | 24-04 | 24-hour dismissal expiry for upgrade prompt | Prompt can be dismissed, re-shows after 24 hours |
 | 24-04 | Recommended tier based on broker count | Highlights tier matching current broker usage |
 | 24-04 | Progress bars show usage not remaining | Visual fills represent used/consumed amount |
+| 24-07 | BrokerAccountSelection groups by broker type | Each connected broker gets collapsible section with account count |
+| 24-07 | AccountSelector reusable with compact mode | showHeader and compact props for embedding in different contexts |
+| 24-07 | Selection count shown per broker | "X of Y accounts selected" for at-a-glance status |
+| 24-07 | Signal Routing section on accounts page | Integrated between Broker Accounts and Broker Connections sections |
 
 ## Known Tech Debt
 
@@ -227,9 +231,9 @@ Progress: [##############################] 99% (v1.1+) - Phase 24 Wave 2 nearly 
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed 24-04-PLAN.md (Trial UI & Upgrade Prompts)
+Stopped at: Completed 24-07-PLAN.md (Broker Account Selection UI)
 Resume file: None
-Status: Phase 24 Wave 2 in progress (2/3 complete)
+Status: Phase 24 complete (8/8 plans)
 
 ## Gap Closure Status
 
@@ -253,7 +257,7 @@ Status: Phase 24 Wave 2 in progress (2/3 complete)
 
 ## Next Steps
 
-1. **Phase 24 (Enhanced Features & Monetization v2)** - IN PROGRESS (8/8 plans)
+1. **Phase 24 (Enhanced Features & Monetization v2)** - COMPLETE (8/8 plans)
 
    **Wave 1 (parallel) - 5/5 COMPLETE:**
    - 24-01: Trial System Backend - COMPLETE
@@ -262,9 +266,9 @@ Status: Phase 24 Wave 2 in progress (2/3 complete)
    - 24-06: Broker Account Selection Backend - COMPLETE
    - 24-08: Landing Page Enhancements - COMPLETE
 
-   **Wave 2 (depends on Wave 1) - 2/3 COMPLETE:**
-   - 24-04: Trial UI & Upgrade Prompts (TRIAL-04, TRIAL-06, TRIAL-07) - COMPLETE (just completed)
+   **Wave 2 (depends on Wave 1) - 3/3 COMPLETE:**
+   - 24-04: Trial UI & Upgrade Prompts (TRIAL-04, TRIAL-06, TRIAL-07) - COMPLETE
    - 24-05: 4-Tier Pricing UI (BILL-09) - COMPLETE
-   - 24-07: Broker Account Selection UI (ACCT-11, ACCT-12) - PENDING
+   - 24-07: Broker Account Selection UI (ACCT-11, ACCT-12) - COMPLETE
 
-2. Run `/gsd:execute-plan 24-07` to complete Wave 2 and Phase 24
+2. Phase 24 complete - All enhanced features and monetization implemented
