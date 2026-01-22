@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-21)
 ## Current Position
 
 Phase: 24 - Enhanced Features & Monetization v2 (IN PROGRESS)
-Plan: 5 of 8 complete (Wave 1 near complete)
-Status: Phase 24 in progress - Wave 1 executing
-Last activity: 2026-01-22 - Completed 24-02-PLAN.md (4-Tier Pricing Backend)
+Plan: 6 of 8 complete (Wave 1 complete)
+Status: Phase 24 in progress - Wave 1 complete, Wave 2 pending
+Last activity: 2026-01-22 - Completed 24-08-PLAN.md (Landing Page Enhancements)
 
-Progress: [#############################_] 96% (v1.1+) - Phase 24 Wave 1 near complete
+Progress: [#############################_] 97% (v1.1+) - Phase 24 Wave 1 complete
 
 ## v1.1 Milestone Goals
 
@@ -57,7 +57,7 @@ Progress: [#############################_] 96% (v1.1+) - Phase 24 Wave 1 near co
 | 21 | Multi-Account & Routing | 6 | Complete (3/3 plans) |
 | 22 | Risk Management | 16 | Complete (4/4 plans) |
 | 23 | User Settings & Dashboard | 18 | Complete (5/5 plans) |
-| 24 | Enhanced Features & Monetization v2 | 43 | In Progress (5/8 plans) |
+| 24 | Enhanced Features & Monetization v2 | 43 | In Progress (6/8 plans) |
 
 ## Previous Milestone
 
@@ -202,6 +202,10 @@ Progress: [#############################_] 96% (v1.1+) - Phase 24 Wave 1 near co
 | 24-01 | Trial status stored permanently in database | Efficient queries without re-calculating dates |
 | 24-01 | Fail-open on trial check errors | System issues don't block legitimate trades |
 | 24-01 | Trial rejections logged to RejectedSignal | Analytics on trial expiration patterns |
+| 24-08 | Intersection Observer for scroll-triggered animations | No external animation library needed, native browser API |
+| 24-08 | requestAnimationFrame for chart animation | Smooth 60fps animation, GPU-accelerated, pauses when tab inactive |
+| 24-08 | Testimonials target specific pain points | Each review addresses value prop: speed, multi-account, risk, symbol mapping |
+| 24-08 | Staggered animation delays (100ms per item) | Creates professional visual flow on scroll |
 
 ## Known Tech Debt
 
@@ -215,9 +219,9 @@ Progress: [#############################_] 96% (v1.1+) - Phase 24 Wave 1 near co
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed 24-01-PLAN.md (Trial System Backend)
+Stopped at: Completed 24-08-PLAN.md (Landing Page Enhancements)
 Resume file: None
-Status: Phase 24 Wave 1 complete (5/5), Wave 2 pending (0/3)
+Status: Phase 24 Wave 1 complete (6/6), Wave 2 pending (0/3)
 
 ## Gap Closure Status
 
@@ -241,18 +245,18 @@ Status: Phase 24 Wave 1 complete (5/5), Wave 2 pending (0/3)
 
 ## Next Steps
 
-1. **Phase 24 (Enhanced Features & Monetization v2)** - IN PROGRESS (5/8 plans)
+1. **Phase 24 (Enhanced Features & Monetization v2)** - IN PROGRESS (6/8 plans)
 
    **Wave 1 (parallel) - 5/5 COMPLETE:**
    - 24-01: Trial System Backend - COMPLETE
    - 24-02: 4-Tier Pricing Backend - COMPLETE
    - 24-03: Signal Deduplication - COMPLETE
    - 24-06: Broker Account Selection Backend - COMPLETE
-   - 24-08: Landing Page Enhancements - COMPLETE
+   - 24-08: Landing Page Enhancements - COMPLETE (just completed)
 
    **Wave 2 (depends on Wave 1) - 0/3 PENDING:**
-   - 24-04: Trial UI & Upgrade Prompts (TRIAL-04, TRIAL-06, TRIAL-07)
-   - 24-05: 4-Tier Pricing UI (BILL-09)
-   - 24-07: Broker Account Selection UI (ACCT-11, ACCT-12)
+   - 24-04: Trial UI & Upgrade Prompts (TRIAL-04, TRIAL-06, TRIAL-07) - PENDING
+   - 24-05: 4-Tier Pricing UI (BILL-09) - PENDING
+   - 24-07: Broker Account Selection UI (ACCT-11, ACCT-12) - PENDING
 
 2. Run `/gsd:execute-plan 24-04` to begin Wave 2
