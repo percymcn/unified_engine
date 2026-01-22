@@ -486,12 +486,25 @@ class SignalProcessor:
         try:
             broker = self.brokers[signal_request.broker]
 
-            # Get account for sizing
-            from app.models.database_models import TradingAccount
+            # Get account for sizing and deduplication
             db = next(get_db())
             account = db.query(TradingAccount).filter(
                 TradingAccount.account_number == str(signal_request.account_id)
             ).first()
+
+            # Check for duplicate entry before execution
+            if account:
+                dedup_check = await self._check_deduplication(
+                    signal_request=signal_request,
+                    account_id=account.id,
+                    user_id=account.user_id
+                )
+                if not dedup_check["passed"]:
+                    return {
+                        "success": False,
+                        "error": dedup_check["error"],
+                        "status": "rejected"
+                    }
 
             # Calculate position size if account found and not using fixed mode
             quantity = signal_request.quantity
