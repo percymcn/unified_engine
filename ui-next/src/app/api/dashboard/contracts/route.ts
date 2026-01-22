@@ -48,14 +48,14 @@ export async function GET(request: Request) {
     // Transform snake_case to camelCase for frontend
     const contracts: ExpiringContract[] = Array.isArray(data)
       ? data.map((c: Record<string, unknown>) => ({
-          contractCode: c.contract_code,
-          symbolRoot: c.symbol_root,
-          expirationDate: c.expiration_date,
-          rolloverDate: c.rollover_date,
-          nextContract: c.next_contract,
-          daysUntilExpiration: c.days_until_expiration,
-          daysUntilRollover: c.days_until_rollover,
-          accountId: c.account_id,
+          contractCode: c.contract_code as string,
+          symbolRoot: c.symbol_root as string,
+          expirationDate: c.expiration_date as string,
+          rolloverDate: c.rollover_date as string,
+          nextContract: c.next_contract as string | null,
+          daysUntilExpiration: c.days_until_expiration as number,
+          daysUntilRollover: c.days_until_rollover as number,
+          accountId: c.account_id as number,
         }))
       : [];
 
