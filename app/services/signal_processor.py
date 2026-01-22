@@ -482,42 +482,219 @@ class SignalProcessor:
         return result.adjusted_size
     
     async def _execute_signal(self, signal_request: SignalRequest, signal_id: str) -> Dict[str, Any]:
-        """Execute signal on appropriate broker"""
-        try:
-            broker = self.brokers[signal_request.broker]
+        """Execute signal on appropriate broker, respecting account selection.
 
-            # Get account for sizing and deduplication
+        Routing modes:
+        1. If signal specifies account_id: Use that specific account (if selected)
+        2. If signal specifies broker_type only: Use all selected accounts of that type
+        3. If neither: Use all selected accounts across all brokers
+
+        Only routes to accounts where is_signal_enabled=True (selected).
+        """
+        try:
+            from app.models.database_models import BrokerType as DBBrokerType
+
             db = next(get_db())
-            account = db.query(TradingAccount).filter(
+
+            # Get user_id from signal request if available
+            user_id = getattr(signal_request, 'user_id', None)
+
+            # Determine target accounts based on routing mode
+            target_accounts = await self._get_target_accounts(
+                db, signal_request, user_id
+            )
+
+            if not target_accounts:
+                logger.warning(
+                    f"Signal {signal_id}: No selected accounts found for routing. "
+                    f"Broker: {signal_request.broker}, Account: {signal_request.account_id}"
+                )
+                return {
+                    "success": False,
+                    "error": "No selected accounts available for signal routing"
+                }
+
+            # Log routing decision
+            selected_count = len(target_accounts)
+            account_ids = [acc.account_number for acc in target_accounts]
+            logger.info(
+                f"Signal {signal_id}: Routing to {selected_count} selected accounts: {account_ids}"
+            )
+
+            # Execute on all target accounts
+            results = []
+            for account in target_accounts:
+                result = await self._execute_on_account(
+                    signal_request, signal_id, account
+                )
+                results.append(result)
+
+            # Aggregate results
+            successful = [r for r in results if r.get("success")]
+            failed = [r for r in results if not r.get("success")]
+
+            if successful:
+                return {
+                    "success": True,
+                    "order_id": successful[0].get("order_id"),  # Return first order ID
+                    "broker": signal_request.broker,
+                    "status": "executed",
+                    "executed_count": len(successful),
+                    "failed_count": len(failed),
+                    "details": results
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": failed[0].get("error") if failed else "Unknown error",
+                    "failed_count": len(failed),
+                    "details": results
+                }
+
+        except Exception as e:
+            logger.error(f"Error executing signal: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    async def _get_target_accounts(
+        self,
+        db,
+        signal_request: SignalRequest,
+        user_id: Optional[int]
+    ) -> List:
+        """
+        Get target accounts for signal routing based on selection status.
+
+        Routing modes:
+        1. Specific account_id: Return that account if selected
+        2. Broker type only: Return all selected accounts of that type
+        3. Neither: Return all selected accounts (for the user)
+
+        Args:
+            db: Database session
+            signal_request: The signal request
+            user_id: User ID for filtering accounts
+
+        Returns:
+            List of TradingAccount objects that are selected (is_signal_enabled=True)
+        """
+        from app.models.database_models import BrokerType as DBBrokerType
+
+        # Build base query
+        query = db.query(TradingAccount).filter(
+            TradingAccount.is_active == True,
+            TradingAccount.is_signal_enabled == True  # Only selected accounts
+        )
+
+        # Filter by user if available
+        if user_id:
+            query = query.filter(TradingAccount.user_id == user_id)
+
+        # Mode 1: Specific account_id specified
+        if signal_request.account_id:
+            account = query.filter(
                 TradingAccount.account_number == str(signal_request.account_id)
             ).first()
 
-            # Check for duplicate entry before execution
             if account:
-                dedup_check = await self._check_deduplication(
-                    signal_request=signal_request,
-                    account_id=account.id,
-                    user_id=account.user_id
-                )
-                if not dedup_check["passed"]:
-                    return {
-                        "success": False,
-                        "error": dedup_check["error"],
-                        "status": "rejected"
-                    }
+                return [account]
+            else:
+                # Check if account exists but is not selected
+                unselected = db.query(TradingAccount).filter(
+                    TradingAccount.account_number == str(signal_request.account_id),
+                    TradingAccount.is_active == True,
+                    TradingAccount.is_signal_enabled == False
+                ).first()
 
-            # Calculate position size if account found and not using fixed mode
+                if unselected:
+                    logger.info(
+                        f"Skipping account {signal_request.account_id} (not selected)"
+                    )
+                return []
+
+        # Mode 2: Broker type specified, no specific account
+        if signal_request.broker:
+            try:
+                broker_type = DBBrokerType(signal_request.broker.lower())
+                accounts = query.filter(
+                    TradingAccount.broker == broker_type
+                ).order_by(TradingAccount.signal_priority.desc()).all()
+
+                if accounts:
+                    logger.info(
+                        f"Routing to {len(accounts)} selected accounts for {signal_request.broker}"
+                    )
+                return accounts
+
+            except ValueError:
+                logger.warning(f"Invalid broker type: {signal_request.broker}")
+                return []
+
+        # Mode 3: No specific routing - use all selected accounts
+        accounts = query.order_by(TradingAccount.signal_priority.desc()).all()
+        if accounts:
+            logger.info(f"Routing to {len(accounts)} selected accounts (all brokers)")
+        return accounts
+
+    async def _execute_on_account(
+        self,
+        signal_request: SignalRequest,
+        signal_id: str,
+        account
+    ) -> Dict[str, Any]:
+        """Execute signal on a specific account.
+
+        Args:
+            signal_request: The signal request
+            signal_id: Signal ID for logging
+            account: TradingAccount to execute on
+
+        Returns:
+            Execution result dict
+        """
+        try:
+            broker_type = account.broker.value
+            broker = self.brokers.get(broker_type)
+
+            if not broker:
+                return {
+                    "success": False,
+                    "account_id": account.id,
+                    "error": f"Broker {broker_type} not available"
+                }
+
+            # Check for duplicate entry before execution
+            dedup_check = await self._check_deduplication(
+                signal_request=signal_request,
+                account_id=account.id,
+                user_id=account.user_id
+            )
+            if not dedup_check["passed"]:
+                return {
+                    "success": False,
+                    "account_id": account.id,
+                    "account_number": account.account_number,
+                    "error": dedup_check["error"],
+                    "status": "rejected"
+                }
+
+            # Calculate position size if account uses dynamic sizing
             quantity = signal_request.quantity
-            if account and account.position_sizing_mode and account.position_sizing_mode != "fixed":
+            if account.position_sizing_mode and account.position_sizing_mode != "fixed":
                 try:
                     quantity = await self._calculate_position_size(signal_request, account)
-                    logger.info(f"Position size adjusted: {signal_request.quantity} -> {quantity} lots")
+                    logger.info(
+                        f"Position size adjusted for account {account.account_number}: "
+                        f"{signal_request.quantity} -> {quantity} lots"
+                    )
                 except Exception as e:
                     logger.warning(f"Position sizing failed, using signal quantity: {e}")
 
             # Convert signal to order
             order_request = OrderRequest(
-                account_id=signal_request.account_id,
+                account_id=account.account_number,
                 symbol=signal_request.symbol,
                 order_type=self._map_action_to_order_type(signal_request.action),
                 quantity=quantity,
@@ -533,25 +710,30 @@ class SignalProcessor:
 
             if order_response.success:
                 # Update account balance after successful trade
-                if account:
-                    await self._update_account_balance(account.id, signal_request.broker)
+                await self._update_account_balance(account.id, broker_type)
 
                 return {
                     "success": True,
+                    "account_id": account.id,
+                    "account_number": account.account_number,
                     "order_id": order_response.order_id,
-                    "broker": signal_request.broker,
+                    "broker": broker_type,
                     "status": order_response.status
                 }
             else:
                 return {
                     "success": False,
+                    "account_id": account.id,
+                    "account_number": account.account_number,
                     "error": order_response.error
                 }
 
         except Exception as e:
-            logger.error(f"Error executing signal: {e}")
+            logger.error(f"Error executing on account {account.account_number}: {e}")
             return {
                 "success": False,
+                "account_id": account.id,
+                "account_number": account.account_number,
                 "error": str(e)
             }
     
