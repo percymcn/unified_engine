@@ -42,6 +42,22 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/risk", tags=["risk"])
 
 
+# Global Risk Settings Schemas
+
+class GlobalRiskSettings(BaseModel):
+    """User's global risk settings that apply as defaults to all accounts"""
+    default_max_daily_trades: Optional[int] = None
+    default_max_open_positions: Optional[int] = None
+    default_max_daily_loss: Optional[float] = None
+    default_max_daily_loss_pct: Optional[float] = None
+    default_max_drawdown_pct: Optional[float] = None
+    default_trade_cooldown_seconds: Optional[int] = None
+    default_position_sizing_mode: Optional[str] = None
+    default_fixed_lot_size: Optional[float] = None
+    default_risk_percent_per_trade: Optional[float] = None
+    risk_management_enabled: bool = True
+
+
 @router.get("/rejected-signals")
 async def get_rejected_signals(
     limit: int = Query(50, le=100, ge=1, description="Number of signals to return"),
