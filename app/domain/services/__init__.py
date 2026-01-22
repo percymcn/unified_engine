@@ -22,9 +22,25 @@ Design Principles:
 from app.domain.services.symbol_normalization_service import SymbolNormalizationService
 from app.domain.services.futures_contract_service import FuturesContractService
 from app.domain.services.contract_tracker import ContractTracker
+from app.domain.services.routing_service import (
+    RoutingEngine,
+    RoutingConfig,
+    RoutingRule,
+    RoutingCondition,
+    RoutingStrategy,
+    RoutingOperator,
+    build_signal_data,
+)
 
 __all__ = [
     "SymbolNormalizationService",
     "FuturesContractService",
     "ContractTracker",
+    "RoutingEngine",
+    "RoutingConfig",
+    "RoutingRule",
+    "RoutingCondition",
+    "RoutingStrategy",
+    "RoutingOperator",
+    "build_signal_data",
 ]
