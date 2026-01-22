@@ -9,6 +9,8 @@ import {
   ExpirationAlerts,
   FuturesInfo,
 } from '@/components/positions/expiration-badge';
+import { RiskUsageWidget } from '@/components/dashboard/risk-usage-widget';
+import { RejectedSignalsWidget } from '@/components/dashboard/rejected-signals-widget';
 
 interface DashboardStats {
   activeSignals: number;
@@ -165,6 +167,12 @@ export default function DashboardPage() {
       <div>
         <h2 className="text-lg font-semibold tracking-tight mb-4">Broker Connections</h2>
         <BrokerHealthGrid />
+      </div>
+
+      {/* Risk Management Widgets */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <RiskUsageWidget />
+        <RejectedSignalsWidget />
       </div>
 
       {/* Placeholder for future content */}

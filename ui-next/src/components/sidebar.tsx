@@ -14,6 +14,7 @@ import {
   CreditCard,
   ArrowRightLeft,
   FolderOpen,
+  Shield,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -28,6 +29,7 @@ const settingsNavigation = [
   { name: 'Account Groups', href: '/settings/groups', icon: FolderOpen },
   { name: 'Symbol Mapping', href: '/settings/symbols', icon: ArrowRightLeft },
   { name: 'Signal Routing', href: '/settings/routing', icon: GitBranch },
+  { name: 'Risk Management', href: '/settings/risk', icon: Shield },
   { name: 'API Keys', href: '/settings/api-keys', icon: Key },
   { name: 'Webhooks', href: '/settings/webhooks', icon: Webhook },
   { name: 'Billing', href: '/settings/billing', icon: CreditCard },
