@@ -31,6 +31,18 @@ from app.domain.services.routing_service import (
     RoutingOperator,
     build_signal_data,
 )
+from app.domain.services.daily_counter_service import (
+    DailyCounters,
+    DailyCounterService,
+    DailyCounterRepository,
+)
+from app.domain.services.risk_enforcement_service import (
+    RiskEnforcementService,
+    RiskEvaluation,
+    RiskViolation,
+    RiskCheckResult,
+    AccountRiskSettings,
+)
 
 __all__ = [
     "SymbolNormalizationService",
@@ -43,4 +55,13 @@ __all__ = [
     "RoutingStrategy",
     "RoutingOperator",
     "build_signal_data",
+    # Risk management
+    "DailyCounters",
+    "DailyCounterService",
+    "DailyCounterRepository",
+    "RiskEnforcementService",
+    "RiskEvaluation",
+    "RiskViolation",
+    "RiskCheckResult",
+    "AccountRiskSettings",
 ]
