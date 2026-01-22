@@ -58,6 +58,148 @@ class GlobalRiskSettings(BaseModel):
     risk_management_enabled: bool = True
 
 
+# Global Risk Settings Endpoints
+
+@router.get("/settings")
+async def get_risk_settings(
+    current_user: User = Depends(get_current_user)
+) -> GlobalRiskSettings:
+    """
+    Get user's global risk settings.
+
+    These settings serve as defaults for all trading accounts.
+    Individual accounts can override these settings.
+    """
+    return GlobalRiskSettings(
+        default_max_daily_trades=current_user.default_max_daily_trades,
+        default_max_open_positions=current_user.default_max_open_positions,
+        default_max_daily_loss=current_user.default_max_daily_loss,
+        default_max_daily_loss_pct=current_user.default_max_daily_loss_pct,
+        default_max_drawdown_pct=current_user.default_max_drawdown_pct,
+        default_trade_cooldown_seconds=current_user.default_trade_cooldown_seconds,
+        default_position_sizing_mode=current_user.default_position_sizing_mode,
+        default_fixed_lot_size=current_user.default_fixed_lot_size,
+        default_risk_percent_per_trade=current_user.default_risk_percent_per_trade,
+        risk_management_enabled=current_user.risk_management_enabled if current_user.risk_management_enabled is not None else True
+    )
+
+
+@router.put("/settings")
+async def update_risk_settings(
+    settings: GlobalRiskSettings,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Update user's global risk settings.
+
+    All fields are optional. Only provided fields will be updated.
+    These settings apply as defaults to all trading accounts.
+    """
+    user = db.query(User).filter(User.id == current_user.id).first()
+
+    # Update non-None values
+    for field, value in settings.dict().items():
+        if hasattr(user, field):
+            setattr(user, field, value)
+
+    db.commit()
+    return {"message": "Risk settings updated successfully"}
+
+
+@router.get("/dashboard-summary")
+async def get_risk_dashboard_summary(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get risk usage summary for dashboard.
+
+    Returns usage vs limits for all active accounts:
+    - Daily trades executed vs limit
+    - Open positions vs limit
+    - Current drawdown vs limit
+    - Halted accounts
+    """
+    from app.domain.services import DrawdownService
+    from app.infrastructure.repositories import DailyPnLRepository, EquityHistoryRepository
+
+    accounts = db.query(TradingAccount).filter(
+        TradingAccount.user_id == current_user.id,
+        TradingAccount.is_active == True
+    ).all()
+
+    summary = {
+        "total_accounts": len(accounts),
+        "accounts_at_limit": 0,
+        "accounts_halted": 0,
+        "accounts": []
+    }
+
+    counter_repo = get_daily_counter_repository()
+    counter_service = DailyCounterService(counter_repo)
+
+    # Initialize drawdown service
+    pnl_repo = DailyPnLRepository(db)
+    equity_repo = EquityHistoryRepository(db)
+    drawdown_service = DrawdownService(pnl_repo, equity_repo)
+
+    for account in accounts:
+        counters = await counter_service.get_counters(account.id)
+        drawdown = await drawdown_service.get_current_state(account.id)
+
+        # Calculate usage percentages
+        trades_usage = 0
+        if account.max_daily_trades:
+            trades_usage = (counters.trades_executed / account.max_daily_trades) * 100
+
+        positions_usage = 0
+        if account.max_open_positions:
+            # TODO: Calculate from positions table
+            positions_usage = 0
+
+        drawdown_usage = 0
+        if account.max_drawdown_pct and drawdown:
+            drawdown_usage = (drawdown.drawdown_pct / account.max_drawdown_pct) * 100
+
+        # Check if daily loss limit hit (from daily_pnl table)
+        is_halted = False
+        if drawdown and drawdown.daily_loss_halted:
+            is_halted = True
+
+        account_summary = {
+            "account_id": account.id,
+            "account_name": account.account_name or account.account_number,
+            "broker": account.broker.value,
+            "daily_trades": {
+                "current": counters.trades_executed,
+                "limit": account.max_daily_trades,
+                "usage_pct": min(100, trades_usage)
+            },
+            "open_positions": {
+                "current": 0,  # TODO: Query positions table
+                "limit": account.max_open_positions,
+                "usage_pct": min(100, positions_usage)
+            },
+            "drawdown": {
+                "current": drawdown.drawdown_pct if drawdown else 0,
+                "limit": account.max_drawdown_pct,
+                "usage_pct": min(100, drawdown_usage)
+            },
+            "is_at_limit": trades_usage >= 100 or positions_usage >= 100 or drawdown_usage >= 100,
+            "is_halted": is_halted
+        }
+
+        summary["accounts"].append(account_summary)
+
+        if account_summary["is_at_limit"]:
+            summary["accounts_at_limit"] += 1
+        if account_summary["is_halted"]:
+            summary["accounts_halted"] += 1
+
+    return summary
+
+
 @router.get("/rejected-signals")
 async def get_rejected_signals(
     limit: int = Query(50, le=100, ge=1, description="Number of signals to return"),
