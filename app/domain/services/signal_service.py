@@ -111,20 +111,55 @@ class SignalService:
             raise SignalProcessingError(f"Failed to process signal: {e}")
 
     async def _get_target_accounts(self, signal: Signal) -> List[Account]:
-        """Get accounts to execute signal on"""
+        """
+        Get accounts to execute signal on, respecting account settings.
+
+        Filters accounts by:
+        - is_active: Account must be active
+        - is_connected: Account must be connected
+        - is_signal_enabled: Account must have signals enabled
+
+        Sorts accounts by:
+        - signal_priority: Higher priority accounts first
+        """
         accounts = []
 
         if signal.target_accounts:
-            # Specific accounts targeted
+            # Specific accounts targeted by routing
             for account_id in signal.target_accounts:
                 account = await self._account_repo.get_by_id(account_id)
-                if account and account.is_active and account.is_connected:
+                if self._account_can_receive_signal(account):
                     accounts.append(account)
         else:
-            # All connected accounts
-            accounts = await self._account_repo.get_connected()
+            # All connected accounts (fallback)
+            all_accounts = await self._account_repo.get_connected()
+            accounts = [a for a in all_accounts if self._account_can_receive_signal(a)]
+
+        # Sort by signal_priority (higher first)
+        accounts.sort(key=lambda a: getattr(a, 'signal_priority', 0), reverse=True)
 
         return accounts
+
+    def _account_can_receive_signal(self, account: Optional[Account]) -> bool:
+        """
+        Check if account can receive signals.
+
+        Args:
+            account: Account to check
+
+        Returns:
+            True if account can receive signals, False otherwise
+        """
+        if not account:
+            return False
+        if not account.is_active:
+            return False
+        if not account.is_connected:
+            return False
+        # Check is_signal_enabled (defaults to True for backward compatibility)
+        if not getattr(account, 'is_signal_enabled', True):
+            return False
+        return True
 
     async def _execute_on_account(self, signal: Signal, account: Account) -> Dict[str, Any]:
         """Execute signal on a specific account"""
