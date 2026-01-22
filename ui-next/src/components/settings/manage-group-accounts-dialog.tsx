@@ -106,8 +106,8 @@ export function ManageGroupAccountsDialog({
         accountsWithGroup.filter((a) => a.inGroup).map((a) => a.account.id)
       );
 
-      const toAdd = [...selectedAccountIds].filter((id) => !currentInGroup.has(id));
-      const toRemove = [...currentInGroup].filter((id) => !selectedAccountIds.has(id));
+      const toAdd = Array.from(selectedAccountIds).filter((id) => !currentInGroup.has(id));
+      const toRemove = Array.from(currentInGroup).filter((id) => !selectedAccountIds.has(id));
 
       // Execute all changes
       await Promise.all([
@@ -141,7 +141,8 @@ export function ManageGroupAccountsDialog({
 
     if (currentInGroup.size !== selectedAccountIds.size) return true;
 
-    for (const id of selectedAccountIds) {
+    const selectedArray = Array.from(selectedAccountIds);
+    for (const id of selectedArray) {
       if (!currentInGroup.has(id)) return true;
     }
 

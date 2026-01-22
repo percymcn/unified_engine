@@ -14,7 +14,7 @@ interface AccountGroupCardProps {
 }
 
 // Icon mapping for group icons
-const ICON_MAP: Record<string, React.FC<{ className?: string }>> = {
+const ICON_MAP: Record<string, React.FC<{ className?: string; style?: React.CSSProperties }>> = {
   folder: Folder,
   briefcase: Briefcase,
   building: Building,

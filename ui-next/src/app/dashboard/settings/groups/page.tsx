@@ -260,11 +260,18 @@ export default function AccountGroupsPage() {
                 : 'Create a group to organize your trading accounts.'}
             </DialogDescription>
           </DialogHeader>
-          <AccountGroupForm
-            group={editingGroup}
-            onSubmit={editingGroup ? handleUpdate : handleCreate}
-            onCancel={handleCloseForm}
-          />
+          {editingGroup ? (
+            <AccountGroupForm
+              group={editingGroup}
+              onSubmit={handleUpdate}
+              onCancel={handleCloseForm}
+            />
+          ) : (
+            <AccountGroupForm
+              onSubmit={handleCreate}
+              onCancel={handleCloseForm}
+            />
+          )}
         </DialogContent>
       </Dialog>
 
