@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.core.security import get_current_user
+from app.routers.auth import get_current_user
 from app.db.database import get_db
 from app.domain.services.contract_tracker import ContractTracker, ExpiringPosition
 from app.domain.services.futures_contract_service import FuturesContractService
