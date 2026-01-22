@@ -150,6 +150,9 @@ Progress: [########################] 80% (v1.1) - Phase 21 complete
 | 21-02 | Higher priority rules evaluated first | Clear evaluation order for rule-based routing |
 | 21-02 | Rules-based routing falls back to default account | Ensures signals are not lost due to configuration gaps |
 | 21-02 | Webhook key in URL path for routed signals | Clean REST design, no auth header needed for TradingView |
+| 21-03 | RadioGroup for routing strategy selection | Clear visual separation of 4 strategies with conditional UI sections |
+| 21-03 | Tabs for account settings organization | Position Sizing, Risk Limits, Routing - logical grouping reduces cognitive load |
+| 21-03 | Separate groups page with manage dialog | Keep accounts list focused, groups as organizational layer |
 
 ## Known Tech Debt
 
@@ -162,10 +165,10 @@ Progress: [########################] 80% (v1.1) - Phase 21 complete
 
 ## Session Continuity
 
-Last session: 2026-01-22T00:12:00Z
-Stopped at: Completed 21-02-PLAN.md (Signal Routing Configuration)
+Last session: 2026-01-22T01:04:00Z
+Stopped at: Completed 21-03-PLAN.md (Account & Routing UI)
 Resume file: None
-Status: 21-03 (Multi-Account UI) ready for execution
+Status: Phase 21 complete, Phase 22 (Risk Management) ready
 
 ## Gap Closure Status
 
@@ -197,10 +200,10 @@ Status: 21-03 (Multi-Account UI) ready for execution
    - ~~20-02: Symbol Auto-Detection (SYM-03)~~ (COMPLETE)
    - ~~20-03: Symbol Mapping UI (SYM-02)~~ (COMPLETE)
    - ~~20-04: Futures Contract Support (SYM-05, SYM-06)~~ (COMPLETE)
-3. Execute Phase 21 (Multi-Account & Routing) - IN PROGRESS
+3. ~~Execute Phase 21 (Multi-Account & Routing)~~ (COMPLETE)
    - ~~21-01: Multi-Account Backend Infrastructure (ACCT-01, ACCT-02, ACCT-04, ACCT-05, ACCT-06)~~ (COMPLETE)
    - ~~21-02: Signal Routing Configuration (ACCT-03)~~ (COMPLETE)
-   - 21-03: Multi-Account UI (all ACCT requirements) - READY
-4. Execute Phase 22 (Risk Management) - Position limits, drawdown protection
+   - ~~21-03: Multi-Account UI (all ACCT requirements)~~ (COMPLETE)
+4. Execute Phase 22 (Risk Management) - Position limits, drawdown protection - READY
 5. Execute Phase 23 (User Settings & Dashboard) - User preferences, dashboard enhancements
 6. Execute Phase 24 (Enhanced Features & Monetization v2) - Trial, 4-tier pricing, full trading
