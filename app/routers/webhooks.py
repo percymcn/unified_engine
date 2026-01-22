@@ -1,18 +1,28 @@
 from fastapi import APIRouter, Request, HTTPException, status, Depends
 from sqlalchemy.orm import Session
-from typing import Dict, Any
+from typing import Dict, Any, List
 from datetime import datetime
 from decimal import Decimal
 import uuid
 import json
+import logging
 
 from app.db.database import get_db
 from app.models.models import WebhookLog, User
+from app.models.database_models import WebhookConfig, TradingAccount
 from app.models.schemas import WebhookLog as WebhookLogSchema, WebhookLogCreate
 from app.routers.auth import get_current_user
 from app.dependencies import get_container
 from app.application.dto.signal_dto import ProcessSignalRequest
 from app.domain.enums import SignalSource, SignalAction
+from app.domain.services.routing_service import (
+    RoutingEngine,
+    RoutingConfig,
+    RoutingStrategy,
+    build_signal_data,
+)
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -263,7 +273,7 @@ async def test_webhook(request: Request, db: Session = Depends(get_db)):
     """Test webhook endpoint"""
     try:
         payload = await request.json()
-        
+
         # Create test webhook log
         webhook_id = str(uuid.uuid4())
         webhook_log = WebhookLogCreate(
@@ -273,17 +283,246 @@ async def test_webhook(request: Request, db: Session = Depends(get_db)):
             user_agent=request.headers.get("user-agent"),
             payload=json.dumps(payload)
         )
-        
+
         db_webhook = WebhookLog(**webhook_log.dict())
         db.add(db_webhook)
         db.commit()
-        
+
         return {
             "success": True,
             "message": "Test webhook received",
             "webhook_id": webhook_id,
             "payload": payload
         }
-        
+
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+
+@router.post("/signal/{webhook_key}")
+async def process_routed_signal(
+    webhook_key: str,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """
+    Process a signal using webhook configuration for routing.
+
+    This endpoint uses the webhook_key to identify the webhook configuration,
+    then applies the configured routing rules to determine which accounts
+    should receive the signal.
+
+    The webhook_key is the unique identifier generated when creating a webhook config.
+    Include it in your TradingView webhook URL:
+    https://your-domain.com/api/webhooks/signal/{webhook_key}
+    """
+    start_time = datetime.utcnow()
+    webhook_id = str(uuid.uuid4())
+
+    try:
+        # Get request data
+        if request.headers.get("content-type", "").startswith("application/json"):
+            payload = await request.json()
+        else:
+            form_data = await request.form()
+            payload = dict(form_data)
+
+        # Look up webhook configuration by key
+        webhook_config = db.query(WebhookConfig).filter(
+            WebhookConfig.webhook_key == webhook_key,
+            WebhookConfig.is_active == True
+        ).first()
+
+        if not webhook_config:
+            logger.warning(f"Invalid or inactive webhook key: {webhook_key}")
+            return {
+                "success": False,
+                "error": "Invalid or inactive webhook configuration"
+            }
+
+        # Create webhook log
+        webhook_log = WebhookLogCreate(
+            webhook_id=webhook_id,
+            source=webhook_config.source,
+            source_ip=request.client.host if request.client else "unknown",
+            user_agent=request.headers.get("user-agent"),
+            payload=json.dumps(payload)
+        )
+        db_webhook = WebhookLog(**webhook_log.dict())
+        db.add(db_webhook)
+        db.commit()
+
+        # Update webhook config stats
+        webhook_config.total_signals = (webhook_config.total_signals or 0) + 1
+        webhook_config.last_signal_at = datetime.utcnow()
+
+        # Get user's active, signal-enabled accounts
+        accounts = db.query(TradingAccount).filter(
+            TradingAccount.user_id == webhook_config.user_id,
+            TradingAccount.is_active == True,
+            TradingAccount.is_signal_enabled == True
+        ).all()
+
+        available_account_ids = [a.id for a in accounts]
+
+        if not available_account_ids:
+            logger.warning(f"No signal-enabled accounts for user {webhook_config.user_id}")
+            webhook_config.failed_signals = (webhook_config.failed_signals or 0) + 1
+            db.commit()
+            return {
+                "success": False,
+                "error": "No active signal-enabled accounts available"
+            }
+
+        # Build routing configuration from webhook config
+        routing_config = RoutingConfig.from_webhook_config(webhook_config)
+
+        # Create routing engine
+        engine = RoutingEngine(routing_config, available_account_ids)
+
+        # Build signal data for rule evaluation
+        signal_data = build_signal_data(payload, webhook_config.source)
+
+        # Resolve target accounts
+        target_account_ids = engine.resolve_target_accounts(signal_data)
+
+        if not target_account_ids:
+            logger.warning(f"No accounts matched routing rules for signal: {signal_data}")
+            webhook_config.failed_signals = (webhook_config.failed_signals or 0) + 1
+            db.commit()
+            return {
+                "success": False,
+                "error": "No accounts matched routing rules",
+                "webhook_id": webhook_id,
+                "signal_data": signal_data
+            }
+
+        logger.info(f"Routing signal to {len(target_account_ids)} accounts: {target_account_ids}")
+
+        # Apply symbol/action filters if configured
+        if webhook_config.symbol_filter:
+            symbol = signal_data.get("symbol", "").upper()
+            if symbol not in [s.upper() for s in webhook_config.symbol_filter]:
+                logger.info(f"Signal symbol {symbol} filtered out")
+                return {
+                    "success": True,
+                    "filtered": True,
+                    "reason": f"Symbol {symbol} not in filter list"
+                }
+
+        if webhook_config.action_filter:
+            action = signal_data.get("action", "").lower()
+            if action not in [a.lower() for a in webhook_config.action_filter]:
+                logger.info(f"Signal action {action} filtered out")
+                return {
+                    "success": True,
+                    "filtered": True,
+                    "reason": f"Action {action} not in filter list"
+                }
+
+        # Get container and use case
+        container = get_container(request)
+        use_case = container.process_signal_use_case()
+
+        # Determine source
+        source_map = {
+            "tradingview": SignalSource.TRADINGVIEW,
+            "trailhacker": SignalSource.TRAILHACKER,
+        }
+        source = source_map.get(webhook_config.source.lower(), SignalSource.TRADINGVIEW)
+
+        # Map action string to enum
+        action_str = signal_data.get("action", "buy").lower()
+        action_map = {
+            "buy": SignalAction.BUY,
+            "sell": SignalAction.SELL,
+            "close": SignalAction.CLOSE,
+        }
+        action = action_map.get(action_str, SignalAction.BUY)
+
+        # Build command with routed account IDs
+        command = ProcessSignalRequest(
+            source=source,
+            symbol=signal_data.get("symbol", "UNKNOWN"),
+            action=action,
+            volume=Decimal(str(signal_data.get("quantity", 1) or 1)),
+            price=Decimal(str(payload["price"])) if payload.get("price") else None,
+            stop_loss=Decimal(str(payload.get("stop_loss") or payload.get("stop", 0))) if payload.get("stop_loss") or payload.get("stop") else None,
+            take_profit=Decimal(str(payload.get("take_profit") or payload.get("target", 0))) if payload.get("take_profit") or payload.get("target") else None,
+            target_account_ids=[str(aid) for aid in target_account_ids],
+            comment=payload.get("comment"),
+            strategy_id=payload.get("strategy_id"),
+            strategy_name=payload.get("strategy_name"),
+            raw_payload=payload,
+        )
+
+        # Execute use case
+        use_case_result = await use_case.execute(command)
+
+        # Update stats
+        success = use_case_result.status.value not in ["failed", "rejected"]
+        if success:
+            webhook_config.successful_signals = (webhook_config.successful_signals or 0) + 1
+        else:
+            webhook_config.failed_signals = (webhook_config.failed_signals or 0) + 1
+
+        # Map domain result to API response
+        result = {
+            "success": success,
+            "webhook_id": webhook_id,
+            "signal_id": use_case_result.signal_id,
+            "status": use_case_result.status.value,
+            "accounts_targeted": len(target_account_ids),
+            "target_account_ids": target_account_ids,
+            "executions": use_case_result.executions,
+            "errors": use_case_result.errors,
+            "processing_time_ms": int((datetime.utcnow() - start_time).total_seconds() * 1000),
+        }
+
+        # Update webhook log
+        db_webhook.processed = success
+        db_webhook.response_status = 200
+        db_webhook.response_body = json.dumps(result)
+        db_webhook.processing_time_ms = result["processing_time_ms"]
+        db.commit()
+
+        return result
+
+    except Exception as e:
+        logger.error(f"Error processing routed signal: {e}")
+        # Log error
+        try:
+            db_webhook = WebhookLog(
+                webhook_id=webhook_id,
+                source="routed",
+                source_ip=request.client.host if request.client else "unknown",
+                user_agent=request.headers.get("user-agent"),
+                payload=json.dumps(payload) if 'payload' in locals() else "{}",
+                processed=False,
+                error_message=str(e)
+            )
+            db.add(db_webhook)
+            db.commit()
+        except Exception:
+            pass  # Best effort logging
+
+        return {"success": False, "error": str(e), "webhook_id": webhook_id}
+
+
+def get_available_accounts_for_user(db: Session, user_id: int) -> List[int]:
+    """
+    Get all active, signal-enabled account IDs for a user.
+
+    Args:
+        db: Database session
+        user_id: User ID
+
+    Returns:
+        List of account IDs that can receive signals
+    """
+    accounts = db.query(TradingAccount).filter(
+        TradingAccount.user_id == user_id,
+        TradingAccount.is_active == True,
+        TradingAccount.is_signal_enabled == True
+    ).all()
+    return [a.id for a in accounts]
