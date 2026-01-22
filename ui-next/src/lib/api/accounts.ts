@@ -21,6 +21,27 @@ export interface TestConnectionResult {
 }
 
 /**
+ * Discovered account from broker
+ */
+export interface DiscoveredAccount {
+  id: string;
+  name: string | null;
+  account_type: string;
+  currency: string;
+  is_live: boolean;
+  balance: number;
+  equity: number;
+}
+
+/**
+ * Response from account discovery
+ */
+export interface DiscoverAccountsResult {
+  accounts: DiscoveredAccount[];
+  message?: string | null;
+}
+
+/**
  * Get all accounts for the authenticated user
  */
 export async function getAccounts(): Promise<Account[]> {
@@ -136,6 +157,30 @@ export async function testConnection(
 
   // Return the result regardless of status - it contains success/failure info
   return result as TestConnectionResult;
+}
+
+/**
+ * Discover available accounts from broker using credentials
+ * READ-ONLY operation - does not save credentials or create accounts
+ */
+export async function discoverAccounts(
+  broker: BrokerType,
+  credentials: Record<string, string>
+): Promise<DiscoverAccountsResult> {
+  const response = await fetch('/api/accounts/discover', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ broker, credentials }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: 'Failed to discover accounts' }));
+    throw new Error(error.message || `Failed to discover accounts: ${response.statusText}`);
+  }
+
+  return response.json() as Promise<DiscoverAccountsResult>;
 }
 
 // ============================================================================
