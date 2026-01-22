@@ -28,6 +28,7 @@ from app.services.signal_deduplication_service import (
     DeduplicationScope
 )
 from app.models.database_models import RejectedSignal, RejectedSignalReason, TradingAccount
+from app.services.trial_service import TrialService, TrialStatus
 
 logger = logging.getLogger(__name__)
 
@@ -426,6 +427,140 @@ class SignalProcessor:
             logger.error(f"Failed to log duplicate rejection: {e}")
             db.rollback()
 
+    async def _check_trial_status(
+        self,
+        user_id: int,
+        account_id: int,
+        signal_request: SignalRequest
+    ) -> Dict[str, Any]:
+        """
+        Check if user's trial allows signal execution.
+
+        Trial enforcement rules:
+        - Paid users (subscription_tier != 'free'): Always allowed
+        - Trial not started: Auto-start trial on first signal
+        - Trial active: Allow and increment trade count
+        - Trial expired: Block with 'trial_expired' reason
+
+        Args:
+            user_id: User ID to check trial status for
+            account_id: Account ID for rejection logging
+            signal_request: Signal request for logging
+
+        Returns:
+            Dict with 'passed' bool and 'error' string if blocked
+        """
+        try:
+            db = next(get_db())
+
+            # Get user
+            from app.models.models import User
+            user = db.query(User).filter(User.id == user_id).first()
+            if not user:
+                logger.warning(f"User {user_id} not found for trial check")
+                return {"passed": True}  # Allow if user not found (edge case)
+
+            trial_service = TrialService(db)
+            status = trial_service.check_trial_status(user)
+
+            # Paid users bypass trial
+            if status == TrialStatus.NOT_APPLICABLE:
+                return {"passed": True}
+
+            # Trial not started: Auto-start on first signal
+            if status == TrialStatus.NOT_STARTED:
+                trial_service.start_trial(user)
+                logger.info(f"Auto-started trial for user {user_id} on first signal")
+                return {"passed": True}
+
+            # Trial active: Check before allowing
+            if status == TrialStatus.ACTIVE:
+                return {"passed": True}
+
+            # Trial expired: Block execution
+            if status == TrialStatus.EXPIRED:
+                # Log rejection to database
+                self._log_trial_rejection(
+                    db=db,
+                    user_id=user_id,
+                    account_id=account_id,
+                    signal_request=signal_request,
+                    user=user
+                )
+
+                return {
+                    "passed": False,
+                    "error": "trial_expired",
+                    "message": "Your free trial has ended. Please upgrade to Pro to continue trading."
+                }
+
+            return {"passed": True}
+
+        except Exception as e:
+            logger.error(f"Error checking trial status: {e}")
+            return {"passed": True}  # Allow on error (fail open)
+
+    def _log_trial_rejection(
+        self,
+        db: Session,
+        user_id: int,
+        account_id: int,
+        signal_request: SignalRequest,
+        user
+    ):
+        """Log a trial expired rejection to the database"""
+        try:
+            from app.services.trial_service import MAX_TRIAL_TRADES, MAX_TRIAL_DAYS
+
+            rejection = RejectedSignal(
+                user_id=user_id,
+                account_id=account_id,
+                symbol=signal_request.symbol,
+                action=signal_request.action,
+                quantity=signal_request.quantity,
+                source=getattr(signal_request, 'source', 'unknown'),
+                reason=RejectedSignalReason.TRIAL_EXPIRED,
+                reason_detail=f"Trial expired: {user.trial_trade_count or 0}/{MAX_TRIAL_TRADES} trades used over {MAX_TRIAL_DAYS} days",
+                limit_value=float(MAX_TRIAL_TRADES),
+                current_value=float(user.trial_trade_count or 0),
+                original_payload=signal_request.dict() if hasattr(signal_request, 'dict') else None
+            )
+            db.add(rejection)
+            db.commit()
+            logger.info(f"Logged trial expired rejection for user {user_id}, signal {signal_request.symbol}")
+        except Exception as e:
+            logger.error(f"Failed to log trial rejection: {e}")
+            db.rollback()
+
+    async def _increment_trial_trade_count(self, user_id: int):
+        """Increment trial trade count after successful execution."""
+        try:
+            db = next(get_db())
+
+            from app.models.models import User
+            user = db.query(User).filter(User.id == user_id).first()
+            if not user:
+                return
+
+            # Only increment for free tier users with active trial
+            if user.subscription_tier != "free":
+                return
+
+            if user.trial_status != "active":
+                return
+
+            trial_service = TrialService(db)
+            new_count = trial_service.increment_trade_count(user)
+
+            # Check if trial should expire after this trade
+            from app.services.trial_service import MAX_TRIAL_TRADES
+            if new_count >= MAX_TRIAL_TRADES:
+                trial_service.expire_trial(user)
+                logger.info(f"Trial expired for user {user_id} after {new_count} trades")
+
+        except Exception as e:
+            logger.error(f"Error incrementing trial trade count: {e}")
+
     async def _calculate_position_size(
         self,
         signal_request: SignalRequest,
@@ -665,6 +800,22 @@ class SignalProcessor:
                     "error": f"Broker {broker_type} not available"
                 }
 
+            # Check trial status before execution (for free tier users)
+            trial_check = await self._check_trial_status(
+                user_id=account.user_id,
+                account_id=account.id,
+                signal_request=signal_request
+            )
+            if not trial_check["passed"]:
+                return {
+                    "success": False,
+                    "account_id": account.id,
+                    "account_number": account.account_number,
+                    "error": trial_check.get("error", "trial_expired"),
+                    "message": trial_check.get("message"),
+                    "status": "rejected"
+                }
+
             # Check for duplicate entry before execution
             dedup_check = await self._check_deduplication(
                 signal_request=signal_request,
@@ -711,6 +862,9 @@ class SignalProcessor:
             if order_response.success:
                 # Update account balance after successful trade
                 await self._update_account_balance(account.id, broker_type)
+
+                # Increment trial trade count for free tier users
+                await self._increment_trial_trade_count(account.user_id)
 
                 return {
                     "success": True,
