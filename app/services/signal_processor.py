@@ -5,7 +5,7 @@ Handles signal processing, routing, and execution across all brokers
 import asyncio
 import json
 import logging
-from typing import Dict, List, Optional, Any, Union
+from typing import Dict, List, Optional, Any, Union, Tuple
 from datetime import datetime
 from sqlalchemy.orm import Session
 from app.core.config import settings
@@ -615,6 +615,160 @@ class SignalProcessor:
         )
 
         return result.adjusted_size
+
+    async def _convert_risk_units_to_prices(
+        self,
+        signal_request: SignalRequest,
+        account,
+        broker,
+        broker_type: str
+    ) -> Tuple[Optional[float], Optional[float]]:
+        """
+        Convert broker-specific risk units (pips/points/percent) to absolute prices.
+        
+        If signal already contains absolute SL/TP prices, use them as-is.
+        Otherwise, apply account defaults if available.
+        
+        Args:
+            signal_request: Signal request with potential SL/TP values
+            account: TradingAccount object with settings
+            broker: Broker executor instance
+            broker_type: Broker type string
+            
+        Returns:
+            Tuple of (stop_loss_price, take_profit_price) as absolute prices
+        """
+        from app.domain.services.risk_unit_converter import (
+            RiskUnitConverter, RiskUnitMode
+        )
+        from app.domain.services.symbol_specs_service import SymbolSpecsService
+        
+        # If signal already has absolute SL/TP prices, use them as-is
+        stop_loss_price = signal_request.stop_loss
+        take_profit_price = signal_request.take_profit
+        
+        # Determine if we need to apply defaults
+        needs_sl_conversion = stop_loss_price is None
+        needs_tp_conversion = take_profit_price is None
+        
+        if not needs_sl_conversion and not needs_tp_conversion:
+            # Both SL and TP already provided as absolute prices
+            return stop_loss_price, take_profit_price
+        
+        # Get account defaults from extra_metadata
+        defaults = {}
+        if account.extra_metadata and isinstance(account.extra_metadata, dict):
+            defaults = account.extra_metadata.get("risk_defaults", {})
+        
+        # If no defaults in extra_metadata, check if we have default_stop_loss/default_take_profit
+        # (These might be added in a future migration)
+        if not defaults:
+            # For now, we'll assume defaults are in extra_metadata
+            # If account settings API provides them directly, we can add that here
+            pass
+        
+        # Get entry price (required for conversion)
+        entry_price = signal_request.price
+        if not entry_price:
+            # Try to fetch current market price
+            try:
+                if hasattr(broker, 'get_quote'):
+                    quote = await broker.get_quote(signal_request.symbol)
+                    if quote:
+                        # Use bid/ask average or current price
+                        entry_price = quote.get('price') or quote.get('bid') or quote.get('ask')
+                        if quote.get('bid') and quote.get('ask'):
+                            entry_price = (quote['bid'] + quote['ask']) / 2.0
+                
+                if not entry_price:
+                    logger.error(
+                        f"Cannot determine entry price for {signal_request.symbol}. "
+                        f"Signal price is missing and quote fetch failed."
+                    )
+                    # Return None values - order will fail with clear error
+                    return None, None
+            except Exception as e:
+                logger.error(f"Failed to fetch quote for {signal_request.symbol}: {e}")
+                return None, None
+        
+        # Determine order side
+        is_buy = "buy" in signal_request.action.lower()
+        
+        # Get symbol specs for precision/tick size
+        specs_service = SymbolSpecsService(self.brokers)
+        try:
+            specs = await specs_service.get_specs(signal_request.symbol, broker_type)
+            digits = specs.digits
+            # For points conversion, we need tick size (not in SymbolSpecs, use default)
+            tick_size = RiskUnitConverter.get_default_tick_size(broker_type)
+        except Exception as e:
+            logger.warning(f"Failed to get symbol specs for {signal_request.symbol}: {e}")
+            digits = RiskUnitConverter.get_default_digits(broker_type)
+            tick_size = RiskUnitConverter.get_default_tick_size(broker_type)
+        
+        # Determine broker unit mode based on broker type
+        broker_mode_map = {
+            "tradelocker": RiskUnitMode.PIPS,
+            "mt4": RiskUnitMode.PIPS,
+            "mt5": RiskUnitMode.PIPS,
+            "truforex": RiskUnitMode.PIPS,
+            "tradovate": RiskUnitMode.POINTS,
+            "projectx": RiskUnitMode.PERCENT,
+            "topstep": RiskUnitMode.PERCENT,
+        }
+        unit_mode = broker_mode_map.get(broker_type.lower(), RiskUnitMode.PIPS)
+        
+        # Convert stop loss if needed
+        if needs_sl_conversion:
+            default_sl = defaults.get("default_stop_loss") or defaults.get("defaultStopLoss")
+            if default_sl:
+                try:
+                    stop_loss_price = RiskUnitConverter.convert_risk_unit_to_price(
+                        value=float(default_sl),
+                        mode=unit_mode,
+                        entry_price=entry_price,
+                        is_buy=is_buy,
+                        is_stop_loss=True,
+                        digits=digits,
+                        tick_size=tick_size
+                    )
+                    logger.info(
+                        f"Converted default stop loss {default_sl} {unit_mode.value} "
+                        f"to absolute price {stop_loss_price} for {signal_request.symbol}"
+                    )
+                except Exception as e:
+                    logger.error(
+                        f"Failed to convert default stop loss {default_sl} {unit_mode.value}: {e}"
+                    )
+                    # Return None - order will proceed without SL
+                    stop_loss_price = None
+        
+        # Convert take profit if needed
+        if needs_tp_conversion:
+            default_tp = defaults.get("default_take_profit") or defaults.get("defaultTakeProfit")
+            if default_tp:
+                try:
+                    take_profit_price = RiskUnitConverter.convert_risk_unit_to_price(
+                        value=float(default_tp),
+                        mode=unit_mode,
+                        entry_price=entry_price,
+                        is_buy=is_buy,
+                        is_stop_loss=False,
+                        digits=digits,
+                        tick_size=tick_size
+                    )
+                    logger.info(
+                        f"Converted default take profit {default_tp} {unit_mode.value} "
+                        f"to absolute price {take_profit_price} for {signal_request.symbol}"
+                    )
+                except Exception as e:
+                    logger.error(
+                        f"Failed to convert default take profit {default_tp} {unit_mode.value}: {e}"
+                    )
+                    # Return None - order will proceed without TP
+                    take_profit_price = None
+        
+        return stop_loss_price, take_profit_price
     
     async def _execute_signal(self, signal_request: SignalRequest, signal_id: str) -> Dict[str, Any]:
         """Execute signal on appropriate broker, respecting account selection.
@@ -843,6 +997,14 @@ class SignalProcessor:
                 except Exception as e:
                     logger.warning(f"Position sizing failed, using signal quantity: {e}")
 
+            # Convert broker-specific risk units to absolute prices if needed
+            stop_loss_price, take_profit_price = await self._convert_risk_units_to_prices(
+                signal_request=signal_request,
+                account=account,
+                broker=broker,
+                broker_type=broker_type
+            )
+
             # Convert signal to order
             order_request = OrderRequest(
                 account_id=account.account_number,
@@ -850,8 +1012,8 @@ class SignalProcessor:
                 order_type=self._map_action_to_order_type(signal_request.action),
                 quantity=quantity,
                 price=signal_request.price,
-                stop_loss=signal_request.stop_loss,
-                take_profit=signal_request.take_profit,
+                stop_loss=stop_loss_price,
+                take_profit=take_profit_price,
                 magic_number=signal_request.magic_number,
                 comment=signal_request.comment or f"Signal {signal_id}"
             )
