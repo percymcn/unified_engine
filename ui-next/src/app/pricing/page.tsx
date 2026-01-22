@@ -1,47 +1,14 @@
 import { Metadata } from "next";
 import { PricingCard } from "@/components/pricing/pricing-card";
+import { getAllTiers } from "@/lib/pricing";
 
 export const metadata: Metadata = {
   title: "Pricing - Tradeflow",
   description: "Simple, transparent pricing. Start free, upgrade when you need more.",
 };
 
-const plans = [
-  {
-    name: "Free",
-    price: "$0",
-    period: "forever",
-    description: "Perfect for getting started with automated trading.",
-    features: [
-      "1 broker connection",
-      "Basic signal routing",
-      "TradingView webhook support",
-      "Real-time trade execution",
-      "Community support",
-    ],
-    cta: "Get Started Free",
-    ctaHref: "/register",
-    highlighted: false,
-  },
-  {
-    name: "Pro",
-    price: "$29",
-    period: "per month",
-    description: "For serious traders who need unlimited connections.",
-    features: [
-      "Unlimited broker connections",
-      "Priority signal execution",
-      "Advanced routing rules",
-      "All broker SDKs supported",
-      "Email support",
-      "Webhook analytics",
-      "Multi-account routing",
-    ],
-    cta: "Subscribe to Pro",
-    ctaHref: "/api/billing/checkout",
-    highlighted: true,
-  },
-];
+// Get all pricing tiers from centralized config
+const tiers = getAllTiers();
 
 export default function PricingPage() {
   return (
@@ -78,9 +45,23 @@ export default function PricingPage() {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-          {plans.map((plan) => (
-            <PricingCard key={plan.name} plan={plan} />
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
+          {tiers.slice(0, 3).map((tier) => (
+            <PricingCard
+              key={tier.tier_id}
+              tier={tier}
+              isPopular={tier.tier_id === "tier_2"}
+            />
+          ))}
+        </div>
+
+        {/* Enterprise tiers */}
+        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto mt-8">
+          {tiers.slice(3).map((tier) => (
+            <PricingCard
+              key={tier.tier_id}
+              tier={tier}
+            />
           ))}
         </div>
 
