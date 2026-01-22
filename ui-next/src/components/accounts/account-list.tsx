@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Plus, Loader2 } from 'lucide-react';
-import { Account, AccountCreate, AccountGroup, AccountSettings } from '@/types/account';
+import { Account, AccountCreate, AccountGroup } from '@/types/account';
 import { AccountCard } from './account-card';
 import { AccountForm } from './account-form';
 import {
@@ -186,6 +186,7 @@ export function AccountList() {
   // Fetch accounts on mount
   useEffect(() => {
     fetchAccounts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchAccounts = async () => {

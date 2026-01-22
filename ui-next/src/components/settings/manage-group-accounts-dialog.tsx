@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Check, X } from 'lucide-react';
+import { Loader2, Check } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -46,6 +46,7 @@ export function ManageGroupAccountsDialog({
   // Load current group membership for all accounts
   useEffect(() => {
     loadAccountGroupInfo();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accounts, group]);
 
   const loadAccountGroupInfo = async () => {
