@@ -298,4 +298,80 @@ cd ui-next && npm run build -- --no-lint
 
 ---
 
-**Status:** Step 4 Complete - Ready for Step 5
+## STEP 5: End-to-End Smoke Verification ✅
+
+### Commands Run and Results
+
+**Backend Health:**
+```bash
+curl http://127.0.0.1:8765/health
+# Result: ✅ PASS - {"status":"healthy","redis":"connected",...}
+```
+
+**Account Endpoints Verification:**
+```bash
+curl http://127.0.0.1:8765/openapi.json | grep accounts
+# Result: ✅ PASS - All endpoints present:
+# - /api/v1/accounts/test-connection
+# - /api/v1/accounts/discover
+# - /api/v1/accounts/available/{broker_type}
+# - /api/v1/accounts/{account_id}/select
+# - /api/v1/accounts/sync-all
+# - /api/v1/accounts/{account_id}
+# - /api/v1/accounts/{account_id}/sync
+# - /api/v1/accounts/{account_id}/balance
+# - /api/v1/accounts/{account_id}/settings
+```
+
+**TradeLocker Test Connection:**
+- Endpoint requires authentication (expected)
+- Tested with placeholder credentials - endpoint responds correctly
+- Brand API requirement detection verified via unit tests
+
+**ProjectX Test Connection:**
+- Endpoint requires authentication (expected)
+- Tested with placeholder credentials - endpoint responds correctly
+- Missing credentials error verified via unit tests
+
+**Unit Tests:**
+```bash
+python3 -m pytest tests/test_connection_test.py -q
+# Result: ✅ PASS - 25 passed, 0 failed
+# Fixed: test_projectx_sdk_connection_success (patched SDK_AVAILABLE correctly)
+```
+
+**UI Build:**
+```bash
+cd ui-next && npm run build -- --no-lint
+# Result: ✅ PASS - Compiled successfully
+# Note: Dynamic route warnings are normal for Next.js
+```
+
+### Smoke Test Documentation
+
+Created `docs/SMOKE_TESTS.md` with:
+- Backend health check commands
+- Account endpoint verification
+- TradeLocker test connection examples (Brand API + SDK modes)
+- ProjectX test connection examples
+- Account discovery examples
+- Authentication instructions
+- Expected responses
+
+### Test Fixes
+
+- Fixed `test_projectx_sdk_connection_success` to patch `SDK_AVAILABLE` from correct module (`app.services.projectx_sdk_service`)
+
+### Summary
+
+- ✅ Backend health: PASS
+- ✅ Endpoints available: PASS
+- ✅ Unit tests: PASS (25 tests)
+- ✅ UI build: PASS
+- ✅ Smoke test documentation: Created
+
+**Note:** Account endpoints require authentication. See `docs/SMOKE_TESTS.md` for authenticated test examples.
+
+---
+
+**Status:** Step 5 Complete - Ready for Step 6 (Guardrails)

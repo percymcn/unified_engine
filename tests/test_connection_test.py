@@ -115,18 +115,18 @@ class TestTestConnectionUseCase:
             "api_key": "test-api-key"
         }
 
-        with patch("app.services.projectx_sdk_service.ProjectXSDKService") as mock_sdk_class:
-            mock_service = AsyncMock()
-            mock_service.connect = AsyncMock(return_value=True)
-            mock_service.disconnect = AsyncMock()
-            mock_service.search_instruments = AsyncMock(return_value=[
-                {"symbol": "MNQ", "name": "MNQ"},
-                {"symbol": "MES", "name": "MES"}
-            ])
-            mock_sdk_class.return_value = mock_service
+        # Mock the SDK service import
+        with patch("app.services.projectx_sdk_service.SDK_AVAILABLE", True):
+            with patch("app.services.projectx_sdk_service.ProjectXSDKService") as mock_sdk_class:
+                mock_service = AsyncMock()
+                mock_service.connect = AsyncMock(return_value=True)
+                mock_service.disconnect = AsyncMock()
+                mock_service.search_instruments = AsyncMock(return_value=[
+                    {"symbol": "MNQ", "name": "MNQ"},
+                    {"symbol": "MES", "name": "MES"}
+                ])
+                mock_sdk_class.return_value = mock_service
 
-            # Mock SDK_AVAILABLE
-            with patch("app.application.use_cases.test_connection.SDK_AVAILABLE", True):
                 request = TestConnectionRequest(
                     broker=BrokerType.PROJECTX,
                     credentials=credentials
