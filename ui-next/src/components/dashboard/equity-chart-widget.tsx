@@ -223,7 +223,7 @@ export function EquityChartWidget() {
                   borderRadius: "6px",
                   fontSize: "12px",
                 }}
-                formatter={(value: number) => [formatCurrency(value), "Equity"]}
+                formatter={(value: number | string | Array<number | string> | undefined) => [formatCurrency(Number(value || 0)), "Equity"]}
                 labelFormatter={(label) => formatDate(String(label))}
               />
               <Area

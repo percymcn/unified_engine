@@ -16,6 +16,10 @@ import {
   BrokerGridSkeleton,
   WidgetSkeleton,
 } from '@/components/dashboard/dashboard-skeleton';
+import { RecentExecutionsWidget } from '@/components/dashboard/recent-executions-widget';
+import { EquityChartWidget } from '@/components/dashboard/equity-chart-widget';
+import { TrialStatusWidget } from '@/components/dashboard/trial-status-widget';
+import { OpenPositionsWidget } from '@/components/dashboard/open-positions-widget';
 import { useWebSocketContext } from '@/providers/websocket-provider';
 import { cn } from '@/lib/utils';
 
@@ -192,7 +196,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Stats grid with skeletons */}
+      {/* Row 1: Stats grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {loading ? (
           <>
@@ -227,6 +231,21 @@ export default function DashboardPage() {
         )}
       </div>
 
+      {/* Row 2: Equity chart (2/3) + Trial status (1/3) */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        {loading ? (
+          <>
+            <WidgetSkeleton className="lg:col-span-2" />
+            <WidgetSkeleton />
+          </>
+        ) : (
+          <>
+            <EquityChartWidget />
+            <TrialStatusWidget />
+          </>
+        )}
+      </div>
+
       {/* Quick Actions Section */}
       <Card>
         <CardHeader className="pb-3">
@@ -253,7 +272,7 @@ export default function DashboardPage() {
         </Card>
       )}
 
-      {/* Broker Connections with enhanced header */}
+      {/* Row 3: Broker Connections */}
       <div>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold tracking-tight">Broker Connections</h2>
@@ -264,7 +283,22 @@ export default function DashboardPage() {
         {loading ? <BrokerGridSkeleton /> : <BrokerHealthGrid />}
       </div>
 
-      {/* Risk Management Widgets */}
+      {/* Row 4: Open Positions + Recent Executions (side by side) */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {loading ? (
+          <>
+            <WidgetSkeleton />
+            <WidgetSkeleton />
+          </>
+        ) : (
+          <>
+            <OpenPositionsWidget />
+            <RecentExecutionsWidget />
+          </>
+        )}
+      </div>
+
+      {/* Row 5: Risk Usage + Rejected Signals */}
       <div className="grid gap-4 lg:grid-cols-2">
         {loading ? (
           <>
@@ -278,18 +312,6 @@ export default function DashboardPage() {
           </>
         )}
       </div>
-
-      {/* Placeholder for future content */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Activity</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Signal and trade activity will appear here once configured.
-          </p>
-        </CardContent>
-      </Card>
     </div>
   );
 }
