@@ -176,9 +176,11 @@ class WebhookConfig(Base):
     webhook_key = Column(String(255), unique=True, index=True, nullable=False)
     source = Column(String(100), nullable=False)  # tradingview, trailhacker, custom
 
-    # Routing Rules
+    # Routing Configuration
+    routing_strategy = Column(String(30), default="default_only")  # all_accounts, specific_accounts, rules_based, default_only
     default_account_id = Column(Integer, ForeignKey("trading_accounts.id"))
-    routing_rules = Column(JSON)  # Complex routing logic
+    specific_account_ids = Column(JSON)  # List of account IDs for "specific_accounts" strategy
+    routing_rules = Column(JSON)  # Complex routing logic for "rules_based" strategy
 
     # Filters
     symbol_filter = Column(JSON)  # Which symbols to accept
