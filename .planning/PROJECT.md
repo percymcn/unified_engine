@@ -10,33 +10,22 @@ A production-ready SaaS signal routing engine that receives TradingView webhook 
 
 If everything else fails, signals must reach brokers and trades must execute. The UI can be down, metrics can fail, but the signal pipeline cannot.
 
-## Current State
+## Current Milestone: v1.2 Full Broker Integration
 
-**v1.1 Production Ready with Monetization** — Shipped 2026-01-22
+**Goal:** Replace placeholder broker adapters with production-ready integrations using official APIs and SDKs, with proper authentication, account selection, and symbol mapping.
 
-Tradeflow is now a complete SaaS platform with:
-- 4-tier pricing ($19.99-$129.99/month) with Stripe billing
-- Free trial: 100 trades OR 3 days
-- Official broker SDKs: TradeLocker, ProjectX, Tradovate OAuth, MetaAPI
-- Multi-account signal routing with account selection UI
-- Comprehensive risk management and position sizing
-- Enterprise landing page with testimonials and animated charts
+**Target features:**
+- ProjectX/TopStep integration via Gateway API (direct HTTP, not pip package)
+- TradeLocker integration via official Python SDK
+- Unified account selection UI with Test & Connect flow
+- Enhanced symbol/contract mapping for futures
+- Bug fix verification (auth cookies, risk page, WebSocket)
 
-**Stats:**
-- 60,648 lines of code (Python + TypeScript)
-- 24 phases, 110 plans executed across v1.0 and v1.1
-- 160 requirements satisfied
-
-## Next Milestone Goals
-
-*To be defined via `/gsd:discuss-milestone` and `/gsd:new-milestone`*
-
-Potential directions:
-- Production hardening and monitoring
-- Mobile optimization / PWA enhancements
-- Additional broker integrations
-- Advanced analytics and reporting
-- Performance optimization
+**Constraints:**
+- Use ProjectX Gateway API directly (NOT project-x-py)
+- Use official tradelocker Python SDK
+- All credentials encrypted with Fernet
+- Start with Demo environments for testing
 
 ---
 
@@ -140,19 +129,34 @@ Complete hexagonal architecture refactor:
 
 ### Active
 
-*No active requirements — next milestone not yet defined*
+**v1.2 Full Broker Integration:**
 
-Run `/gsd:define-requirements` after `/gsd:new-milestone` to scope v1.2 or v2.0.
+- [ ] Verify bug fixes work in production (auth, risk page, WebSocket)
+- [ ] ProjectX Gateway API authentication (loginKey → JWT, 24h refresh)
+- [ ] ProjectX account search and listing
+- [ ] ProjectX contract lookup (futures format: CON.F.US.ESZ5)
+- [ ] ProjectX order placement (market orders)
+- [ ] ProjectX add account UI (username, API key, environment)
+- [ ] TradeLocker SDK authentication (email, password, server)
+- [ ] TradeLocker account listing and selection
+- [ ] TradeLocker instrument lookup (tradableInstrumentId)
+- [ ] TradeLocker order placement via SDK
+- [ ] TradeLocker add account UI (email, password, server, environment)
+- [ ] Unified account selection with Test & Connect flow
+- [ ] Multi-account checkbox selection for signal routing
+- [ ] Symbol mapping: TradingView ticker → broker contract ID
+- [ ] Futures rollover mapping (ES → ESZ5, ESH6, etc.)
+- [ ] Automatic token refresh (ProjectX 24h, TradeLocker SDK-managed)
 
 ### Out of Scope
 
 - Mobile app — web-first approach, PWA works
-- Additional broker integrations — stabilize current 5 first
 - Multi-tenancy — single-user/single-org for v1
 - CI/CD pipeline — deployment scripts exist, manual for now
 - HA database — single PostgreSQL instance sufficient
 - Credit-based pricing — confusing, use simple tier gating
 - Per-trade fees — creates anxiety, discourages usage
+- Tradovate/MetaAPI changes — focus on ProjectX + TradeLocker this milestone
 
 ## Context
 
@@ -171,16 +175,32 @@ Run `/gsd:define-requirements` after `/gsd:new-milestone` to scope v1.2 or v2.0.
 - `.planning/milestones/v1.0-ROADMAP.md` — full v1.0 roadmap
 - `.planning/milestones/v1.0-REQUIREMENTS.md` — v1.0 requirements
 - `.planning/milestones/v1.0-MILESTONE-AUDIT.md` — v1.0 audit report
+- `.planning/milestones/v1.1-MILESTONE-AUDIT.md` — v1.1 audit report
+
+**ProjectX API Reference:**
+- Demo: https://gateway-api-demo.s2f.projectx.com
+- Live: https://gateway-api.s2f.projectx.com
+- Auth: POST /api/Auth/loginKey { userName, apiKey } → JWT
+- Accounts: POST /api/Account/search { onlyActiveAccounts: true }
+- Contracts: POST /api/Contract/available { live: true/false }
+- Orders: POST /api/Order/place { accountId, contractId, type, side, size }
+
+**TradeLocker SDK Reference:**
+- pip install tradelocker
+- Environments: demo.tradelocker.com, live.tradelocker.com
+- Init: TL(email, password, server, environment)
+- SDK handles JWT internally
 
 ## Constraints
 
 - **Tech Stack**: FastAPI backend, Next.js 14 frontend, PostgreSQL, Redis, Docker Swarm
 - **Auth**: Self-hosted JWT only (no external auth providers for user auth)
 - **UI Framework**: shadcn/ui with dark theme, Tailwind CSS
-- **Broker SDKs**: Official SDKs — tradelocker, project-x-py, metaapi-cloud-sdk
+- **Broker SDKs**: tradelocker (pip), ProjectX Gateway API (direct HTTP)
 - **Payments**: Stripe for subscriptions (checkout, portal, webhooks)
 - **Deployment**: Docker Swarm orchestration
 - **Backwards Compatible**: API endpoints preserved
+- **Encryption**: All credentials stored encrypted with Fernet
 
 ## Key Decisions
 
@@ -197,6 +217,8 @@ Run `/gsd:define-requirements` after `/gsd:new-milestone` to scope v1.2 or v2.0.
 | Trial auto-starts on first signal | Zero friction UX, no manual start required | ✓ Good |
 | Fail-open on risk/trial errors | System issues don't block legitimate trades | ✓ Good |
 | In-memory OAuth state store | Simple for single-instance; needs Redis for multi-instance | ⚠️ Revisit |
+| ProjectX Gateway API over pip package | Direct API gives more control, pip package unreliable | — Pending |
+| TradeLocker official SDK | Maintained by broker, handles auth complexity | — Pending |
 
 ---
-*Last updated: 2026-01-22 after v1.1 milestone completion*
+*Last updated: 2026-01-22 after v1.2 milestone started*
