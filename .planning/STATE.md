@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-21)
 ## Current Position
 
 Phase: 24 - Enhanced Features & Monetization v2 (IN PROGRESS)
-Plan: 6 of 8 complete (Wave 1 complete)
-Status: Phase 24 in progress - Wave 1 complete, Wave 2 pending
-Last activity: 2026-01-22 - Completed 24-08-PLAN.md (Landing Page Enhancements)
+Plan: 7 of 8 complete (Wave 2: 1/3)
+Status: Phase 24 in progress - Wave 2 started
+Last activity: 2026-01-22 - Completed 24-05-PLAN.md (4-Tier Pricing UI)
 
-Progress: [#############################_] 97% (v1.1+) - Phase 24 Wave 1 complete
+Progress: [##############################] 98% (v1.1+) - Phase 24 Wave 2 in progress
 
 ## v1.1 Milestone Goals
 
@@ -57,7 +57,7 @@ Progress: [#############################_] 97% (v1.1+) - Phase 24 Wave 1 complet
 | 21 | Multi-Account & Routing | 6 | Complete (3/3 plans) |
 | 22 | Risk Management | 16 | Complete (4/4 plans) |
 | 23 | User Settings & Dashboard | 18 | Complete (5/5 plans) |
-| 24 | Enhanced Features & Monetization v2 | 43 | In Progress (6/8 plans) |
+| 24 | Enhanced Features & Monetization v2 | 43 | In Progress (7/8 plans) |
 
 ## Previous Milestone
 
@@ -206,6 +206,10 @@ Progress: [#############################_] 97% (v1.1+) - Phase 24 Wave 1 complet
 | 24-08 | requestAnimationFrame for chart animation | Smooth 60fps animation, GPU-accelerated, pauses when tab inactive |
 | 24-08 | Testimonials target specific pain points | Each review addresses value prop: speed, multi-account, risk, symbol mapping |
 | 24-08 | Staggered animation delays (100ms per item) | Creates professional visual flow on scroll |
+| 24-05 | getAllTiers() over direct PRICING_TIERS import | Cleaner API for consistent display order |
+| 24-05 | tier_3 (Pro) as "Most Popular" | Conversion target at $69.99/month |
+| 24-05 | Annual toggle as placeholder (20% discount shown) | Actual annual billing TBD |
+| 24-05 | BFF caches public 1hr, auth never cached | User-specific data shouldn't be cached |
 
 ## Known Tech Debt
 
@@ -219,9 +223,9 @@ Progress: [#############################_] 97% (v1.1+) - Phase 24 Wave 1 complet
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed 24-08-PLAN.md (Landing Page Enhancements)
+Stopped at: Completed 24-05-PLAN.md (4-Tier Pricing UI)
 Resume file: None
-Status: Phase 24 Wave 1 complete (6/6), Wave 2 pending (0/3)
+Status: Phase 24 Wave 2 in progress (1/3 complete)
 
 ## Gap Closure Status
 
@@ -245,18 +249,18 @@ Status: Phase 24 Wave 1 complete (6/6), Wave 2 pending (0/3)
 
 ## Next Steps
 
-1. **Phase 24 (Enhanced Features & Monetization v2)** - IN PROGRESS (6/8 plans)
+1. **Phase 24 (Enhanced Features & Monetization v2)** - IN PROGRESS (7/8 plans)
 
    **Wave 1 (parallel) - 5/5 COMPLETE:**
    - 24-01: Trial System Backend - COMPLETE
    - 24-02: 4-Tier Pricing Backend - COMPLETE
    - 24-03: Signal Deduplication - COMPLETE
    - 24-06: Broker Account Selection Backend - COMPLETE
-   - 24-08: Landing Page Enhancements - COMPLETE (just completed)
+   - 24-08: Landing Page Enhancements - COMPLETE
 
-   **Wave 2 (depends on Wave 1) - 0/3 PENDING:**
+   **Wave 2 (depends on Wave 1) - 1/3 COMPLETE:**
    - 24-04: Trial UI & Upgrade Prompts (TRIAL-04, TRIAL-06, TRIAL-07) - PENDING
-   - 24-05: 4-Tier Pricing UI (BILL-09) - PENDING
+   - 24-05: 4-Tier Pricing UI (BILL-09) - COMPLETE (just completed)
    - 24-07: Broker Account Selection UI (ACCT-11, ACCT-12) - PENDING
 
-2. Run `/gsd:execute-plan 24-04` to begin Wave 2
+2. Run `/gsd:execute-plan 24-04` to continue Wave 2
