@@ -35,7 +35,8 @@ import {
   type CredentialField,
 } from '@/lib/brokers/credentialSchemas';
 import { TradovateOAuthButton } from './tradovate-oauth-button';
-import { testConnection, TestConnectionResult } from '@/lib/api/accounts';
+import { testConnection, TestConnectionResult, discoverAccounts, DiscoveredAccount } from '@/lib/api/accounts';
+import { Checkbox } from '@/components/ui/checkbox';
 
 /**
  * Credential field input component
@@ -132,6 +133,10 @@ export function AccountForm({
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<TestConnectionResult | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [discoveredAccounts, setDiscoveredAccounts] = useState<DiscoveredAccount[]>([]);
+  const [selectedAccountIds, setSelectedAccountIds] = useState<Set<string>>(new Set());
+  const [defaultAccountId, setDefaultAccountId] = useState<string>('');
+  const [discovering, setDiscovering] = useState(false);
 
   // Get broker-specific credential schema
   const credentialSchema = getBrokerCredentialSchema(broker);
@@ -174,6 +179,33 @@ export function AccountForm({
       
       const result = await testConnection(broker, stringCredentials);
       setTestResult(result);
+      
+      // If connection successful, discover accounts
+      if (result.success) {
+        setDiscovering(true);
+        try {
+          const discoverResult = await discoverAccounts(broker, stringCredentials);
+          setDiscoveredAccounts(discoverResult.accounts || []);
+          
+          // Auto-select all accounts and set first as default
+          if (discoverResult.accounts && discoverResult.accounts.length > 0) {
+            const allIds = new Set(discoverResult.accounts.map(acc => acc.id));
+            setSelectedAccountIds(allIds);
+            setDefaultAccountId(discoverResult.accounts[0].id);
+          }
+        } catch (error) {
+          console.error('Account discovery error:', error);
+          // Don't fail the form if discovery fails
+          setDiscoveredAccounts([]);
+        } finally {
+          setDiscovering(false);
+        }
+      } else {
+        // Clear discovered accounts on failed connection
+        setDiscoveredAccounts([]);
+        setSelectedAccountIds(new Set());
+        setDefaultAccountId('');
+      }
     } catch (error) {
       console.error('Test connection error:', error);
       setTestResult({
@@ -181,6 +213,9 @@ export function AccountForm({
         status: 'failed',
         message: 'An unexpected error occurred while testing the connection.',
       });
+      setDiscoveredAccounts([]);
+      setSelectedAccountIds(new Set());
+      setDefaultAccountId('');
     } finally {
       setTesting(false);
     }
@@ -201,6 +236,37 @@ export function AccountForm({
     setBroker(value);
     setCredentials({});
     setTestResult(null);
+    setDiscoveredAccounts([]);
+    setSelectedAccountIds(new Set());
+    setDefaultAccountId('');
+  };
+  
+  // Handle account selection toggle
+  const handleAccountToggle = (accountId: string, checked: boolean) => {
+    const newSelected = new Set(selectedAccountIds);
+    if (checked) {
+      newSelected.add(accountId);
+    } else {
+      newSelected.delete(accountId);
+      // If unselected account was default, clear default
+      if (defaultAccountId === accountId) {
+        setDefaultAccountId('');
+      }
+    }
+    setSelectedAccountIds(newSelected);
+    
+    // If no default and we have selections, set first as default
+    if (!defaultAccountId && newSelected.size > 0) {
+      setDefaultAccountId(Array.from(newSelected)[0]);
+    }
+  };
+  
+  // Handle default account change
+  const handleDefaultChange = (accountId: string) => {
+    // Only allow setting default if account is selected
+    if (selectedAccountIds.has(accountId)) {
+      setDefaultAccountId(accountId);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -223,13 +289,22 @@ export function AccountForm({
         console.log('Create account - credential keys:', Object.keys(backendCredentials));
       }
 
+      // Include discovered account selections in broker_config
+      const brokerConfigWithAccounts = { ...backendCredentials };
+      if (selectedAccountIds.size > 0) {
+        brokerConfigWithAccounts.selected_account_ids = Array.from(selectedAccountIds);
+        if (defaultAccountId && selectedAccountIds.has(defaultAccountId)) {
+          brokerConfigWithAccounts.default_account_id = defaultAccountId;
+        }
+      }
+
       const data: AccountCreate = {
         account_id: accountId,
         broker,
         account_type: accountType,
         currency,
         leverage: parseInt(leverage),
-        broker_config: backendCredentials,
+        broker_config: brokerConfigWithAccounts,
       };
 
       await onSubmit(data);
@@ -430,6 +505,85 @@ export function AccountForm({
                         </AlertDescription>
                       </Alert>
                     )}
+                    
+                    {/* Account Discovery */}
+                    {discovering && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Discovering available accounts...
+                      </div>
+                    )}
+                    
+                    {discoveredAccounts.length > 0 && (
+                      <div className="space-y-3 pt-2 border-t border-border">
+                        <div>
+                          <Label className="text-sm font-semibold">Available Accounts</Label>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Select accounts to connect. One will be set as default.
+                          </p>
+                        </div>
+                        
+                        <div className="space-y-2 max-h-48 overflow-y-auto">
+                          {discoveredAccounts.map((acc) => (
+                            <div key={acc.id} className="flex items-start gap-3 p-2 border rounded-md">
+                              <Checkbox
+                                id={`account-${acc.id}`}
+                                checked={selectedAccountIds.has(acc.id)}
+                                onCheckedChange={(checked) =>
+                                  handleAccountToggle(acc.id, checked as boolean)
+                                }
+                                className="mt-1"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <Label
+                                    htmlFor={`account-${acc.id}`}
+                                    className="font-medium cursor-pointer"
+                                  >
+                                    {acc.name || acc.id}
+                                  </Label>
+                                  {acc.is_live && (
+                                    <span className="text-xs px-1.5 py-0.5 bg-red-100 text-red-700 rounded">
+                                      Live
+                                    </span>
+                                  )}
+                                  <span className="text-xs text-muted-foreground">
+                                    {acc.account_type}
+                                  </span>
+                                </div>
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  {acc.currency} • Balance: {acc.balance.toFixed(2)} • Equity: {acc.equity.toFixed(2)}
+                                </div>
+                              </div>
+                              {selectedAccountIds.has(acc.id) && (
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="radio"
+                                    id={`default-${acc.id}`}
+                                    name="defaultAccount"
+                                    checked={defaultAccountId === acc.id}
+                                    onChange={() => handleDefaultChange(acc.id)}
+                                    className="cursor-pointer"
+                                  />
+                                  <Label
+                                    htmlFor={`default-${acc.id}`}
+                                    className="text-xs text-muted-foreground cursor-pointer"
+                                  >
+                                    Default
+                                  </Label>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        
+                        {selectedAccountIds.size === 0 && (
+                          <p className="text-xs text-muted-foreground">
+                            Select at least one account to continue.
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </>
@@ -497,6 +651,85 @@ export function AccountForm({
                         </AlertDescription>
                       </Alert>
                     )}
+                    
+                    {/* Account Discovery */}
+                    {discovering && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Discovering available accounts...
+                      </div>
+                    )}
+                    
+                    {discoveredAccounts.length > 0 && (
+                      <div className="space-y-3 pt-2 border-t border-border">
+                        <div>
+                          <Label className="text-sm font-semibold">Available Accounts</Label>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Select accounts to connect. One will be set as default.
+                          </p>
+                        </div>
+                        
+                        <div className="space-y-2 max-h-48 overflow-y-auto">
+                          {discoveredAccounts.map((acc) => (
+                            <div key={acc.id} className="flex items-start gap-3 p-2 border rounded-md">
+                              <Checkbox
+                                id={`account-${acc.id}`}
+                                checked={selectedAccountIds.has(acc.id)}
+                                onCheckedChange={(checked) =>
+                                  handleAccountToggle(acc.id, checked as boolean)
+                                }
+                                className="mt-1"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <Label
+                                    htmlFor={`account-${acc.id}`}
+                                    className="font-medium cursor-pointer"
+                                  >
+                                    {acc.name || acc.id}
+                                  </Label>
+                                  {acc.is_live && (
+                                    <span className="text-xs px-1.5 py-0.5 bg-red-100 text-red-700 rounded">
+                                      Live
+                                    </span>
+                                  )}
+                                  <span className="text-xs text-muted-foreground">
+                                    {acc.account_type}
+                                  </span>
+                                </div>
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  {acc.currency} • Balance: {acc.balance.toFixed(2)} • Equity: {acc.equity.toFixed(2)}
+                                </div>
+                              </div>
+                              {selectedAccountIds.has(acc.id) && (
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="radio"
+                                    id={`default-${acc.id}`}
+                                    name="defaultAccount"
+                                    checked={defaultAccountId === acc.id}
+                                    onChange={() => handleDefaultChange(acc.id)}
+                                    className="cursor-pointer"
+                                  />
+                                  <Label
+                                    htmlFor={`default-${acc.id}`}
+                                    className="text-xs text-muted-foreground cursor-pointer"
+                                  >
+                                    Default
+                                  </Label>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        
+                        {selectedAccountIds.size === 0 && (
+                          <p className="text-xs text-muted-foreground">
+                            Select at least one account to continue.
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </>
@@ -520,7 +753,10 @@ export function AccountForm({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={submitting || !isBrokerSupported}>
+            <Button 
+              type="submit" 
+              disabled={submitting || !isBrokerSupported || (discoveredAccounts.length > 0 && selectedAccountIds.size === 0)}
+            >
               {submitting
                 ? 'Saving...'
                 : isEdit

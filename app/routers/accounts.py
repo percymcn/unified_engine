@@ -35,6 +35,29 @@ class TestConnectionBody(BaseModel):
     credentials: dict
 
 
+class DiscoverAccountsBody(BaseModel):
+    """Request body for account discovery endpoint"""
+    broker: str
+    credentials: dict
+
+
+class DiscoveredAccount(BaseModel):
+    """Discovered account from broker"""
+    id: str
+    name: Optional[str] = None
+    account_type: str
+    currency: str
+    is_live: bool
+    balance: float = 0.0
+    equity: float = 0.0
+
+
+class DiscoverAccountsResponse(BaseModel):
+    """Response from account discovery"""
+    accounts: List[DiscoveredAccount]
+    message: Optional[str] = None
+
+
 class SelectAccountBody(BaseModel):
     """Request body for account selection toggle"""
     selected: bool
@@ -136,6 +159,173 @@ async def test_connection(
         result["sample_symbols"] = response.sample_symbols
 
     return result
+
+
+@router.post("/discover")
+async def discover_accounts(
+    request: Request,
+    body: DiscoverAccountsBody,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Discover available accounts from broker using provided credentials.
+    
+    READ-ONLY operation - does not save credentials or create accounts.
+    Uses same credential parsing + broker construction as test-connection.
+    
+    Returns:
+        - accounts: List of discovered accounts with id, name, account_type, currency, is_live, balance, equity
+        - message: Optional message if no accounts found or error occurred
+    """
+    # Validate broker type
+    try:
+        broker_type = BrokerType(body.broker.lower())
+    except ValueError:
+        valid_brokers = [b.value for b in BrokerType]
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid broker type: {body.broker}. Valid options: {valid_brokers}"
+        )
+
+    # Build executor using same approach as test_connection
+    executor = None
+    try:
+        if broker_type == BrokerType.TRADELOCKER:
+            from app.brokers.tradelocker_executor import TradeLockerExecutor
+            from app.core.config import settings
+            # Get config and override with provided credentials
+            config = settings.get_broker_config("tradelocker")
+            if body.credentials.get("username") and body.credentials.get("password") and body.credentials.get("server"):
+                config["username"] = body.credentials.get("username")
+                config["password"] = body.credentials.get("password")
+                config["server"] = body.credentials.get("server")
+                config["sdk_environment"] = body.credentials.get("environment", "https://demo.tradelocker.com")
+            elif body.credentials.get("api_key"):
+                config["api_key"] = body.credentials.get("api_key")
+            executor = TradeLockerExecutor()
+            # Override config values
+            if body.credentials.get("username"):
+                executor._sdk_username = body.credentials.get("username")
+            if body.credentials.get("password"):
+                executor._sdk_password = body.credentials.get("password")
+            if body.credentials.get("server"):
+                executor._sdk_server = body.credentials.get("server")
+            if body.credentials.get("environment"):
+                executor._sdk_environment = body.credentials.get("environment")
+            if body.credentials.get("api_key"):
+                executor.api_key = body.credentials.get("api_key")
+            # Re-check availability
+            executor._sdk_available = all([executor._sdk_username, executor._sdk_password, executor._sdk_server])
+            executor._brand_api_available = bool(executor.api_key)
+            executor.is_available = executor._sdk_available or executor._brand_api_available
+            
+        elif broker_type in (BrokerType.PROJECTX, BrokerType.TOPSTEP):
+            from app.brokers.projectx_executor import ProjectXExecutor
+            executor = ProjectXExecutor(
+                username=body.credentials.get("username"),
+                api_key=body.credentials.get("api_key") or body.credentials.get("api_token"),
+            )
+            
+        elif broker_type == BrokerType.TRADOVATE:
+            from app.brokers.tradovate_executor import TradovateExecutor
+            executor = TradovateExecutor(
+                access_token=body.credentials.get("access_token"),
+                environment=body.credentials.get("environment", "demo"),
+            )
+            # For password mode
+            if not executor._use_oauth and body.credentials.get("user_id"):
+                executor.user_id = body.credentials.get("user_id")
+                executor.password = body.credentials.get("password")
+                
+        elif broker_type == BrokerType.MT4:
+            from app.brokers.mt4_executor import MT4Executor
+            executor = MT4Executor(
+                metaapi_token=body.credentials.get("metaapi_token"),
+                metaapi_account_id=body.credentials.get("metaapi_account_id"),
+            )
+            if not executor._has_metaapi_credentials():
+                executor.manager_login = body.credentials.get("manager_login") or body.credentials.get("login")
+                executor.manager_password = body.credentials.get("manager_password") or body.credentials.get("password")
+                
+        elif broker_type == BrokerType.MT5:
+            from app.brokers.mt5_executor import MT5Executor
+            executor = MT5Executor(
+                metaapi_token=body.credentials.get("metaapi_token"),
+                metaapi_account_id=body.credentials.get("metaapi_account_id"),
+            )
+            if not executor._has_metaapi_credentials():
+                executor.manager_login = body.credentials.get("manager_login") or body.credentials.get("login")
+                executor.manager_password = body.credentials.get("manager_password") or body.credentials.get("password")
+        else:
+            return DiscoverAccountsResponse(
+                accounts=[],
+                message=f"Broker {broker_type.value} does not support account discovery"
+            )
+        
+        if not executor or not executor.is_available:
+            return DiscoverAccountsResponse(
+                accounts=[],
+                message="Executor not available with provided credentials"
+            )
+        
+        # Initialize executor
+        initialized = await executor.initialize()
+        if not initialized:
+            return DiscoverAccountsResponse(
+                accounts=[],
+                message="Failed to initialize broker connection"
+            )
+        
+        # Get accounts
+        broker_accounts = await executor.get_accounts()
+        
+        # Normalize to DiscoveredAccount format
+        discovered = []
+        for acc in broker_accounts:
+            # Extract account fields - executors return Account objects with various attributes
+            acc_id = str(getattr(acc, 'id', ''))
+            account_name = getattr(acc, 'name', None) or getattr(acc, 'account_name', None) or getattr(acc, 'account_number', None) or acc_id
+            account_type = getattr(acc, 'account_type', 'live')
+            currency = getattr(acc, 'currency', 'USD')
+            
+            # Determine is_live
+            is_live = getattr(acc, 'is_live', False)
+            if not is_live and account_type:
+                is_live = account_type == "live"
+            
+            balance = float(getattr(acc, 'balance', 0))
+            equity = float(getattr(acc, 'equity', 0))
+            
+            discovered.append(DiscoveredAccount(
+                id=acc_id,
+                name=account_name,
+                account_type=account_type,
+                currency=currency,
+                is_live=is_live,
+                balance=balance,
+                equity=equity,
+            ))
+        
+        return DiscoverAccountsResponse(
+            accounts=discovered,
+            message=None if discovered else "No accounts found"
+        )
+        
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.exception(f"Error discovering accounts for {broker_type.value}: {e}")
+        return DiscoverAccountsResponse(
+            accounts=[],
+            message=f"Error discovering accounts: {str(e)}"
+        )
+    finally:
+        # Cleanup executor if needed
+        if executor and hasattr(executor, 'shutdown'):
+            try:
+                await executor.shutdown()
+            except:
+                pass
 
 
 @router.get("/available/{broker_type}")
