@@ -195,6 +195,9 @@ Progress: [#############################_] 96% (v1.1+) - Phase 24 Wave 1 near co
 | 24-02 | Legacy plan="pro" maps to tier_3 for backward compatibility | Existing users with "pro" continue working |
 | 24-02 | Broker limits: tier_1=1, tier_2=2, tier_3=3, tier_4=4 | Each tier unlocks one additional broker connection |
 | 24-02 | Broker limit exceeded returns 402 Payment Required | More appropriate HTTP status for payment-gated features |
+| 24-03 | Fail open on deduplication errors | Prevents legitimate trades from being blocked due to infrastructure issues |
+| 24-03 | Deduplication settings on User model (not account) | Simplicity; scope setting handles account distinction |
+| 24-03 | DUPLICATE_ENTRY as new RejectedSignalReason | Clearer audit trail than reusing SYMBOL_LIMIT |
 
 ## Known Tech Debt
 
@@ -208,9 +211,9 @@ Progress: [#############################_] 96% (v1.1+) - Phase 24 Wave 1 near co
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed 24-02-PLAN.md (4-Tier Pricing Backend)
+Stopped at: Completed 24-03-PLAN.md (Signal Deduplication)
 Resume file: None
-Status: Phase 24 Wave 1 in progress (5/8 complete)
+Status: Phase 24 Wave 1 complete (5/5), Wave 2 pending (0/3)
 
 ## Gap Closure Status
 
