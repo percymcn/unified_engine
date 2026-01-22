@@ -141,27 +141,27 @@ Requirements for v1.1 Production Ready with Monetization release.
 
 ### User Settings
 
-- [ ] **SET-01**: User Profile page (edit name, email, avatar)
-- [ ] **SET-02**: Password change form (current + new with validation)
-- [ ] **SET-03**: Timezone selection dropdown for all timestamps
-- [ ] **SET-04**: Notification preferences (trade alerts, errors, daily summary)
-- [ ] **SET-05**: Dark/light mode toggle
-- [ ] **SET-06**: Update/add credit card via Stripe customer portal
-- [ ] **SET-07**: Dashboard header must show ACTUAL logged-in user's username/email
+- [x] **SET-01**: User Profile page (edit name, email, avatar)
+- [x] **SET-02**: Password change form (current + new with validation)
+- [x] **SET-03**: Timezone selection dropdown for all timestamps
+- [x] **SET-04**: Notification preferences (trade alerts, errors, daily summary)
+- [x] **SET-05**: Dark/light mode toggle
+- [x] **SET-06**: Update/add credit card via Stripe customer portal
+- [x] **SET-07**: Dashboard header must show ACTUAL logged-in user's username/email
 
 ### Dashboard
 
-- [ ] **DASH-01**: Loading skeletons for graceful loading states
-- [ ] **DASH-02**: Real-time updates via WebSocket (fix existing)
-- [ ] **DASH-03**: Connection status overview (all brokers at glance)
-- [ ] **DASH-04**: Quick action: Test webhook button
-- [ ] **DASH-05**: Today's trades count metric
-- [ ] **DASH-06**: Recent executions list (last 10 trades)
-- [ ] **DASH-07**: Equity chart (balance over time graph)
-- [ ] **DASH-08**: Trial status display: "X trades remaining" or "X days left"
-- [ ] **DASH-09**: Current open positions overview
-- [ ] **DASH-10**: Risk usage meters (positions used vs max, daily trades vs max)
-- [ ] **DASH-11**: Recent rejected signals with reasons
+- [x] **DASH-01**: Loading skeletons for graceful loading states
+- [x] **DASH-02**: Real-time updates via WebSocket (fix existing)
+- [x] **DASH-03**: Connection status overview (all brokers at glance)
+- [x] **DASH-04**: Quick action: Test webhook button
+- [x] **DASH-05**: Today's trades count metric
+- [x] **DASH-06**: Recent executions list (last 10 trades)
+- [x] **DASH-07**: Equity chart (balance over time graph)
+- [x] **DASH-08**: Trial status display: "X trades remaining" or "X days left"
+- [x] **DASH-09**: Current open positions overview
+- [x] **DASH-10**: Risk usage meters (positions used vs max, daily trades vs max)
+- [x] **DASH-11**: Recent rejected signals with reasons
 
 ### UI Navigation
 
@@ -356,24 +356,24 @@ Which phases cover which requirements. Updated by create-roadmap.
 | RISK-14 | 22 | Complete |
 | RISK-15 | 22 | Complete |
 | RISK-16 | 22 | Complete |
-| SET-01 | 23 | Not started |
-| SET-02 | 23 | Not started |
-| SET-03 | 23 | Not started |
-| SET-04 | 23 | Not started |
-| SET-05 | 23 | Not started |
-| SET-06 | 23 | Not started |
-| SET-07 | 23 | Not started |
-| DASH-01 | 23 | Not started |
-| DASH-02 | 23 | Not started |
-| DASH-03 | 23 | Not started |
-| DASH-04 | 23 | Not started |
-| DASH-05 | 23 | Not started |
-| DASH-06 | 23 | Not started |
-| DASH-07 | 23 | Not started |
-| DASH-08 | 23 | Not started |
-| DASH-09 | 23 | Not started |
-| DASH-10 | 23 | Not started |
-| DASH-11 | 23 | Not started |
+| SET-01 | 23 | Complete |
+| SET-02 | 23 | Complete |
+| SET-03 | 23 | Complete |
+| SET-04 | 23 | Complete |
+| SET-05 | 23 | Complete |
+| SET-06 | 23 | Complete |
+| SET-07 | 23 | Complete |
+| DASH-01 | 23 | Complete |
+| DASH-02 | 23 | Complete |
+| DASH-03 | 23 | Complete |
+| DASH-04 | 23 | Complete |
+| DASH-05 | 23 | Complete |
+| DASH-06 | 23 | Complete |
+| DASH-07 | 23 | Complete |
+| DASH-08 | 23 | Complete |
+| DASH-09 | 23 | Complete |
+| DASH-10 | 23 | Complete |
+| DASH-11 | 23 | Complete |
 
 **Coverage:**
 - v1.1 requirements: 127 total

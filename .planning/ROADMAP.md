@@ -25,8 +25,8 @@ v1.1 transforms Tradeflow from a working signal router into a production-ready S
 - [x] **Phase 19: Broker Connections UI** - Status indicators, test buttons, error handling
 - [x] **Phase 20: Symbol Mapping & Futures** - Symbol aliases, rollover, expiration tracking
 - [x] **Phase 21: Multi-Account & Routing** - Multiple accounts per broker, routing rules
-- [ ] **Phase 22: Risk Management** - Trade limits, position sizing, drawdown controls
-- [ ] **Phase 23: User Settings & Dashboard** - Profile, settings, dashboard polish
+- [x] **Phase 22: Risk Management** - Trade limits, position sizing, drawdown controls
+- [x] **Phase 23: User Settings & Dashboard** - Profile, settings, dashboard polish
 - [ ] **Phase 24: Enhanced Features & Monetization v2** - Full trading, trial system, 4-tier pricing
 
 ## Phase Details
@@ -262,7 +262,7 @@ Phases execute in numeric order: 12 → 13 → 14 → 15 → 16 → 17 → 18 �
 | 20. Symbol Mapping & Futures | 4/4 | ✅ Complete | 2026-01-21 |
 | 21. Multi-Account & Routing | 3/3 | ✅ Complete | 2026-01-22 |
 | 22. Risk Management | 4/4 | ✅ Complete | 2026-01-22 |
-| 23. User Settings & Dashboard | 0/5 | 📋 Planned | - |
+| 23. User Settings & Dashboard | 5/5 | ✅ Complete | 2026-01-22 |
 | 24. Enhanced Features & Monetization v2 | 0/TBD | Not started | - |
 
 ## Milestone Summary
