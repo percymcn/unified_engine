@@ -10,7 +10,7 @@ import pytz
 
 from app.db.database import get_db
 from app.models.models import User
-from app.models.schemas import PreferencesResponse, PreferencesUpdate, NotificationPreferences
+from app.models.schemas import PreferencesResponse, PreferencesUpdate, NotificationPreferences, DeduplicationSettings
 from app.schemas.user import ProfileResponse, ProfileUpdate, PasswordChange, PasswordChangeResponse
 from app.routers.auth import get_current_user, verify_password, get_password_hash, get_user_by_email
 
@@ -134,7 +134,7 @@ async def get_preferences(
     db: Session = Depends(get_db)
 ):
     """
-    Get current user's preferences (timezone and notifications).
+    Get current user's preferences (timezone, notifications, and deduplication).
     """
     # Build notification preferences from stored JSON or defaults
     notification_prefs = current_user.notification_preferences or {
@@ -144,9 +144,16 @@ async def get_preferences(
         "email_notifications": True
     }
 
+    # Build deduplication settings
+    dedup_settings = DeduplicationSettings(
+        enable_deduplication=getattr(current_user, 'enable_deduplication', True) if hasattr(current_user, 'enable_deduplication') else True,
+        deduplication_scope=getattr(current_user, 'deduplication_scope', 'per_account') or 'per_account'
+    )
+
     return PreferencesResponse(
         timezone=current_user.timezone or "UTC",
-        notification_preferences=NotificationPreferences(**notification_prefs)
+        notification_preferences=NotificationPreferences(**notification_prefs),
+        deduplication=dedup_settings
     )
 
 
@@ -157,10 +164,11 @@ async def update_preferences(
     db: Session = Depends(get_db)
 ):
     """
-    Update user preferences (timezone and/or notifications).
+    Update user preferences (timezone, notifications, and/or deduplication).
 
     Supports partial updates - only fields provided will be updated.
     Validates timezone against pytz.all_timezones list.
+    Validates deduplication_scope against allowed values.
     """
     # Validate timezone if provided
     if preferences.timezone is not None:
@@ -184,6 +192,18 @@ async def update_preferences(
         existing_prefs.update(preferences.notification_preferences.model_dump())
         current_user.notification_preferences = existing_prefs
 
+    # Update deduplication settings if provided
+    if preferences.deduplication is not None:
+        # Validate deduplication scope
+        valid_scopes = ['per_account', 'global']
+        if preferences.deduplication.deduplication_scope not in valid_scopes:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid deduplication_scope: '{preferences.deduplication.deduplication_scope}'. Must be one of: {valid_scopes}"
+            )
+        current_user.enable_deduplication = preferences.deduplication.enable_deduplication
+        current_user.deduplication_scope = preferences.deduplication.deduplication_scope
+
     db.commit()
     db.refresh(current_user)
 
@@ -195,9 +215,15 @@ async def update_preferences(
         "email_notifications": True
     }
 
+    dedup_settings = DeduplicationSettings(
+        enable_deduplication=getattr(current_user, 'enable_deduplication', True) if hasattr(current_user, 'enable_deduplication') else True,
+        deduplication_scope=getattr(current_user, 'deduplication_scope', 'per_account') or 'per_account'
+    )
+
     return PreferencesResponse(
         timezone=current_user.timezone or "UTC",
-        notification_preferences=NotificationPreferences(**notification_prefs)
+        notification_preferences=NotificationPreferences(**notification_prefs),
+        deduplication=dedup_settings
     )
 
 
