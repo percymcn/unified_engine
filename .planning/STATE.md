@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-21)
 ## Current Position
 
 Phase: 24 - Enhanced Features & Monetization v2 (IN PROGRESS)
-Plan: 7 of 8 complete (Wave 2: 1/3)
-Status: Phase 24 in progress - Wave 2 started
-Last activity: 2026-01-22 - Completed 24-05-PLAN.md (4-Tier Pricing UI)
+Plan: 8 of 8 complete (Wave 2: 2/3)
+Status: Phase 24 in progress - Wave 2 nearly complete
+Last activity: 2026-01-22 - Completed 24-04-PLAN.md (Trial UI & Upgrade Prompts)
 
-Progress: [##############################] 98% (v1.1+) - Phase 24 Wave 2 in progress
+Progress: [##############################] 99% (v1.1+) - Phase 24 Wave 2 nearly complete
 
 ## v1.1 Milestone Goals
 
@@ -57,7 +57,7 @@ Progress: [##############################] 98% (v1.1+) - Phase 24 Wave 2 in prog
 | 21 | Multi-Account & Routing | 6 | Complete (3/3 plans) |
 | 22 | Risk Management | 16 | Complete (4/4 plans) |
 | 23 | User Settings & Dashboard | 18 | Complete (5/5 plans) |
-| 24 | Enhanced Features & Monetization v2 | 43 | In Progress (7/8 plans) |
+| 24 | Enhanced Features & Monetization v2 | 43 | In Progress (8/8 plans - Wave 2: 2/3) |
 
 ## Previous Milestone
 
@@ -210,6 +210,10 @@ Progress: [##############################] 98% (v1.1+) - Phase 24 Wave 2 in prog
 | 24-05 | tier_3 (Pro) as "Most Popular" | Conversion target at $69.99/month |
 | 24-05 | Annual toggle as placeholder (20% discount shown) | Actual annual billing TBD |
 | 24-05 | BFF caches public 1hr, auth never cached | User-specific data shouldn't be cached |
+| 24-04 | Parallel fetch for trial and billing status | Widget fetches both APIs concurrently to minimize latency |
+| 24-04 | 24-hour dismissal expiry for upgrade prompt | Prompt can be dismissed, re-shows after 24 hours |
+| 24-04 | Recommended tier based on broker count | Highlights tier matching current broker usage |
+| 24-04 | Progress bars show usage not remaining | Visual fills represent used/consumed amount |
 
 ## Known Tech Debt
 
@@ -223,9 +227,9 @@ Progress: [##############################] 98% (v1.1+) - Phase 24 Wave 2 in prog
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed 24-05-PLAN.md (4-Tier Pricing UI)
+Stopped at: Completed 24-04-PLAN.md (Trial UI & Upgrade Prompts)
 Resume file: None
-Status: Phase 24 Wave 2 in progress (1/3 complete)
+Status: Phase 24 Wave 2 in progress (2/3 complete)
 
 ## Gap Closure Status
 
@@ -249,7 +253,7 @@ Status: Phase 24 Wave 2 in progress (1/3 complete)
 
 ## Next Steps
 
-1. **Phase 24 (Enhanced Features & Monetization v2)** - IN PROGRESS (7/8 plans)
+1. **Phase 24 (Enhanced Features & Monetization v2)** - IN PROGRESS (8/8 plans)
 
    **Wave 1 (parallel) - 5/5 COMPLETE:**
    - 24-01: Trial System Backend - COMPLETE
@@ -258,9 +262,9 @@ Status: Phase 24 Wave 2 in progress (1/3 complete)
    - 24-06: Broker Account Selection Backend - COMPLETE
    - 24-08: Landing Page Enhancements - COMPLETE
 
-   **Wave 2 (depends on Wave 1) - 1/3 COMPLETE:**
-   - 24-04: Trial UI & Upgrade Prompts (TRIAL-04, TRIAL-06, TRIAL-07) - PENDING
-   - 24-05: 4-Tier Pricing UI (BILL-09) - COMPLETE (just completed)
+   **Wave 2 (depends on Wave 1) - 2/3 COMPLETE:**
+   - 24-04: Trial UI & Upgrade Prompts (TRIAL-04, TRIAL-06, TRIAL-07) - COMPLETE (just completed)
+   - 24-05: 4-Tier Pricing UI (BILL-09) - COMPLETE
    - 24-07: Broker Account Selection UI (ACCT-11, ACCT-12) - PENDING
 
-2. Run `/gsd:execute-plan 24-04` to continue Wave 2
+2. Run `/gsd:execute-plan 24-07` to complete Wave 2 and Phase 24
