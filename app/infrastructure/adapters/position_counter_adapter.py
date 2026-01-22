@@ -78,7 +78,7 @@ class PositionCounterAdapter:
             stmt = select(func.count(Position.id)).where(
                 and_(
                     Position.account_id == account_id,
-                    Position.status == PositionStatus.OPEN
+                    Position.is_active == True
                 )
             )
             result = await self._async_session.execute(stmt)
@@ -96,7 +96,7 @@ class PositionCounterAdapter:
                 and_(
                     Position.account_id == account_id,
                     Position.symbol == symbol,
-                    Position.status == PositionStatus.OPEN
+                    Position.is_active == True
                 )
             )
             result = await self._async_session.execute(stmt)
@@ -113,7 +113,7 @@ class PositionCounterAdapter:
             count = self._session.query(func.count(Position.id)).filter(
                 and_(
                     Position.account_id == account_id,
-                    Position.status == PositionStatus.OPEN
+                    Position.is_active == True
                 )
             ).scalar() or 0
             logger.debug(f"Account {account_id}: {count} open positions (sync)")
@@ -129,7 +129,7 @@ class PositionCounterAdapter:
                 and_(
                     Position.account_id == account_id,
                     Position.symbol == symbol,
-                    Position.status == PositionStatus.OPEN
+                    Position.is_active == True
                 )
             ).scalar() or 0
             logger.debug(f"Account {account_id}, symbol {symbol}: {count} open positions (sync)")

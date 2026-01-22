@@ -24,6 +24,10 @@ from app.infrastructure.repositories.account_repository import SQLAlchemyAccount
 from app.infrastructure.repositories.position_repository import SQLAlchemyPositionRepository
 from app.infrastructure.repositories.symbol_alias_repository import SQLAlchemySymbolAliasRepository
 from app.infrastructure.repositories.account_group_repository import AccountGroupRepository
+from app.infrastructure.repositories.daily_counter_repository import (
+    InMemoryDailyCounterRepository,
+    get_daily_counter_repository,
+)
 
 __all__ = [
     "SQLAlchemySignalRepository",
@@ -33,4 +37,6 @@ __all__ = [
     "SQLAlchemyPositionRepository",
     "SQLAlchemySymbolAliasRepository",
     "AccountGroupRepository",
+    "InMemoryDailyCounterRepository",
+    "get_daily_counter_repository",
 ]
