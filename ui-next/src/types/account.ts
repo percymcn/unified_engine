@@ -83,6 +83,97 @@ export interface BrokerCredentialConfig {
   }>;
 }
 
+// Position sizing modes for trade size calculation
+export type PositionSizingMode = 'fixed' | 'percent_balance' | 'percent_equity' | 'risk_based';
+
+// Account settings for position sizing and risk management
+export interface AccountSettings {
+  accountId: number;
+  positionSizing: {
+    mode: PositionSizingMode;
+    fixedLotSize: number;
+    percentOfBalance: number;
+    percentOfEquity: number;
+    riskPercentPerTrade: number;
+  };
+  riskLimits: {
+    maxPositionSize: number | null;
+    maxDailyLoss: number | null;
+    maxDailyLossPct: number | null;
+    maxDrawdownPct: number | null;
+    maxOpenPositions: number | null;
+    maxDailyTrades: number | null;
+    tradeCooldownSeconds: number | null;
+  };
+  grouping: {
+    groupId: number | null;
+    groupName: string | null;
+    groupColor: string | null;
+  };
+  routing: {
+    isSignalEnabled: boolean;
+    signalPriority: number;
+  };
+}
+
+// Request to update account settings
+export interface AccountSettingsUpdate {
+  positionSizingMode?: PositionSizingMode;
+  fixedLotSize?: number;
+  percentOfBalance?: number;
+  percentOfEquity?: number;
+  riskPercentPerTrade?: number;
+  maxPositionSize?: number | null;
+  maxDailyLoss?: number | null;
+  maxDailyLossPct?: number | null;
+  maxDrawdownPct?: number | null;
+  maxOpenPositions?: number | null;
+  maxDailyTrades?: number | null;
+  tradeCooldownSeconds?: number | null;
+  groupId?: number | null;
+  isSignalEnabled?: boolean;
+  signalPriority?: number;
+}
+
+// Account group for organizing trading accounts
+export interface AccountGroup {
+  id: number;
+  name: string;
+  description: string | null;
+  color: string;
+  icon: string;
+  accountCount: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Request to create an account group
+export interface CreateAccountGroupRequest {
+  name: string;
+  description?: string;
+  color?: string;
+  icon?: string;
+}
+
+// Request to update an account group
+export interface UpdateAccountGroupRequest {
+  name?: string;
+  description?: string;
+  color?: string;
+  icon?: string;
+  isActive?: boolean;
+}
+
+// Extended account type with group and settings info
+export interface AccountWithSettings extends Account {
+  groupId?: number | null;
+  groupName?: string | null;
+  groupColor?: string | null;
+  isSignalEnabled?: boolean;
+  signalPriority?: number;
+}
+
 export const BROKER_CREDENTIAL_CONFIG: Record<BrokerType, BrokerCredentialConfig> = {
   tradelocker: {
     fields: [
