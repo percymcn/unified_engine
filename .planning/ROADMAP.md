@@ -24,7 +24,7 @@ v1.1 transforms Tradeflow from a working signal router into a production-ready S
 - [x] **Phase 18: MetaAPI SDK** - MT4/MT5 via metaapi-cloud-sdk
 - [x] **Phase 19: Broker Connections UI** - Status indicators, test buttons, error handling
 - [x] **Phase 20: Symbol Mapping & Futures** - Symbol aliases, rollover, expiration tracking
-- [ ] **Phase 21: Multi-Account & Routing** - Multiple accounts per broker, routing rules
+- [x] **Phase 21: Multi-Account & Routing** - Multiple accounts per broker, routing rules
 - [ ] **Phase 22: Risk Management** - Trade limits, position sizing, drawdown controls
 - [ ] **Phase 23: User Settings & Dashboard** - Profile, settings, dashboard polish
 - [ ] **Phase 24: Enhanced Features & Monetization v2** - Full trading, trial system, 4-tier pricing
@@ -259,7 +259,7 @@ Phases execute in numeric order: 12 → 13 → 14 → 15 → 16 → 17 → 18 �
 | 18. MetaAPI SDK | 1/1 | ✅ Complete | 2026-01-21 |
 | 19. Broker Connections UI | 2/2 | ✅ Complete | 2026-01-21 |
 | 20. Symbol Mapping & Futures | 4/4 | ✅ Complete | 2026-01-21 |
-| 21. Multi-Account & Routing | 0/3 | 📋 Planning complete | - |
+| 21. Multi-Account & Routing | 3/3 | ✅ Complete | 2026-01-22 |
 | 22. Risk Management | 0/TBD | Not started | - |
 | 23. User Settings & Dashboard | 0/TBD | Not started | - |
 | 24. Enhanced Features & Monetization v2 | 0/TBD | Not started | - |

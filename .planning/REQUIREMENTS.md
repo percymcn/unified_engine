@@ -38,12 +38,12 @@ Requirements for v1.1 Production Ready with Monetization release.
 
 ### Multi-Account & Broker Selection
 
-- [ ] **ACCT-01**: Users can connect multiple accounts per broker
-- [ ] **ACCT-02**: Users can connect multiple brokers simultaneously
-- [ ] **ACCT-03**: Route signals to specific accounts or all accounts
-- [ ] **ACCT-04**: Per-account position sizing rules
-- [ ] **ACCT-05**: Per-account risk limits (max position, daily loss)
-- [ ] **ACCT-06**: Account grouping ("Prop Firm Accounts", "Personal Accounts")
+- [x] **ACCT-01**: Users can connect multiple accounts per broker
+- [x] **ACCT-02**: Users can connect multiple brokers simultaneously
+- [x] **ACCT-03**: Route signals to specific accounts or all accounts
+- [x] **ACCT-04**: Per-account position sizing rules
+- [x] **ACCT-05**: Per-account risk limits (max position, daily loss)
+- [x] **ACCT-06**: Account grouping ("Prop Firm Accounts", "Personal Accounts")
 - [ ] **ACCT-07**: TradeLocker SDK: Fetch all accounts (live, demo), checkbox selection UI
 - [ ] **ACCT-08**: TopStep/ProjectX SDK: Fetch all accounts (live, evaluation, express)
 - [ ] **ACCT-09**: Tradovate: Fetch all accounts via API, show type/status
