@@ -7,7 +7,7 @@
  * Generated from backend code analysis - DO NOT MODIFY without updating backend.
  */
 
-export type BrokerType = 'tradelocker' | 'tradovate' | 'projectx' | 'topstep' | 'mt4' | 'mt5';
+export type BrokerType = 'tradelocker' | 'tradovate' | 'projectx' | 'topstep' | 'truforex' | 'mt4' | 'mt5';
 
 /**
  * Credential field definition
@@ -371,6 +371,43 @@ export const MT5_SCHEMA: BrokerCredentialSchema = {
 };
 
 /**
+ * TruForex Credential Schema
+ * 
+ * Note: TruForex integration details to be determined.
+ * Using placeholder schema based on similar broker patterns.
+ */
+export const TRUFOREX_SCHEMA: BrokerCredentialSchema = {
+  broker: 'truforex',
+  displayName: 'TruForex',
+  requiredFields: [
+    {
+      name: 'apiKey',
+      backendName: 'api_key',
+      required: true,
+      type: 'password',
+      label: 'API Key',
+      description: 'Your TruForex API key',
+      storageLocation: 'trading_accounts',
+      storageColumn: 'api_key',
+    },
+    {
+      name: 'apiSecret',
+      backendName: 'api_secret',
+      required: true,
+      type: 'password',
+      label: 'API Secret',
+      description: 'Your TruForex API secret',
+      storageLocation: 'trading_accounts',
+      storageColumn: 'api_secret',
+    },
+  ],
+  optionalFields: [],
+  testConnectionEndpoint: '/api/v1/accounts/test-connection',
+  createAccountEndpoint: '/api/v1/accounts/',
+  notes: 'TruForex credential requirements to be confirmed.',
+};
+
+/**
  * All broker credential schemas
  */
 export const BROKER_CREDENTIAL_SCHEMAS: Record<BrokerType, BrokerCredentialSchema> = {
@@ -378,6 +415,7 @@ export const BROKER_CREDENTIAL_SCHEMAS: Record<BrokerType, BrokerCredentialSchem
   tradovate: TRADOVATE_SCHEMA,
   projectx: PROJECTX_SCHEMA,
   topstep: TOPSTEP_SCHEMA,
+  truforex: TRUFOREX_SCHEMA,
   mt4: MT4_SCHEMA,
   mt5: MT5_SCHEMA,
 };
@@ -418,7 +456,6 @@ export function mapCredentialsToBackend(
   broker: BrokerType,
   credentials: Record<string, unknown>
 ): Record<string, unknown> {
-  const schema = getBrokerCredentialSchema(broker);
   const allFields = getAllFields(broker);
   const mapped: Record<string, unknown> = {};
 

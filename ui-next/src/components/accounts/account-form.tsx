@@ -162,7 +162,13 @@ export function AccountForm({
         console.log('Test connection - credential keys:', Object.keys(backendCredentials));
       }
       
-      const result = await testConnection(broker, backendCredentials);
+      // Convert to Record<string, string> for testConnection API
+      const stringCredentials: Record<string, string> = {};
+      for (const [key, value] of Object.entries(backendCredentials)) {
+        stringCredentials[key] = String(value);
+      }
+      
+      const result = await testConnection(broker, stringCredentials);
       setTestResult(result);
     } catch (error) {
       console.error('Test connection error:', error);
