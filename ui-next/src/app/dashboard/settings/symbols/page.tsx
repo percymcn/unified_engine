@@ -116,8 +116,8 @@ export default function SymbolMappingPage() {
         </div>
       </div>
 
-      {/* Error Alert */}
-      {error && (
+      {/* Error Alert - only show for real errors, not empty state */}
+      {error && connectedBrokers.length > 0 && (
         <Alert variant="destructive">
           <AlertTitle>Error</AlertTitle>
           <AlertDescription className="flex items-center justify-between">

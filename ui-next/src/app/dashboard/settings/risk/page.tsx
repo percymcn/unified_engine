@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Shield, AlertTriangle, DollarSign, TrendingDown } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
 
 interface GlobalRiskSettings {
   default_max_daily_trades: number | null;
@@ -205,29 +206,43 @@ export default function RiskSettingsPage() {
             </div>
             <div>
               <Label>Max Daily Loss (%)</Label>
-              <Input
-                type="number"
-                step="0.1"
-                value={settings.default_max_daily_loss_pct || ""}
-                onChange={(e) => setSettings({
-                  ...settings,
-                  default_max_daily_loss_pct: e.target.value ? parseFloat(e.target.value) : null
-                })}
-                placeholder="No limit"
-              />
+              <div className="space-y-2">
+                <Slider
+                  value={settings.default_max_daily_loss_pct || 0}
+                  onValueChange={(value) => setSettings({
+                    ...settings,
+                    default_max_daily_loss_pct: value > 0 ? value : null
+                  })}
+                  min={0}
+                  max={50}
+                  step={0.5}
+                />
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>0%</span>
+                  <span className="font-medium">{settings.default_max_daily_loss_pct || 0}%</span>
+                  <span>50%</span>
+                </div>
+              </div>
             </div>
             <div>
               <Label>Max Drawdown (%)</Label>
-              <Input
-                type="number"
-                step="0.1"
-                value={settings.default_max_drawdown_pct || ""}
-                onChange={(e) => setSettings({
-                  ...settings,
-                  default_max_drawdown_pct: e.target.value ? parseFloat(e.target.value) : null
-                })}
-                placeholder="No limit"
-              />
+              <div className="space-y-2">
+                <Slider
+                  value={settings.default_max_drawdown_pct || 0}
+                  onValueChange={(value) => setSettings({
+                    ...settings,
+                    default_max_drawdown_pct: value > 0 ? value : null
+                  })}
+                  min={0}
+                  max={50}
+                  step={0.5}
+                />
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>0%</span>
+                  <span className="font-medium">{settings.default_max_drawdown_pct || 0}%</span>
+                  <span>50%</span>
+                </div>
+              </div>
             </div>
           </div>
         </CardContent>
@@ -276,16 +291,23 @@ export default function RiskSettingsPage() {
             </div>
             <div>
               <Label>Risk % per Trade</Label>
-              <Input
-                type="number"
-                step="0.1"
-                value={settings.default_risk_percent_per_trade || ""}
-                onChange={(e) => setSettings({
-                  ...settings,
-                  default_risk_percent_per_trade: e.target.value ? parseFloat(e.target.value) : null
-                })}
-                placeholder="1.0"
-              />
+              <div className="space-y-2">
+                <Slider
+                  value={settings.default_risk_percent_per_trade || 1}
+                  onValueChange={(value) => setSettings({
+                    ...settings,
+                    default_risk_percent_per_trade: value
+                  })}
+                  min={0.1}
+                  max={10}
+                  step={0.1}
+                />
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>0.1%</span>
+                  <span className="font-medium">{settings.default_risk_percent_per_trade || 1}%</span>
+                  <span>10%</span>
+                </div>
+              </div>
             </div>
           </div>
         </CardContent>

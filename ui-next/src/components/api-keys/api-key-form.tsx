@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/select';
 
 interface ApiKeyFormProps {
-  onSubmit: (data: ApiKeyCreate) => void;
+  onSubmit: (data: ApiKeyCreate) => Promise<void> | void;
   onCancel: () => void;
   isLoading?: boolean;
 }
@@ -25,7 +25,7 @@ export function ApiKeyForm({ onSubmit, onCancel, isLoading }: ApiKeyFormProps) {
   const [expiration, setExpiration] = useState<string>('never');
   const [permissions, setPermissions] = useState<string[]>(['read']);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const data: ApiKeyCreate = {
@@ -37,7 +37,16 @@ export function ApiKeyForm({ onSubmit, onCancel, isLoading }: ApiKeyFormProps) {
       data.expires_days = parseInt(expiration, 10);
     }
 
-    onSubmit(data);
+    try {
+      await onSubmit(data);
+      // Reset form on success
+      setName('');
+      setExpiration('never');
+      setPermissions(['read']);
+    } catch (error) {
+      // Error handling is done by parent component
+      console.error('Failed to submit API key form:', error);
+    }
   };
 
   const togglePermission = (permission: string) => {

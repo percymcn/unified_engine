@@ -62,9 +62,24 @@ export default function AccountGroupsPage() {
       ]);
       setGroups(groupsData);
       setAccounts(accountsData);
+      
+      // Don't show error if just no accounts connected
+      if (accountsData.length === 0) {
+        setError(null);
+      }
     } catch (err) {
       console.error('Failed to load data:', err);
-      setError('Unable to load account groups. Please check your connection and try again.');
+      // Check if it's just no accounts
+      try {
+        const accounts = await getAccounts();
+        if (accounts.length === 0) {
+          setError(null); // Will show empty state
+        } else {
+          setError('Unable to load account groups. Please check your connection and try again.');
+        }
+      } catch {
+        setError('Unable to load account groups. Please check your connection and try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -178,7 +193,7 @@ export default function AccountGroupsPage() {
     );
   }
 
-  // Error state
+  // Error state (only for real errors)
   if (error) {
     return (
       <div className="space-y-6">
@@ -198,6 +213,35 @@ export default function AccountGroupsPage() {
             </Button>
           </AlertDescription>
         </Alert>
+      </div>
+    );
+  }
+  
+  // Empty state when no accounts connected
+  if (accounts.length === 0 && !loading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Account Groups</h1>
+          <p className="text-muted-foreground">
+            Organize your trading accounts into groups
+          </p>
+        </div>
+        <div className="flex flex-col items-center justify-center h-96 border border-dashed border-border rounded-lg">
+          <FolderOpen className="h-12 w-12 text-muted-foreground mb-4" />
+          <div className="text-center space-y-2">
+            <h3 className="font-semibold text-lg">No accounts connected</h3>
+            <p className="text-muted-foreground">
+              Connect an account to enable this feature.
+            </p>
+            <Button asChild className="mt-4">
+              <a href="/dashboard/settings/accounts">
+                <Plus className="h-4 w-4 mr-2" />
+                Connect Account
+              </a>
+            </Button>
+          </div>
+        </div>
       </div>
     );
   }
