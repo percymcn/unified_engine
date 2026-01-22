@@ -8,7 +8,8 @@
  * This module ensures UI inputs are converted before sending to API.
  */
 
-import { BrokerType, StopLossMode } from './riskCapabilities';
+import { BrokerType } from '@/types/account';
+import { StopLossMode } from './riskCapabilities';
 
 /**
  * Convert pips to absolute price

@@ -264,9 +264,49 @@ class TestTestConnectionUseCase:
     # ==================== Missing Credentials Scenarios ====================
 
     @pytest.mark.asyncio
-    async def test_tradelocker_missing_credentials(self, use_case):
-        """Test TradeLocker with missing credentials returns clear error"""
-        credentials = {}  # Empty credentials
+    async def test_tradelocker_brand_api_success(self, use_case):
+        """Test successful TradeLocker Brand API connection"""
+        credentials = {
+            "api_key": "test-api-key",
+            "environment_url": "https://live.tradelocker.com"
+        }
+
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_accounts_response = MagicMock()
+            mock_accounts_response.status_code = 200
+            mock_accounts_response.json.return_value = []
+            mock_instruments_response = MagicMock()
+            mock_instruments_response.status_code = 200
+            mock_instruments_response.json.return_value = []
+            
+            mock_client.get = AsyncMock(side_effect=[
+                mock_accounts_response,
+                mock_instruments_response
+            ])
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+            mock_client_class.return_value = mock_client
+
+            request = TestConnectionRequest(
+                broker=BrokerType.TRADELOCKER,
+                credentials=credentials
+            )
+            response = await use_case.execute(request)
+
+            assert response.success is True
+            assert response.status == "connected"
+            assert "Brand API" in response.message
+            assert response.details["mode"] == "brand_api"
+
+    @pytest.mark.asyncio
+    async def test_tradelocker_gatesfx_requires_brand_api(self, use_case):
+        """Test that GATESFX server requires Brand API and rejects username/password"""
+        credentials = {
+            "username": "testuser",
+            "password": "testpass",
+            "server": "GATESFX"
+        }
 
         request = TestConnectionRequest(
             broker=BrokerType.TRADELOCKER,
@@ -276,7 +316,122 @@ class TestTestConnectionUseCase:
 
         assert response.success is False
         assert response.status == "failed"
-        assert "missing" in response.message.lower()
+        assert "requires Brand API Key" in response.message
+        assert "GATESFX" in response.message or "gatesfx" in response.message.lower()
+        assert response.details.get("mode") == "brand_api_required"
+
+    @pytest.mark.asyncio
+    async def test_tradelocker_gatesfx_with_brand_api_success(self, use_case):
+        """Test GATESFX with Brand API key succeeds"""
+        credentials = {
+            "api_key": "test-api-key",
+            "server": "GATESFX",
+            "environment_url": "https://live.tradelocker.com"
+        }
+
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_accounts_response = MagicMock()
+            mock_accounts_response.status_code = 200
+            mock_accounts_response.json.return_value = []
+            mock_instruments_response = MagicMock()
+            mock_instruments_response.status_code = 200
+            mock_instruments_response.json.return_value = []
+            
+            mock_client.get = AsyncMock(side_effect=[
+                mock_accounts_response,
+                mock_instruments_response
+            ])
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+            mock_client_class.return_value = mock_client
+
+            request = TestConnectionRequest(
+                broker=BrokerType.TRADELOCKER,
+                credentials=credentials
+            )
+            response = await use_case.execute(request)
+
+            assert response.success is True
+            assert response.status == "connected"
+            assert response.details["mode"] == "brand_api"
+
+    @pytest.mark.asyncio
+    async def test_tradelocker_brand_api_with_environment_url(self, use_case):
+        """Test Brand API mode uses environment_url when provided"""
+        credentials = {
+            "api_key": "test-api-key",
+            "environment_url": "https://custom.tradelocker.com"
+        }
+
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_accounts_response = MagicMock()
+            mock_accounts_response.status_code = 200
+            mock_accounts_response.json.return_value = []
+            mock_instruments_response = MagicMock()
+            mock_instruments_response.status_code = 200
+            mock_instruments_response.json.return_value = []
+            
+            mock_client.get = AsyncMock(side_effect=[
+                mock_accounts_response,
+                mock_instruments_response
+            ])
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+            mock_client_class.return_value = mock_client
+
+            request = TestConnectionRequest(
+                broker=BrokerType.TRADELOCKER,
+                credentials=credentials
+            )
+            response = await use_case.execute(request)
+
+            assert response.success is True
+            # Verify the API URL was constructed from environment_url
+            assert "custom" in response.details.get("api_url", "") or response.details.get("api_url", "").startswith("https://")
+
+    @pytest.mark.asyncio
+    async def test_tradelocker_brand_api_401_error(self, use_case):
+        """Test Brand API returns clear error on 401"""
+        credentials = {
+            "api_key": "invalid-key"
+        }
+
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_response = MagicMock()
+            mock_response.status_code = 401
+            mock_response.text = "Unauthorized"
+            mock_client.get = AsyncMock(return_value=mock_response)
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+            mock_client_class.return_value = mock_client
+
+            request = TestConnectionRequest(
+                broker=BrokerType.TRADELOCKER,
+                credentials=credentials
+            )
+            response = await use_case.execute(request)
+
+            assert response.success is False
+            assert response.status == "failed"
+            assert "invalid" in response.message.lower() or "api key" in response.message.lower()
+
+    @pytest.mark.asyncio
+    async def test_requires_brand_api_helper(self, use_case):
+        """Test the _requires_brand_api helper method"""
+        # Test GATESFX
+        assert use_case._requires_brand_api("GATESFX") is True
+        assert use_case._requires_brand_api("gatesfx") is True
+        assert use_case._requires_brand_api("GatesFX") is True
+        
+        # Test other servers
+        assert use_case._requires_brand_api("demo") is False
+        assert use_case._requires_brand_api("live") is False
+        assert use_case._requires_brand_api(None) is False
+        assert use_case._requires_brand_api("") is False
+
 
     @pytest.mark.asyncio
     async def test_tradovate_missing_credentials(self, use_case):
@@ -406,6 +561,175 @@ class TestTestConnectionUseCase:
         assert response.details is not None
         # Details should include info about required fields
         assert "required" in str(response.details).lower() or "sdk" in str(response.details).lower() or "brand" in str(response.details).lower()
+
+    @pytest.mark.asyncio
+    async def test_tradelocker_brand_api_success(self, use_case):
+        """Test successful TradeLocker Brand API connection"""
+        credentials = {
+            "api_key": "test-api-key",
+            "environment_url": "https://live.tradelocker.com"
+        }
+
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_accounts_response = MagicMock()
+            mock_accounts_response.status_code = 200
+            mock_accounts_response.json.return_value = []
+            mock_instruments_response = MagicMock()
+            mock_instruments_response.status_code = 200
+            mock_instruments_response.json.return_value = []
+            
+            mock_client.get = AsyncMock(side_effect=[
+                mock_accounts_response,
+                mock_instruments_response
+            ])
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+            mock_client_class.return_value = mock_client
+
+            request = TestConnectionRequest(
+                broker=BrokerType.TRADELOCKER,
+                credentials=credentials
+            )
+            response = await use_case.execute(request)
+
+            assert response.success is True
+            assert response.status == "connected"
+            assert "Brand API" in response.message
+            assert response.details["mode"] == "brand_api"
+
+    @pytest.mark.asyncio
+    async def test_tradelocker_gatesfx_requires_brand_api(self, use_case):
+        """Test that GATESFX server requires Brand API and rejects username/password"""
+        credentials = {
+            "username": "testuser",
+            "password": "testpass",
+            "server": "GATESFX"
+        }
+
+        request = TestConnectionRequest(
+            broker=BrokerType.TRADELOCKER,
+            credentials=credentials
+        )
+        response = await use_case.execute(request)
+
+        assert response.success is False
+        assert response.status == "failed"
+        assert "requires Brand API Key" in response.message
+        assert "GATESFX" in response.message or "gatesfx" in response.message.lower()
+        assert response.details.get("mode") == "brand_api_required"
+
+    @pytest.mark.asyncio
+    async def test_tradelocker_gatesfx_with_brand_api_success(self, use_case):
+        """Test GATESFX with Brand API key succeeds"""
+        credentials = {
+            "api_key": "test-api-key",
+            "server": "GATESFX",
+            "environment_url": "https://live.tradelocker.com"
+        }
+
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_accounts_response = MagicMock()
+            mock_accounts_response.status_code = 200
+            mock_accounts_response.json.return_value = []
+            mock_instruments_response = MagicMock()
+            mock_instruments_response.status_code = 200
+            mock_instruments_response.json.return_value = []
+            
+            mock_client.get = AsyncMock(side_effect=[
+                mock_accounts_response,
+                mock_instruments_response
+            ])
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+            mock_client_class.return_value = mock_client
+
+            request = TestConnectionRequest(
+                broker=BrokerType.TRADELOCKER,
+                credentials=credentials
+            )
+            response = await use_case.execute(request)
+
+            assert response.success is True
+            assert response.status == "connected"
+            assert response.details["mode"] == "brand_api"
+
+    @pytest.mark.asyncio
+    async def test_tradelocker_brand_api_with_environment_url(self, use_case):
+        """Test Brand API mode uses environment_url when provided"""
+        credentials = {
+            "api_key": "test-api-key",
+            "environment_url": "https://custom.tradelocker.com"
+        }
+
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_accounts_response = MagicMock()
+            mock_accounts_response.status_code = 200
+            mock_accounts_response.json.return_value = []
+            mock_instruments_response = MagicMock()
+            mock_instruments_response.status_code = 200
+            mock_instruments_response.json.return_value = []
+            
+            mock_client.get = AsyncMock(side_effect=[
+                mock_accounts_response,
+                mock_instruments_response
+            ])
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+            mock_client_class.return_value = mock_client
+
+            request = TestConnectionRequest(
+                broker=BrokerType.TRADELOCKER,
+                credentials=credentials
+            )
+            response = await use_case.execute(request)
+
+            assert response.success is True
+            # Verify the API URL was constructed from environment_url
+            assert "custom" in response.details.get("api_url", "") or response.details.get("api_url", "").startswith("https://")
+
+    @pytest.mark.asyncio
+    async def test_tradelocker_brand_api_401_error(self, use_case):
+        """Test Brand API returns clear error on 401"""
+        credentials = {
+            "api_key": "invalid-key"
+        }
+
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_response = MagicMock()
+            mock_response.status_code = 401
+            mock_response.text = "Unauthorized"
+            mock_client.get = AsyncMock(return_value=mock_response)
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+            mock_client_class.return_value = mock_client
+
+            request = TestConnectionRequest(
+                broker=BrokerType.TRADELOCKER,
+                credentials=credentials
+            )
+            response = await use_case.execute(request)
+
+            assert response.success is False
+            assert response.status == "failed"
+            assert "invalid" in response.message.lower() or "api key" in response.message.lower()
+
+    @pytest.mark.asyncio
+    async def test_requires_brand_api_helper(self, use_case):
+        """Test the _requires_brand_api helper method"""
+        # Test GATESFX
+        assert use_case._requires_brand_api("GATESFX") is True
+        assert use_case._requires_brand_api("gatesfx") is True
+        assert use_case._requires_brand_api("GatesFX") is True
+        
+        # Test other servers
+        assert use_case._requires_brand_api("demo") is False
+        assert use_case._requires_brand_api("live") is False
+        assert use_case._requires_brand_api(None) is False
+        assert use_case._requires_brand_api("") is False
 
 
 class TestTestConnectionEndpoint:

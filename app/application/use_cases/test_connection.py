@@ -132,8 +132,117 @@ class TestConnectionUseCase:
             password = credentials.get("password")
             server = credentials.get("server")
             api_key = credentials.get("api_key")
+            environment_url = credentials.get("environment_url") or credentials.get("environment")
 
-            # SDK mode (user credentials)
+            # Check if broker requires Brand API (e.g., GATESFX)
+            requires_brand_api = self._requires_brand_api(server)
+
+            # If Brand API is required but only username/password provided, return clear error
+            if requires_brand_api and not api_key and (username or password):
+                return TestConnectionResponse(
+                    success=False,
+                    status="failed",
+                    message=f"Broker '{server}' requires Brand API Key mode; username/password authentication is not supported. Please provide an API key.",
+                    details={
+                        "mode": "brand_api_required",
+                        "server": server,
+                        "required": ["api_key", "environment_url"],
+                        "optional": ["server"]
+                    }
+                )
+
+            # Brand API mode (api_key) - check first if required or if api_key provided
+            if api_key or requires_brand_api:
+                if not api_key:
+                    return TestConnectionResponse(
+                        success=False,
+                        status="failed",
+                        message=f"Broker '{server}' requires Brand API Key. Please provide an API key.",
+                        details={
+                            "mode": "brand_api_required",
+                            "server": server,
+                            "required": ["api_key"]
+                        }
+                    )
+
+                try:
+                    import httpx
+                    from app.core.config import settings
+
+                    # Use environment_url if provided, otherwise default API URL
+                    if environment_url:
+                        # Extract base URL from environment_url if it's a full URL
+                        if environment_url.startswith("http"):
+                            # For Brand API, we typically use api.tradelocker.com or broker-specific domain
+                            # If environment_url is provided, try to construct API URL
+                            # Common pattern: https://live.tradelocker.com -> https://api.tradelocker.com
+                            # But some brokers may have custom API endpoints
+                            api_url = environment_url.replace("live.", "api.").replace("demo.", "api.")
+                            if not api_url.startswith("http"):
+                                api_url = f"https://{api_url}"
+                        else:
+                            api_url = f"https://{environment_url}"
+                    else:
+                        config = settings.get_broker_config("tradelocker")
+                        api_url = config.get("api_url", "https://api.tradelocker.com")
+
+                    async with httpx.AsyncClient(
+                        base_url=api_url,
+                        headers={"brand-api-key": api_key},
+                        timeout=10.0
+                    ) as client:
+                        response = await client.get("/accounts")
+                        if response.status_code == 200:
+                            # Get symbols for format detection
+                            symbols = []
+                            try:
+                                sym_response = await client.get("/instruments")
+                                if sym_response.status_code == 200:
+                                    instruments_data = sym_response.json()
+                                    symbols = [inst.get("symbol", "") for inst in instruments_data]
+                            except Exception as e:
+                                logger.warning(f"Failed to get TradeLocker symbols: {e}")
+
+                            # Detect symbol format
+                            detected_format, symbol_map, sample_symbols = self._detect_symbols(symbols)
+
+                            return TestConnectionResponse(
+                                success=True,
+                                status="connected",
+                                message="Successfully connected to TradeLocker via Brand API",
+                                details={
+                                    "mode": "brand_api",
+                                    "api_url": api_url,
+                                    "server": server
+                                },
+                                detected_format=detected_format,
+                                symbol_map=symbol_map,
+                                sample_symbols=sample_symbols,
+                            )
+                        elif response.status_code == 401:
+                            return TestConnectionResponse(
+                                success=False,
+                                status="failed",
+                                message="Invalid TradeLocker API key. Please check your credentials.",
+                                details={"mode": "brand_api", "http_status": 401}
+                            )
+                        else:
+                            error_text = response.text[:200] if response.text else ""
+                            return TestConnectionResponse(
+                                success=False,
+                                status="failed",
+                                message=f"TradeLocker API error: {response.status_code}. {error_text}",
+                                details={"mode": "brand_api", "http_status": response.status_code}
+                            )
+                except Exception as e:
+                    return TestConnectionResponse(
+                        success=False,
+                        status="failed",
+                        message=f"TradeLocker Brand API error: {str(e)}",
+                        details={"mode": "brand_api", "error": str(e)}
+                    )
+
+            # SDK mode (user credentials) - only if Brand API not required
             if username and password and server:
                 try:
                     from app.brokers.tradelocker_sdk_wrapper import TradeLockerSDKWrapper
@@ -249,12 +358,30 @@ class TestConnectionUseCase:
                         details={"mode": "brand_api", "error": str(e)}
                     )
 
-            return TestConnectionResponse(
-                success=False,
-                status="failed",
-                message="Missing TradeLocker credentials. Provide either (username, password, server) for SDK mode or (api_key) for Brand API mode.",
-                details={"required_sdk": ["username", "password", "server"], "required_brand": ["api_key"]}
-            )
+            # Determine required fields based on server
+            if requires_brand_api:
+                return TestConnectionResponse(
+                    success=False,
+                    status="failed",
+                    message=f"Broker '{server}' requires Brand API Key mode. Please provide api_key and optionally environment_url.",
+                    details={
+                        "mode": "brand_api_required",
+                        "server": server,
+                        "required": ["api_key"],
+                        "optional": ["environment_url", "server"]
+                    }
+                )
+            else:
+                return TestConnectionResponse(
+                    success=False,
+                    status="failed",
+                    message="Missing TradeLocker credentials. Provide either (username, password, server) for SDK mode or (api_key) for Brand API mode.",
+                    details={
+                        "required_sdk": ["username", "password", "server"],
+                        "required_brand": ["api_key"],
+                        "optional_brand": ["environment_url", "server"]
+                    }
+                )
 
         except Exception as e:
             return TestConnectionResponse(
@@ -263,6 +390,33 @@ class TestConnectionUseCase:
                 message=f"TradeLocker connection error: {str(e)}",
                 details={"error": str(e)}
             )
+
+    def _requires_brand_api(self, server: Optional[str]) -> bool:
+        """
+        Check if a broker server requires Brand API authentication.
+        
+        Some brokers (e.g., GATESFX) only support Brand API and don't allow
+        username/password SDK authentication.
+        
+        Args:
+            server: Broker server name (e.g., "GATESFX", "gatesfx")
+            
+        Returns:
+            True if Brand API is required, False otherwise
+        """
+        if not server:
+            return False
+        
+        # Normalize server name for comparison
+        server_upper = server.upper()
+        
+        # List of servers that require Brand API
+        BRAND_API_REQUIRED_SERVERS = [
+            "GATESFX",
+            "GATES FX",
+        ]
+        
+        return server_upper in BRAND_API_REQUIRED_SERVERS
 
     async def _test_tradovate(self, credentials: dict) -> TestConnectionResponse:
         """Test Tradovate connection."""
