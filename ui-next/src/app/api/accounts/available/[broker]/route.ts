@@ -5,7 +5,9 @@ const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8765';
 
 /**
  * Available broker account returned from backend
+ * @see Backend: GET /api/v1/accounts/available/{broker}
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface BrokerAccountInfo {
   id: string;
   name: string;

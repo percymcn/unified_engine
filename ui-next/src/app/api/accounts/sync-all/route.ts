@@ -10,6 +10,7 @@ const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8765';
  * Re-fetches and syncs account data from all connected brokers.
  * Updates stored accounts with latest balance/equity information.
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function POST(request: NextRequest) {
   try {
     const token = await getTokenFromCookies();
