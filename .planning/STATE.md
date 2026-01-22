@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-01-21)
 
 ## Current Position
 
-Phase: 21 - Multi-Account & Routing (COMPLETE)
-Plan: 3 of 3 complete
-Status: Phase 21 complete, ready for Phase 22
-Last activity: 2026-01-21 - Completed 21-03-PLAN.md (Account & Routing UI)
+Phase: 22 - Risk Management (PLANNED)
+Plan: 0 of 4 complete
+Status: Phase 22 planned with 4 plans, ready for execution
+Last activity: 2026-01-21 - Planned Phase 22 (Risk Management)
 
-Progress: [########################] 80% (v1.1) - Phase 21 complete
+Progress: [########################] 80% (v1.1) - Phase 22 planned
 
 ## v1.1 Milestone Goals
 
@@ -55,7 +55,7 @@ Progress: [########################] 80% (v1.1) - Phase 21 complete
 | 19 | Broker Connections UI | 4 | Complete (2/2 plans) |
 | 20 | Symbol Mapping & Futures | 6 | Complete (4/4 plans) |
 | 21 | Multi-Account & Routing | 6 | Complete (3/3 plans) |
-| 22 | Risk Management | 16 | Not started |
+| 22 | Risk Management | 16 | Planned (4 plans) |
 | 23 | User Settings & Dashboard | 10 | Not started |
 
 ## Previous Milestone
@@ -165,10 +165,10 @@ Progress: [########################] 80% (v1.1) - Phase 21 complete
 
 ## Session Continuity
 
-Last session: 2026-01-22T01:04:00Z
-Stopped at: Completed 21-03-PLAN.md (Account & Routing UI)
+Last session: 2026-01-21
+Stopped at: Planned Phase 22 (Risk Management) with 4 plans
 Resume file: None
-Status: Phase 21 complete, Phase 22 (Risk Management) ready
+Status: Phase 22 planned, ready for execution
 
 ## Gap Closure Status
 
@@ -192,18 +192,10 @@ Status: Phase 21 complete, Phase 22 (Risk Management) ready
 
 ## Next Steps
 
-1. ~~Execute Phase 19 plans (Broker Connections UI)~~ (COMPLETE)
-   - ~~19-01: Backend connection test endpoint~~ (COMPLETE)
-   - ~~19-02: Frontend status indicators and test button~~ (COMPLETE)
-2. ~~Execute Phase 20 plans (Symbol Mapping & Futures)~~ (COMPLETE)
-   - ~~20-01: Symbol Normalization Service (SYM-01, SYM-04)~~ (COMPLETE)
-   - ~~20-02: Symbol Auto-Detection (SYM-03)~~ (COMPLETE)
-   - ~~20-03: Symbol Mapping UI (SYM-02)~~ (COMPLETE)
-   - ~~20-04: Futures Contract Support (SYM-05, SYM-06)~~ (COMPLETE)
-3. ~~Execute Phase 21 (Multi-Account & Routing)~~ (COMPLETE)
-   - ~~21-01: Multi-Account Backend Infrastructure (ACCT-01, ACCT-02, ACCT-04, ACCT-05, ACCT-06)~~ (COMPLETE)
-   - ~~21-02: Signal Routing Configuration (ACCT-03)~~ (COMPLETE)
-   - ~~21-03: Multi-Account UI (all ACCT requirements)~~ (COMPLETE)
-4. Execute Phase 22 (Risk Management) - Position limits, drawdown protection - READY
-5. Execute Phase 23 (User Settings & Dashboard) - User preferences, dashboard enhancements
-6. Execute Phase 24 (Enhanced Features & Monetization v2) - Trial, 4-tier pricing, full trading
+1. Execute Phase 22 (Risk Management) - READY
+   - 22-01: Risk Enforcement Service (RISK-01, RISK-02, RISK-03, RISK-04, RISK-11, RISK-12)
+   - 22-02: Position Sizing Engine (RISK-05, RISK-06, RISK-07, RISK-08, RISK-13)
+   - 22-03: Drawdown & Loss Tracking (RISK-09, RISK-10, RISK-14)
+   - 22-04: Risk Management UI (RISK-15, RISK-16)
+2. Execute Phase 23 (User Settings & Dashboard) - User preferences, dashboard enhancements
+3. Execute Phase 24 (Enhanced Features & Monetization v2) - Trial, 4-tier pricing, full trading

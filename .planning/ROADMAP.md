@@ -192,7 +192,7 @@ v1.1 transforms Tradeflow from a working signal router into a production-ready S
   12. Dashboard shows usage vs limits (progress bars)
 **Research**: Likely (trading risk patterns)
 **Research topics**: Risk management best practices, position sizing formulas
-**Plans**: TBD
+**Plans**: 4 (22-01 Risk Enforcement Service, 22-02 Position Sizing Engine, 22-03 Drawdown & Loss Tracking, 22-04 Risk Management UI)
 
 ### Phase 23: User Settings & Dashboard
 **Goal**: Polish user experience with profile, settings, and dashboard improvements
@@ -260,7 +260,7 @@ Phases execute in numeric order: 12 → 13 → 14 → 15 → 16 → 17 → 18 �
 | 19. Broker Connections UI | 2/2 | ✅ Complete | 2026-01-21 |
 | 20. Symbol Mapping & Futures | 4/4 | ✅ Complete | 2026-01-21 |
 | 21. Multi-Account & Routing | 3/3 | ✅ Complete | 2026-01-22 |
-| 22. Risk Management | 0/TBD | Not started | - |
+| 22. Risk Management | 0/4 | 🚧 Planned | - |
 | 23. User Settings & Dashboard | 0/TBD | Not started | - |
 | 24. Enhanced Features & Monetization v2 | 0/TBD | Not started | - |
 
