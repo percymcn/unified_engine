@@ -9,10 +9,10 @@ See: .planning/PROJECT.md (updated 2026-01-21)
 
 ## Current Position
 
-Phase: 23 - User Settings & Dashboard (COMPLETE)
-Plan: 5 of 5 complete (23-01, 23-02, 23-03, 23-04, 23-05)
-Status: Phase 23 complete, ready for Phase 24
-Last activity: 2026-01-22 - Completed 23-03-PLAN.md (Theme & User Context)
+Phase: 24 - Enhanced Features & Monetization v2 (PLANNED)
+Plan: 0 of 8 complete (8 plans ready for execution)
+Status: Phase 24 planned with 8 plans in 3 waves
+Last activity: 2026-01-22 - Completed Phase 24 planning (8 PLAN.md files created)
 
 Progress: [##############################] 100% (v1.1) - Phase 23 complete
 
@@ -57,6 +57,7 @@ Progress: [##############################] 100% (v1.1) - Phase 23 complete
 | 21 | Multi-Account & Routing | 6 | Complete (3/3 plans) |
 | 22 | Risk Management | 16 | Complete (4/4 plans) |
 | 23 | User Settings & Dashboard | 18 | Complete (5/5 plans) |
+| 24 | Enhanced Features & Monetization v2 | 43 | Planned (0/8 plans) |
 
 ## Previous Milestone
 
@@ -226,18 +227,18 @@ Status: Phase 23 complete, v1.1 milestone achieved
 
 ## Next Steps
 
-1. ~~Phase 22 (Risk Management)~~ - COMPLETE
-   - ~~22-01: Risk Enforcement Service~~ (COMPLETE)
-   - ~~22-02: Position Sizing Engine~~ (COMPLETE)
-   - ~~22-03: Drawdown & Loss Tracking~~ (COMPLETE)
-   - ~~22-04: Risk Management UI~~ (COMPLETE)
-2. ~~Phase 23 (User Settings & Dashboard)~~ - COMPLETE (5/5 plans)
-   - ~~23-01: User Profile & Password~~ (COMPLETE)
-   - ~~23-02: User Preferences~~ (COMPLETE)
-   - ~~23-03: Theme & User Context~~ (COMPLETE)
-   - ~~23-04: Dashboard Core Enhancements~~ (COMPLETE)
-   - ~~23-05: Dashboard Widgets~~ (COMPLETE)
-3. v1.1 MILESTONE COMPLETE
-   - All 12 phases executed (12-23)
-   - 82 requirements satisfied
-   - Ready for Phase 24 (Enhanced Features & Monetization v2)
+1. **Phase 24 (Enhanced Features & Monetization v2)** - PLANNED (0/8 plans)
+
+   **Wave 1 (parallel):**
+   - 24-01: Trial System Backend (TRIAL-01, TRIAL-02, TRIAL-03, TRIAL-05)
+   - 24-02: 4-Tier Pricing Backend (BILL-08, BILL-10, BILL-11)
+   - 24-03: Signal Deduplication (SIGNAL-06)
+   - 24-06: Broker Account Selection Backend (ACCT-07-10, ACCT-13-14)
+   - 24-08: Landing Page Enhancements (LAND-12, LAND-13, LAND-14)
+
+   **Wave 2 (depends on Wave 1):**
+   - 24-04: Trial UI & Upgrade Prompts (TRIAL-04, TRIAL-06, TRIAL-07)
+   - 24-05: 4-Tier Pricing UI (BILL-09)
+   - 24-07: Broker Account Selection UI (ACCT-11, ACCT-12)
+
+2. Run `/gsd:execute-phase 24` to begin execution
