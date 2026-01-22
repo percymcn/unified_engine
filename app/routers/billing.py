@@ -1,17 +1,25 @@
 """
 Billing Router for Tradeflow
-Stripe Checkout and Customer Portal integration
+Stripe Checkout and Customer Portal integration with 4-tier pricing
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 import logging
 
 from app.db.database import get_db
 from app.routers.auth import get_current_user
-from app.models.models import User
-from app.services.stripe_service import stripe_service
+from app.models.models import User, Account
+from app.services.stripe_service import (
+    stripe_service,
+    PRICING_TIERS,
+    FREE_TIER,
+    get_broker_limit,
+    get_all_tiers,
+    get_stripe_price_id,
+    get_tier_info,
+)
 from app.core.config import settings
 from app.core.billing import get_subscription_info
 
@@ -21,7 +29,10 @@ router = APIRouter(prefix="/api/billing", tags=["billing"])
 
 
 class CheckoutRequest(BaseModel):
-    plan: str = "pro"
+    """Checkout request with tier_id (tier_1, tier_2, tier_3, tier_4)"""
+    tier_id: str = "tier_1"
+    # Legacy support: if plan="pro" is passed, map to tier_3
+    plan: Optional[str] = None
 
 
 class CheckoutResponse(BaseModel):
@@ -31,7 +42,10 @@ class CheckoutResponse(BaseModel):
 
 class SubscriptionStatus(BaseModel):
     tier: str
+    tier_name: str
     status: str
+    broker_limit: int
+    brokers_used: int
     ends_at: Optional[str] = None
     can_manage: bool
 
@@ -41,44 +55,48 @@ class PlanInfo(BaseModel):
     name: str
     price: int
     price_display: str
-    features: list[str]
+    features: List[str]
     broker_limit: int
 
 
-PLANS = {
-    "free": PlanInfo(
-        id="free",
-        name="Free",
-        price=0,
-        price_display="$0/month",
-        features=[
-            "1 broker connection",
-            "Basic signal routing",
-            "Community support",
-        ],
-        broker_limit=1
-    ),
-    "pro": PlanInfo(
-        id="pro",
-        name="Pro",
-        price=2900,
-        price_display="$29/month",
-        features=[
-            "Unlimited broker connections",
-            "Priority signal execution",
-            "Advanced routing rules",
-            "Email support",
-            "Webhook analytics",
-        ],
-        broker_limit=-1
-    )
-}
+def _format_price(cents: int) -> str:
+    """Format price in cents to display string"""
+    if cents == 0:
+        return "Free"
+    dollars = cents / 100
+    return f"${dollars:.2f}/month"
 
 
 @router.get("/plans")
-async def get_plans():
-    """Get available subscription plans"""
-    return {"plans": [plan.model_dump() for plan in PLANS.values()]}
+async def get_plans(
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Get available subscription plans (4-tier pricing).
+
+    Returns all tiers with name, price, broker_limit, features.
+    Includes current user's tier for comparison.
+    """
+    tiers = get_all_tiers()
+    current_tier = current_user.subscription_tier or "free"
+
+    plans = []
+    for tier in tiers:
+        tier_id = tier["tier_id"]
+        plans.append(PlanInfo(
+            id=tier_id,
+            name=tier["name"],
+            price=tier["price"],
+            price_display=_format_price(tier["price"]),
+            features=tier["features"],
+            broker_limit=tier["brokers"],
+        ).model_dump())
+
+    return {
+        "plans": plans,
+        "current_tier": current_tier,
+        "current_tier_name": get_tier_info(current_tier)["name"],
+    }
 
 
 @router.get("/status", response_model=SubscriptionStatus)

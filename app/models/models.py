@@ -78,6 +78,12 @@ class User(Base):
     subscription_status = Column(String, default="active")  # active, past_due, canceled
     subscription_ends_at = Column(DateTime(timezone=True))
 
+    # Trial fields
+    trial_trade_count = Column(Integer, default=0)  # Trades used during trial
+    trial_started_at = Column(DateTime(timezone=True))  # When trial began
+    trial_ended_at = Column(DateTime(timezone=True))  # When trial expired
+    trial_status = Column(String(20), default="pending")  # pending, active, expired
+
     # Global risk settings (defaults for all accounts)
     default_max_daily_trades = Column(Integer)  # Default max trades per day
     default_max_open_positions = Column(Integer)  # Default max concurrent positions
