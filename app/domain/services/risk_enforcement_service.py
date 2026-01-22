@@ -66,6 +66,7 @@ class AccountRiskSettings:
     max_daily_loss: Optional[float] = None
     max_daily_loss_pct: Optional[float] = None
     max_drawdown_pct: Optional[float] = None
+    min_risk_reward_ratio: Optional[float] = None
     risk_management_enabled: bool = True
 
     @classmethod
@@ -87,6 +88,7 @@ class AccountRiskSettings:
             max_daily_loss=getattr(account, 'max_daily_loss', None),
             max_daily_loss_pct=getattr(account, 'max_daily_loss_pct', None),
             max_drawdown_pct=getattr(account, 'max_drawdown_pct', None),
+            min_risk_reward_ratio=getattr(account, 'min_risk_reward_ratio', None),
         )
 
 
@@ -178,6 +180,9 @@ class RiskEnforcementService:
         symbol: str,
         action: str,
         settings: AccountRiskSettings,
+        entry_price: Optional[float] = None,
+        stop_loss: Optional[float] = None,
+        take_profit: Optional[float] = None,
     ) -> RiskEvaluation:
         """
         Evaluate all risk limits for a signal.
@@ -187,6 +192,9 @@ class RiskEnforcementService:
             symbol: Trading symbol
             action: Signal action (buy, sell, close)
             settings: Account risk settings
+            entry_price: Entry price for risk-reward calculation
+            stop_loss: Stop loss price for risk-reward calculation
+            take_profit: Take profit price for risk-reward calculation
 
         Returns:
             RiskEvaluation with pass/block result and any violations
@@ -292,6 +300,20 @@ class RiskEnforcementService:
                 ))
                 logger.info(f"Account {account_id}: Drawdown limit blocked - {reason}")
 
+        # Check 7: Risk-reward ratio
+        if settings.min_risk_reward_ratio and entry_price and stop_loss and take_profit:
+            is_valid, reason, ratio = self.validate_risk_reward(
+                entry_price, stop_loss, take_profit, settings.min_risk_reward_ratio
+            )
+            if not is_valid:
+                violations.append(RiskViolation(
+                    reason="risk_reward",
+                    detail=reason,
+                    limit_value=settings.min_risk_reward_ratio,
+                    current_value=ratio
+                ))
+                logger.info(f"Account {account_id}: Risk-reward blocked - {reason}")
+
         # Determine result
         result = RiskCheckResult.BLOCKED if violations else RiskCheckResult.PASSED
 
@@ -299,6 +321,44 @@ class RiskEnforcementService:
             logger.debug(f"Account {account_id}: Risk checks passed for {symbol} {action}")
 
         return RiskEvaluation(result, violations)
+
+    def validate_risk_reward(
+        self,
+        entry_price: float,
+        stop_loss: float,
+        take_profit: float,
+        min_risk_reward: float = 1.0
+    ) -> tuple[bool, Optional[str], float]:
+        """
+        Validate risk-reward ratio meets minimum threshold.
+
+        Args:
+            entry_price: Entry price
+            stop_loss: Stop loss price
+            take_profit: Take profit price
+            min_risk_reward: Minimum required R:R ratio
+
+        Returns:
+            (is_valid, reason, actual_ratio) tuple
+        """
+        if not stop_loss or not take_profit:
+            # Can't validate without SL/TP
+            return True, None, 0.0
+
+        # Calculate risk and reward
+        risk = abs(entry_price - stop_loss)
+        reward = abs(take_profit - entry_price)
+
+        if risk == 0:
+            return False, "Invalid stop loss (zero risk)", 0.0
+
+        ratio = reward / risk
+
+        if ratio < min_risk_reward:
+            reason = f"Risk-reward ratio {ratio:.2f}:1 below minimum {min_risk_reward}:1"
+            return False, reason, ratio
+
+        return True, None, ratio
 
     def evaluate_sync(
         self,
