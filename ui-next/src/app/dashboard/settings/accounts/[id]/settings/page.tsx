@@ -70,6 +70,11 @@ export default function AccountSettingsPage() {
         maxOpenPositions: updates.riskLimits?.maxOpenPositions,
         maxDailyTrades: updates.riskLimits?.maxDailyTrades,
         tradeCooldownSeconds: updates.riskLimits?.tradeCooldownSeconds,
+        // NOTE: defaultStopLoss and defaultTakeProfit are in broker-specific units
+        // (pips/points/percent). They cannot be converted to absolute prices without
+        // an entry price. Backend should convert them when used with signals.
+        defaultStopLoss: updates.riskLimits?.defaultStopLoss,
+        defaultTakeProfit: updates.riskLimits?.defaultTakeProfit,
         groupId: updates.grouping?.groupId,
         isSignalEnabled: updates.routing?.isSignalEnabled,
         signalPriority: updates.routing?.signalPriority,

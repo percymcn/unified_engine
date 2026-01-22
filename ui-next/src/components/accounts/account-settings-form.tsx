@@ -105,6 +105,8 @@ export function AccountSettingsForm({
     setMaxOpenPositions(settings.riskLimits.maxOpenPositions?.toString() || '');
     setMaxDailyTrades(settings.riskLimits.maxDailyTrades?.toString() || '');
     setTradeCooldownSeconds(settings.riskLimits.tradeCooldownSeconds?.toString() || '');
+    setDefaultStopLoss(settings.riskLimits.defaultStopLoss?.toString() || '');
+    setDefaultTakeProfit(settings.riskLimits.defaultTakeProfit?.toString() || '');
     setGroupId(settings.grouping.groupId);
     setIsSignalEnabled(settings.routing.isSignalEnabled);
     setSignalPriority(settings.routing.signalPriority.toString());
@@ -127,6 +129,13 @@ export function AccountSettingsForm({
         maxOpenPositions: maxOpenPositions ? parseInt(maxOpenPositions) : null,
         maxDailyTrades: maxDailyTrades ? parseInt(maxDailyTrades) : null,
         tradeCooldownSeconds: tradeCooldownSeconds ? parseInt(tradeCooldownSeconds) : null,
+        // NOTE: defaultStopLoss and defaultTakeProfit are stored in broker-specific units
+        // (pips/points/percent). They cannot be converted to absolute prices without an
+        // entry price. When these defaults are used with a signal that has an entry price,
+        // the backend should convert them to absolute prices. However, backend conversion
+        // is not yet implemented, so these are stored as metadata for future enhancement.
+        defaultStopLoss: defaultStopLoss ? parseFloat(defaultStopLoss) : null,
+        defaultTakeProfit: defaultTakeProfit ? parseFloat(defaultTakeProfit) : null,
       },
       grouping: {
         groupId: groupId,
