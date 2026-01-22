@@ -562,9 +562,20 @@ class TestConnectionUseCase:
                         # Get symbols for format detection
                         symbols = []
                         try:
-                            contracts = await service.get_contracts()
-                            if contracts:
-                                symbols = [c.get("name", c.get("symbol", "")) for c in contracts]
+                            # Use search_instruments to get available contracts
+                            # Search for common futures symbols
+                            common_symbols = ["MNQ", "MES", "M2K", "MYM", "MCL", "MGC"]
+                            all_contracts = []
+                            for sym in common_symbols:
+                                try:
+                                    contracts = await service.search_instruments(sym)
+                                    if contracts:
+                                        all_contracts.extend(contracts)
+                                except Exception:
+                                    continue
+                            
+                            if all_contracts:
+                                symbols = [c.get("symbol", c.get("name", "")) for c in all_contracts]
                         except Exception as e:
                             logger.warning(f"Failed to get ProjectX symbols: {e}")
 

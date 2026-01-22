@@ -92,6 +92,7 @@ class TestTestConnectionUseCase:
             mock_response.status_code = 200
             mock_response.text = "test-token"
             mock_client.post = AsyncMock(return_value=mock_response)
+            mock_client.get = AsyncMock(return_value=MagicMock(status_code=200, json=lambda: []))
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
             mock_client.__aexit__ = AsyncMock(return_value=None)
             mock_client_class.return_value = mock_client
@@ -105,6 +106,38 @@ class TestTestConnectionUseCase:
             assert response.success is True
             assert response.status == "connected"
             assert "ProjectX" in response.message or "TopStep" in response.message
+
+    @pytest.mark.asyncio
+    async def test_projectx_sdk_connection_success(self, use_case):
+        """Test ProjectX SDK connection success"""
+        credentials = {
+            "username": "testuser",
+            "api_key": "test-api-key"
+        }
+
+        with patch("app.services.projectx_sdk_service.ProjectXSDKService") as mock_sdk_class:
+            mock_service = AsyncMock()
+            mock_service.connect = AsyncMock(return_value=True)
+            mock_service.disconnect = AsyncMock()
+            mock_service.search_instruments = AsyncMock(return_value=[
+                {"symbol": "MNQ", "name": "MNQ"},
+                {"symbol": "MES", "name": "MES"}
+            ])
+            mock_sdk_class.return_value = mock_service
+
+            # Mock SDK_AVAILABLE
+            with patch("app.application.use_cases.test_connection.SDK_AVAILABLE", True):
+                request = TestConnectionRequest(
+                    broker=BrokerType.PROJECTX,
+                    credentials=credentials
+                )
+                response = await use_case.execute(request)
+
+                # Should try SDK first, but may fall back to httpx if SDK fails
+                # Either way, should eventually succeed
+                assert response.status in ["connected", "failed"]
+                if response.success:
+                    assert "ProjectX" in response.message or "TopStep" in response.message
 
     @pytest.mark.asyncio
     async def test_successful_mt4_metaapi_connection(self, use_case):

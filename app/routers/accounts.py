@@ -226,6 +226,13 @@ async def discover_accounts(
                 api_key=body.credentials.get("api_key") or body.credentials.get("api_token"),
             )
             
+            # Verify credentials are provided
+            if not executor.is_available:
+                return DiscoverAccountsResponse(
+                    accounts=[],
+                    message="ProjectX/TopStep discovery requires username and api_key credentials"
+                )
+            
         elif broker_type == BrokerType.TRADOVATE:
             from app.brokers.tradovate_executor import TradovateExecutor
             executor = TradovateExecutor(
@@ -277,7 +284,24 @@ async def discover_accounts(
             )
         
         # Get accounts
-        broker_accounts = await executor.get_accounts()
+        try:
+            broker_accounts = await executor.get_accounts()
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.exception(f"Error getting accounts from {broker_type.value}: {e}")
+            
+            # For ProjectX, check if SDK discovery is not supported
+            if broker_type in (BrokerType.PROJECTX, BrokerType.TOPSTEP):
+                return DiscoverAccountsResponse(
+                    accounts=[],
+                    message=f"Account discovery failed: {str(e)}. You can still add accounts manually with your account ID."
+                )
+            
+            return DiscoverAccountsResponse(
+                accounts=[],
+                message=f"Error discovering accounts: {str(e)}"
+            )
         
         # Normalize to DiscoveredAccount format
         discovered = []
@@ -305,6 +329,14 @@ async def discover_accounts(
                 balance=balance,
                 equity=equity,
             ))
+        
+        # For ProjectX/TopStep, if no accounts discovered but connection succeeded,
+        # provide helpful message
+        if not discovered and broker_type in (BrokerType.PROJECTX, BrokerType.TOPSTEP):
+            return DiscoverAccountsResponse(
+                accounts=[],
+                message="No accounts found. ProjectX/TopStep accounts may need to be added manually with your account ID."
+            )
         
         return DiscoverAccountsResponse(
             accounts=discovered,
