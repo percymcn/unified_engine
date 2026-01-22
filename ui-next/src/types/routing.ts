@@ -21,12 +21,17 @@ export interface RoutingRule {
 export type WebhookSource = 'tradingview' | 'trailhacker' | 'custom';
 export type SignalAction = 'buy' | 'sell' | 'close';
 
+// Routing strategies for signal distribution
+export type RoutingStrategy = 'all_accounts' | 'specific_accounts' | 'rules_based' | 'default_only';
+
 export interface WebhookConfig {
   id: number;
   name: string;
   webhook_key: string;
   source: WebhookSource;
+  routing_strategy: RoutingStrategy;
   default_account_id?: number;
+  specific_account_ids?: number[];
   routing_rules: RoutingRule[];
   symbol_filter?: string[];
   action_filter?: SignalAction[];
@@ -42,7 +47,9 @@ export interface WebhookConfig {
 export interface WebhookConfigCreate {
   name: string;
   source: WebhookSource;
+  routing_strategy?: RoutingStrategy;
   default_account_id?: number;
+  specific_account_ids?: number[];
   routing_rules?: RoutingRule[];
   symbol_filter?: string[];
   action_filter?: SignalAction[];
@@ -52,7 +59,9 @@ export interface WebhookConfigCreate {
 export interface WebhookConfigUpdate {
   name?: string;
   source?: WebhookSource;
+  routing_strategy?: RoutingStrategy;
   default_account_id?: number;
+  specific_account_ids?: number[];
   routing_rules?: RoutingRule[];
   symbol_filter?: string[];
   action_filter?: SignalAction[];

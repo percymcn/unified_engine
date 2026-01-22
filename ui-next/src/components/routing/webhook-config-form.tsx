@@ -26,10 +26,10 @@ import {
   WebhookSource,
   SignalAction,
   RoutingRule,
+  RoutingStrategy,
 } from '@/types/routing';
 import { Account } from '@/types/account';
-import { RoutingRuleBuilder } from './routing-rule-builder';
-import { Plus } from 'lucide-react';
+import { RoutingConfig } from '@/components/webhooks/routing-config';
 
 interface WebhookConfigFormProps {
   open: boolean;
@@ -63,8 +63,14 @@ export function WebhookConfigForm({
   // Form state
   const [name, setName] = useState(config?.name || '');
   const [source, setSource] = useState<WebhookSource>(config?.source || 'tradingview');
+  const [routingStrategy, setRoutingStrategy] = useState<RoutingStrategy>(
+    config?.routing_strategy || 'default_only'
+  );
   const [defaultAccountId, setDefaultAccountId] = useState<number | undefined>(
     config?.default_account_id
+  );
+  const [specificAccountIds, setSpecificAccountIds] = useState<number[]>(
+    config?.specific_account_ids || []
   );
   const [routingRules, setRoutingRules] = useState<RoutingRule[]>(
     config?.routing_rules || []
@@ -83,37 +89,15 @@ export function WebhookConfigForm({
     if (config) {
       setName(config.name);
       setSource(config.source);
+      setRoutingStrategy(config.routing_strategy || 'default_only');
       setDefaultAccountId(config.default_account_id);
+      setSpecificAccountIds(config.specific_account_ids || []);
       setRoutingRules(config.routing_rules);
       setSymbolFilter(config.symbol_filter?.join(', ') || '');
       setActionFilter(config.action_filter || []);
       setIsActive(config.is_active);
     }
   }, [config]);
-
-  const handleAddRule = () => {
-    const newRule: RoutingRule = {
-      id: `rule-${Date.now()}`,
-      condition: {
-        field: 'symbol',
-        operator: 'equals',
-        value: '',
-      },
-      target_account_id: accounts[0]?.id || 0,
-      priority: routingRules.length,
-    };
-    setRoutingRules([...routingRules, newRule]);
-  };
-
-  const handleUpdateRule = (index: number, updatedRule: RoutingRule) => {
-    const updated = [...routingRules];
-    updated[index] = updatedRule;
-    setRoutingRules(updated);
-  };
-
-  const handleRemoveRule = (index: number) => {
-    setRoutingRules(routingRules.filter((_, i) => i !== index));
-  };
 
   const handleActionFilterChange = (action: SignalAction, checked: boolean) => {
     if (checked) {
@@ -131,8 +115,13 @@ export function WebhookConfigForm({
       const data: WebhookConfigCreate = {
         name,
         source,
+        routing_strategy: routingStrategy,
         default_account_id: defaultAccountId,
-        routing_rules: routingRules,
+        specific_account_ids:
+          routingStrategy === 'specific_accounts' && specificAccountIds.length > 0
+            ? specificAccountIds
+            : undefined,
+        routing_rules: routingStrategy === 'rules_based' ? routingRules : undefined,
         symbol_filter: symbolFilter
           ? symbolFilter.split(',').map((s) => s.trim()).filter(Boolean)
           : undefined,
@@ -191,31 +180,20 @@ export function WebhookConfigForm({
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="default-account">Default Account (optional)</Label>
-              <Select
-                value={defaultAccountId?.toString() || 'none'}
-                onValueChange={(value) =>
-                  setDefaultAccountId(value === 'none' ? undefined : parseInt(value))
-                }
-              >
-                <SelectTrigger id="default-account">
-                  <SelectValue placeholder="No default account" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No default account</SelectItem>
-                  {accounts.map((account) => (
-                    <SelectItem key={account.id} value={account.id.toString()}>
-                      {account.account_id} ({account.broker})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                Signals that don&apos;t match any rule will be sent to this account
-              </p>
-            </div>
           </div>
+
+          {/* Signal Routing Configuration */}
+          <RoutingConfig
+            strategy={routingStrategy}
+            defaultAccountId={defaultAccountId}
+            specificAccountIds={specificAccountIds}
+            routingRules={routingRules}
+            accounts={accounts}
+            onStrategyChange={setRoutingStrategy}
+            onDefaultAccountChange={setDefaultAccountId}
+            onSpecificAccountsChange={setSpecificAccountIds}
+            onRoutingRulesChange={setRoutingRules}
+          />
 
           {/* Filters */}
           <div className="space-y-4 pt-4 border-t border-border">
@@ -259,40 +237,6 @@ export function WebhookConfigForm({
                 Only process signals with these actions. Leave empty to accept all.
               </p>
             </div>
-          </div>
-
-          {/* Routing Rules */}
-          <div className="space-y-4 pt-4 border-t border-border">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-semibold">Routing Rules</h3>
-                <p className="text-xs text-muted-foreground">
-                  Rules are evaluated in priority order (lowest first)
-                </p>
-              </div>
-              <Button type="button" variant="outline" size="sm" onClick={handleAddRule}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Rule
-              </Button>
-            </div>
-
-            {routingRules.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                No routing rules. Add a rule to route signals based on conditions.
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {routingRules.map((rule, index) => (
-                  <RoutingRuleBuilder
-                    key={rule.id}
-                    rule={rule}
-                    accounts={accounts}
-                    onChange={(updatedRule) => handleUpdateRule(index, updatedRule)}
-                    onRemove={() => handleRemoveRule(index)}
-                  />
-                ))}
-              </div>
-            )}
           </div>
 
           {/* Active Status */}
