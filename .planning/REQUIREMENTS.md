@@ -340,22 +340,22 @@ Which phases cover which requirements. Updated by create-roadmap.
 | LAND-12 | 24 | Not started |
 | LAND-13 | 24 | Not started |
 | LAND-14 | 24 | Not started |
-| RISK-01 | 22 | Not started |
-| RISK-02 | 22 | Not started |
-| RISK-03 | 22 | Not started |
-| RISK-04 | 22 | Not started |
-| RISK-05 | 22 | Not started |
-| RISK-06 | 22 | Not started |
-| RISK-07 | 22 | Not started |
-| RISK-08 | 22 | Not started |
-| RISK-09 | 22 | Not started |
-| RISK-10 | 22 | Not started |
-| RISK-11 | 22 | Not started |
-| RISK-12 | 22 | Not started |
-| RISK-13 | 22 | Not started |
-| RISK-14 | 22 | Not started |
-| RISK-15 | 22 | Not started |
-| RISK-16 | 22 | Not started |
+| RISK-01 | 22 | Complete |
+| RISK-02 | 22 | Complete |
+| RISK-03 | 22 | Complete |
+| RISK-04 | 22 | Complete |
+| RISK-05 | 22 | Complete |
+| RISK-06 | 22 | Complete |
+| RISK-07 | 22 | Complete |
+| RISK-08 | 22 | Complete |
+| RISK-09 | 22 | Complete |
+| RISK-10 | 22 | Complete |
+| RISK-11 | 22 | Complete |
+| RISK-12 | 22 | Complete |
+| RISK-13 | 22 | Complete |
+| RISK-14 | 22 | Complete |
+| RISK-15 | 22 | Complete |
+| RISK-16 | 22 | Complete |
 | SET-01 | 23 | Not started |
 | SET-02 | 23 | Not started |
 | SET-03 | 23 | Not started |
