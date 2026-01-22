@@ -9,6 +9,7 @@ import { HowItWorks } from "@/components/landing/how-it-works";
 import { DemoSection } from "@/components/landing/demo-section";
 import { PricingSection } from "@/components/landing/pricing-section";
 import { Comparison } from "@/components/landing/comparison";
+import { TestimonialsSection } from "@/components/landing/testimonials-section";
 import { FAQ } from "@/components/landing/faq";
 import { Footer } from "@/components/landing/footer";
 
@@ -43,6 +44,7 @@ export default function Home() {
         <Stats />
         <PricingSection />
         <Comparison />
+        <TestimonialsSection />
         <FAQ />
       </main>
       <Footer />
