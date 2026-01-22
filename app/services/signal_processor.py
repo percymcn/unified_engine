@@ -298,52 +298,127 @@ class SignalProcessor:
         try:
             if not settings.RISK_MANAGEMENT_ENABLED:
                 return {"passed": True}
-            
+
             # Get current positions
             broker = self.brokers[signal_request.broker]
             positions = await broker.get_positions(signal_request.account_id)
-            
+
             # Calculate total exposure
             total_exposure = sum(pos.size for pos in positions if pos.symbol == signal_request.symbol)
-            
+
             # Check maximum position size
             if signal_request.quantity > settings.MAX_POSITION_SIZE:
                 return {
                     "passed": False,
                     "error": f"Position size {signal_request.quantity} exceeds maximum {settings.MAX_POSITION_SIZE}"
                 }
-            
+
             # Check daily loss limits (would need to implement daily P&L tracking)
             # This is a placeholder for more sophisticated risk management
-            
+
             return {"passed": True}
-            
+
         except Exception as e:
             logger.error(f"Error checking risk limits: {e}")
             return {"passed": True}  # Allow on error
+
+    async def _calculate_position_size(
+        self,
+        signal_request: SignalRequest,
+        account
+    ) -> float:
+        """Calculate position size for signal based on account settings"""
+        from app.domain.services.position_sizing_service import (
+            PositionSizingService, PositionSizingConfig, PositionSizingMode
+        )
+        from app.domain.services.symbol_specs_service import SymbolSpecsService
+
+        sizing_service = PositionSizingService()
+        specs_service = SymbolSpecsService(self.brokers)
+
+        # Build config from account settings
+        config = PositionSizingConfig(
+            mode=PositionSizingMode(account.position_sizing_mode or "fixed"),
+            fixed_lot_size=account.fixed_lot_size or 0.01,
+            percent_of_balance=account.percent_of_balance or 1.0,
+            percent_of_equity=account.percent_of_equity or 1.0,
+            risk_percent_per_trade=account.risk_percent_per_trade or 1.0,
+            max_position_size=account.max_position_size
+        )
+
+        # Get symbol specs
+        specs = await specs_service.get_specs(
+            signal_request.symbol,
+            signal_request.broker
+        )
+
+        # Calculate stop loss pips if provided
+        stop_loss_pips = None
+        if signal_request.stop_loss and signal_request.price:
+            stop_loss_pips = sizing_service.calculate_stop_loss_pips(
+                signal_request.price,
+                signal_request.stop_loss,
+                specs.digits
+            )
+
+        # Calculate position size
+        result = sizing_service.calculate_position_size(
+            config=config,
+            balance=account.balance or 10000,  # Default if not synced
+            equity=account.equity or account.balance or 10000,
+            symbol_specs=specs,
+            stop_loss_pips=stop_loss_pips
+        )
+
+        logger.info(
+            f"Position size calculated: {result.adjusted_size} lots "
+            f"({result.mode_used}: {result.calculation_detail})"
+        )
+
+        return result.adjusted_size
     
     async def _execute_signal(self, signal_request: SignalRequest, signal_id: str) -> Dict[str, Any]:
         """Execute signal on appropriate broker"""
         try:
             broker = self.brokers[signal_request.broker]
-            
+
+            # Get account for sizing
+            from app.models.database_models import TradingAccount
+            db = next(get_db())
+            account = db.query(TradingAccount).filter(
+                TradingAccount.account_number == str(signal_request.account_id)
+            ).first()
+
+            # Calculate position size if account found and not using fixed mode
+            quantity = signal_request.quantity
+            if account and account.position_sizing_mode and account.position_sizing_mode != "fixed":
+                try:
+                    quantity = await self._calculate_position_size(signal_request, account)
+                    logger.info(f"Position size adjusted: {signal_request.quantity} -> {quantity} lots")
+                except Exception as e:
+                    logger.warning(f"Position sizing failed, using signal quantity: {e}")
+
             # Convert signal to order
             order_request = OrderRequest(
                 account_id=signal_request.account_id,
                 symbol=signal_request.symbol,
                 order_type=self._map_action_to_order_type(signal_request.action),
-                quantity=signal_request.quantity,
+                quantity=quantity,
                 price=signal_request.price,
                 stop_loss=signal_request.stop_loss,
                 take_profit=signal_request.take_profit,
                 magic_number=signal_request.magic_number,
                 comment=signal_request.comment or f"Signal {signal_id}"
             )
-            
+
             # Execute order
             order_response = await broker.place_order(order_request)
-            
+
             if order_response.success:
+                # Update account balance after successful trade
+                if account:
+                    await self._update_account_balance(account.id, signal_request.broker)
+
                 return {
                     "success": True,
                     "order_id": order_response.order_id,
@@ -355,7 +430,7 @@ class SignalProcessor:
                     "success": False,
                     "error": order_response.error
                 }
-                
+
         except Exception as e:
             logger.error(f"Error executing signal: {e}")
             return {
@@ -379,16 +454,16 @@ class SignalProcessor:
         """Update signal status in database and cache"""
         try:
             db = next(get_db())
-            
+
             signal = db.query(Signal).filter(Signal.id == int(signal_id)).first()
             if signal:
                 signal.status = "executed" if execution_result["success"] else "failed"
                 signal.order_id = execution_result.get("order_id")
                 signal.error_message = execution_result.get("error")
                 signal.executed_at = datetime.now()
-                
+
                 db.commit()
-            
+
             # Update Redis cache
             await redis_client.set(
                 f"signal:{signal_id}",
@@ -400,9 +475,39 @@ class SignalProcessor:
                 }),
                 ex=3600
             )
-            
+
         except Exception as e:
             logger.error(f"Error updating signal status: {e}")
+
+    async def _update_account_balance(self, account_id: int, broker_type: str):
+        """Refresh account balance after trade"""
+        try:
+            from app.models.database_models import TradingAccount
+            db = next(get_db())
+            account = db.query(TradingAccount).filter(
+                TradingAccount.id == account_id
+            ).first()
+
+            if not account:
+                return
+
+            broker = self.brokers.get(broker_type)
+            if not broker:
+                return
+
+            # Get fresh account info
+            account_info = await broker.get_account_info(account.account_number)
+            if account_info:
+                account.balance = account_info.get('balance', account.balance)
+                account.equity = account_info.get('equity', account.equity)
+                account.free_margin = account_info.get('free_margin', account.free_margin)
+                account.last_sync = datetime.utcnow()
+                db.commit()
+
+                logger.debug(f"Updated account {account_id} balance: ${account.balance}")
+
+        except Exception as e:
+            logger.warning(f"Failed to update account balance: {e}")
     
     async def process_webhook(self, webhook_request: WebhookRequest) -> Dict[str, Any]:
         """Process webhook signal"""
