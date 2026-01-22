@@ -15,12 +15,15 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { TabsContent } from '@/components/ui/tabs';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Slider } from '@/components/ui/slider';
 import { Loader2 } from 'lucide-react';
-import { AccountSettings, AccountGroup, PositionSizingMode } from '@/types/account';
+import { AccountSettings, AccountGroup, PositionSizingMode, BrokerType } from '@/types/account';
+import { getBrokerRiskProfile, formatBrokerValue, validateBrokerValue } from '@/lib/brokers/riskCapabilities';
 
 interface AccountSettingsFormProps {
   settings: AccountSettings;
   groups: AccountGroup[];
+  broker: BrokerType;
   onSave: (updates: Partial<AccountSettings>) => Promise<void>;
   saving: boolean;
 }
@@ -35,9 +38,12 @@ const POSITION_SIZING_OPTIONS: { value: PositionSizingMode; label: string; descr
 export function AccountSettingsForm({
   settings,
   groups,
+  broker,
   onSave,
   saving,
 }: AccountSettingsFormProps) {
+  // Get broker-specific risk capabilities
+  const riskProfile = getBrokerRiskProfile(broker);
   // Position sizing state
   const [positionSizingMode, setPositionSizingMode] = useState<PositionSizingMode>(
     settings.positionSizing.mode
@@ -75,6 +81,10 @@ export function AccountSettingsForm({
   const [tradeCooldownSeconds, setTradeCooldownSeconds] = useState(
     settings.riskLimits.tradeCooldownSeconds?.toString() || ''
   );
+  
+  // Stop loss and take profit (broker-aware defaults)
+  const [defaultStopLoss, setDefaultStopLoss] = useState('');
+  const [defaultTakeProfit, setDefaultTakeProfit] = useState('');
 
   // Routing state
   const [groupId, setGroupId] = useState<number | null>(settings.grouping.groupId);
@@ -166,19 +176,33 @@ export function AccountSettingsForm({
             <div className="space-y-4 pt-4 border-t border-border">
               {positionSizingMode === 'fixed' && (
                 <div className="space-y-2">
-                  <Label htmlFor="fixedLotSize">Fixed Lot Size</Label>
+                  <Label htmlFor="fixedLotSize">{riskProfile.positionSize.label}</Label>
                   <Input
                     id="fixedLotSize"
                     type="number"
-                    step="0.01"
-                    min="0.01"
-                    max="100"
+                    step={riskProfile.positionSize.step}
+                    min={riskProfile.positionSize.min}
+                    max={riskProfile.positionSize.max}
                     value={fixedLotSize}
-                    onChange={(e) => setFixedLotSize(e.target.value)}
-                    placeholder="0.01"
+                    onChange={(e) => {
+                      const value = parseFloat(e.target.value) || 0;
+                      const validation = validateBrokerValue(
+                        value,
+                        riskProfile.positionSize.min,
+                        riskProfile.positionSize.max,
+                        riskProfile.positionSize.step
+                      );
+                      if (validation.valid) {
+                        const formatted = formatBrokerValue(value, riskProfile.positionSize.step);
+                        setFixedLotSize(formatted.toString());
+                      } else if (validation.corrected !== undefined) {
+                        setFixedLotSize(validation.corrected.toString());
+                      }
+                    }}
+                    placeholder={riskProfile.positionSize.min.toString()}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Every trade will use this lot size (0.01 - 100)
+                    {riskProfile.positionSize.helperText}
                   </p>
                 </div>
               )}
@@ -227,15 +251,29 @@ export function AccountSettingsForm({
                   <Input
                     id="riskPercentPerTrade"
                     type="number"
-                    step="0.1"
-                    min="0.1"
-                    max="10"
+                    step={riskProfile.riskPercent.step}
+                    min={riskProfile.riskPercent.min}
+                    max={riskProfile.riskPercent.max}
                     value={riskPercentPerTrade}
-                    onChange={(e) => setRiskPercentPerTrade(e.target.value)}
+                    onChange={(e) => {
+                      const value = parseFloat(e.target.value) || 0;
+                      const validation = validateBrokerValue(
+                        value,
+                        riskProfile.riskPercent.min,
+                        riskProfile.riskPercent.max,
+                        riskProfile.riskPercent.step
+                      );
+                      if (validation.valid) {
+                        const formatted = formatBrokerValue(value, riskProfile.riskPercent.precision);
+                        setRiskPercentPerTrade(formatted.toString());
+                      } else if (validation.corrected !== undefined) {
+                        setRiskPercentPerTrade(validation.corrected.toString());
+                      }
+                    }}
                     placeholder="1"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Maximum risk per trade based on stop loss (0.1 - 10%)
+                    Maximum risk per trade based on stop loss ({riskProfile.riskPercent.min} - {riskProfile.riskPercent.max}%)
                   </p>
                 </div>
               )}
@@ -267,18 +305,162 @@ export function AccountSettingsForm({
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="maxPositionSize">Max Position Size (lots)</Label>
+            <div className="space-y-6">
+              {/* Stop Loss and Take Profit Section */}
+              <div className="pb-4 border-b border-border">
+                <h3 className="text-sm font-semibold mb-4">Default Stop Loss & Take Profit</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="defaultStopLoss">{riskProfile.stopLoss.label}</Label>
+                    <div className="space-y-2">
+                      <Slider
+                        value={defaultStopLoss ? parseFloat(defaultStopLoss) : riskProfile.stopLoss.min}
+                        onValueChange={(value) => {
+                          if (value === riskProfile.stopLoss.min) {
+                            setDefaultStopLoss('');
+                          } else {
+                            const formatted = formatBrokerValue(value, riskProfile.stopLoss.precision);
+                            setDefaultStopLoss(formatted.toString());
+                          }
+                        }}
+                        min={riskProfile.stopLoss.min}
+                        max={Math.min(riskProfile.stopLoss.max, 100)} // Cap slider at 100 for UI
+                        step={riskProfile.stopLoss.step}
+                      />
+                      <div className="flex items-center gap-2">
+                        <Input
+                          id="defaultStopLoss"
+                          type="number"
+                          step={riskProfile.stopLoss.step}
+                          min={riskProfile.stopLoss.min}
+                          max={riskProfile.stopLoss.max}
+                          value={defaultStopLoss}
+                          onChange={(e) => {
+                            const value = parseFloat(e.target.value) || 0;
+                            if (value === 0) {
+                              setDefaultStopLoss('');
+                              return;
+                            }
+                            const validation = validateBrokerValue(
+                              value,
+                              riskProfile.stopLoss.min,
+                              riskProfile.stopLoss.max,
+                              riskProfile.stopLoss.step
+                            );
+                            if (validation.valid) {
+                              const formatted = formatBrokerValue(value, riskProfile.stopLoss.precision);
+                              setDefaultStopLoss(formatted.toString());
+                            } else if (validation.corrected !== undefined) {
+                              setDefaultStopLoss(validation.corrected.toString());
+                            }
+                          }}
+                          placeholder={`Default: ${riskProfile.stopLoss.min}`}
+                          className="flex-1"
+                        />
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">
+                          {riskProfile.stopLoss.mode === 'pips' ? 'pips' : riskProfile.stopLoss.mode === 'points' ? 'points' : '%'}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {riskProfile.stopLoss.helperText}
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="defaultTakeProfit">{riskProfile.takeProfit.label}</Label>
+                    <div className="space-y-2">
+                      <Slider
+                        value={defaultTakeProfit ? parseFloat(defaultTakeProfit) : riskProfile.takeProfit.min}
+                        onValueChange={(value) => {
+                          if (value === riskProfile.takeProfit.min) {
+                            setDefaultTakeProfit('');
+                          } else {
+                            const formatted = formatBrokerValue(value, riskProfile.takeProfit.precision);
+                            setDefaultTakeProfit(formatted.toString());
+                          }
+                        }}
+                        min={riskProfile.takeProfit.min}
+                        max={Math.min(riskProfile.takeProfit.max, 200)} // Cap slider at 200 for UI
+                        step={riskProfile.takeProfit.step}
+                      />
+                      <div className="flex items-center gap-2">
+                        <Input
+                          id="defaultTakeProfit"
+                          type="number"
+                          step={riskProfile.takeProfit.step}
+                          min={riskProfile.takeProfit.min}
+                          max={riskProfile.takeProfit.max}
+                          value={defaultTakeProfit}
+                          onChange={(e) => {
+                            const value = parseFloat(e.target.value) || 0;
+                            if (value === 0) {
+                              setDefaultTakeProfit('');
+                              return;
+                            }
+                            const validation = validateBrokerValue(
+                              value,
+                              riskProfile.takeProfit.min,
+                              riskProfile.takeProfit.max,
+                              riskProfile.takeProfit.step
+                            );
+                            if (validation.valid) {
+                              const formatted = formatBrokerValue(value, riskProfile.takeProfit.precision);
+                              setDefaultTakeProfit(formatted.toString());
+                            } else if (validation.corrected !== undefined) {
+                              setDefaultTakeProfit(validation.corrected.toString());
+                            }
+                          }}
+                          placeholder={`Default: ${riskProfile.takeProfit.min}`}
+                          className="flex-1"
+                        />
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">
+                          {riskProfile.takeProfit.mode === 'pips' ? 'pips' : riskProfile.takeProfit.mode === 'points' ? 'points' : '%'}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {riskProfile.takeProfit.helperText}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Other Risk Limits */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="maxPositionSize">{riskProfile.positionSize.label} (Max)</Label>
                 <Input
                   id="maxPositionSize"
                   type="number"
-                  step="0.01"
-                  min="0.01"
+                  step={riskProfile.positionSize.step}
+                  min={riskProfile.positionSize.min}
+                  max={riskProfile.positionSize.max}
                   value={maxPositionSize}
-                  onChange={(e) => setMaxPositionSize(e.target.value)}
+                  onChange={(e) => {
+                    const value = parseFloat(e.target.value) || 0;
+                    if (value === 0) {
+                      setMaxPositionSize('');
+                      return;
+                    }
+                    const validation = validateBrokerValue(
+                      value,
+                      riskProfile.positionSize.min,
+                      riskProfile.positionSize.max,
+                      riskProfile.positionSize.step
+                    );
+                    if (validation.valid) {
+                      const formatted = formatBrokerValue(value, riskProfile.positionSize.step);
+                      setMaxPositionSize(formatted.toString());
+                    } else if (validation.corrected !== undefined) {
+                      setMaxPositionSize(validation.corrected.toString());
+                    }
+                  }}
                   placeholder="No limit"
                 />
+                <p className="text-xs text-muted-foreground">
+                  Maximum allowed {riskProfile.positionSize.unit} per trade. Leave empty for no limit.
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -362,6 +544,7 @@ export function AccountSettingsForm({
                   Minimum time between trades (0 - 3600 seconds)
                 </p>
               </div>
+            </div>
             </div>
           </CardContent>
         </Card>

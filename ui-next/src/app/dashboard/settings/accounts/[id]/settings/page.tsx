@@ -169,6 +169,7 @@ export default function AccountSettingsPage() {
         <AccountSettingsForm
           settings={settings}
           groups={groups}
+          broker={account?.broker || 'tradelocker'}
           onSave={handleSave}
           saving={saving}
         />
