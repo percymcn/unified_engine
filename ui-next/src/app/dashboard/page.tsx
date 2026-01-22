@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Activity, Users, Signal, TrendingUp, CalendarClock } from 'lucide-react';
 import { BrokerHealthGrid } from '@/components/brokers/broker-health-grid';
 import {
@@ -11,6 +10,14 @@ import {
 } from '@/components/positions/expiration-badge';
 import { RiskUsageWidget } from '@/components/dashboard/risk-usage-widget';
 import { RejectedSignalsWidget } from '@/components/dashboard/rejected-signals-widget';
+import { TestWebhookButton } from '@/components/dashboard/test-webhook-button';
+import {
+  StatCardSkeleton,
+  BrokerGridSkeleton,
+  WidgetSkeleton,
+} from '@/components/dashboard/dashboard-skeleton';
+import { useWebSocketContext } from '@/providers/websocket-provider';
+import { cn } from '@/lib/utils';
 
 interface DashboardStats {
   activeSignals: number;
@@ -30,6 +37,45 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [expiringContracts, setExpiringContracts] = useState<FuturesInfo[]>([]);
   const [contractsLoading, setContractsLoading] = useState(true);
+  const [recentlyUpdated, setRecentlyUpdated] = useState<string | null>(null);
+
+  // WebSocket for real-time updates
+  const { subscribeToSignals, subscribeToOrders, status: wsStatus } = useWebSocketContext();
+
+  // Handle signal updates (increment active signals)
+  const handleSignalUpdate = useCallback(() => {
+    setStats((prev) => ({
+      ...prev,
+      activeSignals: prev.activeSignals + 1,
+    }));
+    // Visual feedback
+    setRecentlyUpdated('signals');
+    setTimeout(() => setRecentlyUpdated(null), 2000);
+  }, []);
+
+  // Handle order updates (trade executed - increment today's trades)
+  const handleOrderUpdate = useCallback((data: { status: string }) => {
+    if (data.status === 'filled' || data.status === 'executed') {
+      setStats((prev) => ({
+        ...prev,
+        todaysTrades: prev.todaysTrades + 1,
+      }));
+      // Visual feedback
+      setRecentlyUpdated('trades');
+      setTimeout(() => setRecentlyUpdated(null), 2000);
+    }
+  }, []);
+
+  // Subscribe to WebSocket updates
+  useEffect(() => {
+    const unsubSignals = subscribeToSignals(handleSignalUpdate);
+    const unsubOrders = subscribeToOrders(handleOrderUpdate);
+
+    return () => {
+      unsubSignals();
+      unsubOrders();
+    };
+  }, [subscribeToSignals, subscribeToOrders, handleSignalUpdate, handleOrderUpdate]);
 
   useEffect(() => {
     async function fetchStats() {
@@ -86,29 +132,33 @@ export default function DashboardPage() {
 
   const statCards = [
     {
+      key: 'signals',
       title: 'Active Signals',
-      value: loading ? null : stats.activeSignals.toString(),
+      value: stats.activeSignals.toString(),
       description: 'Pending signals today',
       icon: Signal,
       iconColor: 'text-primary',
     },
     {
+      key: 'brokers',
       title: 'Connected Brokers',
-      value: loading ? null : stats.connectedBrokers.toString(),
+      value: stats.connectedBrokers.toString(),
       description: 'Active broker connections',
       icon: Users,
       iconColor: 'text-chart-2',
     },
     {
+      key: 'trades',
       title: "Today's Trades",
-      value: loading ? null : stats.todaysTrades.toString(),
+      value: stats.todaysTrades.toString(),
       description: 'Executed today',
       icon: Activity,
       iconColor: 'text-chart-3',
     },
     {
+      key: 'balance',
       title: 'Total Balance',
-      value: loading ? null : formatCurrency(stats.totalBalance),
+      value: formatCurrency(stats.totalBalance),
       description: 'Across all accounts',
       icon: TrendingUp,
       iconColor: 'text-chart-1',
@@ -118,34 +168,74 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* Welcome heading */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground">
-          Welcome to Tradeflow. Monitor your trading signals and accounts.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+          <p className="text-muted-foreground">
+            Welcome to Tradeflow. Monitor your trading signals and accounts.
+          </p>
+        </div>
+        {/* WebSocket connection indicator */}
+        <div className="flex items-center gap-2 text-sm">
+          <div
+            className={cn(
+              'h-2 w-2 rounded-full',
+              wsStatus === 'connected' && 'bg-green-500',
+              wsStatus === 'connecting' && 'bg-amber-500 animate-pulse',
+              wsStatus === 'disconnected' && 'bg-red-500',
+              wsStatus === 'error' && 'bg-red-500'
+            )}
+          />
+          <span className="text-muted-foreground hidden sm:inline">
+            {wsStatus === 'connected' ? 'Live' : wsStatus === 'connecting' ? 'Connecting...' : 'Offline'}
+          </span>
+        </div>
       </div>
 
-      {/* Stats grid */}
+      {/* Stats grid with skeletons */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {statCards.map((stat) => (
-          <Card key={stat.title}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-              <stat.icon className={`h-4 w-4 ${stat.iconColor}`} />
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <Skeleton className="h-8 w-20" />
-              ) : error ? (
-                <div className="text-2xl font-bold text-muted-foreground">-</div>
-              ) : (
-                <div className="text-2xl font-bold">{stat.value}</div>
+        {loading ? (
+          <>
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+          </>
+        ) : (
+          statCards.map((stat) => (
+            <Card
+              key={stat.key}
+              className={cn(
+                'transition-all duration-300',
+                recentlyUpdated === stat.key && 'ring-2 ring-primary animate-pulse'
               )}
-              <p className="text-xs text-muted-foreground">{stat.description}</p>
-            </CardContent>
-          </Card>
-        ))}
+            >
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
+                <stat.icon className={`h-4 w-4 ${stat.iconColor}`} />
+              </CardHeader>
+              <CardContent>
+                {error ? (
+                  <div className="text-2xl font-bold text-muted-foreground">-</div>
+                ) : (
+                  <div className="text-2xl font-bold">{stat.value}</div>
+                )}
+                <p className="text-xs text-muted-foreground">{stat.description}</p>
+              </CardContent>
+            </Card>
+          ))
+        )}
       </div>
+
+      {/* Quick Actions Section */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg">Quick Actions</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-2">
+          <TestWebhookButton />
+        </CardContent>
+      </Card>
 
       {/* Contract Expiration Alerts */}
       {!contractsLoading && expiringContracts.length > 0 && (
@@ -163,16 +253,30 @@ export default function DashboardPage() {
         </Card>
       )}
 
-      {/* Broker Connections */}
+      {/* Broker Connections with enhanced header */}
       <div>
-        <h2 className="text-lg font-semibold tracking-tight mb-4">Broker Connections</h2>
-        <BrokerHealthGrid />
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold tracking-tight">Broker Connections</h2>
+          <span className="text-sm text-muted-foreground">
+            {loading ? '...' : `${stats.connectedBrokers} connected`}
+          </span>
+        </div>
+        {loading ? <BrokerGridSkeleton /> : <BrokerHealthGrid />}
       </div>
 
       {/* Risk Management Widgets */}
       <div className="grid gap-4 lg:grid-cols-2">
-        <RiskUsageWidget />
-        <RejectedSignalsWidget />
+        {loading ? (
+          <>
+            <WidgetSkeleton />
+            <WidgetSkeleton />
+          </>
+        ) : (
+          <>
+            <RiskUsageWidget />
+            <RejectedSignalsWidget />
+          </>
+        )}
       </div>
 
       {/* Placeholder for future content */}
