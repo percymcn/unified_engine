@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-01-21)
 ## Current Position
 
 Phase: 23 - User Settings & Dashboard (IN PROGRESS)
-Plan: 1 of 5 complete (23-04)
+Plan: 2 of 5 complete (23-02, 23-04)
 Status: Phase 23 Wave 1 in progress
-Last activity: 2026-01-22 - Completed 23-04-PLAN.md (Dashboard Core Enhancements)
+Last activity: 2026-01-22 - Completed 23-02-PLAN.md (User Preferences)
 
 Progress: [############################] 90% (v1.1) - Phase 23 in progress
 
@@ -56,7 +56,7 @@ Progress: [############################] 90% (v1.1) - Phase 23 in progress
 | 20 | Symbol Mapping & Futures | 6 | Complete (4/4 plans) |
 | 21 | Multi-Account & Routing | 6 | Complete (3/3 plans) |
 | 22 | Risk Management | 16 | Complete (4/4 plans) |
-| 23 | User Settings & Dashboard | 18 | In Progress (1/5 plans) |
+| 23 | User Settings & Dashboard | 18 | In Progress (2/5 plans) |
 
 ## Previous Milestone
 
@@ -169,6 +169,10 @@ Progress: [############################] 90% (v1.1) - Phase 23 in progress
 | 22-04 | Global risk settings on User model | Provides defaults for all accounts with per-account override capability |
 | 22-04 | Dashboard summary aggregates all accounts | Single API call efficiency, calculates usage percentages |
 | 22-04 | Progress bar color thresholds at 80%/90% | Visual warning system: amber at 80%, red at 90% before hard limits |
+| 23-02 | Curated timezone list for dropdown | 30+ common timezones instead of full pytz list (500+) for better UX |
+| 23-02 | Master email toggle disables child toggles | When email_notifications off, all sub-toggles disabled |
+| 23-02 | Real-time clock preview | Updates every second to show timezone selection effect immediately |
+| 23-02 | BFF pattern for preferences API | Secure cookie-based auth, proxies to backend |
 | 23-04 | Skeleton components match grid layouts | Prevent layout shift during loading |
 | 23-04 | WebSocket subscribeToSignals/subscribeToOrders | Real-time dashboard stat updates |
 | 23-04 | 2-second pulse animation for updates | Visual feedback when stats change |
@@ -186,9 +190,9 @@ Progress: [############################] 90% (v1.1) - Phase 23 in progress
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed 23-04-PLAN.md (Dashboard Core Enhancements)
+Stopped at: Completed 23-02-PLAN.md (User Preferences)
 Resume file: None
-Status: Phase 23 Wave 1 in progress (23-01, 23-02 remaining in wave)
+Status: Phase 23 Wave 1 in progress (23-01 remaining in wave)
 
 ## Gap Closure Status
 
@@ -217,11 +221,11 @@ Status: Phase 23 Wave 1 in progress (23-01, 23-02 remaining in wave)
    - ~~22-02: Position Sizing Engine~~ (COMPLETE)
    - ~~22-03: Drawdown & Loss Tracking~~ (COMPLETE)
    - ~~22-04: Risk Management UI~~ (COMPLETE)
-2. Execute Phase 23 (User Settings & Dashboard) - IN PROGRESS (1/5 plans)
-   - **Wave 1 (parallel):** 23-01, 23-02, ~~23-04~~ (COMPLETE)
+2. Execute Phase 23 (User Settings & Dashboard) - IN PROGRESS (2/5 plans)
+   - **Wave 1 (parallel):** 23-01, ~~23-02~~ (COMPLETE), ~~23-04~~ (COMPLETE)
    - **Wave 2:** 23-03 (depends on 02), 23-05 (depends on 04)
    - 23-01: User Profile & Password (SET-01, SET-02)
-   - 23-02: User Preferences (SET-03, SET-04)
+   - ~~23-02: User Preferences (SET-03, SET-04)~~ (COMPLETE)
    - 23-03: Theme & User Context (SET-05, SET-06, SET-07)
    - ~~23-04: Dashboard Core Enhancements (DASH-01, DASH-02, DASH-03, DASH-04)~~ (COMPLETE)
    - 23-05: Dashboard Widgets (DASH-06, DASH-07, DASH-08, DASH-09)
