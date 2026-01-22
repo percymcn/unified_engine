@@ -15,8 +15,8 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Unified Trading Engine",
-  description: "Multi-broker trading signal execution",
+  title: "Tradeflow - Auto-Execute TradingView Signals",
+  description: "Route your TradingView alerts to TradeLocker, Tradovate, TopStep, and MetaTrader in <50ms. Trade while you sleep.",
 };
 
 export default function RootLayout({
