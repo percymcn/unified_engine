@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { UserCircle, Lock, Mail, User, Image, Calendar, Loader2 } from "lucide-react";
+import { UserCircle, Lock, Mail, User, ImageIcon, Calendar, Loader2 } from "lucide-react";
 
 interface UserProfile {
   id: number;
@@ -51,7 +51,7 @@ export default function ProfileSettingsPage() {
       } else {
         toast({ title: "Error", description: "Failed to load profile", variant: "destructive" });
       }
-    } catch (error) {
+    } catch {
       toast({ title: "Error", description: "Failed to load profile", variant: "destructive" });
     } finally {
       setLoading(false);
@@ -83,7 +83,7 @@ export default function ProfileSettingsPage() {
           variant: "destructive"
         });
       }
-    } catch (error) {
+    } catch {
       toast({ title: "Error", description: "Failed to update profile", variant: "destructive" });
     } finally {
       setSavingProfile(false);
@@ -136,7 +136,7 @@ export default function ProfileSettingsPage() {
         const error = await res.json();
         setPasswordError(error.detail || "Failed to change password");
       }
-    } catch (error) {
+    } catch {
       setPasswordError("Failed to change password");
     } finally {
       setSavingPassword(false);
@@ -244,7 +244,7 @@ export default function ProfileSettingsPage() {
           {/* Avatar URL */}
           <div className="space-y-2">
             <Label htmlFor="avatarUrl" className="flex items-center gap-2">
-              <Image className="h-4 w-4" />
+              <ImageIcon className="h-4 w-4" />
               Avatar URL
             </Label>
             <Input
@@ -259,6 +259,7 @@ export default function ProfileSettingsPage() {
             </p>
             {avatarUrl && (
               <div className="mt-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={avatarUrl}
                   alt="Avatar preview"
