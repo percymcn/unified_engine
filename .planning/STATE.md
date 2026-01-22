@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-01-21)
 
 ## Current Position
 
-Phase: 22 - Risk Management (PLANNED)
-Plan: 0 of 4 complete
-Status: Phase 22 planned with 4 plans, ready for execution
-Last activity: 2026-01-21 - Planned Phase 22 (Risk Management)
+Phase: 22 - Risk Management (IN PROGRESS)
+Plan: 1 of 4 complete
+Status: 22-01 complete, continuing with 22-02
+Last activity: 2026-01-22 - Completed 22-01 Risk Enforcement Service
 
-Progress: [########################] 80% (v1.1) - Phase 22 planned
+Progress: [#########################] 82% (v1.1) - Phase 22 started
 
 ## v1.1 Milestone Goals
 
@@ -55,7 +55,7 @@ Progress: [########################] 80% (v1.1) - Phase 22 planned
 | 19 | Broker Connections UI | 4 | Complete (2/2 plans) |
 | 20 | Symbol Mapping & Futures | 6 | Complete (4/4 plans) |
 | 21 | Multi-Account & Routing | 6 | Complete (3/3 plans) |
-| 22 | Risk Management | 16 | Planned (4 plans) |
+| 22 | Risk Management | 16 | In progress (1/4 plans complete) |
 | 23 | User Settings & Dashboard | 10 | Not started |
 
 ## Previous Milestone
@@ -153,6 +153,10 @@ Progress: [########################] 80% (v1.1) - Phase 22 planned
 | 21-03 | RadioGroup for routing strategy selection | Clear visual separation of 4 strategies with conditional UI sections |
 | 21-03 | Tabs for account settings organization | Position Sizing, Risk Limits, Routing - logical grouping reduces cognitive load |
 | 21-03 | Separate groups page with manage dialog | Keep accounts list focused, groups as organizational layer |
+| 22-01 | In-memory counter repository | Simple for single-instance; Redis for multi-instance can be added later |
+| 22-01 | Close actions bypass all risk checks | Closing positions should never be blocked for risk reasons |
+| 22-01 | Evaluate each account individually for risk | Allows partial execution when some accounts blocked |
+| 22-01 | Log all rejections to database | Provides audit trail and analytics for users |
 
 ## Known Tech Debt
 
@@ -165,10 +169,10 @@ Progress: [########################] 80% (v1.1) - Phase 22 planned
 
 ## Session Continuity
 
-Last session: 2026-01-21
-Stopped at: Planned Phase 22 (Risk Management) with 4 plans
-Resume file: None
-Status: Phase 22 planned, ready for execution
+Last session: 2026-01-22
+Stopped at: Completed 22-01-PLAN.md (Risk Enforcement Service)
+Resume file: .planning/phases/22-risk-management/22-02-PLAN.md
+Status: Phase 22 in progress, 22-02 next
 
 ## Gap Closure Status
 
@@ -192,9 +196,9 @@ Status: Phase 22 planned, ready for execution
 
 ## Next Steps
 
-1. Execute Phase 22 (Risk Management) - READY
-   - 22-01: Risk Enforcement Service (RISK-01, RISK-02, RISK-03, RISK-04, RISK-11, RISK-12)
-   - 22-02: Position Sizing Engine (RISK-05, RISK-06, RISK-07, RISK-08, RISK-13)
+1. Continue Phase 22 (Risk Management) - IN PROGRESS
+   - ~~22-01: Risk Enforcement Service~~ (COMPLETE)
+   - 22-02: Position Sizing Engine (RISK-05, RISK-06, RISK-07, RISK-08, RISK-13) - NEXT
    - 22-03: Drawdown & Loss Tracking (RISK-09, RISK-10, RISK-14)
    - 22-04: Risk Management UI (RISK-15, RISK-16)
 2. Execute Phase 23 (User Settings & Dashboard) - User preferences, dashboard enhancements
