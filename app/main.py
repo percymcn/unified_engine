@@ -52,6 +52,7 @@ from app.routers.symbol_aliases import router as symbol_aliases_router
 from app.routers.contracts import router as contracts_router
 from app.routers.account_groups import router as account_groups_router
 from app.routers.risk import router as risk_router
+from app.routers.users import router as users_router
 from app.core.event_emitter import event_emitter
 from app.tasks.token_refresh import refresh_expiring_tokens
 
@@ -215,6 +216,7 @@ app.include_router(symbol_aliases_router, prefix="/api/v1/symbol-aliases", tags=
 app.include_router(contracts_router, prefix="/api/v1/contracts", tags=["contracts"])
 app.include_router(account_groups_router, prefix="/api/v1/account-groups", tags=["account-groups"])
 app.include_router(risk_router, tags=["risk"])
+app.include_router(users_router, prefix="/api/v1/users", tags=["users"])
 
 # WebSocket endpoint
 @app.websocket("/ws")

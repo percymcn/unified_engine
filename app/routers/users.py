@@ -1,7 +1,8 @@
 """
-User preferences API endpoints.
+User profile and preferences API endpoints.
 
-Provides endpoints for managing user timezone and notification preferences.
+Provides endpoints for managing user profile, password changes,
+timezone and notification preferences.
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -10,9 +11,121 @@ import pytz
 from app.db.database import get_db
 from app.models.models import User
 from app.models.schemas import PreferencesResponse, PreferencesUpdate, NotificationPreferences
-from app.routers.auth import get_current_user
+from app.schemas.user import ProfileResponse, ProfileUpdate, PasswordChange, PasswordChangeResponse
+from app.routers.auth import get_current_user, verify_password, get_password_hash, get_user_by_email
 
 router = APIRouter()
+
+
+# =============================================================================
+# Profile Endpoints
+# =============================================================================
+
+@router.get("/me/profile", response_model=ProfileResponse)
+async def get_profile(
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Get current user's profile information.
+    """
+    return ProfileResponse(
+        id=current_user.id,
+        email=current_user.email,
+        username=current_user.username,
+        full_name=current_user.full_name,
+        avatar_url=getattr(current_user, 'avatar_url', None),
+        created_at=current_user.created_at,
+    )
+
+
+@router.put("/me/profile", response_model=ProfileResponse)
+async def update_profile(
+    profile: ProfileUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Update current user's profile.
+
+    Supports partial updates - only fields provided will be updated.
+    Email changes require uniqueness validation.
+    """
+    # Check email uniqueness if being updated
+    if profile.email is not None and profile.email != current_user.email:
+        existing_user = get_user_by_email(db, profile.email)
+        if existing_user and existing_user.id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already in use"
+            )
+        current_user.email = profile.email
+
+    # Update other fields if provided
+    if profile.full_name is not None:
+        current_user.full_name = profile.full_name
+
+    if profile.avatar_url is not None:
+        current_user.avatar_url = profile.avatar_url
+
+    db.commit()
+    db.refresh(current_user)
+
+    return ProfileResponse(
+        id=current_user.id,
+        email=current_user.email,
+        username=current_user.username,
+        full_name=current_user.full_name,
+        avatar_url=getattr(current_user, 'avatar_url', None),
+        created_at=current_user.created_at,
+    )
+
+
+@router.post("/me/password", response_model=PasswordChangeResponse)
+async def change_password(
+    password_data: PasswordChange,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Change current user's password.
+
+    Requires current password verification before allowing password change.
+    New password must be different from current password.
+    """
+    # Verify current password
+    if not verify_password(password_data.current_password, current_user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect"
+        )
+
+    # Verify new password is different from current
+    if password_data.current_password == password_data.new_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password must be different from current password"
+        )
+
+    # Verify passwords match
+    if password_data.new_password != password_data.confirm_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Passwords do not match"
+        )
+
+    # Update password
+    current_user.hashed_password = get_password_hash(password_data.new_password)
+    db.commit()
+
+    return PasswordChangeResponse(
+        success=True,
+        message="Password changed successfully"
+    )
+
+
+# =============================================================================
+# Preferences Endpoints
+# =============================================================================
 
 
 @router.get("/me/preferences", response_model=PreferencesResponse)
