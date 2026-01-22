@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-21)
 ## Current Position
 
 Phase: 23 - User Settings & Dashboard (IN PROGRESS)
-Plan: 3 of 5 complete (23-01, 23-02, 23-04)
-Status: Phase 23 Wave 1 complete, Wave 2 ready
-Last activity: 2026-01-22 - Completed 23-01-PLAN.md (User Profile & Password)
+Plan: 4 of 5 complete (23-01, 23-02, 23-04, 23-05)
+Status: Phase 23 Wave 2 partially complete, only 23-03 remaining
+Last activity: 2026-01-22 - Completed 23-05-PLAN.md (Dashboard Widgets)
 
-Progress: [############################] 92% (v1.1) - Phase 23 Wave 1 complete
+Progress: [#############################] 94% (v1.1) - Phase 23 Wave 2 in progress
 
 ## v1.1 Milestone Goals
 
@@ -56,7 +56,7 @@ Progress: [############################] 92% (v1.1) - Phase 23 Wave 1 complete
 | 20 | Symbol Mapping & Futures | 6 | Complete (4/4 plans) |
 | 21 | Multi-Account & Routing | 6 | Complete (3/3 plans) |
 | 22 | Risk Management | 16 | Complete (4/4 plans) |
-| 23 | User Settings & Dashboard | 18 | In Progress (3/5 plans) |
+| 23 | User Settings & Dashboard | 18 | In Progress (4/5 plans) |
 
 ## Previous Milestone
 
@@ -180,6 +180,10 @@ Progress: [############################] 92% (v1.1) - Phase 23 Wave 1 complete
 | 23-04 | WebSocket subscribeToSignals/subscribeToOrders | Real-time dashboard stat updates |
 | 23-04 | 2-second pulse animation for updates | Visual feedback when stats change |
 | 23-04 | Test webhook returns 200 on backend errors | Graceful frontend error handling |
+| 23-05 | recharts AreaChart for equity visualization | Color-coded gradient (green positive, red negative) |
+| 23-05 | Time range selector 7d/30d/90d | User can view different equity history periods |
+| 23-05 | Backend dashboard router for widget endpoints | Single router file with executions, equity, positions endpoints |
+| 23-05 | Dashboard layout reorganized into rows | Stats, Equity+Trial, Brokers, Positions+Executions, Risk widgets |
 
 ## Known Tech Debt
 
@@ -193,9 +197,9 @@ Progress: [############################] 92% (v1.1) - Phase 23 Wave 1 complete
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed 23-01-PLAN.md (User Profile & Password)
+Stopped at: Completed 23-05-PLAN.md (Dashboard Widgets)
 Resume file: None
-Status: Phase 23 Wave 1 complete, Wave 2 ready (23-03, 23-05)
+Status: Phase 23 Wave 2 partially complete, only 23-03 remaining
 
 ## Gap Closure Status
 
@@ -224,14 +228,14 @@ Status: Phase 23 Wave 1 complete, Wave 2 ready (23-03, 23-05)
    - ~~22-02: Position Sizing Engine~~ (COMPLETE)
    - ~~22-03: Drawdown & Loss Tracking~~ (COMPLETE)
    - ~~22-04: Risk Management UI~~ (COMPLETE)
-2. Execute Phase 23 (User Settings & Dashboard) - IN PROGRESS (3/5 plans)
+2. Execute Phase 23 (User Settings & Dashboard) - IN PROGRESS (4/5 plans)
    - **Wave 1 (parallel):** ~~23-01~~ (COMPLETE), ~~23-02~~ (COMPLETE), ~~23-04~~ (COMPLETE)
-   - **Wave 2:** 23-03 (depends on 02), 23-05 (depends on 04)
+   - **Wave 2:** 23-03 (depends on 02), ~~23-05~~ (COMPLETE)
    - ~~23-01: User Profile & Password (SET-01, SET-02)~~ (COMPLETE)
    - ~~23-02: User Preferences (SET-03, SET-04)~~ (COMPLETE)
    - 23-03: Theme & User Context (SET-05, SET-06, SET-07)
    - ~~23-04: Dashboard Core Enhancements (DASH-01, DASH-02, DASH-03, DASH-04)~~ (COMPLETE)
-   - 23-05: Dashboard Widgets (DASH-06, DASH-07, DASH-08, DASH-09)
+   - ~~23-05: Dashboard Widgets (DASH-06, DASH-07, DASH-08, DASH-09)~~ (COMPLETE)
    - Note: DASH-05 exists, DASH-10/11 done in Phase 22
 3. Execute Phase 24 (Enhanced Features & Monetization v2)
    - Trial, 4-tier pricing, full trading
