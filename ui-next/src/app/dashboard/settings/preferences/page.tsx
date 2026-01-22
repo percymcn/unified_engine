@@ -146,6 +146,8 @@ export default function PreferencesPage() {
       });
 
       if (res.ok) {
+        // Refetch preferences to ensure UI is in sync
+        await fetchPreferences();
         toast({
           title: "Preferences saved",
           description: "Your preferences have been updated successfully.",

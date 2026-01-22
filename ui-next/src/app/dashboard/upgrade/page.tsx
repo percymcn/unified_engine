@@ -287,8 +287,13 @@ export default function UpgradePage() {
                 <Button
                   className="w-full"
                   variant={isRecommended ? "default" : isCurrentTier ? "outline" : "secondary"}
-                  onClick={() => handleSelectTier(tier)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleSelectTier(tier);
+                  }}
                   disabled={isCurrentTier || isLoading}
+                  type="button"
                 >
                   {isLoading ? (
                     "Processing..."

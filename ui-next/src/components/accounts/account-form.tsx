@@ -180,19 +180,26 @@ export function AccountForm({
       const result = await testConnection(broker, stringCredentials);
       setTestResult(result);
       
-      // If connection successful, discover accounts
-      if (result.success) {
-        setDiscovering(true);
-        try {
-          const discoverResult = await discoverAccounts(broker, stringCredentials);
-          setDiscoveredAccounts(discoverResult.accounts || []);
-          
-          // Auto-select all accounts and set first as default
-          if (discoverResult.accounts && discoverResult.accounts.length > 0) {
-            const allIds = new Set(discoverResult.accounts.map(acc => acc.id));
-            setSelectedAccountIds(allIds);
-            setDefaultAccountId(discoverResult.accounts[0].id);
-          }
+          // If connection successful, discover accounts
+          if (result.success) {
+            setDiscovering(true);
+            try {
+              const discoverResult = await discoverAccounts(broker, stringCredentials);
+              setDiscoveredAccounts(discoverResult.accounts || []);
+              
+              // Auto-select accounts: if exactly one, auto-select it; otherwise select all
+              if (discoverResult.accounts && discoverResult.accounts.length > 0) {
+                if (discoverResult.accounts.length === 1) {
+                  // Exactly one account - auto-select it
+                  setSelectedAccountIds(new Set([discoverResult.accounts[0].id]));
+                  setDefaultAccountId(discoverResult.accounts[0].id);
+                } else {
+                  // Multiple accounts - select all, set first as default
+                  const allIds = new Set(discoverResult.accounts.map(acc => acc.id));
+                  setSelectedAccountIds(allIds);
+                  setDefaultAccountId(discoverResult.accounts[0].id);
+                }
+              }
         } catch (error) {
           console.error('Account discovery error:', error);
           // Don't fail the form if discovery fails
@@ -298,8 +305,15 @@ export function AccountForm({
         }
       }
 
+      // Use discovered account ID if available, otherwise use existing (edit mode) or auto-generate
+      const finalAccountId = discoveredAccounts.length > 0 && selectedAccountIds.size > 0
+        ? Array.from(selectedAccountIds)[0] // Use first selected account ID
+        : isEdit && account?.account_id
+          ? account.account_id // Preserve existing account ID in edit mode
+          : `auto-${Date.now()}`; // Auto-generate for new accounts
+
       const data: AccountCreate = {
-        account_id: accountId,
+        account_id: finalAccountId,
         broker,
         account_type: accountType,
         currency,
@@ -377,18 +391,7 @@ export function AccountForm({
             </Select>
           </div>
 
-          {/* Account ID */}
-          <div className="space-y-2">
-            <Label htmlFor="account-id">Account ID</Label>
-            <Input
-              id="account-id"
-              value={accountId}
-              onChange={(e) => setAccountId(e.target.value)}
-              placeholder="Enter account identifier"
-              required
-              disabled={isEdit}
-            />
-          </div>
+          {/* Account ID removed - now comes from account discovery or is auto-generated */}
 
           {/* Currency */}
           <div className="space-y-2">

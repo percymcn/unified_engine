@@ -56,9 +56,21 @@ export default function RoutingConfigPage() {
       ]);
       setConfigs(configsData);
       setAccounts(accountsData);
+      
+      // Only show error if accounts fail AND we have no configs (likely no accounts connected)
+      if (accountsData.length === 0 && configsData.length === 0) {
+        // Don't set error - will show empty state instead
+        setError(null);
+      }
     } catch (err) {
       console.error('Failed to load data:', err);
-      setError('Unable to load configurations. Please check your connection and try again.');
+      // Only show error if it's a real connection issue, not just no accounts
+      const accounts = await getAccounts().catch(() => []);
+      if (accounts.length === 0) {
+        setError(null); // Will show empty state
+      } else {
+        setError('Unable to load configurations. Please check your connection and try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -163,7 +175,7 @@ export default function RoutingConfigPage() {
     );
   }
 
-  // Error state with retry
+  // Error state with retry (only for real errors, not empty state)
   if (error) {
     return (
       <div className="space-y-6">
@@ -183,6 +195,33 @@ export default function RoutingConfigPage() {
             </Button>
           </AlertDescription>
         </Alert>
+      </div>
+    );
+  }
+  
+  // Empty state when no accounts connected
+  if (accounts.length === 0 && !loading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Signal Routing</h1>
+          <p className="text-muted-foreground">
+            Configure webhook endpoints and routing rules for incoming signals
+          </p>
+        </div>
+        <div className="flex flex-col items-center justify-center h-96 border border-dashed border-border rounded-lg">
+          <div className="text-center space-y-4">
+            <div className="text-muted-foreground">
+              Connect an account to enable this feature.
+            </div>
+            <Button asChild>
+              <a href="/dashboard/settings/accounts">
+                <Plus className="h-4 w-4 mr-2" />
+                Connect Account
+              </a>
+            </Button>
+          </div>
+        </div>
       </div>
     );
   }

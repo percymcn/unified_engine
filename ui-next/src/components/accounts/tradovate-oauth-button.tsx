@@ -26,17 +26,24 @@ export function TradovateOAuthButton() {
       );
 
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to initiate OAuth');
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || data.detail || 'Failed to initiate OAuth');
       }
 
-      const { authorization_url } = await response.json();
+      const data = await response.json();
+      const authorizationUrl = data.authorization_url || data.url;
+
+      if (!authorizationUrl) {
+        throw new Error('No authorization URL received from server');
+      }
 
       // Redirect to Tradovate authorization page
-      window.location.href = authorization_url;
+      window.location.href = authorizationUrl;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Connection failed');
+      const errorMessage = err instanceof Error ? err.message : 'Connection failed';
+      setError(errorMessage);
       setLoading(false);
+      console.error('Tradovate OAuth error:', err);
     }
   };
 
