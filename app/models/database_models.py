@@ -139,6 +139,7 @@ class TradingAccount(Base):
     max_open_positions = Column(Integer)  # Maximum concurrent positions
     max_daily_trades = Column(Integer)  # Maximum trades per day
     trade_cooldown_seconds = Column(Integer)  # Minimum seconds between trades
+    max_positions_per_symbol = Column(Integer, default=1)  # Maximum positions per instrument
 
     # Account grouping
     group_id = Column(Integer, ForeignKey("account_groups.id"))
@@ -269,6 +270,52 @@ class AuditLog(Base):
 
     # Timestamp
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+
+class RejectedSignalReason(enum.Enum):
+    """Reasons why a signal was rejected by risk management"""
+    DAILY_LIMIT = "daily_limit"
+    CONCURRENT_LIMIT = "concurrent_limit"
+    SYMBOL_LIMIT = "symbol_limit"
+    COOLDOWN = "cooldown"
+    DAILY_LOSS = "daily_loss"
+    DRAWDOWN = "drawdown"
+    RISK_REWARD = "risk_reward"
+    DISABLED = "disabled"
+
+
+class RejectedSignal(Base):
+    """Log of signals that were rejected by risk management"""
+    __tablename__ = "rejected_signals"
+    __table_args__ = (
+        Index('ix_rejected_signals_user_date', 'user_id', 'created_at'),
+        {'extend_existing': True}
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    account_id = Column(Integer, ForeignKey("trading_accounts.id"), index=True)
+
+    # Signal details
+    symbol = Column(String(50), nullable=False)
+    action = Column(String(20), nullable=False)
+    quantity = Column(Float)
+    source = Column(String(50))  # tradingview, trailhacker, etc.
+
+    # Rejection info
+    reason = Column(Enum(RejectedSignalReason), nullable=False)
+    reason_detail = Column(String(500))  # Human-readable explanation
+    limit_value = Column(Float)  # The limit that was hit
+    current_value = Column(Float)  # The current value at rejection time
+
+    # Metadata
+    webhook_config_id = Column(Integer, ForeignKey("webhook_configs.id"))
+    original_payload = Column(JSON)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+    # Relationships
+    user = relationship("User")
+    account = relationship("TradingAccount")
 
 
 class Credential(Base):
