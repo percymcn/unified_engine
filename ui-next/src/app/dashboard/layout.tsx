@@ -4,6 +4,7 @@ import { Sidebar } from '@/components/sidebar';
 import { Header } from '@/components/header';
 import { WebSocketProvider } from '@/providers/websocket-provider';
 import { UserProvider } from '@/providers/user-provider';
+import { TrialPromptWrapper } from '@/components/trial/trial-prompt-wrapper';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -23,7 +24,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             <Header />
 
             {/* Page content */}
-            <main className="flex-1 overflow-auto p-6">{children}</main>
+            <main className="flex-1 overflow-auto p-6">
+              {/* Upgrade prompt when trial is low/expired */}
+              <TrialPromptWrapper />
+              {children}
+            </main>
           </div>
         </div>
       </UserProvider>
