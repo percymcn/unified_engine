@@ -104,10 +104,27 @@ async def get_subscription_status(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get current user's subscription status"""
+    """
+    Get current user's subscription status.
+
+    Returns current_tier, broker_limit, brokers_used, and subscription details.
+    """
+    tier = current_user.subscription_tier or "free"
+    tier_info = get_tier_info(tier)
+    broker_limit = get_broker_limit(tier)
+
+    # Count active broker accounts
+    brokers_used = db.query(Account).filter(
+        Account.user_id == current_user.id,
+        Account.is_active == True
+    ).count()
+
     return SubscriptionStatus(
-        tier=current_user.subscription_tier or "free",
+        tier=tier,
+        tier_name=tier_info["name"],
         status=current_user.subscription_status or "active",
+        broker_limit=broker_limit,
+        brokers_used=brokers_used,
         ends_at=current_user.subscription_ends_at.isoformat() if current_user.subscription_ends_at else None,
         can_manage=current_user.stripe_customer_id is not None
     )
@@ -128,17 +145,41 @@ async def create_checkout(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Create Stripe Checkout session for subscription"""
-    if request.plan not in ["pro"]:
+    """
+    Create Stripe Checkout session for subscription.
+
+    Accepts tier_id (tier_1, tier_2, tier_3, tier_4) to select pricing tier.
+    Legacy plan="pro" is mapped to tier_3 for backward compatibility.
+    """
+    # Handle legacy plan parameter
+    tier_id = request.tier_id
+    if request.plan == "pro":
+        tier_id = "tier_3"  # Legacy pro maps to tier_3
+
+    # Validate tier_id exists in PRICING_TIERS
+    valid_tiers = list(PRICING_TIERS.keys())
+    if tier_id not in valid_tiers:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid plan. Available: pro"
+            detail=f"Invalid tier_id. Available: {', '.join(valid_tiers)}"
         )
 
-    if current_user.subscription_tier == "pro" and current_user.subscription_status == "active":
+    # Get tier info and price ID
+    tier_info = PRICING_TIERS[tier_id]
+    price_id = get_stripe_price_id(tier_id)
+
+    if not price_id:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Stripe not configured for this tier. Contact support."
+        )
+
+    # Check if already subscribed to same or higher tier
+    current_tier = current_user.subscription_tier or "free"
+    if current_tier == tier_id and current_user.subscription_status == "active":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Already subscribed to Pro. Use the portal to manage your subscription."
+            detail=f"Already subscribed to {tier_info['name']}. Use the portal to manage your subscription."
         )
 
     # Create or get Stripe customer
@@ -158,26 +199,24 @@ async def create_checkout(
         db.commit()
         logger.info(f"Created Stripe customer {current_user.stripe_customer_id} for user {current_user.id}")
 
-    # Get price ID from settings
-    price_id = settings.STRIPE_PRO_PRICE_ID
-    if not price_id:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Stripe not configured. Contact support."
-        )
-
     # Build URLs
     base_url = settings.FRONTEND_URL or "https://tradeflow.fluxeo.net"
     success_url = f"{base_url}/dashboard/settings/billing?success=true&session_id={{CHECKOUT_SESSION_ID}}"
     cancel_url = f"{base_url}/pricing?canceled=true"
 
-    # Create checkout session
+    # Create checkout session with tier in metadata
     checkout_result = stripe_service.create_checkout_session(
         customer_id=current_user.stripe_customer_id,
         price_id=price_id,
         success_url=success_url,
         cancel_url=cancel_url,
-        metadata={"user_id": str(current_user.id), "plan": request.plan}
+        metadata={
+            "user_id": str(current_user.id),
+            "tier_id": tier_id,
+            "tier_name": tier_info["name"],
+            # Legacy field for backward compatibility
+            "plan": request.plan or tier_id,
+        }
     )
 
     if not checkout_result["success"]:
@@ -186,6 +225,8 @@ async def create_checkout(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create checkout session"
         )
+
+    logger.info(f"Created checkout session for user {current_user.id}, tier: {tier_id}")
 
     return CheckoutResponse(
         checkout_url=checkout_result["url"],
