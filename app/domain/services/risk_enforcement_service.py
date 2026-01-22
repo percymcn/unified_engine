@@ -110,6 +110,31 @@ class DailyCounterPort(Protocol):
         ...
 
 
+class DailyPnLPort(Protocol):
+    """Port for daily P&L tracking"""
+
+    async def check_daily_loss_limit(
+        self,
+        account_id: int,
+        max_daily_loss: Optional[float] = None,
+        max_daily_loss_pct: Optional[float] = None
+    ) -> tuple[bool, Optional[str]]:
+        """Check if daily loss limit exceeded"""
+        ...
+
+
+class DrawdownPort(Protocol):
+    """Port for drawdown tracking"""
+
+    async def check_drawdown_limit(
+        self,
+        account_id: int,
+        max_drawdown_pct: float
+    ) -> tuple[bool, Optional[str]]:
+        """Check if drawdown limit exceeded"""
+        ...
+
+
 class RiskEnforcementService:
     """
     Evaluates and enforces risk limits before signal execution.
@@ -119,10 +144,10 @@ class RiskEnforcementService:
     2. Concurrent position limit (max_open_positions)
     3. Per-symbol position limit (max_positions_per_symbol)
     4. Trade cooldown (trade_cooldown_seconds)
+    5. Daily loss limit (max_daily_loss, max_daily_loss_pct)
+    6. Maximum drawdown limit (max_drawdown_pct)
 
-    Future checks (Phase 22-03):
-    - Daily loss limit
-    - Drawdown limit
+    Future checks:
     - Risk/reward ratio
     """
 
@@ -130,6 +155,8 @@ class RiskEnforcementService:
         self,
         counter_service: DailyCounterPort,
         position_counter: PositionCounterPort,
+        daily_pnl_service: Optional[DailyPnLPort] = None,
+        drawdown_service: Optional[DrawdownPort] = None,
     ):
         """
         Initialize risk enforcement service.
@@ -137,9 +164,13 @@ class RiskEnforcementService:
         Args:
             counter_service: Service for daily counters
             position_counter: Service/repo for position counting
+            daily_pnl_service: Service for daily P&L tracking (optional)
+            drawdown_service: Service for drawdown tracking (optional)
         """
         self._counters = counter_service
         self._positions = position_counter
+        self._daily_pnl = daily_pnl_service
+        self._drawdown = drawdown_service
 
     async def evaluate(
         self,
@@ -229,6 +260,37 @@ class RiskEnforcementService:
                         f"Account {account_id}: Cooldown blocked - "
                         f"{remaining:.0f}s remaining of {settings.trade_cooldown_seconds}s"
                     )
+
+        # Check 5: Daily loss limit
+        if self._daily_pnl and (settings.max_daily_loss or settings.max_daily_loss_pct):
+            is_exceeded, reason = await self._daily_pnl.check_daily_loss_limit(
+                account_id,
+                max_daily_loss=settings.max_daily_loss,
+                max_daily_loss_pct=settings.max_daily_loss_pct
+            )
+            if is_exceeded:
+                violations.append(RiskViolation(
+                    reason="daily_loss",
+                    detail=reason,
+                    limit_value=settings.max_daily_loss or settings.max_daily_loss_pct,
+                    current_value=0.0  # Actual value is in the detail string
+                ))
+                logger.info(f"Account {account_id}: Daily loss limit blocked - {reason}")
+
+        # Check 6: Maximum drawdown limit
+        if self._drawdown and settings.max_drawdown_pct:
+            is_exceeded, reason = await self._drawdown.check_drawdown_limit(
+                account_id,
+                max_drawdown_pct=settings.max_drawdown_pct
+            )
+            if is_exceeded:
+                violations.append(RiskViolation(
+                    reason="drawdown",
+                    detail=reason,
+                    limit_value=settings.max_drawdown_pct,
+                    current_value=0.0  # Actual value is in the detail string
+                ))
+                logger.info(f"Account {account_id}: Drawdown limit blocked - {reason}")
 
         # Determine result
         result = RiskCheckResult.BLOCKED if violations else RiskCheckResult.PASSED
