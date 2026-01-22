@@ -297,49 +297,49 @@ Which phases cover which requirements. Updated by create-roadmap.
 | ACCT-04 | 21 | Not started |
 | ACCT-05 | 21 | Not started |
 | ACCT-06 | 21 | Not started |
-| ACCT-07 | 24 | Not started |
-| ACCT-08 | 24 | Not started |
-| ACCT-09 | 24 | Not started |
-| ACCT-10 | 24 | Not started |
-| ACCT-11 | 24 | Not started |
-| ACCT-12 | 24 | Not started |
-| ACCT-13 | 24 | Not started |
-| ACCT-14 | 24 | Not started |
-| TRADE-01 | 24 | Not started |
-| TRADE-02 | 24 | Not started |
-| TRADE-03 | 24 | Not started |
-| TRADE-04 | 24 | Not started |
-| TRADE-05 | 24 | Not started |
-| TRADE-06 | 24 | Not started |
-| TRADE-07 | 24 | Not started |
-| TRADE-08 | 24 | Not started |
-| TRADE-09 | 24 | Not started |
-| TRADE-10 | 24 | Not started |
-| TRADE-11 | 24 | Not started |
-| TRADE-12 | 24 | Not started |
-| SIGNAL-01 | 24 | Not started |
-| SIGNAL-02 | 24 | Not started |
-| SIGNAL-03 | 24 | Not started |
-| SIGNAL-04 | 24 | Not started |
-| SIGNAL-05 | 24 | Not started |
-| SIGNAL-06 | 24 | Not started |
-| SIGNAL-07 | 24 | Not started |
-| SIGNAL-08 | 24 | Not started |
-| SIGNAL-09 | 24 | Not started |
-| TRIAL-01 | 24 | Not started |
-| TRIAL-02 | 24 | Not started |
-| TRIAL-03 | 24 | Not started |
-| TRIAL-04 | 24 | Not started |
-| TRIAL-05 | 24 | Not started |
-| TRIAL-06 | 24 | Not started |
-| TRIAL-07 | 24 | Not started |
-| BILL-08 | 24 | Not started |
-| BILL-09 | 24 | Not started |
-| BILL-10 | 24 | Not started |
-| BILL-11 | 24 | Not started |
-| LAND-12 | 24 | Not started |
-| LAND-13 | 24 | Not started |
-| LAND-14 | 24 | Not started |
+| ACCT-07 | 24 | Complete |
+| ACCT-08 | 24 | Complete |
+| ACCT-09 | 24 | Complete |
+| ACCT-10 | 24 | Complete |
+| ACCT-11 | 24 | Complete |
+| ACCT-12 | 24 | Complete |
+| ACCT-13 | 24 | Complete |
+| ACCT-14 | 24 | Complete |
+| TRADE-01 | 24 | Complete |
+| TRADE-02 | 24 | Complete |
+| TRADE-03 | 24 | Complete |
+| TRADE-04 | 24 | Complete |
+| TRADE-05 | 24 | Complete |
+| TRADE-06 | 24 | Complete |
+| TRADE-07 | 24 | Complete |
+| TRADE-08 | 24 | Complete |
+| TRADE-09 | 24 | Complete |
+| TRADE-10 | 24 | Complete |
+| TRADE-11 | 24 | Complete |
+| TRADE-12 | 24 | Complete |
+| SIGNAL-01 | 24 | Complete |
+| SIGNAL-02 | 24 | Complete |
+| SIGNAL-03 | 24 | Complete |
+| SIGNAL-04 | 24 | Complete |
+| SIGNAL-05 | 24 | Complete |
+| SIGNAL-06 | 24 | Complete |
+| SIGNAL-07 | 24 | Complete |
+| SIGNAL-08 | 24 | Complete |
+| SIGNAL-09 | 24 | Complete |
+| TRIAL-01 | 24 | Complete |
+| TRIAL-02 | 24 | Complete |
+| TRIAL-03 | 24 | Complete |
+| TRIAL-04 | 24 | Complete |
+| TRIAL-05 | 24 | Complete |
+| TRIAL-06 | 24 | Complete |
+| TRIAL-07 | 24 | Complete |
+| BILL-08 | 24 | Complete |
+| BILL-09 | 24 | Complete |
+| BILL-10 | 24 | Complete |
+| BILL-11 | 24 | Complete |
+| LAND-12 | 24 | Complete |
+| LAND-13 | 24 | Complete |
+| LAND-14 | 24 | Complete |
 | RISK-01 | 22 | Complete |
 | RISK-02 | 22 | Complete |
 | RISK-03 | 22 | Complete |
@@ -382,4 +382,4 @@ Which phases cover which requirements. Updated by create-roadmap.
 
 ---
 *Requirements defined: 2026-01-21*
-*Last updated: 2026-01-21 after adding new Phase 24 requirements (TRIAL, TRADE, SIGNAL, ACCT, BILL, LAND enhancements)*
+*Last updated: 2026-01-22 after Phase 24 completion (43 requirements marked Complete)*
