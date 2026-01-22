@@ -5,7 +5,7 @@ This module contains ORM models unique to the infrastructure layer.
 Shared models (User, Signal, Trade, Position, Order) are imported from models.py
 to avoid duplicate SQLAlchemy mapper registrations.
 """
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text, JSON, Enum, Index
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text, JSON, Enum, Index, Date
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from datetime import datetime
@@ -356,3 +356,63 @@ class Credential(Base):
         Index('ix_credentials_user_service', 'user_id', 'service'),
         {'extend_existing': True}
     )
+
+
+class DailyPnL(Base):
+    """Daily profit/loss tracking per account"""
+    __tablename__ = "daily_pnl"
+    __table_args__ = (
+        Index('ix_daily_pnl_account_date', 'account_id', 'date', unique=True),
+        {'extend_existing': True}
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    account_id = Column(Integer, ForeignKey("trading_accounts.id"), nullable=False, index=True)
+    date = Column(Date, nullable=False, index=True)
+
+    # P&L tracking
+    starting_balance = Column(Float, nullable=False)  # Balance at start of day
+    current_balance = Column(Float)  # Current balance (updated on sync)
+    realized_pnl = Column(Float, default=0.0)  # Realized P&L from closed trades
+    unrealized_pnl = Column(Float, default=0.0)  # Unrealized P&L from open positions
+    total_pnl = Column(Float, default=0.0)  # realized + unrealized
+    pnl_percent = Column(Float, default=0.0)  # total_pnl / starting_balance * 100
+
+    # Trade stats
+    trades_count = Column(Integer, default=0)
+    winning_trades = Column(Integer, default=0)
+    losing_trades = Column(Integer, default=0)
+
+    # Status
+    is_trading_halted = Column(Boolean, default=False)  # True if daily loss limit hit
+    halt_reason = Column(String(100))  # Reason for halt
+    halted_at = Column(DateTime)
+
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    account = relationship("TradingAccount")
+
+
+class AccountEquityHistory(Base):
+    """Equity snapshots for drawdown calculation"""
+    __tablename__ = "account_equity_history"
+    __table_args__ = {'extend_existing': True}
+
+    id = Column(Integer, primary_key=True, index=True)
+    account_id = Column(Integer, ForeignKey("trading_accounts.id"), nullable=False, index=True)
+
+    # Equity snapshot
+    equity = Column(Float, nullable=False)
+    balance = Column(Float, nullable=False)
+    peak_equity = Column(Float, nullable=False)  # Highest equity seen
+    drawdown = Column(Float, default=0.0)  # Current drawdown from peak (absolute)
+    drawdown_pct = Column(Float, default=0.0)  # Drawdown as percentage
+
+    # Timestamp
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+
+    # Relationships
+    account = relationship("TradingAccount")
