@@ -105,7 +105,7 @@ class Organization(Base):
     # Relationships
     owner = relationship("User", foreign_keys=[owner_id], backref="owned_organizations")
     members = relationship("User", secondary=user_organization_table)  # No back_populates - User doesn't have this relationship
-    accounts = relationship("Account", back_populates="organization")
+    # accounts = relationship("Account", back_populates="organization")  # Disabled - FK removed
 
 class Role(Base):
     """RBAC: Roles"""

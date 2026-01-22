@@ -143,7 +143,7 @@ class Account(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    organization_id = Column(Integer, ForeignKey("organizations.id"), index=True)  # Multi-tenancy
+    organization_id = Column(Integer, index=True)  # Multi-tenancy (FK disabled for now)
     account_id = Column(String, unique=True, index=True, nullable=False)
     broker = Column(SQLEnum(BrokerType), nullable=False)
     account_type = Column(SQLEnum(AccountType), nullable=False)
@@ -167,7 +167,7 @@ class Account(Base):
     
     # Relationships
     owner = relationship("User", back_populates="accounts")
-    organization = relationship("Organization", back_populates="accounts")
+    # organization = relationship("Organization", back_populates="accounts")  # Disabled
     trades = relationship("Trade", back_populates="account")
     positions = relationship("Position", back_populates="account")
     orders = relationship("Order", back_populates="account")

@@ -17,8 +17,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '009'
-down_revision = '008'
+revision = '009_add_account_settings_and_groups'
+down_revision = '008_add_futures_contracts'
 branch_labels = None
 depends_on = None
 
