@@ -93,6 +93,15 @@ class User(Base):
     # Global risk enforcement toggle
     risk_management_enabled = Column(Boolean, default=True)
 
+    # User preferences
+    timezone = Column(String(50), default="UTC")
+    notification_preferences = Column(JSON, default=lambda: {
+        "trade_alerts": True,
+        "error_notifications": True,
+        "daily_summary": False,
+        "email_notifications": True
+    })
+
     # Relationships
     accounts = relationship("Account", back_populates="owner")
     sessions = relationship("UserSession", back_populates="user")
