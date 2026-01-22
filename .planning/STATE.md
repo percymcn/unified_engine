@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-01-21)
 
 ## Current Position
 
-Phase: 21 - Multi-Account & Routing (PLANNING)
-Plan: 0 of 3 complete
-Status: Plans created, ready for execution
-Last activity: 2026-01-21 - Created 21-01, 21-02, 21-03 PLAN.md files
+Phase: 21 - Multi-Account & Routing (IN PROGRESS)
+Plan: 1 of 3 complete
+Status: 21-01 complete, 21-02 ready for execution
+Last activity: 2026-01-22 - Completed 21-01-PLAN.md (Multi-Account Backend Infrastructure)
 
-Progress: [####################] 75% (v1.1) - Phase 21 planning complete
+Progress: [#####################] 76% (v1.1) - Phase 21 plan 1/3 complete
 
 ## v1.1 Milestone Goals
 
@@ -54,7 +54,7 @@ Progress: [####################] 75% (v1.1) - Phase 21 planning complete
 | 18 | MetaAPI SDK | 3 | Complete (1/1 plan) |
 | 19 | Broker Connections UI | 4 | Complete (2/2 plans) |
 | 20 | Symbol Mapping & Futures | 6 | Complete (4/4 plans) |
-| 21 | Multi-Account & Routing | 6 | Planning complete (0/3 plans) |
+| 21 | Multi-Account & Routing | 6 | In progress (1/3 plans) |
 | 22 | Risk Management | 16 | Not started |
 | 23 | User Settings & Dashboard | 10 | Not started |
 
@@ -143,6 +143,9 @@ Progress: [####################] 75% (v1.1) - Phase 21 planning complete
 | 20-04 | Third Friday expiration for equity indices | Standard CME practice for ES, NQ, YM, RTY |
 | 20-04 | 3-day default rollover window | Typical institutional practice before expiration |
 | 20-04 | Three notification tiers: warning, urgent, critical | Escalating urgency at 7d, 3d, 1d before expiration |
+| 21-01 | Cache group_name and group_color in TradingAccount | Avoid joins for list queries, cascade updates on group change |
+| 21-01 | Set accounts.group_id to NULL on group deletion | Preserve accounts, don't orphan data |
+| 21-01 | Partial updates for account settings (non-None only) | Standard PATCH semantics, avoids accidental resets |
 
 ## Known Tech Debt
 
@@ -155,10 +158,10 @@ Progress: [####################] 75% (v1.1) - Phase 21 planning complete
 
 ## Session Continuity
 
-Last session: 2026-01-21T23:58:00Z
-Stopped at: Created Phase 21 plans (21-01, 21-02, 21-03)
+Last session: 2026-01-22T00:00:00Z
+Stopped at: Completed 21-01-PLAN.md (Multi-Account Backend Infrastructure)
 Resume file: None
-Status: Phase 21 planning complete, ready for execution
+Status: 21-02 (Signal Routing Configuration) ready for execution
 
 ## Gap Closure Status
 
@@ -190,9 +193,9 @@ Status: Phase 21 planning complete, ready for execution
    - ~~20-02: Symbol Auto-Detection (SYM-03)~~ (COMPLETE)
    - ~~20-03: Symbol Mapping UI (SYM-02)~~ (COMPLETE)
    - ~~20-04: Futures Contract Support (SYM-05, SYM-06)~~ (COMPLETE)
-3. Execute Phase 21 (Multi-Account & Routing) - READY FOR EXECUTION
-   - 21-01: Multi-Account Backend Infrastructure (ACCT-01, ACCT-02, ACCT-04, ACCT-05, ACCT-06)
-   - 21-02: Signal Routing Configuration (ACCT-03)
+3. Execute Phase 21 (Multi-Account & Routing) - IN PROGRESS
+   - ~~21-01: Multi-Account Backend Infrastructure (ACCT-01, ACCT-02, ACCT-04, ACCT-05, ACCT-06)~~ (COMPLETE)
+   - 21-02: Signal Routing Configuration (ACCT-03) - READY
    - 21-03: Multi-Account UI (all ACCT requirements)
 4. Execute Phase 22 (Risk Management) - Position limits, drawdown protection
 5. Execute Phase 23 (User Settings & Dashboard) - User preferences, dashboard enhancements
