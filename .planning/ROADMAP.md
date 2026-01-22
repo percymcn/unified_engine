@@ -218,7 +218,8 @@ v1.1 transforms Tradeflow from a working signal router into a production-ready S
   17. Risk usage meters (positions vs max, daily trades vs max)
   18. Recent rejected signals with reasons
 **Research**: Unlikely (UI polish, established patterns)
-**Plans**: TBD
+**Plans**: 5 (23-01 User Profile & Password, 23-02 User Preferences, 23-03 Theme & User Context, 23-04 Dashboard Core Enhancements, 23-05 Dashboard Widgets)
+**Note**: DASH-10 and DASH-11 completed in Phase 22-04 (RiskUsageWidget, RejectedSignalsWidget)
 
 ### Phase 24: Enhanced Features & Monetization v2
 **Goal**: Full trading features, trial system, 4-tier pricing, broker account selection, signal protection
@@ -261,7 +262,7 @@ Phases execute in numeric order: 12 → 13 → 14 → 15 → 16 → 17 → 18 �
 | 20. Symbol Mapping & Futures | 4/4 | ✅ Complete | 2026-01-21 |
 | 21. Multi-Account & Routing | 3/3 | ✅ Complete | 2026-01-22 |
 | 22. Risk Management | 4/4 | ✅ Complete | 2026-01-22 |
-| 23. User Settings & Dashboard | 0/TBD | Not started | - |
+| 23. User Settings & Dashboard | 0/5 | 📋 Planned | - |
 | 24. Enhanced Features & Monetization v2 | 0/TBD | Not started | - |
 
 ## Milestone Summary
