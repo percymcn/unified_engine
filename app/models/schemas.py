@@ -407,9 +407,16 @@ class NotificationPreferences(BaseModel):
     email_notifications: bool = True
 
 
+class DeduplicationSettings(BaseModel):
+    """Signal deduplication configuration"""
+    enable_deduplication: bool = True  # Whether to check for duplicate entries
+    deduplication_scope: str = "per_account"  # per_account or global
+
+
 class PreferencesResponse(BaseModel):
     timezone: str = "UTC"
     notification_preferences: NotificationPreferences
+    deduplication: DeduplicationSettings = DeduplicationSettings()
 
     class Config:
         from_attributes = True
@@ -418,3 +425,4 @@ class PreferencesResponse(BaseModel):
 class PreferencesUpdate(BaseModel):
     timezone: Optional[str] = None
     notification_preferences: Optional[NotificationPreferences] = None
+    deduplication: Optional[DeduplicationSettings] = None

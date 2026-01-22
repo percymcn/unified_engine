@@ -100,6 +100,10 @@ class User(Base):
     # Global risk enforcement toggle
     risk_management_enabled = Column(Boolean, default=True)
 
+    # Signal deduplication settings
+    enable_deduplication = Column(Boolean, default=True)  # Prevent duplicate entry signals
+    deduplication_scope = Column(String(20), default="per_account")  # per_account, global
+
     # User preferences
     timezone = Column(String(50), default="UTC")
     notification_preferences = Column(JSON, default=lambda: {
