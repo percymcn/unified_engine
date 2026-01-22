@@ -54,6 +54,7 @@ from app.routers.account_groups import router as account_groups_router
 from app.routers.risk import router as risk_router
 from app.routers.users import router as users_router
 from app.routers.dashboard import router as dashboard_router
+from app.routers.trial import router as trial_router
 from app.core.event_emitter import event_emitter
 from app.tasks.token_refresh import refresh_expiring_tokens
 
@@ -219,6 +220,7 @@ app.include_router(account_groups_router, prefix="/api/v1/account-groups", tags=
 app.include_router(risk_router, tags=["risk"])
 app.include_router(users_router, prefix="/api/v1/users", tags=["users"])
 app.include_router(dashboard_router, tags=["dashboard"])
+app.include_router(trial_router, prefix="/api/trial", tags=["trial"])
 
 # WebSocket endpoint
 @app.websocket("/ws")
