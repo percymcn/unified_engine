@@ -1,4 +1,14 @@
-import { Account, AccountCreate, AccountBalance, BrokerType } from '@/types/account';
+import {
+  Account,
+  AccountCreate,
+  AccountBalance,
+  BrokerType,
+  AccountSettings,
+  AccountSettingsUpdate,
+  AccountGroup,
+  CreateAccountGroupRequest,
+  UpdateAccountGroupRequest,
+} from '@/types/account';
 
 /**
  * Response from connection test
@@ -126,4 +136,315 @@ export async function testConnection(
 
   // Return the result regardless of status - it contains success/failure info
   return result as TestConnectionResult;
+}
+
+// ============================================================================
+// Account Settings API
+// ============================================================================
+
+/**
+ * Get account settings (position sizing, risk limits, routing)
+ */
+export async function getAccountSettings(accountId: number): Promise<AccountSettings> {
+  const response = await fetch(`/api/accounts/${accountId}/settings`);
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch account settings: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+
+  // Transform API response to frontend format
+  return {
+    accountId: data.account_id,
+    positionSizing: {
+      mode: data.position_sizing.mode,
+      fixedLotSize: data.position_sizing.fixed_lot_size,
+      percentOfBalance: data.position_sizing.percent_of_balance,
+      percentOfEquity: data.position_sizing.percent_of_equity,
+      riskPercentPerTrade: data.position_sizing.risk_percent_per_trade,
+    },
+    riskLimits: {
+      maxPositionSize: data.risk_limits.max_position_size,
+      maxDailyLoss: data.risk_limits.max_daily_loss,
+      maxDailyLossPct: data.risk_limits.max_daily_loss_pct,
+      maxDrawdownPct: data.risk_limits.max_drawdown_pct,
+      maxOpenPositions: data.risk_limits.max_open_positions,
+      maxDailyTrades: data.risk_limits.max_daily_trades,
+      tradeCooldownSeconds: data.risk_limits.trade_cooldown_seconds,
+    },
+    grouping: {
+      groupId: data.grouping.group_id,
+      groupName: data.grouping.group_name,
+      groupColor: data.grouping.group_color,
+    },
+    routing: {
+      isSignalEnabled: data.routing.is_signal_enabled,
+      signalPriority: data.routing.signal_priority,
+    },
+  };
+}
+
+/**
+ * Update account settings (position sizing, risk limits, routing)
+ */
+export async function updateAccountSettings(
+  accountId: number,
+  settings: AccountSettingsUpdate
+): Promise<AccountSettings> {
+  // Transform to API format (snake_case)
+  const payload: Record<string, unknown> = {};
+
+  if (settings.positionSizingMode !== undefined) {
+    payload.position_sizing_mode = settings.positionSizingMode;
+  }
+  if (settings.fixedLotSize !== undefined) {
+    payload.fixed_lot_size = settings.fixedLotSize;
+  }
+  if (settings.percentOfBalance !== undefined) {
+    payload.percent_of_balance = settings.percentOfBalance;
+  }
+  if (settings.percentOfEquity !== undefined) {
+    payload.percent_of_equity = settings.percentOfEquity;
+  }
+  if (settings.riskPercentPerTrade !== undefined) {
+    payload.risk_percent_per_trade = settings.riskPercentPerTrade;
+  }
+  if (settings.maxPositionSize !== undefined) {
+    payload.max_position_size = settings.maxPositionSize;
+  }
+  if (settings.maxDailyLoss !== undefined) {
+    payload.max_daily_loss = settings.maxDailyLoss;
+  }
+  if (settings.maxDailyLossPct !== undefined) {
+    payload.max_daily_loss_pct = settings.maxDailyLossPct;
+  }
+  if (settings.maxDrawdownPct !== undefined) {
+    payload.max_drawdown_pct = settings.maxDrawdownPct;
+  }
+  if (settings.maxOpenPositions !== undefined) {
+    payload.max_open_positions = settings.maxOpenPositions;
+  }
+  if (settings.maxDailyTrades !== undefined) {
+    payload.max_daily_trades = settings.maxDailyTrades;
+  }
+  if (settings.tradeCooldownSeconds !== undefined) {
+    payload.trade_cooldown_seconds = settings.tradeCooldownSeconds;
+  }
+  if (settings.groupId !== undefined) {
+    payload.group_id = settings.groupId;
+  }
+  if (settings.isSignalEnabled !== undefined) {
+    payload.is_signal_enabled = settings.isSignalEnabled;
+  }
+  if (settings.signalPriority !== undefined) {
+    payload.signal_priority = settings.signalPriority;
+  }
+
+  const response = await fetch(`/api/accounts/${accountId}/settings`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to update account settings: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+
+  // Transform API response to frontend format
+  return {
+    accountId: data.account_id,
+    positionSizing: {
+      mode: data.position_sizing.mode,
+      fixedLotSize: data.position_sizing.fixed_lot_size,
+      percentOfBalance: data.position_sizing.percent_of_balance,
+      percentOfEquity: data.position_sizing.percent_of_equity,
+      riskPercentPerTrade: data.position_sizing.risk_percent_per_trade,
+    },
+    riskLimits: {
+      maxPositionSize: data.risk_limits.max_position_size,
+      maxDailyLoss: data.risk_limits.max_daily_loss,
+      maxDailyLossPct: data.risk_limits.max_daily_loss_pct,
+      maxDrawdownPct: data.risk_limits.max_drawdown_pct,
+      maxOpenPositions: data.risk_limits.max_open_positions,
+      maxDailyTrades: data.risk_limits.max_daily_trades,
+      tradeCooldownSeconds: data.risk_limits.trade_cooldown_seconds,
+    },
+    grouping: {
+      groupId: data.grouping.group_id,
+      groupName: data.grouping.group_name,
+      groupColor: data.grouping.group_color,
+    },
+    routing: {
+      isSignalEnabled: data.routing.is_signal_enabled,
+      signalPriority: data.routing.signal_priority,
+    },
+  };
+}
+
+// ============================================================================
+// Account Groups API
+// ============================================================================
+
+/**
+ * Get all account groups for the authenticated user
+ */
+export async function getAccountGroups(): Promise<AccountGroup[]> {
+  const response = await fetch('/api/account-groups');
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch account groups: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+
+  // Transform API response to frontend format
+  return data.map((group: Record<string, unknown>) => ({
+    id: group.id,
+    name: group.name,
+    description: group.description,
+    color: group.color,
+    icon: group.icon,
+    accountCount: group.account_count,
+    isActive: group.is_active,
+    createdAt: group.created_at,
+    updatedAt: group.updated_at,
+  }));
+}
+
+/**
+ * Create a new account group
+ */
+export async function createAccountGroup(
+  data: CreateAccountGroupRequest
+): Promise<AccountGroup> {
+  const response = await fetch('/api/account-groups', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to create account group: ${response.statusText}`);
+  }
+
+  // Refetch the group to get full details
+  const result = await response.json();
+  const groupResponse = await fetch(`/api/account-groups/${result.group_id}`);
+
+  if (!groupResponse.ok) {
+    throw new Error(`Failed to fetch created group: ${groupResponse.statusText}`);
+  }
+
+  const group = await groupResponse.json();
+  return {
+    id: group.id,
+    name: group.name,
+    description: group.description,
+    color: group.color,
+    icon: group.icon,
+    accountCount: group.account_count,
+    isActive: group.is_active,
+    createdAt: group.created_at,
+    updatedAt: group.updated_at,
+  };
+}
+
+/**
+ * Update an existing account group
+ */
+export async function updateAccountGroup(
+  groupId: number,
+  data: UpdateAccountGroupRequest
+): Promise<AccountGroup> {
+  // Transform to API format
+  const payload: Record<string, unknown> = {};
+  if (data.name !== undefined) payload.name = data.name;
+  if (data.description !== undefined) payload.description = data.description;
+  if (data.color !== undefined) payload.color = data.color;
+  if (data.icon !== undefined) payload.icon = data.icon;
+  if (data.isActive !== undefined) payload.is_active = data.isActive;
+
+  const response = await fetch(`/api/account-groups/${groupId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to update account group: ${response.statusText}`);
+  }
+
+  // Refetch to get updated details
+  const groupResponse = await fetch(`/api/account-groups/${groupId}`);
+
+  if (!groupResponse.ok) {
+    throw new Error(`Failed to fetch updated group: ${groupResponse.statusText}`);
+  }
+
+  const group = await groupResponse.json();
+  return {
+    id: group.id,
+    name: group.name,
+    description: group.description,
+    color: group.color,
+    icon: group.icon,
+    accountCount: group.account_count,
+    isActive: group.is_active,
+    createdAt: group.created_at,
+    updatedAt: group.updated_at,
+  };
+}
+
+/**
+ * Delete an account group
+ */
+export async function deleteAccountGroup(groupId: number): Promise<void> {
+  const response = await fetch(`/api/account-groups/${groupId}`, {
+    method: 'DELETE',
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to delete account group: ${response.statusText}`);
+  }
+}
+
+/**
+ * Add an account to a group
+ */
+export async function addAccountToGroup(
+  groupId: number,
+  accountId: number
+): Promise<void> {
+  const response = await fetch(`/api/account-groups/${groupId}/accounts/${accountId}`, {
+    method: 'POST',
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to add account to group: ${response.statusText}`);
+  }
+}
+
+/**
+ * Remove an account from a group
+ */
+export async function removeAccountFromGroup(
+  groupId: number,
+  accountId: number
+): Promise<void> {
+  const response = await fetch(`/api/account-groups/${groupId}/accounts/${accountId}`, {
+    method: 'DELETE',
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to remove account from group: ${response.statusText}`);
+  }
 }
