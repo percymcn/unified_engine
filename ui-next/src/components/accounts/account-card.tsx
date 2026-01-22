@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +12,9 @@ import {
   Edit,
   Trash2,
   Loader2,
+  Settings,
+  Zap,
+  ZapOff,
 } from 'lucide-react';
 import {
   Account,
@@ -22,8 +26,17 @@ import { syncAccount } from '@/lib/api/accounts';
 import { useToast } from '@/hooks/use-toast';
 import { parseAccountError, formatErrorForToast } from '@/lib/errors/account-errors';
 
+// Extended account with optional settings info
+interface AccountWithSettings extends Account {
+  groupId?: number | null;
+  groupName?: string | null;
+  groupColor?: string | null;
+  isSignalEnabled?: boolean;
+  signalPriority?: number;
+}
+
 interface AccountCardProps {
-  account: Account;
+  account: AccountWithSettings;
   onEdit: (account: Account) => void;
   onDelete: (account: Account) => void;
   onSyncComplete?: (account: Account) => void;
@@ -108,7 +121,7 @@ export function AccountCard({
         </div>
 
         {/* Badges */}
-        <div className="flex gap-2 pt-2">
+        <div className="flex gap-2 pt-2 flex-wrap">
           <Badge variant="outline">
             {ACCOUNT_TYPE_DISPLAY_NAMES[account.account_type]}
           </Badge>
@@ -120,6 +133,22 @@ export function AccountCard({
           >
             {account.is_active ? 'Active' : 'Inactive'}
           </Badge>
+          {account.groupName && (
+            <Badge
+              variant="outline"
+              className="gap-1"
+              style={{
+                borderColor: account.groupColor || undefined,
+                color: account.groupColor || undefined,
+              }}
+            >
+              <div
+                className="w-2 h-2 rounded-full"
+                style={{ backgroundColor: account.groupColor || '#6366f1' }}
+              />
+              {account.groupName}
+            </Badge>
+          )}
         </div>
       </CardHeader>
 
@@ -159,6 +188,30 @@ export function AccountCard({
           </p>
         </div>
 
+        {/* Signal Status Indicator */}
+        {account.isSignalEnabled !== undefined && (
+          <div className="flex items-center gap-2 text-sm">
+            {account.isSignalEnabled ? (
+              <>
+                <Zap className="h-4 w-4 text-green-500" />
+                <span>
+                  Signals enabled
+                  {account.signalPriority !== undefined && account.signalPriority > 0 && (
+                    <span className="text-muted-foreground ml-1">
+                      (priority: {account.signalPriority})
+                    </span>
+                  )}
+                </span>
+              </>
+            ) : (
+              <>
+                <ZapOff className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">Signals disabled</span>
+              </>
+            )}
+          </div>
+        )}
+
         {/* Actions */}
         <div className="flex gap-2 pt-2">
           <Button
@@ -179,6 +232,15 @@ export function AccountCard({
                 Sync
               </>
             )}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            asChild
+          >
+            <Link href={`/dashboard/settings/accounts/${account.id}/settings`}>
+              <Settings className="h-4 w-4" />
+            </Link>
           </Button>
           <Button
             variant="outline"
