@@ -1,6 +1,6 @@
 """
 Stripe Webhook Handler for Tradeflow
-Processes subscription lifecycle events from Stripe
+Processes subscription lifecycle events from Stripe with 4-tier support
 """
 from fastapi import APIRouter, Request, HTTPException, status, Depends
 from sqlalchemy.orm import Session
@@ -9,7 +9,7 @@ from datetime import datetime
 
 from app.db.database import get_db
 from app.models.models import User
-from app.services.stripe_service import stripe_service
+from app.services.stripe_service import stripe_service, PRICING_TIERS
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -107,7 +107,7 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
 
 
 async def handle_checkout_completed(db: Session, session: dict):
-    """Handle successful checkout - new subscription"""
+    """Handle successful checkout - new subscription with tier from metadata"""
     customer_id = session.get("customer")
     subscription_id = session.get("subscription")
     metadata = session.get("metadata", {})
@@ -129,25 +129,44 @@ async def handle_checkout_completed(db: Session, session: dict):
             logger.warning(f"No user found for Stripe customer {customer_id}")
             return
 
+    # Get tier from metadata (4-tier pricing)
+    # Fallback to "tier_1" if not specified, or "tier_3" if legacy "pro" plan
+    tier_id = metadata.get("tier_id")
+    if not tier_id:
+        # Legacy support: plan="pro" maps to tier_3
+        plan = metadata.get("plan")
+        if plan == "pro":
+            tier_id = "tier_3"
+        else:
+            tier_id = "tier_1"  # Default to lowest paid tier
+
+    # Validate tier_id
+    if tier_id not in PRICING_TIERS:
+        logger.warning(f"Invalid tier_id in checkout metadata: {tier_id}, defaulting to tier_1")
+        tier_id = "tier_1"
+
+    tier_name = PRICING_TIERS[tier_id]["name"]
+
     # Get subscription details for end date
     if subscription_id:
         sub_result = stripe_service.get_subscription(subscription_id)
         if sub_result["success"]:
             subscription = sub_result["subscription"]
             ends_at = datetime.fromtimestamp(subscription.current_period_end)
-            update_user_subscription(db, user, "pro", "active", ends_at)
-            logger.info(f"User {user.id} subscribed to Pro via checkout")
+            update_user_subscription(db, user, tier_id, "active", ends_at)
+            logger.info(f"User {user.id} subscribed to {tier_name} ({tier_id}) via checkout")
             return
 
     # Fallback if no subscription ID
-    update_user_subscription(db, user, "pro", "active")
-    logger.info(f"User {user.id} subscribed to Pro via checkout (no subscription details)")
+    update_user_subscription(db, user, tier_id, "active")
+    logger.info(f"User {user.id} subscribed to {tier_name} ({tier_id}) via checkout (no subscription details)")
 
 
 async def handle_subscription_updated(db: Session, subscription: dict):
     """Handle subscription updates (plan changes, status changes)"""
     customer_id = subscription.get("customer")
     sub_status = subscription.get("status")  # active, past_due, canceled, etc.
+    metadata = subscription.get("metadata", {})
 
     if not customer_id:
         return
@@ -157,6 +176,12 @@ async def handle_subscription_updated(db: Session, subscription: dict):
         logger.warning(f"No user found for Stripe customer {customer_id}")
         return
 
+    # Get tier from subscription metadata
+    tier_id = metadata.get("tier_id")
+    if not tier_id:
+        # Fallback to user's current tier if metadata missing
+        tier_id = user.subscription_tier or "tier_1"
+
     # Map Stripe status to our status
     status_map = {
         "active": "active",
@@ -165,7 +190,7 @@ async def handle_subscription_updated(db: Session, subscription: dict):
         "unpaid": "past_due",
         "incomplete": "incomplete",
         "incomplete_expired": "canceled",
-        "trialing": "active",
+        "trialing": "trialing",
     }
 
     new_status = status_map.get(sub_status, "active")
@@ -179,9 +204,9 @@ async def handle_subscription_updated(db: Session, subscription: dict):
     if cancel_at_period_end:
         new_status = "canceling"
 
-    # Update user
-    update_user_subscription(db, user, "pro", new_status, ends_at)
-    logger.info(f"User {user.id} subscription updated: status={new_status}")
+    # Update user with their current tier
+    update_user_subscription(db, user, tier_id, new_status, ends_at)
+    logger.info(f"User {user.id} subscription updated: tier={tier_id}, status={new_status}")
 
 
 async def handle_subscription_deleted(db: Session, subscription: dict):
@@ -213,6 +238,9 @@ async def handle_payment_succeeded(db: Session, invoice: dict):
     if not user:
         return
 
+    # Get current tier (preserve it on payment success)
+    tier_id = user.subscription_tier or "tier_1"
+
     # Payment succeeded - ensure active status
     if user.subscription_status != "active":
         # Get subscription for period end
@@ -220,11 +248,15 @@ async def handle_payment_succeeded(db: Session, invoice: dict):
         if sub_result["success"]:
             subscription = sub_result["subscription"]
             ends_at = datetime.fromtimestamp(subscription.current_period_end)
-            update_user_subscription(db, user, "pro", "active", ends_at)
+            # Check if subscription metadata has updated tier
+            metadata = subscription.get("metadata", {})
+            if metadata.get("tier_id"):
+                tier_id = metadata["tier_id"]
+            update_user_subscription(db, user, tier_id, "active", ends_at)
         else:
-            update_user_subscription(db, user, "pro", "active")
+            update_user_subscription(db, user, tier_id, "active")
 
-        logger.info(f"User {user.id} payment succeeded, status set to active")
+        logger.info(f"User {user.id} payment succeeded, tier={tier_id}, status set to active")
 
 
 async def handle_payment_failed(db: Session, invoice: dict):
@@ -238,8 +270,8 @@ async def handle_payment_failed(db: Session, invoice: dict):
     if not user:
         return
 
-    # Mark as past due (Stripe will retry)
-    if user.subscription_tier == "pro":
+    # Mark as past due (Stripe will retry) - applies to any paid tier
+    if user.subscription_tier and user.subscription_tier.startswith("tier_"):
         user.subscription_status = "past_due"
         db.commit()
-        logger.warning(f"User {user.id} payment failed, status set to past_due")
+        logger.warning(f"User {user.id} payment failed, tier={user.subscription_tier}, status set to past_due")
