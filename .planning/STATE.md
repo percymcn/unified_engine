@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-21)
 ## Current Position
 
 Phase: 24 - Enhanced Features & Monetization v2 (IN PROGRESS)
-Plan: 4 of 8 complete (Wave 1 partial)
+Plan: 5 of 8 complete (Wave 1 near complete)
 Status: Phase 24 in progress - Wave 1 executing
-Last activity: 2026-01-22 - Completed 24-06-PLAN.md (Broker Account Selection Backend)
+Last activity: 2026-01-22 - Completed 24-02-PLAN.md (4-Tier Pricing Backend)
 
-Progress: [############################__] 93% (v1.1+) - Phase 24 Wave 1 partial
+Progress: [#############################_] 96% (v1.1+) - Phase 24 Wave 1 near complete
 
 ## v1.1 Milestone Goals
 
@@ -57,7 +57,7 @@ Progress: [############################__] 93% (v1.1+) - Phase 24 Wave 1 partial
 | 21 | Multi-Account & Routing | 6 | Complete (3/3 plans) |
 | 22 | Risk Management | 16 | Complete (4/4 plans) |
 | 23 | User Settings & Dashboard | 18 | Complete (5/5 plans) |
-| 24 | Enhanced Features & Monetization v2 | 43 | In Progress (4/8 plans) |
+| 24 | Enhanced Features & Monetization v2 | 43 | In Progress (5/8 plans) |
 
 ## Previous Milestone
 
@@ -191,6 +191,10 @@ Progress: [############################__] 93% (v1.1+) - Phase 24 Wave 1 partial
 | 24-06 | Handle different broker ID formats dynamically | TradeLocker (numeric), ProjectX (alphanumeric), Tradovate (numeric), MetaAPI (UUID) |
 | 24-06 | Use existing is_signal_enabled field for account selection | TradingAccount model already has is_signal_enabled boolean field |
 | 24-06 | Three routing modes: specific account, broker type, all selected | Covers all use cases from single account to broadcast |
+| 24-02 | 4-tier model uses tier_1, tier_2, tier_3, tier_4 identifiers | Consistent naming for pricing tiers with numeric suffix |
+| 24-02 | Legacy plan="pro" maps to tier_3 for backward compatibility | Existing users with "pro" continue working |
+| 24-02 | Broker limits: tier_1=1, tier_2=2, tier_3=3, tier_4=4 | Each tier unlocks one additional broker connection |
+| 24-02 | Broker limit exceeded returns 402 Payment Required | More appropriate HTTP status for payment-gated features |
 
 ## Known Tech Debt
 
@@ -204,9 +208,9 @@ Progress: [############################__] 93% (v1.1+) - Phase 24 Wave 1 partial
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed 24-06-PLAN.md (Broker Account Selection Backend)
+Stopped at: Completed 24-02-PLAN.md (4-Tier Pricing Backend)
 Resume file: None
-Status: Phase 24 Wave 1 in progress
+Status: Phase 24 Wave 1 in progress (5/8 complete)
 
 ## Gap Closure Status
 
@@ -230,18 +234,18 @@ Status: Phase 24 Wave 1 in progress
 
 ## Next Steps
 
-1. **Phase 24 (Enhanced Features & Monetization v2)** - PLANNED (0/8 plans)
+1. **Phase 24 (Enhanced Features & Monetization v2)** - IN PROGRESS (5/8 plans)
 
-   **Wave 1 (parallel):**
-   - 24-01: Trial System Backend (TRIAL-01, TRIAL-02, TRIAL-03, TRIAL-05)
-   - 24-02: 4-Tier Pricing Backend (BILL-08, BILL-10, BILL-11)
-   - 24-03: Signal Deduplication (SIGNAL-06)
-   - 24-06: Broker Account Selection Backend (ACCT-07-10, ACCT-13-14)
-   - 24-08: Landing Page Enhancements (LAND-12, LAND-13, LAND-14)
+   **Wave 1 (parallel) - 5/5 COMPLETE:**
+   - 24-01: Trial System Backend - COMPLETE
+   - 24-02: 4-Tier Pricing Backend - COMPLETE
+   - 24-03: Signal Deduplication - COMPLETE
+   - 24-06: Broker Account Selection Backend - COMPLETE
+   - 24-08: Landing Page Enhancements - COMPLETE
 
-   **Wave 2 (depends on Wave 1):**
+   **Wave 2 (depends on Wave 1) - 0/3 PENDING:**
    - 24-04: Trial UI & Upgrade Prompts (TRIAL-04, TRIAL-06, TRIAL-07)
    - 24-05: 4-Tier Pricing UI (BILL-09)
    - 24-07: Broker Account Selection UI (ACCT-11, ACCT-12)
 
-2. Run `/gsd:execute-phase 24` to begin execution
+2. Run `/gsd:execute-plan 24-04` to begin Wave 2
