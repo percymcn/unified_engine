@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import Optional, List
 from datetime import date, datetime, timedelta
+from pydantic import BaseModel
 import logging
 
 from app.db.database import get_db
@@ -26,6 +27,10 @@ from app.domain.services import (
     DailyCounterService,
     RiskEnforcementService,
     AccountRiskSettings,
+    PositionSizingService,
+    PositionSizingConfig,
+    PositionSizingMode,
+    SymbolSpecsService,
 )
 from app.infrastructure.repositories import (
     get_daily_counter_repository,
@@ -431,3 +436,86 @@ def _get_reason_description(reason: RejectedSignalReason) -> str:
         RejectedSignalReason.DISABLED: "Risk management or trading is disabled for this account",
     }
     return descriptions.get(reason, "Unknown rejection reason")
+
+
+# Position Sizing Endpoints
+
+class PositionSizeRequest(BaseModel):
+    """Request to calculate position size"""
+    account_id: int
+    symbol: str
+    stop_loss_pips: Optional[float] = None
+    balance: Optional[float] = None  # Override for preview
+
+
+@router.post("/calculate-position-size")
+async def calculate_position_size(
+    request: PositionSizeRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Preview position size calculation for an account.
+
+    Useful for UI to show users what size would be used for a trade.
+
+    **Request Body:**
+    - `account_id`: Trading account ID
+    - `symbol`: Trading symbol (e.g., "US30", "EURUSD", "ES")
+    - `stop_loss_pips`: Optional stop loss distance in pips (required for risk-based mode)
+    - `balance`: Optional balance override for "what if" scenarios
+
+    **Returns:**
+    - `calculated_size`: Raw calculated size before broker adjustments
+    - `adjusted_size`: Final size adjusted to broker min/max/step
+    - `mode_used`: Sizing mode used
+    - `calculation_detail`: Human-readable explanation of calculation
+    - `symbol_specs`: Broker specifications used
+    """
+    # Verify account ownership
+    account = db.query(TradingAccount).filter(
+        TradingAccount.id == request.account_id,
+        TradingAccount.user_id == current_user.id
+    ).first()
+    if not account:
+        raise HTTPException(404, "Account not found")
+
+    sizing_service = PositionSizingService()
+    specs_service = SymbolSpecsService()
+
+    # Build config
+    config = PositionSizingConfig(
+        mode=PositionSizingMode(account.position_sizing_mode or "fixed"),
+        fixed_lot_size=account.fixed_lot_size or 0.01,
+        percent_of_balance=account.percent_of_balance or 1.0,
+        percent_of_equity=account.percent_of_equity or 1.0,
+        risk_percent_per_trade=account.risk_percent_per_trade or 1.0,
+        max_position_size=account.max_position_size
+    )
+
+    # Get specs
+    specs = await specs_service.get_specs(request.symbol)
+
+    # Calculate
+    result = sizing_service.calculate_position_size(
+        config=config,
+        balance=request.balance or account.balance or 10000,
+        equity=account.equity or account.balance or 10000,
+        symbol_specs=specs,
+        stop_loss_pips=request.stop_loss_pips
+    )
+
+    return {
+        "calculated_size": result.calculated_size,
+        "adjusted_size": result.adjusted_size,
+        "mode_used": result.mode_used,
+        "calculation_detail": result.calculation_detail,
+        "symbol_specs": {
+            "min_lot": specs.min_lot,
+            "max_lot": specs.max_lot,
+            "lot_step": specs.lot_step,
+            "pip_value": specs.pip_value,
+            "contract_size": specs.contract_size,
+            "digits": specs.digits,
+        }
+    }
