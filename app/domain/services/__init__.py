@@ -43,6 +43,14 @@ from app.domain.services.risk_enforcement_service import (
     RiskCheckResult,
     AccountRiskSettings,
 )
+from app.domain.services.position_sizing_service import (
+    PositionSizingService,
+    PositionSizingConfig,
+    PositionSizingMode,
+    SymbolSpecs,
+    PositionSizeResult,
+)
+from app.domain.services.symbol_specs_service import SymbolSpecsService
 
 __all__ = [
     "SymbolNormalizationService",
@@ -64,4 +72,11 @@ __all__ = [
     "RiskViolation",
     "RiskCheckResult",
     "AccountRiskSettings",
+    # Position sizing
+    "PositionSizingService",
+    "PositionSizingConfig",
+    "PositionSizingMode",
+    "SymbolSpecs",
+    "PositionSizeResult",
+    "SymbolSpecsService",
 ]
