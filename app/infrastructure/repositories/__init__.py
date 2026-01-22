@@ -28,6 +28,8 @@ from app.infrastructure.repositories.daily_counter_repository import (
     InMemoryDailyCounterRepository,
     get_daily_counter_repository,
 )
+from app.infrastructure.repositories.daily_pnl_repository import DailyPnLRepository
+from app.infrastructure.repositories.equity_history_repository import EquityHistoryRepository
 
 __all__ = [
     "SQLAlchemySignalRepository",
@@ -39,4 +41,6 @@ __all__ = [
     "AccountGroupRepository",
     "InMemoryDailyCounterRepository",
     "get_daily_counter_repository",
+    "DailyPnLRepository",
+    "EquityHistoryRepository",
 ]
