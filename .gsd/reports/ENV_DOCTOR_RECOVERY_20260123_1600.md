@@ -128,15 +128,18 @@ $ git commit -m "docs(env): add ENV reference and verification guide"
 ### Git Status
 ```bash
 $ git status
-# Working tree clean (except report file and backup)
+# Working tree clean (except database backup file)
+# All changes committed
 ```
 
-### Commits Created (5 commits)
+### Commits Created (7 commits)
 1. `ee33780` - fix(verify): auto-detect backend port / respect API_URL
 2. `1f9716f` - feat(doctor): add ENV doctor script and admin endpoint
 3. `467de33` - fix(brokers): improve MetaApi diagnostics + add connectivity verification
 4. `b3e3038` - docs(env): add ENV reference and verification guide
-5. (if .env.example updated) - docs(env): update .env.example
+5. `c7f2c7d` - docs(env): update .env.example with all broker configurations
+6. `d43a117` - fix(env): remove real credentials from .env.example (use placeholders)
+7. `096270e` - docs(gsd): add ENV doctor recovery report
 
 ### Verification Results
 
