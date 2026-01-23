@@ -96,7 +96,17 @@ class MetaAPISDKService:
             return True
 
         except Exception as e:
-            logger.error(f"MetaAPI SDK connection failed: {e}")
+            error_msg = str(e)
+            if "401" in error_msg or "Unauthorized" in error_msg or "invalid token" in error_msg.lower():
+                logger.error(f"MetaAPI authentication failed: Invalid token. Get valid token from https://app.metaapi.cloud/token")
+            elif "404" in error_msg or "not found" in error_msg.lower():
+                logger.error(f"MetaAPI account not found: account_id={self.account_id}. Verify account ID in MetaAPI dashboard")
+            elif "network" in error_msg.lower() or "connection" in error_msg.lower() or "timeout" in error_msg.lower() or "DNS" in error_msg:
+                logger.error(f"MetaAPI network error: {error_msg}. Check internet connection, DNS, and firewall settings")
+            elif "deploy" in error_msg.lower() or "state" in error_msg.lower():
+                logger.error(f"MetaAPI account deployment error: {error_msg}. Check account state in MetaAPI dashboard")
+            else:
+                logger.error(f"MetaAPI SDK connection failed: {e}")
             self._is_connected = False
             return False
 

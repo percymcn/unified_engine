@@ -110,8 +110,19 @@ class MT4Executor(BaseExecutor):
                 else:
                     logger.warning("MetaAPI SDK connection failed, falling back to httpx")
                     self._sdk_service = None
+            except ImportError as e:
+                logger.error(f"MetaAPI SDK not installed: {e}. Install with: pip install metaapi-cloud-sdk")
+                self._sdk_service = None
             except Exception as e:
-                logger.warning(f"MetaAPI SDK init failed: {e}, falling back to httpx")
+                error_msg = str(e)
+                if "401" in error_msg or "Unauthorized" in error_msg:
+                    logger.error(f"MetaAPI authentication failed: Invalid METAAPI_TOKEN. Get token from https://app.metaapi.cloud/token")
+                elif "404" in error_msg or "not found" in error_msg.lower():
+                    logger.error(f"MetaAPI account not found: METAAPI_ACCOUNT_ID={self._metaapi_account_id}. Check account ID in MetaAPI dashboard")
+                elif "network" in error_msg.lower() or "connection" in error_msg.lower() or "timeout" in error_msg.lower():
+                    logger.error(f"MetaAPI network error: {error_msg}. Check internet connection and retry")
+                else:
+                    logger.warning(f"MetaAPI SDK init failed: {e}, falling back to httpx")
                 self._sdk_service = None
 
         # Fallback to custom httpx implementation (Manager API)
