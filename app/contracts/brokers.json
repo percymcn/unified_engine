@@ -1,0 +1,301 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "version": "1.0.0",
+  "generated": "2026-01-23",
+  "brokers": {
+    "tradelocker": {
+      "id": "tradelocker",
+      "display_name": "TradeLocker",
+      "enabled": true,
+      "auth_modes": ["sdk", "brand_api"],
+      "default_auth_mode": "sdk",
+      "fields": [
+        {
+          "name": "username",
+          "backend_name": "username",
+          "type": "string",
+          "label": "Email",
+          "description": "Your TradeLocker account email",
+          "required_for": ["sdk"],
+          "order": 1
+        },
+        {
+          "name": "password",
+          "backend_name": "password",
+          "type": "password",
+          "label": "Password",
+          "description": "Your TradeLocker account password",
+          "required_for": ["sdk"],
+          "order": 2
+        },
+        {
+          "name": "server",
+          "backend_name": "server",
+          "type": "string",
+          "label": "Server",
+          "description": "TradeLocker server name (e.g., Demo Server, GATESFX)",
+          "required_for": ["sdk"],
+          "order": 3
+        },
+        {
+          "name": "api_key",
+          "backend_name": "api_key",
+          "type": "password",
+          "label": "API Key",
+          "description": "TradeLocker Brand API key (required for some brokers like GATESFX)",
+          "required_for": ["brand_api"],
+          "order": 4
+        },
+        {
+          "name": "environment",
+          "backend_name": "environment",
+          "type": "select",
+          "label": "Environment",
+          "description": "Trading environment",
+          "options": [
+            {"value": "demo", "label": "Demo"},
+            {"value": "live", "label": "Live"}
+          ],
+          "default": "demo",
+          "required_for": [],
+          "order": 5
+        }
+      ],
+      "test_connection_endpoint": "/api/v1/accounts/test-connection",
+      "discover_accounts_endpoint": "/api/v1/accounts/available/{broker}",
+      "notes": "Some brokers (e.g., GATESFX) require Brand API mode. Backend will detect and report this."
+    },
+    "projectx": {
+      "id": "projectx",
+      "display_name": "ProjectX / TopStep",
+      "enabled": true,
+      "auth_modes": ["api_key"],
+      "default_auth_mode": "api_key",
+      "fields": [
+        {
+          "name": "username",
+          "backend_name": "username",
+          "type": "string",
+          "label": "Username",
+          "description": "Your TopStep/ProjectX username",
+          "required_for": ["api_key"],
+          "order": 1
+        },
+        {
+          "name": "api_key",
+          "backend_name": "api_key",
+          "type": "password",
+          "label": "API Key",
+          "description": "Your TopStep/ProjectX API key",
+          "required_for": ["api_key"],
+          "order": 2
+        }
+      ],
+      "test_connection_endpoint": "/api/v1/accounts/test-connection",
+      "discover_accounts_endpoint": "/api/v1/accounts/available/{broker}",
+      "notes": "API key generated from ProjectX Platform Settings → API"
+    },
+    "topstep": {
+      "id": "topstep",
+      "display_name": "TopStep",
+      "enabled": true,
+      "alias_of": "projectx",
+      "auth_modes": ["api_key"],
+      "default_auth_mode": "api_key",
+      "fields": [
+        {
+          "name": "username",
+          "backend_name": "username",
+          "type": "string",
+          "label": "Username",
+          "description": "Your TopStep username",
+          "required_for": ["api_key"],
+          "order": 1
+        },
+        {
+          "name": "api_key",
+          "backend_name": "api_key",
+          "type": "password",
+          "label": "API Key",
+          "description": "Your TopStep API key",
+          "required_for": ["api_key"],
+          "order": 2
+        }
+      ],
+      "test_connection_endpoint": "/api/v1/accounts/test-connection",
+      "discover_accounts_endpoint": "/api/v1/accounts/available/{broker}",
+      "notes": "TopStep is an alias for ProjectX. Use code 'topstep' for 50% off API access."
+    },
+    "tradovate": {
+      "id": "tradovate",
+      "display_name": "Tradovate",
+      "enabled": true,
+      "auth_modes": ["oauth", "password"],
+      "default_auth_mode": "oauth",
+      "oauth_config": {
+        "authorize_url": "/api/v1/tradovate/authorize",
+        "callback_url": "/api/auth/tradovate/callback"
+      },
+      "fields": [
+        {
+          "name": "user_id",
+          "backend_name": "user_id",
+          "type": "string",
+          "label": "Username",
+          "description": "Your Tradovate username",
+          "required_for": ["password"],
+          "order": 1
+        },
+        {
+          "name": "password",
+          "backend_name": "password",
+          "type": "password",
+          "label": "Password",
+          "description": "Your Tradovate password",
+          "required_for": ["password"],
+          "order": 2
+        },
+        {
+          "name": "environment",
+          "backend_name": "environment",
+          "type": "select",
+          "label": "Environment",
+          "description": "Trading environment",
+          "options": [
+            {"value": "demo", "label": "Demo"},
+            {"value": "live", "label": "Live"}
+          ],
+          "default": "demo",
+          "required_for": [],
+          "order": 3
+        },
+        {
+          "name": "app_id",
+          "backend_name": "app_id",
+          "type": "string",
+          "label": "App ID",
+          "description": "Tradovate Application ID (optional)",
+          "required_for": [],
+          "order": 4
+        },
+        {
+          "name": "cid",
+          "backend_name": "cid",
+          "type": "string",
+          "label": "Client ID",
+          "description": "Tradovate Client ID (from API key)",
+          "required_for": [],
+          "order": 5
+        },
+        {
+          "name": "sec",
+          "backend_name": "sec",
+          "type": "password",
+          "label": "Secret",
+          "description": "Tradovate Secret (from API key)",
+          "required_for": [],
+          "order": 6
+        }
+      ],
+      "test_connection_endpoint": "/api/v1/accounts/test-connection",
+      "discover_accounts_endpoint": "/api/v1/accounts/available/{broker}",
+      "notes": "OAuth is recommended. Password mode requires app_id, cid, and sec."
+    },
+    "mt4": {
+      "id": "mt4",
+      "display_name": "MetaTrader 4",
+      "enabled": true,
+      "auth_modes": ["metaapi", "manager"],
+      "default_auth_mode": "metaapi",
+      "fields": [
+        {
+          "name": "metaapi_token",
+          "backend_name": "metaapi_token",
+          "type": "password",
+          "label": "MetaAPI Token",
+          "description": "Your MetaAPI cloud token from app.metaapi.cloud",
+          "required_for": ["metaapi"],
+          "order": 1
+        },
+        {
+          "name": "metaapi_account_id",
+          "backend_name": "metaapi_account_id",
+          "type": "string",
+          "label": "MetaAPI Account ID",
+          "description": "Your MetaAPI account ID",
+          "required_for": ["metaapi"],
+          "order": 2
+        },
+        {
+          "name": "manager_login",
+          "backend_name": "manager_login",
+          "type": "string",
+          "label": "Manager Login",
+          "description": "MT4 Manager API login (alternative to MetaAPI)",
+          "required_for": ["manager"],
+          "order": 3
+        },
+        {
+          "name": "manager_password",
+          "backend_name": "manager_password",
+          "type": "password",
+          "label": "Manager Password",
+          "description": "MT4 Manager API password",
+          "required_for": ["manager"],
+          "order": 4
+        }
+      ],
+      "test_connection_endpoint": "/api/v1/accounts/test-connection",
+      "discover_accounts_endpoint": "/api/v1/accounts/available/{broker}",
+      "notes": "MetaAPI mode is recommended. Free tier available at metaapi.cloud."
+    },
+    "mt5": {
+      "id": "mt5",
+      "display_name": "MetaTrader 5",
+      "enabled": true,
+      "auth_modes": ["metaapi", "manager"],
+      "default_auth_mode": "metaapi",
+      "fields": [
+        {
+          "name": "metaapi_token",
+          "backend_name": "metaapi_token",
+          "type": "password",
+          "label": "MetaAPI Token",
+          "description": "Your MetaAPI cloud token from app.metaapi.cloud",
+          "required_for": ["metaapi"],
+          "order": 1
+        },
+        {
+          "name": "metaapi_account_id",
+          "backend_name": "metaapi_account_id",
+          "type": "string",
+          "label": "MetaAPI Account ID",
+          "description": "Your MetaAPI account ID",
+          "required_for": ["metaapi"],
+          "order": 2
+        },
+        {
+          "name": "manager_login",
+          "backend_name": "manager_login",
+          "type": "string",
+          "label": "Manager Login",
+          "description": "MT5 Manager API login (alternative to MetaAPI)",
+          "required_for": ["manager"],
+          "order": 3
+        },
+        {
+          "name": "manager_password",
+          "backend_name": "manager_password",
+          "type": "password",
+          "label": "Manager Password",
+          "description": "MT5 Manager API password",
+          "required_for": ["manager"],
+          "order": 4
+        }
+      ],
+      "test_connection_endpoint": "/api/v1/accounts/test-connection",
+      "discover_accounts_endpoint": "/api/v1/accounts/available/{broker}",
+      "notes": "MetaAPI mode is recommended. Free tier available at metaapi.cloud."
+    }
+  }
+}
