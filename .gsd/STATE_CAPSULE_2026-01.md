@@ -249,7 +249,49 @@ docker service logs unified_api --tail 100
 
 ---
 
-## Latest Verification (2026-01-23 18:40 UTC)
+## Latest Verification (2026-01-23 19:15 UTC)
+
+### Session: Cursor Agent Continuation (Phases 0-6)
+- **Commits:** `b4b241d` through `c76fd85`
+- **Branch:** `wire-brokers-tradelocker-projectx-20260122`
+
+### Database & Migrations
+- ✅ Alembic current: `020 (head)`
+- ✅ Alembic heads: `020 (head)`
+- ✅ Backend import: `from app.main import app` - OK
+
+### Frontend
+- ✅ Build: `npm run build` - PASSES
+- ✅ Server: Port 3456 - VERIFIED (LAN-visible on 0.0.0.0)
+- ✅ HTTP Status: 200 OK (localhost + LAN IP)
+
+### UI Recovery
+- ✅ Script: `ui-next/scripts/run_3456.sh` - Updated with LAN verification
+- ✅ LAN IP: `192.168.1.254:3456` - Accessible
+
+### Auth UI
+- ✅ GitHub SSO: REMOVED
+- ✅ Google SSO: PRESENT, gated by env vars
+- ✅ OAuth hook: `useOAuthProviders` - Created
+
+### Broker Contract
+- ✅ UI ↔ Backend: Aligned
+- ✅ Field name variations: Accepted (non-breaking)
+- ✅ Error responses: Structured
+- ✅ Smoke script: `scripts/ui_broker_contract_smoke.sh` - Created
+
+### Broker Auth Smoke
+- ✅ Scripts: `scripts/broker_auth_smoke.sh`, `scripts/broker_auth_smoke.py` - Exist
+- ✅ Read-only: No trades placed
+- ✅ Env vars: Only source for credentials
+
+### Next Steps
+- All phases complete
+- Ready for GSD handoff
+
+---
+
+## Previous Verification (2026-01-23 18:40 UTC)
 
 ### Session: Cursor Agent Phase 0-2
 - **Commit:** `aa17b39` phase0: baseline snapshot + session log
