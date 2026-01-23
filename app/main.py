@@ -68,7 +68,7 @@ setup_logging(
 )
 
 logger = logging.getLogger(__name__)
-logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION} in {settings.ENVIRONMENT} mode")
+logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION} (Milestones: 1.2, Patch 1.2.1) in {settings.ENVIRONMENT} mode")
 
 # Global container instance
 container: Container | None = None

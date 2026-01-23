@@ -163,6 +163,7 @@ class Account(Base):
     password = Column(String)  # Encrypted
     broker_config = Column(JSON)  # Store broker-specific config
     last_sync = Column(DateTime(timezone=True))
+    webhook_key = Column(String)  # Patch 1.2.1: Per-broker webhook key
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
