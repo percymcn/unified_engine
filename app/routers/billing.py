@@ -53,9 +53,10 @@ class SubscriptionStatus(BaseModel):
 class PlanInfo(BaseModel):
     id: str
     name: str
-    price: int
+    monthly_price: int  # cents
     price_display: str
     features: List[str]
+    stripe_price_id: Optional[str]
     broker_limit: int
 
 
@@ -86,9 +87,10 @@ async def get_plans(
         plans.append(PlanInfo(
             id=tier_id,
             name=tier["name"],
-            price=tier["price"],
+            monthly_price=tier["price"],
             price_display=_format_price(tier["price"]),
             features=tier["features"],
+            stripe_price_id=tier.get("stripe_price_id"),
             broker_limit=tier["brokers"],
         ).model_dump())
 

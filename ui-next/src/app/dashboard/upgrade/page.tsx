@@ -23,7 +23,16 @@ import {
   TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
-import { getPaidTiers, formatPrice, type PricingTier } from "@/lib/pricing";
+
+interface PlanInfo {
+  id: string;
+  name: string;
+  monthly_price: number; // cents
+  price_display: string;
+  features: string[];
+  stripe_price_id: string | null;
+  broker_limit: number;
+}
 
 interface BillingStatus {
   tier: string;
@@ -43,17 +52,17 @@ export default function UpgradePage() {
   const { toast } = useToast();
   const [billingStatus, setBillingStatus] = useState<BillingStatus | null>(null);
   const [trialStatus, setTrialStatus] = useState<TrialStatus | null>(null);
+  const [plans, setPlans] = useState<PlanInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
-
-  const paidTiers = getPaidTiers();
 
   useEffect(() => {
     async function fetchStatus() {
       try {
-        const [billingRes, trialRes] = await Promise.all([
+        const [billingRes, trialRes, plansRes] = await Promise.all([
           fetch("/api/billing/status"),
           fetch("/api/trial/status"),
+          fetch("/api/billing/plans"),
         ]);
 
         if (billingRes.ok) {
@@ -61,6 +70,12 @@ export default function UpgradePage() {
         }
         if (trialRes.ok) {
           setTrialStatus(await trialRes.json());
+        }
+        if (plansRes.ok) {
+          const plansData = await plansRes.json();
+          // Filter to paid tiers only
+          const paidPlans = (plansData.plans || []).filter((p: PlanInfo) => p.id.startsWith("tier_"));
+          setPlans(paidPlans);
         }
       } catch (error) {
         console.error("Error fetching status:", error);
@@ -71,8 +86,8 @@ export default function UpgradePage() {
     fetchStatus();
   }, []);
 
-  const handleSelectTier = async (tier: PricingTier) => {
-    if (tier.tier_id === billingStatus?.tier) {
+  const handleSelectTier = async (plan: PlanInfo) => {
+    if (plan.id === billingStatus?.tier) {
       // Already on this tier
       toast({
         title: "Current Plan",
@@ -81,13 +96,13 @@ export default function UpgradePage() {
       return;
     }
 
-    setCheckoutLoading(tier.tier_id);
+    setCheckoutLoading(plan.id);
 
     try {
       const response = await fetch("/api/billing/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tier_id: tier.tier_id }),
+        body: JSON.stringify({ tier_id: plan.id }),
       });
 
       if (!response.ok) {
@@ -118,7 +133,7 @@ export default function UpgradePage() {
   };
 
   // Get recommended tier based on broker count
-  const getRecommendedTier = (): string => {
+  const getRecommendedTier = (): string | null => {
     const brokerCount = billingStatus?.broker_count ?? 0;
     if (brokerCount >= 4) return "tier_4";
     if (brokerCount >= 3) return "tier_3";
@@ -216,14 +231,14 @@ export default function UpgradePage() {
 
       {/* Pricing grid */}
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {paidTiers.map((tier) => {
-          const isCurrentTier = currentTier === tier.tier_id;
-          const isRecommended = recommendedTier === tier.tier_id && !isCurrentTier;
-          const isLoading = checkoutLoading === tier.tier_id;
+        {plans.map((plan) => {
+          const isCurrentTier = currentTier === plan.id;
+          const isRecommended = recommendedTier === plan.id && !isCurrentTier;
+          const isLoading = checkoutLoading === plan.id;
 
           return (
             <Card
-              key={tier.tier_id}
+              key={plan.id}
               className={`relative flex flex-col transition-all hover:shadow-lg ${
                 isRecommended
                   ? "border-primary ring-2 ring-primary"
@@ -251,21 +266,20 @@ export default function UpgradePage() {
               )}
 
               <CardHeader className="text-center pt-8">
-                <CardTitle className="text-xl font-bold">{tier.name}</CardTitle>
+                <CardTitle className="text-xl font-bold">{plan.name}</CardTitle>
                 <div className="mt-2">
                   <span className="text-3xl font-bold">
-                    {formatPrice(tier.price)}
+                    {plan.price_display}
                   </span>
-                  <span className="text-muted-foreground">/month</span>
                 </div>
                 <Badge variant="secondary" className="mt-3">
-                  {tier.brokers} Broker{tier.brokers > 1 ? "s" : ""}
+                  {plan.broker_limit} Broker{plan.broker_limit > 1 ? "s" : ""}
                 </Badge>
               </CardHeader>
 
               <CardContent className="flex-1">
                 <ul className="space-y-3">
-                  {tier.features.map((feature) => (
+                  {plan.features.map((feature) => (
                     <li key={feature} className="flex items-start gap-2 text-sm">
                       <Check className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />
                       <span>{feature}</span>
@@ -290,7 +304,7 @@ export default function UpgradePage() {
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    handleSelectTier(tier);
+                    handleSelectTier(plan);
                   }}
                   disabled={isCurrentTier || isLoading}
                   type="button"

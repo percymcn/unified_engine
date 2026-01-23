@@ -175,6 +175,57 @@ def get_all_tiers() -> List[Dict[str, Any]]:
     return tiers
 
 
+def sync_prices_from_stripe() -> Dict[str, str]:
+    """
+    Sync Stripe price IDs from Stripe API (optional, for production).
+    Falls back to hardcoded price IDs if Stripe is not configured or sync fails.
+    
+    Returns:
+        Dict mapping tier_id -> stripe_price_id
+    """
+    if not settings.STRIPE_SECRET_KEY:
+        logger.warning("Stripe not configured, using fallback price IDs")
+        return {tier_id: tier_info["stripe_price_id"] for tier_id, tier_info in PRICING_TIERS.items()}
+    
+    try:
+        # Fetch prices from Stripe
+        prices = stripe.Price.list(active=True, limit=100)
+        tier_to_price_id = {}
+        
+        # Map Stripe prices to tiers by metadata or lookup
+        for price in prices.data:
+            # Check if price has tier metadata
+            tier_id = price.metadata.get("tier_id")
+            if tier_id and tier_id in PRICING_TIERS:
+                tier_to_price_id[tier_id] = price.id
+            # Also check by amount (cents) and recurring interval
+            elif price.recurring and price.recurring.interval == "month":
+                amount = price.unit_amount
+                if amount:
+                    # Match by price amount
+                    for tid, tinfo in PRICING_TIERS.items():
+                        if tinfo["price"] == amount:
+                            tier_to_price_id[tid] = price.id
+                            break
+        
+        # Update PRICING_TIERS with synced prices (but keep fallback)
+        for tier_id, price_id in tier_to_price_id.items():
+            if tier_id in PRICING_TIERS:
+                PRICING_TIERS[tier_id]["stripe_price_id"] = price_id
+                logger.info(f"Synced Stripe price {price_id} for tier {tier_id}")
+        
+        # Return synced prices, fallback to hardcoded if missing
+        result = {}
+        for tier_id in PRICING_TIERS.keys():
+            result[tier_id] = tier_to_price_id.get(tier_id) or PRICING_TIERS[tier_id]["stripe_price_id"]
+        
+        return result
+    except Exception as e:
+        logger.warning(f"Failed to sync Stripe prices, using fallback: {e}")
+        # Fallback to hardcoded price IDs
+        return {tier_id: tier_info["stripe_price_id"] for tier_id, tier_info in PRICING_TIERS.items()}
+
+
 def get_stripe_price_id(tier_id: str) -> Optional[str]:
     """
     Get the Stripe price ID for a given tier.

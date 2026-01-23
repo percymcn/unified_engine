@@ -9,15 +9,29 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Check, ExternalLink } from "lucide-react";
 
+interface PlanInfo {
+  id: string;
+  name: string;
+  monthly_price: number; // cents
+  price_display: string;
+  features: string[];
+  stripe_price_id: string | null;
+  broker_limit: number;
+}
+
 interface BillingStatus {
   tier: string;
+  tier_name: string;
   status: string;
+  broker_limit: number;
+  brokers_used: number;
   ends_at: string | null;
   can_manage: boolean;
 }
 
 function BillingPageContent() {
   const [billing, setBilling] = useState<BillingStatus | null>(null);
+  const [plans, setPlans] = useState<PlanInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [portalLoading, setPortalLoading] = useState(false);
   const searchParams = useSearchParams();
@@ -41,18 +55,27 @@ function BillingPageContent() {
       });
     }
 
-    fetchBillingStatus();
+    fetchBillingData();
   }, [searchParams, toast]);
 
-  const fetchBillingStatus = async () => {
+  const fetchBillingData = async () => {
     try {
-      const response = await fetch("/api/billing/status");
-      if (response.ok) {
-        const data = await response.json();
-        setBilling(data);
+      const [billingRes, plansRes] = await Promise.all([
+        fetch("/api/billing/status"),
+        fetch("/api/billing/plans"),
+      ]);
+
+      if (billingRes.ok) {
+        const billingData = await billingRes.json();
+        setBilling(billingData);
+      }
+
+      if (plansRes.ok) {
+        const plansData = await plansRes.json();
+        setPlans(plansData.plans || []);
       }
     } catch (error) {
-      console.error("Failed to fetch billing status:", error);
+      console.error("Failed to fetch billing data:", error);
     } finally {
       setLoading(false);
     }
@@ -80,10 +103,21 @@ function BillingPageContent() {
   const handleUpgrade = async () => {
     setPortalLoading(true);
     try {
+      // Get the lowest paid tier (tier_1)
+      const tier1 = plans.find((p) => p.id === "tier_1");
+      if (!tier1) {
+        toast({
+          title: "Error",
+          description: "No upgrade plans available",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const response = await fetch("/api/billing/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan: "pro" }),
+        body: JSON.stringify({ tier_id: tier1.id }),
       });
       const data = await response.json();
       if (data.checkout_url) {
@@ -120,7 +154,13 @@ function BillingPageContent() {
     );
   }
 
-  const isPro = billing?.tier === "pro" && billing?.status === "active";
+  const currentTier = billing?.tier || "free";
+  const isPaid = currentTier !== "free" && billing?.status === "active";
+  
+  // Get current plan info from plans list
+  const currentPlan = plans.find((p) => p.id === currentTier);
+  // Get lowest paid tier for upgrade button
+  const upgradePlan = plans.find((p) => p.id.startsWith("tier_")) || plans[0];
 
   return (
     <div className="space-y-6">
@@ -134,22 +174,22 @@ function BillingPageContent() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             Current Plan
-            <Badge variant={isPro ? "default" : "secondary"}>
-              {billing?.tier === "pro" ? "Pro" : "Free"}
+            <Badge variant={isPaid ? "default" : "secondary"}>
+              {currentPlan?.name || billing?.tier_name || "Free"}
             </Badge>
           </CardTitle>
           <CardDescription>
-            {isPro
-              ? "You have access to all Pro features"
-              : "Upgrade to Pro for unlimited broker connections"}
+            {isPaid
+              ? `You have access to ${currentPlan?.broker_limit || billing?.broker_limit || 1} broker connection${(currentPlan?.broker_limit || 1) > 1 ? "s" : ""}`
+              : "Upgrade to unlock more broker connections"}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {isPro ? (
+          {isPaid ? (
             <>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Check className="h-4 w-4 text-primary" />
-                Unlimited broker connections
+                {currentPlan?.broker_limit || billing?.broker_limit || 1} broker connection{(currentPlan?.broker_limit || 1) > 1 ? "s" : ""}
               </div>
               {billing?.ends_at && (
                 <p className="text-sm text-muted-foreground">
@@ -175,47 +215,55 @@ function BillingPageContent() {
                 <Check className="h-4 w-4" />
                 1 broker connection
               </div>
-              <Button onClick={handleUpgrade} disabled={portalLoading}>
-                {portalLoading ? "Loading..." : "Upgrade to Pro - $29/month"}
-              </Button>
+              {upgradePlan && (
+                <Button onClick={handleUpgrade} disabled={portalLoading}>
+                  {portalLoading
+                    ? "Loading..."
+                    : `Upgrade to ${upgradePlan.name} - ${upgradePlan.price_display}`}
+                </Button>
+              )}
             </>
           )}
         </CardContent>
       </Card>
 
       {/* Plan Comparison */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Plan Comparison</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-3 gap-4 text-sm">
-            <div className="font-medium">Feature</div>
-            <div className="font-medium text-center">Free</div>
-            <div className="font-medium text-center">Pro</div>
+      {plans.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Plan Comparison</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-4 text-sm">
+              <div className="font-medium">Feature</div>
+              <div className="font-medium text-center">Free</div>
+              <div className="font-medium text-center">Paid Plans</div>
 
-            <div>Broker connections</div>
-            <div className="text-center">1</div>
-            <div className="text-center text-primary">Unlimited</div>
+              <div>Broker connections</div>
+              <div className="text-center">1</div>
+              <div className="text-center text-primary">
+                {plans.filter((p) => p.id.startsWith("tier_")).map((p) => p.broker_limit).join(", ")}
+              </div>
 
-            <div>Signal routing</div>
-            <div className="text-center">Basic</div>
-            <div className="text-center text-primary">Advanced</div>
+              <div>Signal routing</div>
+              <div className="text-center">Basic</div>
+              <div className="text-center text-primary">Advanced</div>
 
-            <div>Webhook support</div>
-            <div className="text-center"><Check className="h-4 w-4 mx-auto" /></div>
-            <div className="text-center"><Check className="h-4 w-4 mx-auto text-primary" /></div>
+              <div>Webhook support</div>
+              <div className="text-center"><Check className="h-4 w-4 mx-auto" /></div>
+              <div className="text-center"><Check className="h-4 w-4 mx-auto text-primary" /></div>
 
-            <div>Multi-account routing</div>
-            <div className="text-center text-muted-foreground">-</div>
-            <div className="text-center"><Check className="h-4 w-4 mx-auto text-primary" /></div>
+              <div>Multi-account routing</div>
+              <div className="text-center text-muted-foreground">-</div>
+              <div className="text-center"><Check className="h-4 w-4 mx-auto text-primary" /></div>
 
-            <div>Support</div>
-            <div className="text-center">Community</div>
-            <div className="text-center text-primary">Email</div>
-          </div>
-        </CardContent>
-      </Card>
+              <div>Support</div>
+              <div className="text-center">Community</div>
+              <div className="text-center text-primary">Email</div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
