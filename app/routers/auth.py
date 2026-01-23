@@ -80,6 +80,36 @@ async def get_current_user(
     
     return user
 
+
+# Optional security scheme for endpoints that work with or without auth
+security_optional = HTTPBearer(auto_error=False)
+
+
+async def get_current_user_optional(
+    credentials: HTTPAuthorizationCredentials | None = Depends(security_optional),
+    db: Session = Depends(get_db)
+) -> User | None:
+    """
+    Get current user if authenticated, otherwise return None.
+
+    Use this for endpoints that work both with and without authentication,
+    such as public pricing pages that show personalized info when logged in.
+    """
+    if credentials is None:
+        return None
+
+    try:
+        payload = jwt.decode(credentials.credentials, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            return None
+        token_data = TokenData(username=username)
+    except JWTError:
+        return None
+
+    return get_user_by_username(db, username=token_data.username)
+
+
 @router.post("/register", response_model=UserSchema)
 async def register(user: UserCreate, db: Session = Depends(get_db)):
     """Register new user"""

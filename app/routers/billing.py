@@ -9,7 +9,7 @@ from typing import Optional, List
 import logging
 
 from app.db.database import get_db
-from app.routers.auth import get_current_user
+from app.routers.auth import get_current_user, get_current_user_optional
 from app.models.models import User, Account
 from app.services.stripe_service import (
     stripe_service,
@@ -70,16 +70,21 @@ def _format_price(cents: int) -> str:
 
 @router.get("/plans")
 async def get_plans(
-    current_user: User = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_current_user_optional),
 ):
     """
     Get available subscription plans (4-tier pricing).
 
     Returns all tiers with name, price, broker_limit, features.
-    Includes current user's tier for comparison.
+    Includes current user's tier for comparison (if authenticated).
+
+    This endpoint works WITHOUT authentication for pricing page,
+    but returns personalized tier info when authenticated.
     """
     tiers = get_all_tiers()
-    current_tier = current_user.subscription_tier or "free"
+    current_tier = "free"
+    if current_user:
+        current_tier = current_user.subscription_tier or "free"
 
     plans = []
     for tier in tiers:
