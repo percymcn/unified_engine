@@ -27,6 +27,8 @@ from app.application.dto.account_settings_dto import (
 from app.domain.enums import BrokerType, AccountType
 from pydantic import BaseModel, Field
 from datetime import datetime
+import secrets
+import hashlib
 
 
 class TestConnectionBody(BaseModel):
@@ -39,6 +41,16 @@ class DiscoverAccountsBody(BaseModel):
     """Request body for account discovery endpoint"""
     broker: str
     credentials: dict
+
+
+def generate_broker_webhook_key(broker: str, user_id: int) -> str:
+    """Generate unique webhook key for broker connection.
+    
+    Format: webhook_<broker>_user<userId>_<shortRandom>
+    Example: webhook_tradelocker_user1234_a8f3c1
+    """
+    short_random = secrets.token_urlsafe(6)[:8]  # 8 chars, URL-safe
+    return f"webhook_{broker.lower()}_user{user_id}_{short_random}"
 
 
 class DiscoveredAccount(BaseModel):
@@ -90,17 +102,37 @@ async def get_accounts(
     response = await use_case.execute(dto_request)
 
     # Convert to API response format
+    # Need to fetch webhook_key from ORM since domain entity doesn't include it
+    from app.models.database_models import TradingAccount as TradingAccountORM
+    
+    accounts_with_webhook = []
+    for acc in response.accounts:
+        # Get webhook_key from ORM
+        orm_account = db.query(TradingAccountORM).filter(
+            TradingAccountORM.id == int(acc.id)
+        ).first()
+        
+        account_dict = {
+            "id": acc.id,
+            "account_id": orm_account.account_number if orm_account else acc.id,
+            "user_id": acc.user_id,
+            "broker": acc.broker.value,
+            "account_type": acc.account_type.value if hasattr(acc, 'account_type') else "demo",
+            "balance": float(acc.balance),
+            "equity": float(acc.equity),
+            "margin": float(acc.margin) if hasattr(acc, 'margin') else 0.0,
+            "free_margin": float(acc.free_margin) if hasattr(acc, 'free_margin') else 0.0,
+            "leverage": acc.leverage,
+            "currency": acc.currency,
+            "is_active": acc.is_active,
+            "is_connected": acc.is_connected,
+            "last_sync": acc.last_sync.isoformat() if acc.last_sync else None,
+            "webhook_key": orm_account.webhook_key if orm_account else None,  # Patch 1.2.1
+        }
+        accounts_with_webhook.append(account_dict)
+    
     return {
-        "accounts": [
-            {
-                "id": acc.id,
-                "broker": acc.broker.value,
-                "balance": float(acc.balance),
-                "equity": float(acc.equity),
-                "is_connected": acc.is_connected,
-            }
-            for acc in response.accounts
-        ],
+        "accounts": accounts_with_webhook,
         "total": response.total,
     }
 
@@ -749,11 +781,18 @@ async def get_account(
             detail="Account not found"
         )
 
+    # Get webhook_key from ORM (Patch 1.2.1)
+    from app.models.database_models import TradingAccount as TradingAccountORM
+    orm_account = db.query(TradingAccountORM).filter(
+        TradingAccountORM.id == int(account.id.value)
+    ).first()
+
     return {
-        "id": account.id,
+        "id": account.id.value,
+        "account_id": orm_account.account_number if orm_account else account.id.value,
         "user_id": account.user_id,
         "broker": account.broker.value,
-        "account_type": account.account_type.value,
+        "account_type": account.account_type.value if hasattr(account, 'account_type') else "demo",
         "balance": float(account.balance),
         "equity": float(account.equity),
         "margin": float(account.margin),
@@ -764,6 +803,7 @@ async def get_account(
         "is_connected": account.is_connected,
         "server": account.server,
         "last_sync": account.last_sync.isoformat() if account.last_sync else None,
+        "webhook_key": orm_account.webhook_key if orm_account else None,  # Patch 1.2.1
     }
 
 @router.put("/{account_id}")

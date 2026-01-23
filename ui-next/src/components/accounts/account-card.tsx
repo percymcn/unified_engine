@@ -15,6 +15,8 @@ import {
   Settings,
   Zap,
   ZapOff,
+  Copy,
+  Link as LinkIcon,
 } from 'lucide-react';
 import {
   Account,
@@ -25,6 +27,7 @@ import { cn } from '@/lib/utils';
 import { syncAccount } from '@/lib/api/accounts';
 import { useToast } from '@/hooks/use-toast';
 import { parseAccountError, formatErrorForToast } from '@/lib/errors/account-errors';
+import { useUser } from '@/providers/user-provider';
 
 // Extended account with optional settings info
 interface AccountWithSettings extends Account {
@@ -33,6 +36,7 @@ interface AccountWithSettings extends Account {
   groupColor?: string | null;
   isSignalEnabled?: boolean;
   signalPriority?: number;
+  webhookKey?: string | null;  // Patch 1.2.1
 }
 
 interface AccountCardProps {
@@ -50,6 +54,7 @@ export function AccountCard({
 }: AccountCardProps) {
   const [syncing, setSyncing] = useState(false);
   const { toast } = useToast();
+  const { user } = useUser();  // Patch 1.2.1 - get user_id for webhook URL
 
   const handleSync = async () => {
     setSyncing(true);
@@ -209,6 +214,40 @@ export function AccountCard({
                 <span className="text-muted-foreground">Signals disabled</span>
               </>
             )}
+          </div>
+        )}
+
+        {/* Webhook URL (Patch 1.2.1) */}
+        {account.webhookKey && account.is_connected && (
+          <div className="pt-2 border-t border-border">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-muted-foreground mb-1">Webhook URL</p>
+                <p className="text-xs font-mono truncate" title={`${process.env.NEXT_PUBLIC_API_URL || 'https://api.tradeflow.fluxeo.net'}/api/v1/webhooks/incoming?broker=${account.broker}&user=${account.user_id || 'USER_ID'}&key=${account.webhookKey}`}>
+                  .../incoming?broker={account.broker}&key=...
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.tradeflow.fluxeo.net';
+                  const userId = user?.id || account.user_id || 'USER_ID';
+                  const webhookUrl = `${baseUrl}/api/v1/webhooks/incoming?broker=${account.broker}&user=${userId}&key=${account.webhookKey}`;
+                  navigator.clipboard.writeText(webhookUrl);
+                  toast({
+                    title: 'Copied',
+                    description: `Webhook URL copied. Paste this in TradingView for ${BROKER_DISPLAY_NAMES[account.broker]} only.`,
+                  });
+                }}
+                className="shrink-0"
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Paste this only in TradingView for {BROKER_DISPLAY_NAMES[account.broker]}
+            </p>
           </div>
         )}
 

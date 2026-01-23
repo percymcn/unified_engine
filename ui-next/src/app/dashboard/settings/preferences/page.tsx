@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Clock, Bell, Mail, AlertCircle, BarChart3, Loader2 } from "lucide-react";
+import { Clock, Bell, Mail, AlertCircle, BarChart3, Loader2, Palette } from "lucide-react";
+import { useTheme } from "@/providers/theme-provider";
 
 interface NotificationPreferences {
   trade_alerts: boolean;
@@ -18,6 +19,7 @@ interface NotificationPreferences {
 
 interface PreferencesData {
   timezone: string;
+  theme?: string;  // Patch 1.2.1
   notification_preferences: NotificationPreferences;
 }
 
@@ -81,6 +83,7 @@ export default function PreferencesPage() {
   const [saving, setSaving] = useState(false);
   const [currentTime, setCurrentTime] = useState<string>("");
   const { toast } = useToast();
+  const { theme, setTheme } = useTheme();  // Patch 1.2.1
 
   useEffect(() => {
     fetchPreferences();
@@ -105,10 +108,15 @@ export default function PreferencesPage() {
       if (res.ok) {
         const data = await res.json();
         setPreferences(data);
+        // Sync theme from backend (Patch 1.2.1)
+        if (data.theme && data.theme !== theme) {
+          setTheme(data.theme);
+        }
       } else {
         // Set defaults on error
         setPreferences({
           timezone: "UTC",
+          theme: theme || "system",  // Patch 1.2.1
           notification_preferences: {
             trade_alerts: true,
             error_notifications: true,
@@ -122,6 +130,7 @@ export default function PreferencesPage() {
       // Set defaults on error
       setPreferences({
         timezone: "UTC",
+        theme: theme || "system",  // Patch 1.2.1
         notification_preferences: {
           trade_alerts: true,
           error_notifications: true,
@@ -146,6 +155,12 @@ export default function PreferencesPage() {
       });
 
       if (res.ok) {
+        // Update theme cookie immediately (Patch 1.2.1)
+        if (preferences.theme) {
+          setTheme(preferences.theme);
+          // Set cookie for theme preference
+          document.cookie = `theme_preference=${preferences.theme}; path=/; max-age=31536000`; // 1 year
+        }
         // Refetch preferences to ensure UI is in sync
         await fetchPreferences();
         toast({
@@ -217,6 +232,51 @@ export default function PreferencesPage() {
           Customize your timezone and notification settings
         </p>
       </div>
+
+      {/* Theme Settings (Patch 1.2.1) */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Palette className="h-5 w-5" />
+            Appearance
+          </CardTitle>
+          <CardDescription>
+            Choose your theme preference. Applies to dashboard only.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Theme</Label>
+            <Select
+              value={preferences.theme || theme || "system"}
+              onValueChange={(value) => {
+                setPreferences({ ...preferences, theme: value });
+                setTheme(value);
+                // Save immediately
+                fetch("/api/users/me/preferences", {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ ...preferences, theme: value }),
+                }).then(() => {
+                  document.cookie = `theme_preference=${value}; path=/; max-age=31536000`;
+                });
+              }}
+            >
+              <SelectTrigger className="w-full md:w-[400px]">
+                <SelectValue placeholder="Select theme" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="light">Light</SelectItem>
+                <SelectItem value="dark">Dark</SelectItem>
+                <SelectItem value="system">System</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Landing page always remains dark. This setting only affects the dashboard.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Timezone Settings */}
       <Card>

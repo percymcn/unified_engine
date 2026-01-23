@@ -4,6 +4,7 @@ export type AccountType = 'live' | 'demo' | 'funded' | 'evaluation';
 export interface Account {
   id: number;
   account_id: string;
+  user_id?: number;  // Patch 1.2.1
   broker: BrokerType;
   account_type: AccountType;
   currency: string;
@@ -16,6 +17,7 @@ export interface Account {
   free_margin?: number;
   last_sync?: string;
   created_at: string;
+  webhook_key?: string | null;  // Patch 1.2.1
 }
 
 export interface AccountCreate {

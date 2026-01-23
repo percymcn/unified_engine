@@ -170,6 +170,16 @@ async def update_preferences(
     Validates timezone against pytz.all_timezones list.
     Validates deduplication_scope against allowed values.
     """
+    # Update theme if provided (Patch 1.2.1)
+    if preferences.theme is not None:
+        valid_themes = ['system', 'dark', 'light']
+        if preferences.theme not in valid_themes:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid theme: '{preferences.theme}'. Must be one of: {valid_themes}"
+            )
+        current_user.theme = preferences.theme
+
     # Validate timezone if provided
     if preferences.timezone is not None:
         if preferences.timezone not in pytz.all_timezones:
@@ -222,6 +232,7 @@ async def update_preferences(
 
     return PreferencesResponse(
         timezone=current_user.timezone or "UTC",
+        theme=getattr(current_user, 'theme', 'system') or 'system',  # Patch 1.2.1
         notification_preferences=NotificationPreferences(**notification_prefs),
         deduplication=dedup_settings
     )

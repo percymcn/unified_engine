@@ -155,6 +155,9 @@ class TradingAccount(Base):
     is_connected = Column(Boolean, default=False)
     last_sync = Column(DateTime)
 
+    # Per-broker webhook key (Patch 1.2.1)
+    webhook_key = Column(Text, unique=True, nullable=True, index=True)
+
     # Metadata
     extra_metadata = Column(JSON)
     created_at = Column(DateTime, default=datetime.utcnow)

@@ -176,6 +176,27 @@ class ConnectAccountUseCase:
 
             # Save updated account
             await self._account_repo.save(account)
+            
+            # Generate webhook key if missing (Patch 1.2.1)
+            try:
+                from app.infrastructure.repositories.account_repository import SQLAlchemyAccountRepository
+                if isinstance(self._account_repo, SQLAlchemyAccountRepository):
+                    import secrets
+                    from app.models.database_models import TradingAccount
+                    from sqlalchemy import select
+                    session = self._account_repo._session
+                    stmt = select(TradingAccount).where(TradingAccount.id == int(account.id.value))
+                    result = await session.execute(stmt)
+                    orm_account = result.scalar_one_or_none()
+                    if orm_account and not orm_account.webhook_key:
+                        broker_slug = account.broker.value.lower()
+                        short_random = secrets.token_urlsafe(6)[:8]
+                        orm_account.webhook_key = f"webhook_{broker_slug}_user{account.user_id}_{short_random}"
+                        await session.commit()
+                        logger.info(f"Generated webhook key on connect for account {account.id.value}: {orm_account.webhook_key[:20]}...")
+            except Exception as e:
+                # Don't fail connection if webhook key generation fails
+                logger.warning(f"Failed to generate webhook key on connect (non-critical): {e}")
 
             return ConnectAccountResponse(
                 account_id=account.id.value,
@@ -302,6 +323,30 @@ class CreateAccountUseCase:
 
             # Save account to repository
             saved_account = await self._account_repo.save(account)
+            
+            # Generate webhook key for this broker connection (Patch 1.2.1)
+            # We need to update the ORM model directly after save
+            # This is a workaround since domain entity doesn't include webhook_key
+            try:
+                from app.infrastructure.repositories.account_repository import SQLAlchemyAccountRepository
+                if isinstance(self._account_repo, SQLAlchemyAccountRepository):
+                    import secrets
+                    from app.models.database_models import TradingAccount
+                    from sqlalchemy import select
+                    # Access session via repository
+                    session = self._account_repo._session
+                    stmt = select(TradingAccount).where(TradingAccount.id == int(saved_account.id.value))
+                    result = await session.execute(stmt)
+                    orm_account = result.scalar_one_or_none()
+                    if orm_account and not orm_account.webhook_key:
+                        broker_slug = request.broker.value.lower()
+                        short_random = secrets.token_urlsafe(6)[:8]
+                        orm_account.webhook_key = f"webhook_{broker_slug}_user{request.user_id}_{short_random}"
+                        await session.commit()
+                        logger.info(f"Generated webhook key for account {saved_account.id.value}: {orm_account.webhook_key[:20]}...")
+            except Exception as e:
+                # Don't fail account creation if webhook key generation fails
+                logger.warning(f"Failed to generate webhook key (non-critical): {e}")
 
             # Store credentials encrypted in separate table
             credential_id = str(uuid.uuid4())
