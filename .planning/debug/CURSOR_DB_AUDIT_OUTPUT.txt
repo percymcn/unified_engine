@@ -1,0 +1,120 @@
+==============================================
+TradeFlow Unified Engine - DB Audit
+Date: 2026-01-23T00:15:57-05:00
+==============================================
+
+1. DATABASE_URL Configuration
+------------------------------
+
+A) Local .env file:
+DATABASE_URL=sqlite:////home/pharma5/unified_engine/trading_db.db
+
+B) Docker stack (docker-stack.yml):
+      - DATABASE_URL=postgresql://trading_user@postgres:5432/trading_db
+      - DATABASE_URL=postgresql://trading_user@postgres:5432/trading_db
+      - DATABASE_URL=postgresql://trading_user@postgres:5432/trading_db
+
+C) Alembic default (alembic/env.py):
+    return os.getenv("DATABASE_URL", "postgresql://trading_user:trading_password@localhost:5432/trading_db")
+
+D) Current shell:
+   DATABASE_URL=postgresql://trading_user:trading_secure_password_2024@127.0.0.1:5432/trading_db
+
+2. Postgres Container Status
+-----------------------------
+Container ID: 330ce5e4921e
+running
+
+3. Alembic Migration State
+--------------------------
+
+A) Alembic heads (available migrations):
+020 (head)
+
+B) Current DB version:
+ 020
+
+
+4. Table Existence Check
+------------------------
+
+Expected tables and their status:
+   [OK] users
+   [OK] accounts
+   [OK] signals
+   [OK] trades
+   [OK] positions
+   [OK] orders
+   [OK] api_keys
+   [OK] strategies
+   [OK] momentum_settings
+   [OK] signal_counters
+   [OK] discard_bin
+   [OK] alembic_version
+
+5. Signal Intelligence Schema Check
+------------------------------------
+
+A) signal_counters columns:
+    column_name    |        data_type         
+-------------------+--------------------------
+ user_id           | integer
+ session_key       | character varying
+ current_bias      | character varying
+ opposite_momentum | integer
+ last_signal_ts    | timestamp with time zone
+ updated_at        | timestamp with time zone
+ last8_pattern     | character varying
+ chop_mode         | boolean
+(8 rows)
+
+
+   Expected columns: user_id, session_key, current_bias, opposite_momentum, last_signal_ts, last8_pattern, chop_mode, updated_at
+   Known drift: directional_bias (should be current_bias), total_signals (should be opposite_momentum), last_signal_at (should be last_signal_ts)
+
+B) discard_bin columns:
+      column_name       |        data_type         
+------------------------+--------------------------
+ id                     | integer
+ user_id                | integer
+ received_at            | timestamp with time zone
+ reason                 | character varying
+ age_ms                 | integer
+ symbol                 | character varying
+ side                   | character varying
+ broker_target          | character varying
+ raw_signal_json        | json
+ normalized_signal_json | jsonb
+ created_at             | timestamp with time zone
+(11 rows)
+
+
+   Expected columns: id, user_id, received_at, reason, raw_signal_json (JSON), normalized_signal_json (JSON), age_ms, broker_target, symbol, side, created_at
+   Known drift: raw_payload (should be raw_signal_json), normalized_payload (should be normalized_signal_json)
+
+C) Patch 1.2.1 columns:
+   [OK] users.theme exists
+   [OK] accounts.webhook_key exists
+
+6. Index Check
+--------------
+
+Signal Intelligence indexes:
+           indexname           
+-------------------------------
+ signal_counters_pkey
+ momentum_settings_pkey
+ momentum_settings_user_id_key
+ ix_momentum_settings_user_id
+ discard_bin_pkey
+(5 rows)
+
+
+==============================================
+Audit Complete
+==============================================
+
+Next steps:
+  - If schema drift detected: Review .planning/ALEMBIC_RECONCILIATION_PLAN.md
+  - If tables missing: Run alembic upgrade head
+  - If DATABASE_URL mismatch: Update .env or set environment variable

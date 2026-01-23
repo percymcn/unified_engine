@@ -966,8 +966,47 @@ alembic downgrade -1
 - **Settings Storage:** User-level settings in `momentum_settings` table with safe defaults
 - **Session Tracking:** Uses composite key `user_id:symbol:strategy_id` for momentum tracking
 
-## Conclusion
+## DB Reconciliation Finalized (January 23, 2026)
 
-The core Signal Intelligence Guard Layer is complete and functional. The infrastructure is in place for all features (sg-001 through sg-009), with the guard logic fully implemented and integrated into the signal routing flow. Remaining work focuses on UI components, documentation, testing, and soft launch features.
+**Status:** ✅ **COMPLETE** - Database and Alembic migrations reconciled to consistent state
 
-**Estimated Completion:** Phase 3-7 can be completed in subsequent iterations. Core functionality is ready for testing and integration.
+### Final State
+
+- **Alembic Version:** 020 (head)
+- **Database:** Postgres `trading_db` (single source of truth)
+- **Migration 019:** Fixed to use `accounts` table (not `trading_accounts`)
+- **Migration 020:** Bridge migration applied (reconciled schema drift)
+
+### Reconciliation Process
+
+1. **Migration 019 Fix:** Changed table reference from `trading_accounts` → `accounts` (matches actual schema)
+2. **Migration 020:** Bridge migration applied to reconcile drift:
+   - `signal_counters`: Columns already correct (current_bias, opposite_momentum, last_signal_ts, last8_pattern, chop_mode)
+   - `discard_bin`: Columns already correct (raw_signal_json, normalized_signal_json)
+3. **Alembic State:** Verified at 020 (head)
+
+### Verification
+
+- ✅ Alembic current: 020
+- ✅ All migrations apply cleanly
+- ✅ Schema matches migrations (verified by db_audit.sh)
+- ✅ App imports successfully
+- ✅ All tables present (22 tables including Signal Intelligence tables)
+
+### Commands
+
+```bash
+export DATABASE_URL="postgresql://trading_user:trading_secure_password_2024@127.0.0.1:5432/trading_db"
+alembic current  # Result: 020
+alembic upgrade head  # Applies cleanly (already at head)
+```
+
+### Files
+
+- Migration 019: Fixed table name reference
+- Migration 020: Bridge migration (already applied)
+- Audit script: `scripts/db_audit.sh` (verifies schema state)
+- Reconciliation plan: `.planning/ALEMBIC_RECONCILIATION_PLAN.md`
+
+---
+

@@ -14,8 +14,10 @@ Patch 1.2.1 implements per-broker secure webhooks and theme isolation for the da
 
 1. **Database Migration (019)**
    - Added `users.theme` column (VARCHAR(10), default 'system')
-   - Added `trading_accounts.webhook_key` column (TEXT, unique, nullable)
+   - Added `accounts.webhook_key` column (TEXT, unique, nullable) - **Note:** Fixed 2026-01-23 to use `accounts` table (not `trading_accounts`)
    - Created unique index on `webhook_key` (allows NULL)
+
+**Note (2026-01-23):** Migration 019 was fixed to use `accounts` table instead of `trading_accounts`. The actual schema uses the `Account` model from `models.py` which maps to the `accounts` table. Migration 020 (bridge migration) was applied to reconcile any schema drift.
 
 2. **Webhook Key Generation**
    - Auto-generates webhook key on account creation: `webhook_<broker>_user<userId>_<random>`
