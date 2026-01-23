@@ -58,6 +58,7 @@ from app.routers.trial import router as trial_router
 from app.routers.signal_intelligence import router as signal_intelligence_router
 from app.routers.webhooks_secure import router as webhooks_secure_router
 from app.routers.admin import router as admin_router
+from app.routers.broker_contracts import router as broker_contracts_router
 from app.core.event_emitter import event_emitter
 from app.tasks.token_refresh import refresh_expiring_tokens
 
@@ -227,6 +228,7 @@ app.include_router(trial_router, prefix="/api/trial", tags=["trial"])
 app.include_router(signal_intelligence_router, tags=["signal-intelligence"])
 app.include_router(webhooks_secure_router, prefix="/api/v1/webhooks", tags=["webhooks-secure"])
 app.include_router(admin_router, tags=["admin"])
+app.include_router(broker_contracts_router, tags=["broker-contracts"])
 
 # WebSocket endpoint
 @app.websocket("/ws")
