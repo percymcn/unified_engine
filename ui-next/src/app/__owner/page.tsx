@@ -60,8 +60,13 @@ export default function AdminPage() {
   const { toast } = useToast();
   const [users, setUsers] = useState<User[]>([]);
   const [plans, setPlans] = useState<PlanConfig[]>([]);
+  const [overview, setOverview] = useState<{
+    users: { total: number; active: number; verified: number };
+    plans_configured: number;
+    stripe_configured: boolean;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"users" | "plans">("users");
+  const [activeTab, setActiveTab] = useState<"overview" | "users" | "plans">("overview");
 
   useEffect(() => {
     fetchData();
@@ -70,7 +75,21 @@ export default function AdminPage() {
 
   const fetchData = async () => {
     try {
-      if (activeTab === "users") {
+      if (activeTab === "overview") {
+        const response = await fetch("/api/admin/overview");
+        if (response.status === 403) {
+          toast({
+            title: "Access Denied",
+            description: "This area is restricted to owners only.",
+            variant: "destructive",
+          });
+          router.push("/dashboard");
+          return;
+        }
+        if (!response.ok) throw new Error("Failed to fetch overview");
+        const data = await response.json();
+        setOverview(data);
+      } else if (activeTab === "users") {
         const response = await fetch("/api/admin/users");
         if (response.status === 403) {
           toast({
@@ -211,6 +230,17 @@ export default function AdminPage() {
       {/* Tabs */}
       <div className="flex gap-2 border-b">
         <button
+          onClick={() => setActiveTab("overview")}
+          className={`px-4 py-2 font-medium ${
+            activeTab === "overview"
+              ? "border-b-2 border-primary text-primary"
+              : "text-muted-foreground"
+          }`}
+        >
+          <Shield className="h-4 w-4 inline mr-2" />
+          Overview
+        </button>
+        <button
           onClick={() => setActiveTab("users")}
           className={`px-4 py-2 font-medium ${
             activeTab === "users"
@@ -233,6 +263,58 @@ export default function AdminPage() {
           Plans & Pricing
         </button>
       </div>
+
+      {/* Overview Tab */}
+      {activeTab === "overview" && (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Total Users
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold">{overview?.users.total || 0}</div>
+              <p className="text-sm text-muted-foreground mt-1">
+                {overview?.users.active || 0} active, {overview?.users.verified || 0} verified
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Settings className="h-5 w-5" />
+                Pricing Plans
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold">{overview?.plans_configured || 0}</div>
+              <p className="text-sm text-muted-foreground mt-1">Tiers configured</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5" />
+                Stripe Status
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold">
+                {overview?.stripe_configured ? (
+                  <Check className="h-8 w-8 text-green-500" />
+                ) : (
+                  <X className="h-8 w-8 text-red-500" />
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground mt-1">
+                {overview?.stripe_configured ? "Configured" : "Not configured"}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Users Tab */}
       {activeTab === "users" && (
