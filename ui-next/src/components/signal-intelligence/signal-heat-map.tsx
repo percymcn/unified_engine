@@ -10,6 +10,13 @@ interface SignalHistoryEntry {
   created_at: string;
 }
 
+interface SignalResponse {
+  created_at?: string;
+  timestamp?: string;
+  symbol?: string;
+  action?: string;
+}
+
 interface HeatMapProps {
   symbol?: string; // Optional: filter by symbol
 }
@@ -28,8 +35,8 @@ export function SignalHeatMap({ symbol }: HeatMapProps) {
           const now = new Date();
           const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
           
-          const recentSignals = (data.signals || data || []).filter((s: any) => {
-            const signalDate = new Date(s.created_at || s.timestamp);
+          const recentSignals = (data.signals || data || []).filter((s: SignalResponse) => {
+            const signalDate = new Date(s.created_at || s.timestamp || '');
             return signalDate >= yesterday && (!symbol || s.symbol === symbol);
           });
           

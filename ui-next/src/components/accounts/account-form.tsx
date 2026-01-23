@@ -125,7 +125,6 @@ export function AccountForm({
   const [accountType, setAccountType] = useState<AccountType>(
     account?.account_type || 'live'
   );
-  const [accountId, setAccountId] = useState(account?.account_id || '');
   const [currency, setCurrency] = useState(account?.currency || 'USD');
   const [leverage, setLeverage] = useState(account?.leverage?.toString() || '100');
   const [credentials, setCredentials] = useState<Record<string, string>>({});

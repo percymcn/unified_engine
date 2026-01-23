@@ -108,11 +108,118 @@ app/main.py
 ```
 
 Key initialization flow:
-1. `Base.metadata.create_all()` - DB tables
+1. Alembic migrations (production) or `create_all()` (dev fallback)
 2. `redis_client._connect()` - Redis
 3. `Container.initialize()` - DI container
 4. `event_emitter.initialize()` - NATS (optional)
 5. `signal_processor.initialize()` - Broker connections
+
+**Important:** Production uses migrations-first (`alembic upgrade head`). Never use `create_all()` to fix schema.
+
+---
+
+## Signal Intelligence Guard Layer (Milestone 1.2)
+
+### Guard Injection Points
+
+```
+Webhook Endpoint             Guard Layer                    Execution
+─────────────────────────────────────────────────────────────────────
+/webhooks/tradingview ──────► evaluate_guard_layer() ──────► process_signal_use_case
+/webhooks/trailhacker ──────► evaluate_guard_layer() ──────► process_signal_use_case
+/webhooks/signal/{key} ─────► evaluate_guard_layer() ──────► process_signal_use_case
+/webhooks/incoming ─────────► webhook_key validation ──────► evaluate_guard_layer() ──► process_signal_use_case
+```
+
+### Guard Checks (sg-001 to sg-007)
+
+| ID | Guard | Decision |
+|----|-------|----------|
+| sg-002 | Staleness | SKIP if signal too old |
+| sg-001 | Momentum | WARN_MODAL_REQUIRED if opposite threshold hit |
+| sg-001 | Chop Detection | PAUSE_NEW_ENTRIES if alternating pattern |
+| sg-004 | Max Exposure | PAUSE_NEW_ENTRIES if limit exceeded |
+| sg-005 | Discard Bin | Log all skipped signals with audit trail |
+
+### Fail-Open Design
+
+Guard layer errors **never block execution**. If guard service throws:
+- Log error
+- Continue with `CONTINUE` decision
+- Execution proceeds normally
+
+---
+
+## Secure Per-Broker Webhooks (Patch 1.2.1)
+
+### Endpoint
+
+```
+POST /api/v1/webhooks/incoming?broker={broker}&user={userId}&key={webhook_key}
+```
+
+### Validation Flow
+
+```
+Incoming Request
+      │
+      ▼
+Validate: broker + user + key match TradingAccount
+      │
+      ├── Match found → Route to that account ONLY
+      │
+      └── Mismatch → 403 Forbidden + log to discard_bin (reason: broker_mismatch)
+```
+
+### Webhook Key Format
+
+```
+webhook_{broker}_user{userId}_{random6}
+Example: webhook_tradelocker_user1234_a8f3c1
+```
+
+---
+
+## Theme Isolation (Patch 1.2.1)
+
+### Route-Based Theme
+
+| Route Pattern | Theme Behavior |
+|---------------|----------------|
+| `/dashboard/*`, `/app/*` | Uses user's `theme` preference (system/dark/light) |
+| `/`, `/login`, `/register` | **Always dark** (landing page) |
+
+### Theme Provider Logic
+
+```typescript
+// ui-next/src/providers/theme-provider.tsx
+if (pathname.startsWith('/dashboard') || pathname.startsWith('/app')) {
+  // Use theme from cookie/database
+} else {
+  // Force dark theme, ignore cookie
+}
+```
+
+---
+
+## Database Migrations Pipeline
+
+### Current State
+
+| Version | Purpose | Status |
+|---------|---------|--------|
+| 018 | Signal Intelligence tables | Applied |
+| 019 | Per-broker webhooks + theme | Applied (fixed) |
+| 020 | Bridge migration (schema drift) | Applied |
+
+**Alembic Head:** 020
+
+### Migration Rules
+
+1. **Migrations-first**: Always use `alembic upgrade head`
+2. **Never use `create_all()`** to fix schema in production
+3. **Bridge migrations** for drift reconciliation (no drops)
+4. **Test on clean DB** before production
 
 ### UI Entry Point
 

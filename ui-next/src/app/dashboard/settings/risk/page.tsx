@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Shield, AlertTriangle, DollarSign, TrendingDown, Zap, Clock, Pause } from "lucide-react";
+import { Shield, AlertTriangle, DollarSign, TrendingDown, Zap, Clock } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 
 interface GlobalRiskSettings {
@@ -390,8 +390,8 @@ export default function RiskSettingsPage() {
               <Label>Warning Threshold (opposite signals)</Label>
               <div className="space-y-2 mt-2">
                 <Slider
-                  value={[momentumSettings.warn_at]}
-                  onValueChange={(value) => setMomentumSettings({ ...momentumSettings, warn_at: value[0] })}
+                  value={momentumSettings.warn_at}
+                  onValueChange={(value) => setMomentumSettings({ ...momentumSettings, warn_at: value })}
                   min={3}
                   max={15}
                   step={1}

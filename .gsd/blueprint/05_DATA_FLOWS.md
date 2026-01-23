@@ -2,20 +2,41 @@
 
 ## Live Data Ingestion
 
-### 1. Webhook Signal Flow
+### 1. Webhook Signal Flow (with Signal Intelligence Guard)
 
 ```
 TradingView Alert
       │
       ▼
 POST /api/v1/webhooks/signal/{webhook_key}
+  OR /api/v1/webhooks/tradingview
+  OR /api/v1/webhooks/trailhacker
+  OR /api/v1/webhooks/incoming?broker=X&user=Y&key=Z
       │
       ▼
-webhooks.py:handle_signal()
-├── Validate webhook_key → WebhookConfig lookup
+webhooks.py or webhooks_secure.py
+├── Validate webhook_key / broker_key (secure endpoint)
 ├── Parse signal payload (symbol, action, qty, etc.)
 ├── Check deduplication (Redis)
-└── Queue to signal_processor
+│
+│   ┌─────────────────────────────────────────────────────┐
+│   │  GUARD LAYER EVALUATION (Milestone 1.2)            │
+│   │  signal_intelligence_guard.py:evaluate()           │
+│   │  ├── sg-002: Staleness Check                       │
+│   │  │   └── SKIP if signal > staleness_seconds old    │
+│   │  ├── sg-001: Momentum Guard                        │
+│   │  │   ├── Update session counter                    │
+│   │  │   ├── WARN_MODAL if opposite_momentum >= warn_at│
+│   │  │   └── PAUSE if chop pattern detected            │
+│   │  ├── sg-004: Exposure Guard                        │
+│   │  │   └── PAUSE if total_margin > max_exposure      │
+│   │  └── CONTINUE if all checks pass                   │
+│   │  (Fails open: errors → CONTINUE)                   │
+│   └─────────────────────────────────────────────────────┘
+│
+├── If SKIP → log to discard_bin, return early
+├── If PAUSE/WARN → return modal_required response
+└── If CONTINUE → Queue to signal_processor
       │
       ▼
 signal_processor.py:process_signal()
@@ -24,10 +45,34 @@ signal_processor.py:process_signal()
 │   ├── Get broker executor
 │   ├── Normalize symbol (SymbolNormalizationService)
 │   ├── Check risk limits (RiskService)
+│   ├── Convert risk units to prices (RiskUnitConverter)
 │   ├── Place order via executor
 │   └── Log result
 ├── Store Signal in DB
 └── WebSocket broadcast to UI
+```
+
+### 1b. Secure Per-Broker Webhook Flow (Patch 1.2.1)
+
+```
+TradingView Alert (with broker-specific URL)
+      │
+      ▼
+POST /api/v1/webhooks/incoming?broker=tradelocker&user=123&key=webhook_tradelocker_user123_abc
+      │
+      ▼
+webhooks_secure.py:handle_incoming_webhook()
+├── Extract: broker, user_id, key from query params
+├── Lookup: TradingAccount where broker=X AND user_id=Y AND webhook_key=Z
+│
+├── MATCH FOUND:
+│   ├── Route signal ONLY to that specific account
+│   └── Continue to guard layer → execution
+│
+└── MISMATCH (key invalid or account not found):
+    ├── Log to discard_bin (reason: "broker_mismatch")
+    ├── Return 403 Forbidden
+    └── NO execution occurs (fail-closed for security)
 ```
 
 ### 2. Account Balance Sync Flow
@@ -250,4 +295,88 @@ async def update_daily_pnl(account_id: int):
 ```
 
 ---
-*Generated: 2026-01-22*
+
+## Theme Handling Flow (Patch 1.2.1)
+
+### Route-Based Theme Resolution
+
+```
+User navigates to URL
+      │
+      ▼
+theme-provider.tsx checks pathname
+      │
+      ├── /dashboard/* or /app/*
+      │   ▼
+      │   Check theme cookie
+      │   ├── Cookie exists → use that theme
+      │   └── No cookie → fetch from API → set cookie
+      │       │
+      │       ▼
+      │       Apply theme (system/dark/light)
+      │
+      └── / or /login or /register (landing)
+          ▼
+          Force dark theme
+          (ignore cookie, ignore database preference)
+```
+
+### Theme Update Flow
+
+```
+User changes theme in Settings → Preferences
+      │
+      ▼
+PUT /api/v1/users/me/preferences { theme: "dark" }
+      │
+      ▼
+Update users.theme in database
+      │
+      ▼
+Set theme cookie (immediate update)
+      │
+      ▼
+UI re-renders with new theme
+```
+
+---
+
+## Discard Bin Flow (Milestone 1.2)
+
+### Discard Reasons
+
+| Reason | Source | Description |
+|--------|--------|-------------|
+| `stale` | sg-002 | Signal timestamp too old |
+| `chop_mode` | sg-001 | Alternating buy/sell pattern |
+| `exposure_limit` | sg-004 | Max exposure exceeded |
+| `broker_mismatch` | 1.2.1 | Webhook key doesn't match account |
+
+### Discard Record Structure
+
+```json
+{
+  "id": 123,
+  "user_id": 1,
+  "reason": "stale",
+  "raw_signal_json": { "ticker": "EURUSD", "action": "buy" },
+  "normalized_signal_json": { "symbol": "EURUSD", "side": "BUY" },
+  "created_at": "2026-01-23T00:00:00Z"
+}
+```
+
+### Auto-Flush
+
+```
+Background task (configurable interval)
+      │
+      ▼
+Query: discard_bin WHERE created_at < (now - flush_interval)
+      │
+      ▼
+Delete old records (1h / 24h / 30d based on user setting)
+```
+
+---
+
+*Generated: 2026-01-23 (Updated for Milestones 1.2, 1.2.1, DB Reconciliation)*

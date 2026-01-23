@@ -16,7 +16,6 @@ import {
   Zap,
   ZapOff,
   Copy,
-  Link as LinkIcon,
 } from 'lucide-react';
 import {
   Account,

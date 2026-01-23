@@ -65,7 +65,7 @@ export function GuardModal({
           variant: "destructive",
         });
       }
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: "Failed to complete action",

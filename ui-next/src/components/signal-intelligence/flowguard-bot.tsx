@@ -86,7 +86,7 @@ export function FlowGuardBot() {
     try {
       const json = generateAlertJSON(input);
       setOutput(json);
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: "Failed to generate alert JSON",
