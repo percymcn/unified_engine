@@ -171,6 +171,20 @@ class Settings(BaseSettings):
     # Frontend URL (for Stripe redirect URLs)
     FRONTEND_URL: str = "https://tradeflow.fluxeo.net"
     
+    # Admin Configuration
+    OWNER_ADMIN_EMAILS: str = ""  # Comma-separated list of owner/admin emails
+    
+    # OAuth Configuration
+    GOOGLE_CLIENT_ID: Optional[str] = None
+    GOOGLE_CLIENT_SECRET: Optional[str] = None
+    GOOGLE_REDIRECT_URI: str = "https://tradeflow.fluxeo.net/api/auth/google/callback"
+    
+    GITHUB_CLIENT_ID: Optional[str] = None
+    GITHUB_CLIENT_SECRET: Optional[str] = None
+    
+    MICROSOFT_CLIENT_ID: Optional[str] = None
+    MICROSOFT_CLIENT_SECRET: Optional[str] = None
+    
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v):

@@ -247,13 +247,20 @@ class OAuthService:
         """Get OAuth authorization URL for provider"""
         if provider == OAuthProvider.GOOGLE:
             client_id = getattr(settings, "GOOGLE_CLIENT_ID", "")
-            redirect_uri = f"{settings.CORS_ORIGINS[0]}/auth/google/callback"
+            if not client_id:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Google OAuth not configured"
+                )
+            redirect_uri = getattr(settings, "GOOGLE_REDIRECT_URI", None) or f"{settings.FRONTEND_URL}/api/auth/google/callback"
             return (
                 f"https://accounts.google.com/o/oauth2/v2/auth?"
                 f"client_id={client_id}&"
                 f"redirect_uri={redirect_uri}&"
                 f"response_type=code&"
-                f"scope=openid email profile"
+                f"scope=openid email profile&"
+                f"access_type=offline&"
+                f"prompt=consent"
             )
         elif provider == OAuthProvider.GITHUB:
             client_id = getattr(settings, "GITHUB_CLIENT_ID", "")

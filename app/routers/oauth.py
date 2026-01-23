@@ -5,6 +5,7 @@ Handles OAuth login flows for Google, GitHub, Microsoft
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import Optional
+import logging
 
 from app.db.database import get_db
 from app.models.enhanced_models import OAuthProvider
@@ -12,6 +13,10 @@ from app.services.oauth_service import oauth_service
 from app.routers.auth import create_access_token, get_current_user
 from app.models.models import User
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/api/v1/oauth", tags=["oauth"])
 
 router = APIRouter(prefix="/api/v1/oauth", tags=["oauth"])
 
@@ -42,6 +47,88 @@ async def get_oauth_providers():
         })
     
     return {"providers": providers}
+
+@router.get("/callback/google")
+async def google_oauth_callback(
+    code: str = Query(..., description="OAuth authorization code"),
+    state: Optional[str] = Query(None, description="OAuth state parameter"),
+    db: Session = Depends(get_db)
+):
+    """
+    Handle Google OAuth callback.
+    Exchanges authorization code for access token and creates/updates user session.
+    """
+    import httpx
+    
+    if not settings.GOOGLE_CLIENT_ID or not settings.GOOGLE_CLIENT_SECRET:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Google OAuth not configured"
+        )
+    
+    redirect_uri = settings.GOOGLE_REDIRECT_URI or f"{settings.FRONTEND_URL}/api/auth/google/callback"
+    
+    # Exchange authorization code for access token
+    try:
+        async with httpx.AsyncClient() as client:
+            token_response = await client.post(
+                "https://oauth2.googleapis.com/token",
+                data={
+                    "code": code,
+                    "client_id": settings.GOOGLE_CLIENT_ID,
+                    "client_secret": settings.GOOGLE_CLIENT_SECRET,
+                    "redirect_uri": redirect_uri,
+                    "grant_type": "authorization_code",
+                },
+            )
+            token_response.raise_for_status()
+            token_data = token_response.json()
+            access_token = token_data["access_token"]
+    except Exception as e:
+        logger.error(f"Google OAuth token exchange failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to exchange authorization code for token"
+        )
+    
+    # Authenticate user with Google
+    try:
+        user = await oauth_service.authenticate_oauth(OAuthProvider.GOOGLE, access_token, db)
+    except Exception as e:
+        logger.error(f"Google OAuth authentication failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to authenticate with Google"
+        )
+    
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is inactive"
+        )
+    
+    # Create access token
+    from datetime import timedelta
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    token = create_access_token(
+        data={"sub": user.username, "user_id": user.id},
+        expires_delta=access_token_expires
+    )
+    
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "username": user.username,
+            "full_name": user.full_name,
+            "avatar_url": user.avatar_url,
+            "role": user.role,
+            "subscription_tier": user.subscription_tier.value if user.subscription_tier else "free"
+        }
+    }
 
 @router.post("/login/{provider}")
 async def oauth_login(
