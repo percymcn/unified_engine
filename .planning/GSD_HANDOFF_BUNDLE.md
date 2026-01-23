@@ -13,6 +13,11 @@
 | Hash | Message | Description |
 |------|---------|-------------|
 | `aa17b39` | phase0: baseline snapshot + session log | Created CURSOR_SESSION_LOG.md |
+| `1fe3ec6` | phase2: GSD documentation rehydration + handoff bundle | Updated all GSD tracking files |
+| `305fb33` | phase3: remove broken SSO buttons from auth UI | Removed Google/GitHub buttons from login/register |
+| `af3ab1f` | phase4: add broker auth smoke test harness | Created broker auth test scripts |
+
+**Total:** 4 commits, all small logical units
 
 ### Files Modified/Created
 
@@ -56,48 +61,35 @@
 - Port 3456 verified
 - Script exists
 
-### PHASE 2 - GSD Rehydration ✅ IN PROGRESS
+### PHASE 2 - GSD Rehydration ✅ COMPLETE
 - [x] Create GSD_HANDOFF_BUNDLE.md
-- [ ] Update CHANGESET_INDEX.md
-- [ ] Update STATE_CAPSULE_2026-01.md
-- [ ] Verify blueprint files current
+- [x] Update CHANGESET_INDEX.md
+- [x] Update STATE_CAPSULE_2026-01.md
+- [x] Verify blueprint files current
 
-### PHASE 3 - SSO UI Cleanup ⏳ PENDING
-- [ ] Audit login/register pages
-- [ ] Remove/disable broken SSO buttons (GitHub/Google)
-- [ ] Create AUTH_UI_SSO_AUDIT.md
+### PHASE 3 - SSO UI Cleanup ✅ COMPLETE
+- [x] Audit login/register pages
+- [x] Remove/disable broken SSO buttons (GitHub/Google)
+- [x] Create AUTH_UI_SSO_AUDIT.md
 
-### PHASE 4 - Broker Auth Smoke Test ⏳ PENDING
-- [ ] Create scripts/broker_auth_smoke.sh
-- [ ] Create scripts/broker_auth_smoke.py (if needed)
-- [ ] Create BROKER_AUTH_REPORT.md
+### PHASE 4 - Broker Auth Smoke Test ✅ COMPLETE
+- [x] Create scripts/broker_auth_smoke.sh
+- [x] Create scripts/broker_auth_smoke.py
+- [x] Create BROKER_AUTH_REPORT.md
 
 ---
 
 ## 4. Exact Next Commands
 
-```bash
-# Continue PHASE 2
-cd /home/pharma5/unified_engine
-# Update CHANGESET_INDEX.md
-# Update STATE_CAPSULE_2026-01.md
-git add .planning/ .gsd/
-git commit -m "phase2: GSD documentation rehydration"
+**All phases complete!** No remaining work.
 
-# PHASE 3 - SSO cleanup
-# Edit ui-next/src/app/login/page.tsx - remove/disable SSO buttons
-# Edit ui-next/src/app/register/page.tsx - remove/disable SSO buttons
-# Create .planning/AUTH_UI_SSO_AUDIT.md
-git add ui-next/src/app/login/page.tsx ui-next/src/app/register/page.tsx .planning/AUTH_UI_SSO_AUDIT.md
-git commit -m "phase3: remove broken SSO buttons from auth UI"
+**Uncommitted Files (Pre-existing, not part of this session):**
+- `app/routers/webhooks.py` - Modified (pre-existing guard layer work)
+- `.planning/REHYDRATION_REPORT.md` - Untracked (pre-existing)
+- `tests/test_webhook_log_duplicate.py` - Untracked (pre-existing)
+- `ui-next/scripts/run_3456.sh` - Untracked (pre-existing)
 
-# PHASE 4 - Broker auth smoke test
-# Create scripts/broker_auth_smoke.sh
-# Create scripts/broker_auth_smoke.py (if needed)
-# Create .planning/BROKER_AUTH_REPORT.md
-git add scripts/ .planning/BROKER_AUTH_REPORT.md
-git commit -m "phase4: add broker auth smoke test harness"
-```
+**Note:** These files were present at session start and are not part of this session's work.
 
 ---
 
