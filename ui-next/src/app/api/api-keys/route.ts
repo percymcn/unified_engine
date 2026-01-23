@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { AUTH_COOKIE_NAME } from '@/lib/auth';
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8765';
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
