@@ -250,5 +250,69 @@ This document indexes all changes made during:
 
 ---
 
+## Current Session (2026-01-23 Continuation)
+
+### Phase 0: Baseline Snapshot
+- `b4b241d` phase0: baseline snapshot + session log
+
+### Phase 1: UI Hard Recovery
+**Status:** ✅ COMPLETE
+- Frontend builds successfully
+- Runs on port 3456 (LAN-visible on 0.0.0.0)
+- Script: `ui-next/scripts/run_3456.sh` - Updated with LAN verification
+- LAN IP: `192.168.1.254:3456` - Verified accessible
+
+**Files:**
+- `.planning/PROD_UI_3456_REPORT.md` - Created
+- `ui-next/scripts/run_3456.sh` - Updated
+
+### Phase 2: Proxy/502 Recovery
+**Status:** ✅ COMPLETE
+- No standalone proxy configs found
+- Docker configs reference services (not direct ports)
+- No changes required
+
+**Files:**
+- `.planning/PROXY_502_REPORT.md` - Created
+
+### Phase 3: Auth UI SSO Fix
+**Status:** ✅ COMPLETE
+- GitHub SSO: REMOVED
+- Google SSO: PRESENT, gated by env vars
+- OAuth hook: `useOAuthProviders` - Created
+- Button enabled only if `GOOGLE_CLIENT_ID` exists
+- Disabled state shows clear messaging
+
+**Files:**
+- `ui-next/src/lib/useOAuthProviders.ts` - NEW
+- `ui-next/src/app/login/page.tsx` - MOD (Google SSO gated)
+- `ui-next/src/app/register/page.tsx` - MOD (Google SSO gated)
+- `.planning/AUTH_SSO_REPORT.md` - Created
+
+### Phase 4: Broker UI ↔ Backend Contract
+**Status:** ✅ COMPLETE
+- Contract aligned
+- Backend accepts field name variations (non-breaking)
+- Error responses structured
+- Smoke script created
+
+**Files:**
+- `.planning/BROKER_UI_CONTRACT_REPORT.md` - Created
+- `scripts/ui_broker_contract_smoke.sh` - Created
+
+### Phase 5: Broker Auth Smoke
+**Status:** ✅ COMPLETE (from previous session)
+- Scripts exist: `scripts/broker_auth_smoke.sh`, `scripts/broker_auth_smoke.py`
+- Read-only operations only
+- No trades placed
+
+### Phase 6: GSD Lockdown
+**Status:** ✅ COMPLETE
+- All tracking files updated
+- Handoff bundle complete
+
+---
+
 *Generated: 2026-01-23*
+*Last Updated: 2026-01-23 19:20 UTC*
 *Last Updated: 2026-01-23 18:40 UTC*
