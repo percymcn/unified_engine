@@ -418,3 +418,89 @@ class AccountEquityHistory(Base):
 
     # Relationships
     account = relationship("TradingAccount")
+
+
+class MomentumSettings(Base):
+    """User-level momentum guard configuration for Signal Intelligence Layer"""
+    __tablename__ = "momentum_settings"
+    __table_args__ = {'extend_existing': True}
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True, index=True)
+
+    # Momentum guard settings
+    warn_at = Column(Integer, nullable=False, default=6)  # Threshold for warning modal
+    auto_breakeven = Column(Boolean, nullable=False, default=False)  # Auto move SL to entry on warning
+    pause_on_chop = Column(Boolean, nullable=False, default=True)  # Pause new entries when choppy
+
+    # Exposure limits
+    max_exposure = Column(Float, nullable=False, default=5000.0)  # Max dollar exposure
+    auto_pause_on_exposure = Column(Boolean, nullable=False, default=True)  # Auto-pause when limit hit
+
+    # Hedge settings
+    allow_hedge = Column(Boolean, nullable=False, default=False)  # Allow hedging on momentum warning
+
+    # Staleness settings
+    staleness_enabled = Column(Boolean, nullable=False, default=True)  # Enable staleness check
+    staleness_seconds = Column(Integer, nullable=False, default=5)  # Max age in seconds
+    force_old_signals = Column(Boolean, nullable=False, default=False)  # Allow old signals anyway
+
+    # Discard bin settings
+    discard_flush_interval = Column(String(10), nullable=False, default="24h")  # 1h, 24h, 30d
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    # Relationships
+    user = relationship("User")
+
+
+class SignalCounter(Base):
+    """Per-session signal momentum tracking for Signal Intelligence Layer"""
+    __tablename__ = "signal_counters"
+    __table_args__ = {'extend_existing': True}
+
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, primary_key=True)
+    session_key = Column(String(255), nullable=False, primary_key=True)  # user_id + symbol + strategy_id
+
+    # Momentum tracking
+    current_bias = Column(String(10), nullable=False, default="none")  # 'buy', 'sell', 'none'
+    opposite_momentum = Column(Integer, nullable=False, default=0)  # Count of opposite signals
+    last_signal_ts = Column(DateTime(timezone=True), nullable=True)  # Timestamp of last signal
+
+    # Pattern tracking
+    last8_pattern = Column(String(16), nullable=True)  # Compact string like 'BBSBSBSB' for chop detection
+    chop_mode = Column(Boolean, nullable=False, default=False)  # True if market is choppy
+
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    # Relationships
+    user = relationship("User")
+
+
+class DiscardBin(Base):
+    """Audit trail for discarded signals"""
+    __tablename__ = "discard_bin"
+    __table_args__ = {'extend_existing': True}
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+
+    # Signal metadata
+    received_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    reason = Column(String(50), nullable=False, index=True)  # 'stale', 'momentum', 'exposure', etc.
+    age_ms = Column(Integer, nullable=True)  # Signal age in milliseconds
+
+    # Signal data (stored as JSON for audit)
+    raw_signal_json = Column(JSON, nullable=True)
+    normalized_signal_json = Column(JSON, nullable=True)
+
+    # Quick lookup fields
+    broker_target = Column(String(50), nullable=True)
+    symbol = Column(String(50), nullable=True)
+    side = Column(String(10), nullable=True)  # 'buy', 'sell'
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    # Relationships
+    user = relationship("User")

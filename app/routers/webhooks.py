@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Request, HTTPException, status, Depends
 from sqlalchemy.orm import Session
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from datetime import datetime
 from decimal import Decimal
 import uuid
@@ -8,7 +8,7 @@ import json
 import logging
 
 from app.db.database import get_db
-from app.models.models import WebhookLog, User
+from app.models.models import WebhookLog, User, Position
 from app.models.database_models import WebhookConfig, TradingAccount, RejectedSignal, RejectedSignalReason
 from app.models.schemas import WebhookLog as WebhookLogSchema, WebhookLogCreate
 from app.routers.auth import get_current_user
@@ -32,6 +32,133 @@ from app.infrastructure.adapters.position_counter_adapter import PositionCounter
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+# Helper function for guard layer evaluation (shared across all webhook endpoints)
+async def evaluate_guard_layer(
+    db: Session,
+    command: ProcessSignalRequest,
+    source: SignalSource,
+    action: SignalAction,
+    user_id: Optional[int] = None,
+    account_ids: Optional[List[int]] = None,
+    accounts_by_id: Optional[Dict[int, Any]] = None,
+    start_time: Optional[datetime] = None,
+    webhook_id: Optional[str] = None
+) -> Optional[Dict[str, Any]]:
+    """
+    Evaluate signal through guard layer.
+    
+    Returns:
+        Dict with guard decision response if signal should be blocked/paused/warned
+        None if signal should proceed (guard passed or failed open)
+    """
+    try:
+        from app.services.signal_intelligence_guard import SignalIntelligenceGuard, GuardDecision
+        from app.domain.entities.signal import Signal
+        from app.domain.value_objects import SignalId, Symbol, Volume, Price, StopLoss, TakeProfit, AccountId
+
+        # If user_id unknown, fail open (don't block) but still allow staleness logging
+        if user_id is None:
+            # Try to infer from command if possible, otherwise skip guard (fail open)
+            logger.debug("Guard layer: user_id unknown, skipping guard evaluation (fail open)")
+            return None
+
+        # Convert command to domain entity for guard evaluation
+        signal_entity = Signal(
+            id=SignalId(str(uuid.uuid4())),
+            source=source,
+            symbol=Symbol(command.symbol),
+            action=action,
+            volume=Volume(command.volume) if command.volume else None,
+            price=Price(command.price) if command.price else None,
+            stop_loss=StopLoss(Price(command.stop_loss)) if command.stop_loss else None,
+            take_profit=TakeProfit(Price(command.take_profit)) if command.take_profit else None,
+            target_accounts=[AccountId(aid) for aid in (account_ids or [])],
+            comment=command.comment,
+            strategy_id=command.strategy_id,
+            strategy_name=command.strategy_name,
+            raw_payload=command.raw_payload,
+        )
+
+        # Get open positions summary for exposure check
+        open_positions_summary = {}
+        if account_ids and accounts_by_id:
+            for account_id in account_ids:
+                account = accounts_by_id.get(account_id)
+                if account:
+                    # Try to get actual positions if available
+                    from app.models.models import Position
+                    positions = db.query(Position).filter(
+                        Position.account_id == account_id,
+                        Position.status == "open"
+                    ).all()
+                    total_margin = sum(p.margin or 0.0 for p in positions) if positions else (account.margin or 0.0)
+                    open_positions_summary[account_id] = {
+                        "total_margin": total_margin,
+                        "positions_count": len(positions) if positions else 0
+                    }
+        elif account_ids:
+            # Fallback: use account margin if positions not available
+            for account_id in account_ids:
+                account = db.query(TradingAccount).filter(TradingAccount.id == account_id).first()
+                if account:
+                    open_positions_summary[account_id] = {
+                        "total_margin": account.margin or 0.0,
+                        "positions_count": 0
+                    }
+
+        # Evaluate guard layer
+        guard = SignalIntelligenceGuard(db)
+        guard_result = await guard.evaluate(
+            signal=signal_entity,
+            user_id=user_id,
+            account_ids=account_ids or [],
+            open_positions_summary=open_positions_summary
+        )
+
+        # Handle guard decisions
+        processing_time_ms = int((datetime.utcnow() - (start_time or datetime.utcnow())).total_seconds() * 1000) if start_time else 0
+
+        if guard_result.decision == GuardDecision.SKIP:
+            return {
+                "success": False,
+                "webhook_id": webhook_id,
+                "status": "skipped",
+                "reason": guard_result.annotations.get("discard_reason", "unknown"),
+                "message": guard_result.annotations.get("history_tag", "Signal skipped by guard layer"),
+                "processing_time_ms": processing_time_ms,
+            }
+
+        elif guard_result.decision == GuardDecision.PAUSE_NEW_ENTRIES:
+            return {
+                "success": False,
+                "webhook_id": webhook_id,
+                "status": "paused",
+                "reason": guard_result.annotations.get("history_tag", "New entries paused"),
+                "modal_data": guard_result.modal_data,
+                "processing_time_ms": processing_time_ms,
+            }
+
+        elif guard_result.decision == GuardDecision.WARN_MODAL_REQUIRED:
+            return {
+                "success": False,
+                "webhook_id": webhook_id,
+                "status": "warning_required",
+                "modal_required": True,
+                "modal_data": guard_result.modal_data,
+                "annotations": guard_result.annotations,
+                "processing_time_ms": processing_time_ms,
+            }
+
+        # Guard passed - return None to continue execution
+        logger.debug(f"Signal passed guard layer checks: {guard_result.annotations}")
+        return None
+
+    except Exception as guard_error:
+        # Fail open - log but don't block execution
+        logger.warning(f"Guard layer evaluation failed, continuing execution (fail open): {guard_error}")
+        return None
 
 @router.post("/tradingview")
 async def tradingview_webhook(request: Request, db: Session = Depends(get_db)):
@@ -108,6 +235,50 @@ async def tradingview_webhook(request: Request, db: Session = Depends(get_db)):
             strategy_name=strategy_info.get("strategy_name"),
             raw_payload=payload,
         )
+
+        # SIGNAL INTELLIGENCE GUARD LAYER - Evaluate signal before execution
+        # Try to get user_id from payload or webhook config if available
+        user_id = None
+        account_ids = []
+        accounts_by_id = {}
+        
+        # Try to infer user_id from payload or API key if available
+        if "user_id" in payload:
+            try:
+                user_id = int(payload["user_id"])
+            except:
+                pass
+        
+        # If user_id available, get accounts for exposure check
+        if user_id:
+            accounts = db.query(TradingAccount).filter(
+                TradingAccount.user_id == user_id,
+                TradingAccount.is_active == True,
+                TradingAccount.is_signal_enabled == True
+            ).all()
+            account_ids = [a.id for a in accounts]
+            accounts_by_id = {a.id: a for a in accounts}
+
+        guard_response = await evaluate_guard_layer(
+            db=db,
+            command=command,
+            source=SignalSource.TRADINGVIEW,
+            action=action,
+            user_id=user_id,
+            account_ids=account_ids if account_ids else None,
+            accounts_by_id=accounts_by_id if accounts_by_id else None,
+            start_time=start_time,
+            webhook_id=webhook_id
+        )
+        
+        if guard_response:
+            # Guard blocked/paused/warned - return early
+            db_webhook.processed = False
+            db_webhook.response_status = 200
+            db_webhook.response_body = json.dumps(guard_response)
+            db_webhook.processing_time_ms = guard_response.get("processing_time_ms", 0)
+            db.commit()
+            return guard_response
 
         # Execute use case
         use_case_result = await use_case.execute(command)
@@ -206,6 +377,49 @@ async def trailhacker_webhook(request: Request, db: Session = Depends(get_db)):
             strategy_name=payload.get("strategy_name"),
             raw_payload=payload,
         )
+
+        # SIGNAL INTELLIGENCE GUARD LAYER - Evaluate signal before execution
+        # Try to get user_id from payload if available
+        user_id = None
+        account_ids = []
+        accounts_by_id = {}
+        
+        if "user_id" in payload:
+            try:
+                user_id = int(payload["user_id"])
+            except:
+                pass
+        
+        # If user_id available, get accounts for exposure check
+        if user_id:
+            accounts = db.query(TradingAccount).filter(
+                TradingAccount.user_id == user_id,
+                TradingAccount.is_active == True,
+                TradingAccount.is_signal_enabled == True
+            ).all()
+            account_ids = [a.id for a in accounts]
+            accounts_by_id = {a.id: a for a in accounts}
+
+        guard_response = await evaluate_guard_layer(
+            db=db,
+            command=command,
+            source=SignalSource.TRAILHACKER,
+            action=action,
+            user_id=user_id,
+            account_ids=account_ids if account_ids else None,
+            accounts_by_id=accounts_by_id if accounts_by_id else None,
+            start_time=start_time,
+            webhook_id=webhook_id
+        )
+        
+        if guard_response:
+            # Guard blocked/paused/warned - return early
+            db_webhook.processed = False
+            db_webhook.response_status = 200
+            db_webhook.response_body = json.dumps(guard_response)
+            db_webhook.processing_time_ms = guard_response.get("processing_time_ms", 0)
+            db.commit()
+            return guard_response
 
         # Execute use case
         use_case_result = await use_case.execute(command)
@@ -574,6 +788,29 @@ async def process_routed_signal(
             strategy_name=payload.get("strategy_name"),
             raw_payload=payload,
         )
+
+        # SIGNAL INTELLIGENCE GUARD LAYER - Evaluate signal before execution
+        guard_response = await evaluate_guard_layer(
+            db=db,
+            command=command,
+            source=source,
+            action=action,
+            user_id=webhook_config.user_id,
+            account_ids=target_account_ids,
+            accounts_by_id=accounts_by_id,
+            start_time=start_time,
+            webhook_id=webhook_id
+        )
+        
+        if guard_response:
+            # Guard blocked/paused/warned - return early
+            webhook_config.failed_signals = (webhook_config.failed_signals or 0) + 1
+            db_webhook.processed = False
+            db_webhook.response_status = 200
+            db_webhook.response_body = json.dumps(guard_response)
+            db_webhook.processing_time_ms = guard_response.get("processing_time_ms", 0)
+            db.commit()
+            return guard_response
 
         # Execute use case
         use_case_result = await use_case.execute(command)

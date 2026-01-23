@@ -20,6 +20,8 @@ import { RecentExecutionsWidget } from '@/components/dashboard/recent-executions
 import { EquityChartWidget } from '@/components/dashboard/equity-chart-widget';
 import { TrialStatusWidget } from '@/components/dashboard/trial-status-widget';
 import { OpenPositionsWidget } from '@/components/dashboard/open-positions-widget';
+import { FlowGuardBot } from '@/components/signal-intelligence/flowguard-bot';
+import { SignalHeatMap } from '@/components/signal-intelligence/signal-heat-map';
 import { useWebSocketContext } from '@/providers/websocket-provider';
 import { cn } from '@/lib/utils';
 
@@ -312,6 +314,14 @@ export default function DashboardPage() {
           </>
         )}
       </div>
+
+      {/* Row 6: Signal Intelligence - Heat Map */}
+      <div className="grid gap-4">
+        <SignalHeatMap />
+      </div>
+
+      {/* FlowGuard Bot - Floating */}
+      <FlowGuardBot />
     </div>
   );
 }

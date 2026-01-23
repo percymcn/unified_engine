@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Shield, AlertTriangle, DollarSign, TrendingDown } from "lucide-react";
+import { Shield, AlertTriangle, DollarSign, TrendingDown, Zap, Clock, Pause } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 
 interface GlobalRiskSettings {
@@ -24,14 +24,66 @@ interface GlobalRiskSettings {
   risk_management_enabled: boolean;
 }
 
+interface MomentumSettings {
+  warn_at: number;
+  auto_breakeven: boolean;
+  pause_on_chop: boolean;
+  max_exposure: number;
+  auto_pause_on_exposure: boolean;
+  allow_hedge: boolean;
+  staleness_enabled: boolean;
+  staleness_seconds: number;
+  force_old_signals: boolean;
+  discard_flush_interval: string;
+}
+
 export default function RiskSettingsPage() {
   const [settings, setSettings] = useState<GlobalRiskSettings | null>(null);
+  const [momentumSettings, setMomentumSettings] = useState<MomentumSettings | null>(null);
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     fetchSettings();
+    fetchMomentumSettings();
   }, []);
+
+  async function fetchMomentumSettings() {
+    try {
+      const res = await fetch("/api/signal-intelligence/settings");
+      if (res.ok) {
+        setMomentumSettings(await res.json());
+      } else {
+        // Set defaults if fetch fails
+        setMomentumSettings({
+          warn_at: 6,
+          auto_breakeven: false,
+          pause_on_chop: true,
+          max_exposure: 5000,
+          auto_pause_on_exposure: true,
+          allow_hedge: false,
+          staleness_enabled: true,
+          staleness_seconds: 5,
+          force_old_signals: false,
+          discard_flush_interval: "24h",
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching momentum settings:", error);
+      setMomentumSettings({
+        warn_at: 6,
+        auto_breakeven: false,
+        pause_on_chop: true,
+        max_exposure: 5000,
+        auto_pause_on_exposure: true,
+        allow_hedge: false,
+        staleness_enabled: true,
+        staleness_seconds: 5,
+        force_old_signals: false,
+        discard_flush_interval: "24h",
+      });
+    }
+  }
 
   async function fetchSettings() {
     try {
@@ -75,22 +127,30 @@ export default function RiskSettingsPage() {
   async function saveSettings() {
     setSaving(true);
     try {
-      const res = await fetch("/api/risk/settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(settings),
-      });
-      if (res.ok) {
-        toast({ title: "Settings saved", description: "Global risk settings updated successfully" });
+      const [res1, res2] = await Promise.all([
+        fetch("/api/risk/settings", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(settings),
+        }),
+        momentumSettings ? fetch("/api/signal-intelligence/settings", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(momentumSettings),
+        }) : Promise.resolve({ ok: true }),
+      ]);
+      
+      if (res1.ok && res2.ok) {
+        toast({ title: "Settings saved", description: "All settings updated successfully" });
       } else {
-        toast({ title: "Error", description: "Failed to save settings", variant: "destructive" });
+        toast({ title: "Error", description: "Failed to save some settings", variant: "destructive" });
       }
     } finally {
       setSaving(false);
     }
   }
 
-  if (!settings) {
+  if (!settings || !momentumSettings) {
     return (
       <div className="space-y-6">
         <div>
@@ -308,6 +368,160 @@ export default function RiskSettingsPage() {
                   <span>10%</span>
                 </div>
               </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Signal Intelligence Guard Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Zap className="h-5 w-5" />
+            Signal Intelligence Guard
+          </CardTitle>
+          <CardDescription>Self-protecting execution guards for signal processing</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Momentum Guard */}
+          <div className="space-y-4">
+            <h3 className="font-semibold text-sm">Momentum Guard</h3>
+            <div>
+              <Label>Warning Threshold (opposite signals)</Label>
+              <div className="space-y-2 mt-2">
+                <Slider
+                  value={[momentumSettings.warn_at]}
+                  onValueChange={(value) => setMomentumSettings({ ...momentumSettings, warn_at: value[0] })}
+                  min={3}
+                  max={15}
+                  step={1}
+                />
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>3</span>
+                  <span className="font-medium">{momentumSettings.warn_at}</span>
+                  <span>15</span>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>Auto Breakeven</Label>
+                <p className="text-xs text-muted-foreground">Move SL to entry on momentum warning</p>
+              </div>
+              <Switch
+                checked={momentumSettings.auto_breakeven}
+                onCheckedChange={(v) => setMomentumSettings({ ...momentumSettings, auto_breakeven: v })}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>Pause on Choppy Market</Label>
+                <p className="text-xs text-muted-foreground">Pause new entries when market is choppy</p>
+              </div>
+              <Switch
+                checked={momentumSettings.pause_on_chop}
+                onCheckedChange={(v) => setMomentumSettings({ ...momentumSettings, pause_on_chop: v })}
+              />
+            </div>
+          </div>
+
+          {/* Exposure Limits */}
+          <div className="space-y-4 border-t pt-4">
+            <h3 className="font-semibold text-sm">Exposure Limits</h3>
+            <div>
+              <Label>Max Exposure ($)</Label>
+              <Input
+                type="number"
+                value={momentumSettings.max_exposure}
+                onChange={(e) => setMomentumSettings({
+                  ...momentumSettings,
+                  max_exposure: parseFloat(e.target.value) || 5000
+                })}
+                placeholder="5000"
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>Auto-Pause on Exposure Limit</Label>
+                <p className="text-xs text-muted-foreground">Pause new entries when exposure limit hit</p>
+              </div>
+              <Switch
+                checked={momentumSettings.auto_pause_on_exposure}
+                onCheckedChange={(v) => setMomentumSettings({ ...momentumSettings, auto_pause_on_exposure: v })}
+              />
+            </div>
+          </div>
+
+          {/* Staleness Settings */}
+          <div className="space-y-4 border-t pt-4">
+            <h3 className="font-semibold text-sm flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              Staleness Protection
+            </h3>
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>Enable Staleness Check</Label>
+                <p className="text-xs text-muted-foreground">Skip signals older than threshold</p>
+              </div>
+              <Switch
+                checked={momentumSettings.staleness_enabled}
+                onCheckedChange={(v) => setMomentumSettings({ ...momentumSettings, staleness_enabled: v })}
+              />
+            </div>
+            {momentumSettings.staleness_enabled && (
+              <div>
+                <Label>Staleness Threshold (seconds)</Label>
+                <Input
+                  type="number"
+                  value={momentumSettings.staleness_seconds}
+                  onChange={(e) => setMomentumSettings({
+                    ...momentumSettings,
+                    staleness_seconds: parseInt(e.target.value) || 5
+                  })}
+                  placeholder="5"
+                />
+              </div>
+            )}
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>Force Old Signals</Label>
+                <p className="text-xs text-muted-foreground">Allow execution of stale signals</p>
+              </div>
+              <Switch
+                checked={momentumSettings.force_old_signals}
+                onCheckedChange={(v) => setMomentumSettings({ ...momentumSettings, force_old_signals: v })}
+              />
+            </div>
+          </div>
+
+          {/* Advanced Settings */}
+          <div className="space-y-4 border-t pt-4">
+            <h3 className="font-semibold text-sm">Advanced</h3>
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>Allow Hedging</Label>
+                <p className="text-xs text-muted-foreground">Create reverse orders on momentum warning</p>
+              </div>
+              <Switch
+                checked={momentumSettings.allow_hedge}
+                onCheckedChange={(v) => setMomentumSettings({ ...momentumSettings, allow_hedge: v })}
+              />
+            </div>
+            <div>
+              <Label>Discard Bin Flush Interval</Label>
+              <Select
+                value={momentumSettings.discard_flush_interval}
+                onValueChange={(v) => setMomentumSettings({ ...momentumSettings, discard_flush_interval: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1h">1 Hour</SelectItem>
+                  <SelectItem value="24h">24 Hours</SelectItem>
+                  <SelectItem value="30d">30 Days</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </CardContent>
