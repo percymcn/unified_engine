@@ -1,8 +1,9 @@
 # CHANGESET INDEX - January 2026
 
 **Generated:** 2026-01-23
+**Last Updated:** 2026-01-23 18:40 UTC
 **Branch:** `wire-brokers-tradelocker-projectx-20260122`
-**Status:** Working tree clean
+**Status:** Active session in progress
 
 ## Overview
 
@@ -217,4 +218,37 @@ This document indexes all changes made during:
 
 ---
 
+## Current Session (2026-01-23 18:30 UTC)
+
+### Phase 0: Baseline Snapshot
+- `aa17b39` phase0: baseline snapshot + session log
+
+### Phase 1: Frontend Build Verification
+**Status:** ✅ COMPLETE
+- Frontend builds successfully
+- Runs on port 3456 (verified)
+- Script: `ui-next/scripts/run_3456.sh` exists
+
+**Files:**
+- `.planning/PROD_BUILD_REPORT.md` - Updated with verification
+
+### Phase 2: GSD Documentation Rehydration
+**Status:** 🔄 IN PROGRESS
+- `.planning/GSD_HANDOFF_BUNDLE.md` - Created
+- `.planning/CHANGESET_INDEX.md` - Updated
+- `.gsd/STATE_CAPSULE_2026-01.md` - To be updated
+
+### Phase 3: SSO UI Cleanup
+**Status:** ⏳ PENDING
+- Remove/disable broken SSO buttons (GitHub/Google)
+- Create `.planning/AUTH_UI_SSO_AUDIT.md`
+
+### Phase 4: Broker Auth Smoke Test
+**Status:** ⏳ PENDING
+- Create `scripts/broker_auth_smoke.sh`
+- Create `.planning/BROKER_AUTH_REPORT.md`
+
+---
+
 *Generated: 2026-01-23*
+*Last Updated: 2026-01-23 18:40 UTC*
