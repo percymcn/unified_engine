@@ -4,7 +4,16 @@
 
 set -e
 
-API_URL="${API_URL:-http://localhost:8765}"
+# Source port detection utility
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/detect_backend_port.sh"
+
+# Auto-detect backend port if API_URL not set
+if [ -z "$API_URL" ]; then
+    API_URL=$(detect_backend_port)
+    echo "🔍 Auto-detected backend: $API_URL"
+fi
+
 FRONTEND_URL="${FRONTEND_URL:-http://localhost:3456}"
 
 echo "=== Pricing Consistency Smoke Test ==="
