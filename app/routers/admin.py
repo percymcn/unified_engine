@@ -4,14 +4,55 @@ Protected by email allowlist and authentication
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
+import os
 
 from app.db.database import get_db
 from app.routers.auth import get_current_user
 from app.models.models import User
 from app.core.config import settings
 from app.services.stripe_service import PRICING_TIERS, get_all_tiers
+
+router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
+
+
+def redact_secret(value: Optional[str]) -> str:
+    """Redact secret value (show first 6 + last 4 chars)"""
+    if not value:
+        return "(empty)"
+    if len(value) <= 10:
+        return "***REDACTED***"
+    return f"{value[:6]}...{value[-4:]}"
+
+
+def check_broker_config(broker_name: str, required_vars: List[str]) -> Dict[str, Any]:
+    """Check broker configuration status"""
+    missing = []
+    present = []
+    values = {}
+    
+    for var in required_vars:
+        value = getattr(settings, var, None) or os.getenv(var)
+        if not value or value in ("", "None", f"your-{var.lower()}"):
+            missing.append(var)
+        else:
+            present.append(var)
+            values[var] = redact_secret(str(value))
+    
+    if len(missing) == len(required_vars):
+        status = "DISABLED"
+    elif len(missing) == 0:
+        status = "CONFIGURED"
+    else:
+        status = "PARTIAL"
+    
+    return {
+        "status": status,
+        "missing_vars": missing,
+        "present_vars": present,
+        "values": values
+    }
 
 router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
 
@@ -259,4 +300,89 @@ async def get_plan_config(
         "plans": plans,
         "source": "backend PRICING_TIERS",
         "stripe_configured": bool(settings.STRIPE_SECRET_KEY),
+    }
+
+
+@router.get("/system/env-doctor")
+async def get_env_doctor(
+    current_user: User = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """Get ENV doctor diagnostics (owner-only)"""
+    check_owner_access(current_user)
+    
+    # Check database
+    db_info = {}
+    if settings.DATABASE_URL:
+        if "sqlite" in settings.DATABASE_URL.lower():
+            db_file = settings.DATABASE_URL.replace("sqlite:///", "").replace("sqlite://", "")
+            import os
+            if os.path.exists(db_file):
+                import os.path
+                size = os.path.getsize(db_file)
+                db_info = {
+                    "type": "SQLite",
+                    "path": db_file,
+                    "size_bytes": size,
+                    "exists": True
+                }
+            else:
+                db_info = {
+                    "type": "SQLite",
+                    "path": db_file,
+                    "exists": False
+                }
+        else:
+            # PostgreSQL
+            db_info = {
+                "type": "PostgreSQL",
+                "url": settings.DATABASE_URL.split("@")[-1].split("/")[0] if "@" in settings.DATABASE_URL else "unknown",
+                "exists": True
+            }
+    
+    # Check brokers
+    brokers = {}
+    
+    # MT4/MT5 MetaAPI SDK
+    brokers["mt4_sdk"] = check_broker_config("mt4_sdk", ["METAAPI_TOKEN", "METAAPI_ACCOUNT_ID"])
+    brokers["mt4_manager"] = check_broker_config("mt4_manager", [
+        "MT4_MANAGER_LOGIN", "MT4_MANAGER_PASSWORD", "MT4_MANAGER_HOST", "MT4_MANAGER_PORT"
+    ])
+    brokers["mt5_sdk"] = check_broker_config("mt5_sdk", ["METAAPI_TOKEN", "METAAPI_ACCOUNT_ID"])
+    brokers["mt5_manager"] = check_broker_config("mt5_manager", [
+        "MT5_MANAGER_LOGIN", "MT5_MANAGER_PASSWORD", "MT5_MANAGER_HOST", "MT5_MANAGER_PORT"
+    ])
+    
+    # TradeLocker
+    brokers["tradelocker_sdk"] = check_broker_config("tradelocker_sdk", [
+        "TRADELOCKER_USERNAME", "TRADELOCKER_PASSWORD", "TRADELOCKER_SERVER"
+    ])
+    brokers["tradelocker_brand"] = check_broker_config("tradelocker_brand", ["TRADELOCKER_API_KEY"])
+    
+    # Tradovate
+    brokers["tradovate_oauth"] = check_broker_config("tradovate_oauth", [
+        "TRADOVATE_CLIENT_ID", "TRADOVATE_CLIENT_SECRET"
+    ])
+    brokers["tradovate_password"] = check_broker_config("tradovate_password", [
+        "TRADOVATE_USER_ID", "TRADOVATE_PASSWORD"
+    ])
+    
+    # ProjectX
+    brokers["projectx_sdk"] = check_broker_config("projectx_sdk", [
+        "PROJECT_X_USERNAME", "PROJECT_X_API_KEY"
+    ])
+    brokers["projectx_legacy"] = check_broker_config("projectx_legacy", ["PROJECTX_API_TOKEN"])
+    
+    # OAuth
+    oauth_status = {
+        "google": bool(settings.GOOGLE_CLIENT_ID and settings.GOOGLE_CLIENT_ID != "your-google-client-id"),
+        "github": bool(settings.GITHUB_CLIENT_ID),
+        "microsoft": bool(settings.MICROSOFT_CLIENT_ID)
+    }
+    
+    return {
+        "database": db_info,
+        "brokers": brokers,
+        "oauth": oauth_status,
+        "backend_port": settings.PORT,
+        "backend_host": settings.HOST
     }

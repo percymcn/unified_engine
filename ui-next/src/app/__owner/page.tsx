@@ -55,6 +55,30 @@ interface PlanConfig {
   features: string[];
 }
 
+interface BrokerStatus {
+  status: "CONFIGURED" | "DISABLED" | "PARTIAL";
+  missing_vars: string[];
+  present_vars: string[];
+  values: Record<string, string>;
+}
+
+interface EnvDoctor {
+  database: {
+    type: string;
+    path?: string;
+    exists?: boolean;
+    size_bytes?: number;
+  };
+  brokers: Record<string, BrokerStatus>;
+  oauth: {
+    google: boolean;
+    github: boolean;
+    microsoft: boolean;
+  };
+  backend_port: number;
+  backend_host: string;
+}
+
 export default function AdminPage() {
   const router = useRouter();
   const { toast } = useToast();
@@ -65,8 +89,9 @@ export default function AdminPage() {
     plans_configured: number;
     stripe_configured: boolean;
   } | null>(null);
+  const [envDoctor, setEnvDoctor] = useState<EnvDoctor | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"overview" | "users" | "plans">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "users" | "plans" | "brokers" | "env">("overview");
 
   useEffect(() => {
     fetchData();
@@ -103,7 +128,7 @@ export default function AdminPage() {
         if (!response.ok) throw new Error("Failed to fetch users");
         const data = await response.json();
         setUsers(data.users || []);
-      } else {
+      } else if (activeTab === "plans") {
         const response = await fetch("/api/admin/plans");
         if (response.status === 403) {
           toast({
@@ -117,6 +142,20 @@ export default function AdminPage() {
         if (!response.ok) throw new Error("Failed to fetch plans");
         const data = await response.json();
         setPlans(data.plans || []);
+      } else if (activeTab === "brokers" || activeTab === "env") {
+        const response = await fetch("/api/admin/system/env-doctor");
+        if (response.status === 403) {
+          toast({
+            title: "Access Denied",
+            description: "This area is restricted to owners only.",
+            variant: "destructive",
+          });
+          router.push("/dashboard");
+          return;
+        }
+        if (!response.ok) throw new Error("Failed to fetch env doctor");
+        const data = await response.json();
+        setEnvDoctor(data);
       }
     } catch (error) {
       console.error("Failed to fetch admin data:", error);
@@ -261,6 +300,28 @@ export default function AdminPage() {
         >
           <Settings className="h-4 w-4 inline mr-2" />
           Plans & Pricing
+        </button>
+        <button
+          onClick={() => setActiveTab("brokers")}
+          className={`px-4 py-2 font-medium ${
+            activeTab === "brokers"
+              ? "border-b-2 border-primary text-primary"
+              : "text-muted-foreground"
+          }`}
+        >
+          <Shield className="h-4 w-4 inline mr-2" />
+          Broker Status
+        </button>
+        <button
+          onClick={() => setActiveTab("env")}
+          className={`px-4 py-2 font-medium ${
+            activeTab === "env"
+              ? "border-b-2 border-primary text-primary"
+              : "text-muted-foreground"
+          }`}
+        >
+          <Key className="h-4 w-4 inline mr-2" />
+          ENV Doctor
         </button>
       </div>
 
@@ -444,6 +505,145 @@ export default function AdminPage() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Broker Status Tab */}
+      {activeTab === "brokers" && envDoctor && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Broker Configuration Status</CardTitle>
+            <CardDescription>
+              View broker configuration and missing environment variables
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {Object.entries(envDoctor.brokers).map(([broker, status]) => (
+                <Card key={broker}>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg">{broker.replace(/_/g, " ").toUpperCase()}</CardTitle>
+                      <Badge
+                        variant={
+                          status.status === "CONFIGURED"
+                            ? "default"
+                            : status.status === "PARTIAL"
+                              ? "secondary"
+                              : "destructive"
+                        }
+                      >
+                        {status.status}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {status.status === "CONFIGURED" && (
+                      <div className="text-sm text-green-600">
+                        <Check className="h-4 w-4 inline mr-1" />
+                        All required variables configured
+                      </div>
+                    )}
+                    {status.present_vars.length > 0 && (
+                      <div className="mt-2">
+                        <span className="text-sm font-medium">Configured:</span>
+                        <ul className="list-disc list-inside ml-2 text-sm">
+                          {status.present_vars.map((v) => (
+                            <li key={v}>
+                              {v}: {status.values[v] || "(set)"}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {status.missing_vars.length > 0 && (
+                      <div className="mt-2">
+                        <span className="text-sm font-medium text-red-600">Missing:</span>
+                        <ul className="list-disc list-inside ml-2 text-sm text-red-600">
+                          {status.missing_vars.map((v) => (
+                            <li key={v}>{v}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ENV Doctor Tab */}
+      {activeTab === "env" && envDoctor && (
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>System Environment</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div>
+                  <span className="font-medium">Backend:</span> {envDoctor.backend_host}:{envDoctor.backend_port}
+                </div>
+                <div>
+                  <span className="font-medium">Database:</span> {envDoctor.database.type}
+                  {envDoctor.database.path && ` - ${envDoctor.database.path}`}
+                  {envDoctor.database.exists === false && (
+                    <Badge variant="destructive" className="ml-2">File not found</Badge>
+                  )}
+                </div>
+                <div>
+                  <span className="font-medium">OAuth:</span>
+                  <div className="ml-4 mt-1">
+                    Google: {envDoctor.oauth.google ? (
+                      <Badge variant="default">Configured</Badge>
+                    ) : (
+                      <Badge variant="secondary">Not configured</Badge>
+                    )}
+                    {" "}
+                    GitHub: {envDoctor.oauth.github ? (
+                      <Badge variant="default">Configured</Badge>
+                    ) : (
+                      <Badge variant="secondary">Not configured</Badge>
+                    )}
+                    {" "}
+                    Microsoft: {envDoctor.oauth.microsoft ? (
+                      <Badge variant="default">Configured</Badge>
+                    ) : (
+                      <Badge variant="secondary">Not configured</Badge>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>Broker Status Summary</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-4">
+                {Object.entries(envDoctor.brokers).map(([broker, status]) => (
+                  <div key={broker} className="flex items-center justify-between p-2 border rounded">
+                    <span className="text-sm">{broker.replace(/_/g, " ")}</span>
+                    <Badge
+                      variant={
+                        status.status === "CONFIGURED"
+                          ? "default"
+                          : status.status === "PARTIAL"
+                            ? "secondary"
+                            : "destructive"
+                      }
+                    >
+                      {status.status}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
     </div>
   );
