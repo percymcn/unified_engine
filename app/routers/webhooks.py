@@ -303,18 +303,29 @@ async def tradingview_webhook(request: Request, db: Session = Depends(get_db)):
         return result
 
     except Exception as e:
-        # Log error
-        db_webhook = WebhookLog(
-            webhook_id=webhook_id,
-            source="tradingview",
-            source_ip=request.client.host if request.client else "unknown",
-            user_agent=request.headers.get("user-agent"),
-            payload=json.dumps(payload) if 'payload' in locals() else "{}",
-            processed=False,
-            error_message=str(e)
-        )
-        db.add(db_webhook)
-        db.commit()
+        # Log error - update existing log if it exists, otherwise try to create
+        try:
+            if 'db_webhook' in locals() and db_webhook is not None:
+                # Update existing log
+                db_webhook.processed = False
+                db_webhook.error_message = str(e)
+                db.commit()
+            else:
+                # Create new log with a fresh webhook_id to avoid duplicates
+                error_webhook_id = str(uuid.uuid4())
+                db_webhook = WebhookLog(
+                    webhook_id=error_webhook_id,
+                    source="tradingview",
+                    source_ip=request.client.host if request.client else "unknown",
+                    user_agent=request.headers.get("user-agent"),
+                    payload=json.dumps(payload) if 'payload' in locals() else "{}",
+                    processed=False,
+                    error_message=str(e)
+                )
+                db.add(db_webhook)
+                db.commit()
+        except Exception:
+            db.rollback()  # Best effort logging, don't fail on logging errors
 
         return {"success": False, "error": str(e)}
 
@@ -444,18 +455,29 @@ async def trailhacker_webhook(request: Request, db: Session = Depends(get_db)):
         return result
 
     except Exception as e:
-        # Log error
-        db_webhook = WebhookLog(
-            webhook_id=webhook_id,
-            source="trailhacker",
-            source_ip=request.client.host if request.client else "unknown",
-            user_agent=request.headers.get("user-agent"),
-            payload=json.dumps(payload) if 'payload' in locals() else "{}",
-            processed=False,
-            error_message=str(e)
-        )
-        db.add(db_webhook)
-        db.commit()
+        # Log error - update existing log if it exists, otherwise try to create
+        try:
+            if 'db_webhook' in locals() and db_webhook is not None:
+                # Update existing log
+                db_webhook.processed = False
+                db_webhook.error_message = str(e)
+                db.commit()
+            else:
+                # Create new log with a fresh webhook_id to avoid duplicates
+                error_webhook_id = str(uuid.uuid4())
+                db_webhook = WebhookLog(
+                    webhook_id=error_webhook_id,
+                    source="trailhacker",
+                    source_ip=request.client.host if request.client else "unknown",
+                    user_agent=request.headers.get("user-agent"),
+                    payload=json.dumps(payload) if 'payload' in locals() else "{}",
+                    processed=False,
+                    error_message=str(e)
+                )
+                db.add(db_webhook)
+                db.commit()
+        except Exception:
+            db.rollback()  # Best effort logging, don't fail on logging errors
 
         return {"success": False, "error": str(e)}
 
@@ -861,21 +883,29 @@ async def process_routed_signal(
 
     except Exception as e:
         logger.error(f"Error processing routed signal: {e}")
-        # Log error
+        # Log error - update existing log if it exists, otherwise try to create
         try:
-            db_webhook = WebhookLog(
-                webhook_id=webhook_id,
-                source="routed",
-                source_ip=request.client.host if request.client else "unknown",
-                user_agent=request.headers.get("user-agent"),
-                payload=json.dumps(payload) if 'payload' in locals() else "{}",
-                processed=False,
-                error_message=str(e)
-            )
-            db.add(db_webhook)
-            db.commit()
+            if 'db_webhook' in locals() and db_webhook is not None:
+                # Update existing log
+                db_webhook.processed = False
+                db_webhook.error_message = str(e)
+                db.commit()
+            else:
+                # Create new log with a fresh webhook_id to avoid duplicates
+                error_webhook_id = str(uuid.uuid4())
+                db_webhook = WebhookLog(
+                    webhook_id=error_webhook_id,
+                    source="routed",
+                    source_ip=request.client.host if request.client else "unknown",
+                    user_agent=request.headers.get("user-agent"),
+                    payload=json.dumps(payload) if 'payload' in locals() else "{}",
+                    processed=False,
+                    error_message=str(e)
+                )
+                db.add(db_webhook)
+                db.commit()
         except Exception:
-            pass  # Best effort logging
+            db.rollback()  # Best effort logging, don't fail on logging errors
 
         return {"success": False, "error": str(e), "webhook_id": webhook_id}
 
