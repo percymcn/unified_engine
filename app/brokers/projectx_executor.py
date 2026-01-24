@@ -359,7 +359,7 @@ class ProjectXExecutor(BaseExecutor):
         try:
             # First, get contract ID for symbol
             contract_response = await self._session.post(
-                "/Contract/search",
+                "/api/Contract/Search",
                 json={"symbol": order.symbol}
             )
 
