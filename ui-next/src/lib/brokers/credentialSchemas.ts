@@ -1,13 +1,21 @@
 /**
  * Broker Credential Schemas
- * 
+ *
  * Single source of truth for broker credential field mappings.
  * Maps UI field names to backend API field names and storage locations.
- * 
+ *
  * Generated from backend code analysis - DO NOT MODIFY without updating backend.
- * 
+ *
  * Note: Only includes brokers with confirmed backend executor/test connection support.
  * Other brokers (e.g., truforex) may exist in types but are not supported here.
+ *
+ * BACKEND CONTRACT API:
+ * The canonical broker schemas are also available via API:
+ *   GET /api/v1/brokers/contracts
+ * See: docs/BROKER_CONTRACTS.md for documentation
+ *
+ * Future enhancement: This file could be replaced by fetching from the API,
+ * but the schemas here are kept in sync with app/contracts/brokers.json.
  */
 
 // Supported brokers only (with backend executors)
