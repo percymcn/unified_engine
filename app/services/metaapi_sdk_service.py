@@ -210,6 +210,78 @@ class MetaAPISDKService:
             for pos in positions
         ]
 
+    async def get_deal_history(
+        self,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Get deal history (closed trades).
+        
+        Args:
+            start_time: Optional start time filter
+            end_time: Optional end time filter
+            
+        Returns:
+            List of deal dictionaries
+        """
+        if not self._connection:
+            raise RuntimeError("Not connected")
+        
+        # MetaAPI SDK provides deal history through terminal state
+        deals = self._connection.terminal_state.deals
+        
+        deal_list = [
+            {
+                "id": str(deal.get("id", "")),
+                "order_id": str(deal.get("orderId", "")),
+                "position_id": str(deal.get("positionId", "")),
+                "symbol": deal.get("symbol", ""),
+                "type": deal.get("type", ""),
+                "entry_type": deal.get("entryType", ""),
+                "volume": float(deal.get("volume", 0)),
+                "price": float(deal.get("price", 0)),
+                "commission": float(deal.get("commission", 0)),
+                "swap": float(deal.get("swap", 0)),
+                "profit": float(deal.get("profit", 0)),
+                "time": deal.get("time", ""),
+                "broker_time": deal.get("brokerTime", ""),
+            }
+            for deal in deals
+        ]
+        
+        # Filter by time if provided
+        if start_time or end_time:
+            filtered_deals = []
+            for deal in deal_list:
+                deal_time_str = deal.get("time", deal.get("broker_time", ""))
+                if not deal_time_str:
+                    continue
+                
+                try:
+                    # Parse deal time
+                    if isinstance(deal_time_str, (int, float)):
+                        deal_time = datetime.fromtimestamp(deal_time_str)
+                    elif 'T' in str(deal_time_str) or 'Z' in str(deal_time_str):
+                        deal_time_str_clean = str(deal_time_str).replace('Z', '+00:00')
+                        deal_time = datetime.fromisoformat(deal_time_str_clean)
+                    else:
+                        continue
+                    
+                    # Apply filters
+                    if start_time and deal_time < start_time:
+                        continue
+                    if end_time and deal_time > end_time:
+                        continue
+                    
+                    filtered_deals.append(deal)
+                except Exception:
+                    continue
+            
+            return filtered_deals
+        
+        return deal_list
+
     async def get_orders(self) -> List[Dict[str, Any]]:
         """
         Get pending orders from terminal state.

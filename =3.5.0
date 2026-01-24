@@ -1,0 +1,116 @@
+Collecting project-x-py
+  Downloading project_x_py-3.5.9-py3-none-any.whl.metadata (35 kB)
+Collecting cachetools>=6.1.0 (from project-x-py)
+  Using cached cachetools-6.2.4-py3-none-any.whl.metadata (5.6 kB)
+Collecting deprecated>=1.2.18 (from project-x-py)
+  Downloading deprecated-1.3.1-py2.py3-none-any.whl.metadata (5.9 kB)
+Requirement already satisfied: httpx>=0.27.0 in ./venv/lib/python3.13/site-packages (from httpx[http2]>=0.27.0->project-x-py) (0.28.1)
+Collecting lz4>=4.4.4 (from project-x-py)
+  Downloading lz4-4.4.5-cp313-cp313-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl.metadata (3.8 kB)
+Collecting msgpack-python>=0.5.6 (from project-x-py)
+  Downloading msgpack-python-0.5.6.tar.gz (138 kB)
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Getting requirements to build wheel: started
+  Getting requirements to build wheel: finished with status 'done'
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Collecting numpy>=2.3.2 (from project-x-py)
+  Using cached numpy-2.4.1-cp313-cp313-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl.metadata (6.6 kB)
+Collecting orjson>=3.11.1 (from project-x-py)
+  Using cached orjson-3.11.5-cp313-cp313-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (41 kB)
+Collecting plotly>=6.3.0 (from project-x-py)
+  Downloading plotly-6.5.2-py3-none-any.whl.metadata (8.5 kB)
+Collecting polars>=1.31.0 (from project-x-py)
+  Downloading polars-1.37.1-py3-none-any.whl.metadata (10 kB)
+Requirement already satisfied: pydantic>=2.11.7 in ./venv/lib/python3.13/site-packages (from project-x-py) (2.12.5)
+Requirement already satisfied: pytz>=2025.2 in ./venv/lib/python3.13/site-packages (from project-x-py) (2025.2)
+Requirement already satisfied: pyyaml>=6.0.2 in ./venv/lib/python3.13/site-packages (from project-x-py) (6.0.3)
+Requirement already satisfied: requests>=2.32.4 in ./venv/lib/python3.13/site-packages (from project-x-py) (2.32.5)
+Collecting rich>=14.1.0 (from project-x-py)
+  Using cached rich-14.2.0-py3-none-any.whl.metadata (18 kB)
+Collecting signalrcore>=0.9.5 (from project-x-py)
+  Downloading signalrcore-0.9.71-py3-none-any.whl.metadata (10 kB)
+Requirement already satisfied: uvloop>=0.21.0 in ./venv/lib/python3.13/site-packages (from project-x-py) (0.22.1)
+Collecting websocket-client>=1.0.0 (from project-x-py)
+  Using cached websocket_client-1.9.0-py3-none-any.whl.metadata (8.3 kB)
+Collecting wrapt<3,>=1.10 (from deprecated>=1.2.18->project-x-py)
+  Downloading wrapt-2.0.1-cp313-cp313-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl.metadata (9.0 kB)
+Requirement already satisfied: anyio in ./venv/lib/python3.13/site-packages (from httpx>=0.27.0->httpx[http2]>=0.27.0->project-x-py) (4.12.0)
+Requirement already satisfied: certifi in ./venv/lib/python3.13/site-packages (from httpx>=0.27.0->httpx[http2]>=0.27.0->project-x-py) (2025.11.12)
+Requirement already satisfied: httpcore==1.* in ./venv/lib/python3.13/site-packages (from httpx>=0.27.0->httpx[http2]>=0.27.0->project-x-py) (1.0.9)
+Requirement already satisfied: idna in ./venv/lib/python3.13/site-packages (from httpx>=0.27.0->httpx[http2]>=0.27.0->project-x-py) (3.11)
+Requirement already satisfied: h11>=0.16 in ./venv/lib/python3.13/site-packages (from httpcore==1.*->httpx>=0.27.0->httpx[http2]>=0.27.0->project-x-py) (0.16.0)
+Collecting h2<5,>=3 (from httpx[http2]>=0.27.0->project-x-py)
+  Downloading h2-4.3.0-py3-none-any.whl.metadata (5.1 kB)
+Collecting hyperframe<7,>=6.1 (from h2<5,>=3->httpx[http2]>=0.27.0->project-x-py)
+  Downloading hyperframe-6.1.0-py3-none-any.whl.metadata (4.3 kB)
+Collecting hpack<5,>=4.1 (from h2<5,>=3->httpx[http2]>=0.27.0->project-x-py)
+  Downloading hpack-4.1.0-py3-none-any.whl.metadata (4.6 kB)
+Collecting narwhals>=1.15.1 (from plotly>=6.3.0->project-x-py)
+  Downloading narwhals-2.15.0-py3-none-any.whl.metadata (13 kB)
+Requirement already satisfied: packaging in ./venv/lib/python3.13/site-packages (from plotly>=6.3.0->project-x-py) (25.0)
+Collecting polars-runtime-32==1.37.1 (from polars>=1.31.0->project-x-py)
+  Downloading polars_runtime_32-1.37.1-cp310-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (1.5 kB)
+Requirement already satisfied: annotated-types>=0.6.0 in ./venv/lib/python3.13/site-packages (from pydantic>=2.11.7->project-x-py) (0.7.0)
+Requirement already satisfied: pydantic-core==2.41.5 in ./venv/lib/python3.13/site-packages (from pydantic>=2.11.7->project-x-py) (2.41.5)
+Requirement already satisfied: typing-extensions>=4.14.1 in ./venv/lib/python3.13/site-packages (from pydantic>=2.11.7->project-x-py) (4.15.0)
+Requirement already satisfied: typing-inspection>=0.4.2 in ./venv/lib/python3.13/site-packages (from pydantic>=2.11.7->project-x-py) (0.4.2)
+Requirement already satisfied: charset_normalizer<4,>=2 in ./venv/lib/python3.13/site-packages (from requests>=2.32.4->project-x-py) (3.4.4)
+Requirement already satisfied: urllib3<3,>=1.21.1 in ./venv/lib/python3.13/site-packages (from requests>=2.32.4->project-x-py) (2.6.2)
+Collecting markdown-it-py>=2.2.0 (from rich>=14.1.0->project-x-py)
+  Using cached markdown_it_py-4.0.0-py3-none-any.whl.metadata (7.3 kB)
+Requirement already satisfied: pygments<3.0.0,>=2.13.0 in ./venv/lib/python3.13/site-packages (from rich>=14.1.0->project-x-py) (2.19.2)
+Collecting mdurl~=0.1 (from markdown-it-py>=2.2.0->rich>=14.1.0->project-x-py)
+  Using cached mdurl-0.1.2-py3-none-any.whl.metadata (1.6 kB)
+Collecting msgpack==1.0.2 (from signalrcore>=0.9.5->project-x-py)
+  Downloading msgpack-1.0.2.tar.gz (123 kB)
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Getting requirements to build wheel: started
+  Getting requirements to build wheel: finished with status 'done'
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Downloading project_x_py-3.5.9-py3-none-any.whl (563 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 563.7/563.7 kB 1.5 MB/s  0:00:00
+
+Using cached cachetools-6.2.4-py3-none-any.whl (11 kB)
+Downloading deprecated-1.3.1-py2.py3-none-any.whl (11 kB)
+Downloading wrapt-2.0.1-cp313-cp313-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl (123 kB)
+Downloading h2-4.3.0-py3-none-any.whl (61 kB)
+Downloading hpack-4.1.0-py3-none-any.whl (34 kB)
+Downloading hyperframe-6.1.0-py3-none-any.whl (13 kB)
+Downloading lz4-4.4.5-cp313-cp313-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl (1.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 3.9 MB/s  0:00:00
+
+Using cached numpy-2.4.1-cp313-cp313-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl (14.4 MB)
+Using cached orjson-3.11.5-cp313-cp313-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (132 kB)
+Downloading plotly-6.5.2-py3-none-any.whl (9.9 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 9.9/9.9 MB 7.1 MB/s  0:00:01
+
+Downloading narwhals-2.15.0-py3-none-any.whl (432 kB)
+Downloading polars-1.37.1-py3-none-any.whl (805 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 805.7/805.7 kB 2.6 MB/s  0:00:00
+
+Downloading polars_runtime_32-1.37.1-cp310-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (41.5 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 41.5/41.5 MB 6.1 MB/s  0:00:06
+
+Using cached rich-14.2.0-py3-none-any.whl (243 kB)
+Using cached markdown_it_py-4.0.0-py3-none-any.whl (87 kB)
+Using cached mdurl-0.1.2-py3-none-any.whl (10.0 kB)
+Downloading signalrcore-0.9.71-py3-none-any.whl (39 kB)
+Using cached websocket_client-1.9.0-py3-none-any.whl (82 kB)
+Building wheels for collected packages: msgpack-python, msgpack
+  Building wheel for msgpack-python (pyproject.toml): started
+  Building wheel for msgpack-python (pyproject.toml): finished with status 'done'
+  Created wheel for msgpack-python: filename=msgpack_python-0.5.6-cp313-cp313-linux_aarch64.whl size=10477 sha256=961c0a89de903adbb85788f1944f3b6aa6a34bbbaa3732124a1396fb888907af
+  Stored in directory: /home/pharma5/.cache/pip/wheels/d3/07/21/a270f39892cd2040d695c6954df6a5316c8924f9b895ee490f
+  Building wheel for msgpack (pyproject.toml): started
+  Building wheel for msgpack (pyproject.toml): finished with status 'done'
+  Created wheel for msgpack: filename=msgpack-1.0.2-cp313-cp313-linux_aarch64.whl size=15900 sha256=5fe1ecfb03bb5946758d88dc4a269aa65eb4c16e014566b26c68121f51b223e8
+  Stored in directory: /home/pharma5/.cache/pip/wheels/df/e1/9c/746ce9d070416e8001cab72382d451fe6e305fc62ee1130ab3
+Successfully built msgpack-python msgpack
+Installing collected packages: msgpack-python, msgpack, wrapt, websocket-client, signalrcore, polars-runtime-32, orjson, numpy, narwhals, mdurl, lz4, hyperframe, hpack, cachetools, polars, plotly, markdown-it-py, h2, deprecated, rich, project-x-py
+
+
+Successfully installed cachetools-6.2.4 deprecated-1.3.1 h2-4.3.0 hpack-4.1.0 hyperframe-6.1.0 lz4-4.4.5 markdown-it-py-4.0.0 mdurl-0.1.2 msgpack-1.0.2 msgpack-python-0.5.6 narwhals-2.15.0 numpy-2.4.1 orjson-3.11.5 plotly-6.5.2 polars-1.37.1 polars-runtime-32-1.37.1 project-x-py-3.5.9 rich-14.2.0 signalrcore-0.9.71 websocket-client-1.9.0 wrapt-2.0.1

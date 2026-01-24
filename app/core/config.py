@@ -117,7 +117,7 @@ class Settings(BaseSettings):
     
     # ProjectX/TopStep Configuration (Legacy - httpx fallback)
     PROJECTX_API_URL: str = "https://api.topstepx.com"
-    PROJECTX_WS_URL: str = "wss://rtc.topstepx.com/hubs/user"
+    PROJECTX_WS_URL: str = "wss://rtc.topstepx.com/hubs/user"  # Deprecated, use PROJECTX_USER_HUB_URL
     PROJECTX_API_TOKEN: Optional[str] = None
     PROJECTX_ENV: str = "LIVE"  # LIVE or DEMO
 
@@ -125,6 +125,10 @@ class Settings(BaseSettings):
     PROJECT_X_USERNAME: Optional[str] = None  # TopStep username/email
     PROJECT_X_API_KEY: Optional[str] = None  # TopStep API key
     PROJECT_X_ACCOUNT_NAME: Optional[str] = None  # Optional account name to select
+    
+    # ProjectX WebSocket Hubs
+    PROJECTX_USER_HUB_URL: str = "wss://rtc.topstepx.com/hubs/user"  # User hub for account/position/order updates
+    PROJECTX_MARKET_HUB_URL: str = "wss://rtc.topstepx.com/hubs/market"  # Market hub for real-time quotes
     
     # MT4 Configuration (Legacy Manager API - fallback)
     MT4_API_URL: str = "http://localhost:8080/api"

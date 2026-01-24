@@ -229,6 +229,44 @@ class TradeLockerExecutor(BaseExecutor):
     
     async def get_accounts(self) -> List[Account]:
         """Get all TradeLocker accounts"""
+        # Use SDK if available
+        if self._use_sdk and self._sdk_wrapper:
+            return await self._get_accounts_sdk()
+        
+        # Fall back to Brand API
+        return await self._get_accounts_brand_api()
+
+    async def _get_accounts_sdk(self) -> List[Account]:
+        """Get accounts via SDK."""
+        try:
+            account_state = await self._sdk_wrapper.get_account_state()
+            if account_state:
+                account_number = self._sdk_wrapper.account_number
+                account_id = self._sdk_wrapper.account_id
+                
+                return [Account(
+                    id=str(account_number or account_id or ""),
+                    broker="tradelocker",
+                    account_type="live",
+                    currency=account_state.get("currency", "USD"),
+                    balance=float(account_state.get("balance", 0)),
+                    equity=float(account_state.get("equity", 0)),
+                    margin=float(account_state.get("margin", 0)),
+                    free_margin=float(account_state.get("freeMargin", account_state.get("free_margin", 0))),
+                    margin_level=float(account_state.get("marginLevel", account_state.get("margin_level", 0))),
+                    leverage=account_state.get("leverage", 100),
+                    is_active=True,
+                    is_live=True,
+                    created_at=datetime.now(),
+                    updated_at=datetime.now()
+                )]
+            return []
+        except Exception as e:
+            logger.error(f"SDK get_accounts failed: {e}")
+            return []
+
+    async def _get_accounts_brand_api(self) -> List[Account]:
+        """Get accounts via Brand API."""
         try:
             response = await self.session.get("/accounts")
             if response.status_code == 200:
@@ -265,6 +303,60 @@ class TradeLockerExecutor(BaseExecutor):
     
     async def get_positions(self, account_id: Optional[str] = None) -> List[Position]:
         """Get open positions from TradeLocker"""
+        # Use SDK if available
+        if self._use_sdk and self._sdk_wrapper:
+            return await self._get_positions_sdk(account_id)
+        
+        # Fall back to Brand API
+        return await self._get_positions_brand_api(account_id)
+
+    async def _get_positions_sdk(self, account_id: Optional[str] = None) -> List[Position]:
+        """Get positions via SDK."""
+        try:
+            positions_data = await self._sdk_wrapper.get_positions()
+            positions = []
+            account_number = str(self._sdk_wrapper.account_number or account_id or "")
+            
+            for pos_data in positions_data:
+                # Convert dict or DataFrame row to dict
+                if hasattr(pos_data, 'to_dict'):
+                    pos_dict = pos_data.to_dict()
+                elif isinstance(pos_data, dict):
+                    pos_dict = pos_data
+                else:
+                    continue
+                
+                # Filter by account if specified
+                if account_id and str(pos_dict.get("accountId", pos_dict.get("account_id", ""))) != account_id:
+                    continue
+                
+                position = Position(
+                    id=str(pos_dict.get("id", pos_dict.get("positionId", ""))),
+                    broker="tradelocker",
+                    account_id=account_number,
+                    symbol=pos_dict.get("symbol", pos_dict.get("name", "")),
+                    side=pos_dict.get("side", "buy").lower(),
+                    size=float(pos_dict.get("quantity", pos_dict.get("size", 0))),
+                    entry_price=float(pos_dict.get("entryPrice", pos_dict.get("entry_price", 0))),
+                    current_price=float(pos_dict.get("currentPrice", pos_dict.get("current_price", pos_dict.get("entryPrice", 0)))),
+                    unrealized_pnl=float(pos_dict.get("unrealizedPnl", pos_dict.get("unrealized_pnl", 0))),
+                    realized_pnl=float(pos_dict.get("realizedPnl", pos_dict.get("realized_pnl", 0))),
+                    margin=float(pos_dict.get("margin", 0)),
+                    magic_number=pos_dict.get("magic", pos_dict.get("magic_number", 0)),
+                    comment=pos_dict.get("comment", ""),
+                    open_time=datetime.now(),  # SDK may not provide parsed datetime
+                    close_time=None,
+                    is_active=True
+                )
+                positions.append(position)
+            
+            return positions
+        except Exception as e:
+            logger.error(f"SDK get_positions failed: {e}")
+            return []
+
+    async def _get_positions_brand_api(self, account_id: Optional[str] = None) -> List[Position]:
+        """Get positions via Brand API."""
         try:
             params = {}
             if account_id:
@@ -436,6 +528,42 @@ class TradeLockerExecutor(BaseExecutor):
     
     async def modify_order(self, order_id: str, modifications: Dict[str, Any]) -> OrderResponse:
         """Modify existing order in TradeLocker"""
+        # Use SDK if available
+        if self._use_sdk and self._sdk_wrapper:
+            return await self._modify_order_sdk(order_id, modifications)
+        
+        # Fall back to Brand API
+        return await self._modify_order_brand_api(order_id, modifications)
+
+    async def _modify_order_sdk(self, order_id: str, modifications: Dict[str, Any]) -> OrderResponse:
+        """Modify order via SDK."""
+        try:
+            result = await self._sdk_wrapper.modify_order(
+                order_id=int(order_id),
+                price=modifications.get("price"),
+                stop_loss=modifications.get("stop_loss"),
+                take_profit=modifications.get("take_profit")
+            )
+            
+            if result and result.get("success"):
+                return OrderResponse(
+                    success=True,
+                    order_id=order_id,
+                    broker="tradelocker",
+                    status="modified",
+                    timestamp=datetime.now()
+                )
+            else:
+                return OrderResponse(
+                    success=False,
+                    error=result.get("error", "SDK order modification failed") if result else "SDK order modification failed"
+                )
+        except Exception as e:
+            logger.error(f"SDK modify_order failed: {e}")
+            return OrderResponse(success=False, error=str(e))
+
+    async def _modify_order_brand_api(self, order_id: str, modifications: Dict[str, Any]) -> OrderResponse:
+        """Modify order via Brand API."""
         try:
             modify_data = {
                 "price": modifications.get("price"),
@@ -470,6 +598,37 @@ class TradeLockerExecutor(BaseExecutor):
     
     async def cancel_order(self, order_id: str) -> OrderResponse:
         """Cancel order in TradeLocker"""
+        # Use SDK if available
+        if self._use_sdk and self._sdk_wrapper:
+            return await self._cancel_order_sdk(order_id)
+        
+        # Fall back to Brand API
+        return await self._cancel_order_brand_api(order_id)
+
+    async def _cancel_order_sdk(self, order_id: str) -> OrderResponse:
+        """Cancel order via SDK."""
+        try:
+            result = await self._sdk_wrapper.cancel_order(int(order_id))
+            
+            if result and result.get("success"):
+                return OrderResponse(
+                    success=True,
+                    order_id=order_id,
+                    broker="tradelocker",
+                    status="cancelled",
+                    timestamp=datetime.now()
+                )
+            else:
+                return OrderResponse(
+                    success=False,
+                    error=result.get("error", "SDK order cancellation failed") if result else "SDK order cancellation failed"
+                )
+        except Exception as e:
+            logger.error(f"SDK cancel_order failed: {e}")
+            return OrderResponse(success=False, error=str(e))
+
+    async def _cancel_order_brand_api(self, order_id: str) -> OrderResponse:
+        """Cancel order via Brand API."""
         try:
             response = await self.session.delete(f"/orders/{order_id}")
             
@@ -578,6 +737,34 @@ class TradeLockerExecutor(BaseExecutor):
     
     async def get_account_info(self, account_id: str) -> Optional[Account]:
         """Get specific account information"""
+        # Use SDK if available
+        if self._use_sdk and self._sdk_wrapper:
+            try:
+                account_state = await self._sdk_wrapper.get_account_state()
+                if account_state:
+                    account_number = self._sdk_wrapper.account_number
+                    account_id_val = self._sdk_wrapper.account_id
+                    
+                    return Account(
+                        id=str(account_number or account_id_val or account_id),
+                        broker="tradelocker",
+                        account_type="live",
+                        currency=account_state.get("currency", "USD"),
+                        balance=float(account_state.get("balance", 0)),
+                        equity=float(account_state.get("equity", 0)),
+                        margin=float(account_state.get("margin", 0)),
+                        free_margin=float(account_state.get("freeMargin", account_state.get("free_margin", 0))),
+                        margin_level=float(account_state.get("marginLevel", account_state.get("margin_level", 0))),
+                        leverage=account_state.get("leverage", 100),
+                        is_active=True,
+                        is_live=True,
+                        created_at=datetime.now(),
+                        updated_at=datetime.now()
+                    )
+            except Exception as e:
+                logger.error(f"SDK get_account_info failed: {e}")
+        
+        # Fall back to Brand API
         try:
             response = await self.session.get(f"/accounts/{account_id}")
             if response.status_code == 200:
@@ -609,6 +796,43 @@ class TradeLockerExecutor(BaseExecutor):
             logger.error(f"Error getting TradeLocker account {account_id}: {e}")
             return None
     
+    async def get_price_history(
+        self,
+        symbol: str,
+        resolution: str = "1D",
+        start_timestamp: Optional[int] = None,
+        end_timestamp: Optional[int] = None,
+        lookback_period: str = "5D"
+    ) -> Optional[Any]:
+        """
+        Get price history for a symbol.
+        
+        Args:
+            symbol: Symbol name (e.g., "EURUSD", "BTCUSD")
+            resolution: Time resolution (1m, 5m, 15m, 1H, 4H, 1D, etc.)
+            start_timestamp: Start timestamp in milliseconds
+            end_timestamp: End timestamp in milliseconds
+            lookback_period: Alternative to timestamps (5D, 1M, etc.)
+        
+        Returns:
+            DataFrame with OHLCV data or None on error
+        """
+        if self._use_sdk and self._sdk_wrapper:
+            try:
+                instrument_id = await self._sdk_wrapper.get_instrument_id_by_symbol(symbol)
+                if instrument_id:
+                    return await self._sdk_wrapper.get_price_history(
+                        instrument_id=instrument_id,
+                        resolution=resolution,
+                        start_timestamp=start_timestamp,
+                        end_timestamp=end_timestamp,
+                        lookback_period=lookback_period
+                    )
+            except Exception as e:
+                logger.error(f"SDK get_price_history failed: {e}")
+        
+        return None
+
     async def get_symbols(self) -> List[str]:
         """Get available symbols from TradeLocker"""
         try:
@@ -645,10 +869,60 @@ class TradeLockerExecutor(BaseExecutor):
     
     async def get_orders(self) -> List[Dict[str, Any]]:
         """Get pending orders"""
+        # Use SDK if available
+        if self._use_sdk and self._sdk_wrapper:
+            try:
+                orders_data = await self._sdk_wrapper.get_orders()
+                orders = []
+                
+                for order_data in orders_data:
+                    # Convert dict or DataFrame row to dict
+                    if hasattr(order_data, 'to_dict'):
+                        order_dict = order_data.to_dict()
+                    elif isinstance(order_data, dict):
+                        order_dict = order_data
+                    else:
+                        continue
+                    
+                    orders.append({
+                        "id": str(order_dict.get("id", order_dict.get("orderId", ""))),
+                        "symbol": order_dict.get("symbol", order_dict.get("name", "")),
+                        "side": order_dict.get("side", ""),
+                        "quantity": float(order_dict.get("quantity", order_dict.get("size", 0))),
+                        "price": float(order_dict.get("price", 0)),
+                        "order_type": order_dict.get("type", order_dict.get("orderType", "")),
+                        "status": order_dict.get("status", "pending"),
+                        "stop_loss": float(order_dict.get("stopLoss", order_dict.get("stop_loss", 0))) if order_dict.get("stopLoss") else None,
+                        "take_profit": float(order_dict.get("takeProfit", order_dict.get("take_profit", 0))) if order_dict.get("takeProfit") else None,
+                    })
+                
+                return orders
+            except Exception as e:
+                logger.error(f"SDK get_orders failed: {e}")
+                return []
+        
+        # Brand API fallback - not implemented
         return []
     
     async def get_quote(self, symbol: str) -> Optional[Dict[str, Any]]:
         """Get quote for symbol"""
+        # Use SDK if available
+        if self._use_sdk and self._sdk_wrapper:
+            try:
+                instrument_id = await self._sdk_wrapper.get_instrument_id_by_symbol(symbol)
+                if instrument_id:
+                    ask_price = await self._sdk_wrapper.get_latest_asking_price(instrument_id)
+                    if ask_price:
+                        # SDK may not provide bid, estimate from ask
+                        return {
+                            "symbol": symbol,
+                            "ask": ask_price,
+                            "bid": ask_price - 0.0001,  # Approximate spread
+                            "time": datetime.now().isoformat()
+                        }
+            except Exception as e:
+                logger.error(f"SDK get_quote failed: {e}")
+        
         return None
     
     async def modify_position(

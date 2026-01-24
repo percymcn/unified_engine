@@ -244,6 +244,28 @@ class MT4Executor(BaseExecutor):
             return await self._get_positions_sdk(account_id)
         return await self._get_positions_httpx(account_id)
 
+    def _parse_sdk_datetime(self, time_str: Optional[str]) -> datetime:
+        """Parse MetaAPI datetime string to datetime object."""
+        if not time_str:
+            return datetime.now()
+        try:
+            # MetaAPI returns ISO format or timestamp
+            if isinstance(time_str, (int, float)):
+                return datetime.fromtimestamp(time_str)
+            # Try ISO format
+            if 'T' in str(time_str) or 'Z' in str(time_str):
+                time_str_clean = str(time_str).replace('Z', '+00:00')
+                return datetime.fromisoformat(time_str_clean)
+            # Try parsing as timestamp string
+            try:
+                return datetime.fromtimestamp(float(time_str))
+            except (ValueError, TypeError):
+                pass
+            # Fallback to now
+            return datetime.now()
+        except Exception:
+            return datetime.now()
+
     async def _get_positions_sdk(self, account_id: Optional[str] = None) -> List[Position]:
         """Get positions via MetaAPI SDK."""
         try:
@@ -263,7 +285,7 @@ class MT4Executor(BaseExecutor):
                     margin=0.0,
                     magic_number=pos.get("magic", 0),
                     comment=pos.get("comment", ""),
-                    open_time=datetime.now(),  # SDK doesn't provide parsed datetime
+                    open_time=self._parse_sdk_datetime(pos.get("time", pos.get("open_time", ""))),
                     close_time=None,
                     is_active=True
                 )
@@ -749,6 +771,22 @@ class MT4Executor(BaseExecutor):
         """Connect to MT4 Manager API"""
         return await self.initialize()
     
+    async def get_deal_history(
+        self,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None
+    ) -> List[Dict[str, Any]]:
+        """Get deal history (closed trades)."""
+        if self.is_using_sdk:
+            try:
+                return await self._sdk_service.get_deal_history(start_time, end_time)
+            except Exception as e:
+                logger.error(f"SDK get_deal_history failed: {e}")
+                return []
+        
+        # Manager API fallback - not implemented
+        return []
+
     async def get_orders(self) -> List[Dict[str, Any]]:
         """Get pending orders from MT4."""
         if self.is_using_sdk:

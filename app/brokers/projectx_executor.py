@@ -536,6 +536,38 @@ class ProjectXExecutor(BaseExecutor):
             logger.error(f"cancel_order failed: {e}")
             return OrderResponse(success=False, error=str(e))
 
+    async def cancel_all_orders(self, symbol: Optional[str] = None) -> Dict[str, Any]:
+        """Cancel all orders (optionally filtered by symbol)."""
+        if self.is_using_sdk:
+            try:
+                return await self._sdk_service.cancel_all_orders(symbol)
+            except Exception as e:
+                logger.error(f"SDK cancel_all_orders failed: {e}")
+                return {"success": False, "error": str(e)}
+        
+        # Fallback: get all orders and cancel each
+        try:
+            orders = await self.get_orders()
+            if symbol:
+                orders = [o for o in orders if o.get("symbol", "").upper() == symbol.upper()]
+            
+            results = []
+            for order in orders:
+                order_id = str(order.get("id", ""))
+                if order_id:
+                    result = await self.cancel_order(order_id)
+                    results.append({"order_id": order_id, "success": result.success})
+            
+            return {
+                "success": True,
+                "cancelled_count": len([r for r in results if r["success"]]),
+                "total": len(orders),
+                "results": results
+            }
+        except Exception as e:
+            logger.error(f"cancel_all_orders failed: {e}")
+            return {"success": False, "error": str(e)}
+
     # Additional methods for compatibility
 
     async def authenticate(self) -> bool:
@@ -616,3 +648,155 @@ class ProjectXExecutor(BaseExecutor):
         if self._sdk_service:
             return self._sdk_service.is_connected
         return self._session is not None and hasattr(self._session, 'is_closed') and not self._session.is_closed
+
+    # =========================================================================
+    # Advanced SDK Features
+    # =========================================================================
+
+    async def place_bracket_order(
+        self,
+        instrument: str,
+        side: str,
+        size: int,
+        entry_price: Optional[float] = None,
+        stop_loss: Optional[float] = None,
+        take_profit: Optional[float] = None,
+    ) -> OrderResponse:
+        """Place bracket order (OCO) with stop loss and take profit."""
+        if self.is_using_sdk:
+            try:
+                result = await self._sdk_service.place_bracket_order(
+                    instrument=instrument,
+                    side=side,
+                    size=size,
+                    entry_price=entry_price,
+                    stop_loss=stop_loss,
+                    take_profit=take_profit,
+                )
+                return OrderResponse(
+                    success=result.get("success", False),
+                    order_id=result.get("order_id", ""),
+                    broker="projectx",
+                    status=result.get("status", "submitted"),
+                    timestamp=datetime.now(),
+                    error=result.get("error"),
+                )
+            except Exception as e:
+                logger.error(f"SDK bracket order failed: {e}")
+                return OrderResponse(success=False, error=str(e))
+        
+        # Fallback - not implemented in httpx mode
+        return OrderResponse(success=False, error="Bracket orders require SDK mode")
+
+    async def get_orderbook(self, symbol: str, depth: int = 10) -> Dict[str, Any]:
+        """Get Level 2 orderbook (market depth)."""
+        if self.is_using_sdk:
+            try:
+                return await self._sdk_service.get_orderbook(symbol, depth=depth)
+            except Exception as e:
+                logger.error(f"SDK get_orderbook failed: {e}")
+                return {}
+        return {}
+
+    async def get_portfolio_metrics(self, instruments: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get portfolio metrics across multiple instruments."""
+        if self.is_using_sdk:
+            try:
+                return await self._sdk_service.get_portfolio_metrics(instruments)
+            except Exception as e:
+                logger.error(f"SDK get_portfolio_metrics failed: {e}")
+                return {}
+        return {}
+
+    async def get_position_analytics(self, symbol: str, position_id: Optional[str] = None) -> Dict[str, Any]:
+        """Get detailed position analytics."""
+        if self.is_using_sdk:
+            try:
+                return await self._sdk_service.get_position_analytics(symbol, position_id)
+            except Exception as e:
+                logger.error(f"SDK get_position_analytics failed: {e}")
+                return {}
+        return {}
+
+    async def get_position_history(self, symbol: str, days: int = 30) -> List[Dict[str, Any]]:
+        """Get position history (closed positions)."""
+        if self.is_using_sdk:
+            try:
+                return await self._sdk_service.get_position_history(symbol, days=days)
+            except Exception as e:
+                logger.error(f"SDK get_position_history failed: {e}")
+                return []
+        return []
+
+    async def get_session_statistics(self, symbol: str, session_type: Optional[str] = None) -> Dict[str, Any]:
+        """Get session statistics and analytics."""
+        if self.is_using_sdk:
+            try:
+                return await self._sdk_service.get_session_statistics(symbol, session_type)
+            except Exception as e:
+                logger.error(f"SDK get_session_statistics failed: {e}")
+                return {}
+        return {}
+
+    async def get_performance_stats(self, symbol: str) -> Dict[str, Any]:
+        """Get performance statistics (Sharpe ratio, max drawdown, etc.)."""
+        if self.is_using_sdk:
+            try:
+                return await self._sdk_service.get_performance_stats(symbol)
+            except Exception as e:
+                logger.error(f"SDK get_performance_stats failed: {e}")
+                return {}
+        return {}
+
+    async def calculate_technical_indicators(
+        self,
+        symbol: str,
+        days: int = 30,
+        interval: int = 5,
+    ) -> Dict[str, Any]:
+        """Calculate technical indicators (RSI, MACD, Bollinger Bands, etc.)."""
+        if self.is_using_sdk:
+            try:
+                return await self._sdk_service.calculate_technical_indicators(symbol, days=days, interval=interval)
+            except Exception as e:
+                logger.error(f"SDK calculate_technical_indicators failed: {e}")
+                return {}
+        return {}
+
+    async def get_risk_analysis(self, symbol: str) -> Dict[str, Any]:
+        """Get risk analysis for positions."""
+        if self.is_using_sdk:
+            try:
+                return await self._sdk_service.get_risk_analysis(symbol)
+            except Exception as e:
+                logger.error(f"SDK get_risk_analysis failed: {e}")
+                return {}
+        return {}
+
+    async def calculate_position_size(
+        self,
+        symbol: str,
+        risk_amount: float,
+        stop_loss_price: float,
+        entry_price: float,
+    ) -> Dict[str, Any]:
+        """Calculate optimal position size based on risk."""
+        if self.is_using_sdk:
+            try:
+                return await self._sdk_service.calculate_position_size(
+                    symbol, risk_amount, stop_loss_price, entry_price
+                )
+            except Exception as e:
+                logger.error(f"SDK calculate_position_size failed: {e}")
+                return {}
+        return {}
+
+    async def subscribe_realtime_data(self, symbol: str, callback: Optional[callable] = None) -> Dict[str, Any]:
+        """Subscribe to real-time market data."""
+        if self.is_using_sdk:
+            try:
+                return await self._sdk_service.subscribe_realtime_data(symbol, callback)
+            except Exception as e:
+                logger.error(f"SDK subscribe_realtime_data failed: {e}")
+                return {"success": False, "error": str(e)}
+        return {"success": False, "error": "Real-time data requires SDK mode"}

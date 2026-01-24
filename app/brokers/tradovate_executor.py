@@ -218,6 +218,24 @@ class TradovateExecutor(BaseExecutor):
                 extra_headers={"Authorization": f"Bearer {self.access_token}"}
             )
             
+            # Subscribe to account updates
+            await self.ws_connection.send(json.dumps({
+                "e": "subscribe",
+                "d": {"account": True}
+            }))
+            
+            # Subscribe to position updates
+            await self.ws_connection.send(json.dumps({
+                "e": "subscribe",
+                "d": {"position": True}
+            }))
+            
+            # Subscribe to order updates
+            await self.ws_connection.send(json.dumps({
+                "e": "subscribe",
+                "d": {"order": True}
+            }))
+            
             # Start WebSocket message handler
             asyncio.create_task(self._handle_websocket_messages())
             
@@ -644,13 +662,188 @@ class TradovateExecutor(BaseExecutor):
         """Connect to broker API"""
         return await self.initialize()
     
-    async def get_orders(self) -> List[Dict[str, Any]]:
+    async def get_orders(self, account_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get pending orders"""
-        return []
+        if not await self._ensure_valid_token():
+            logger.error("Token refresh failed, cannot get orders")
+            return []
+        
+        try:
+            params = {}
+            if account_id:
+                params["accountId"] = int(account_id)
+            
+            response = await self.session.get("/order/list", params=params)
+            if response.status_code == 200:
+                orders_data = response.json()
+                orders = []
+                
+                for order in orders_data:
+                    orders.append({
+                        "id": str(order.get("orderId", "")),
+                        "account_id": str(order.get("accountId", "")),
+                        "contract_id": str(order.get("contractId", "")),
+                        "symbol": order.get("contract", {}).get("symbol", "") if isinstance(order.get("contract"), dict) else "",
+                        "order_type": order.get("orderType", ""),
+                        "side": order.get("side", ""),
+                        "quantity": order.get("orderQty", 0),
+                        "price": order.get("price", 0),
+                        "stop_price": order.get("stopPrice", 0),
+                        "status": order.get("status", ""),
+                        "filled_quantity": order.get("filledQty", 0),
+                        "avg_fill_price": order.get("avgFillPrice", 0),
+                        "timestamp": order.get("timestamp", ""),
+                    })
+                
+                return orders
+            else:
+                logger.error(f"Failed to get Tradovate orders: {response.text}")
+                return []
+        except Exception as e:
+            logger.error(f"Error getting Tradovate orders: {e}")
+            return []
     
     async def get_quote(self, symbol: str) -> Optional[Dict[str, Any]]:
         """Get quote for symbol"""
-        return None
+        if not await self._ensure_valid_token():
+            logger.error("Token refresh failed, cannot get quote")
+            return None
+        
+        try:
+            # First get contract ID
+            contract_response = await self.session.get(
+                f"/contract/find?symbol={symbol}"
+            )
+            if contract_response.status_code != 200:
+                return None
+            
+            contracts = contract_response.json()
+            if not contracts or not isinstance(contracts, list):
+                return None
+            
+            contract_id = contracts[0].get("contractId")
+            if not contract_id:
+                return None
+            
+            # Get market data
+            md_response = await self.session.get(
+                "/md/getquotes",
+                params={"contractId": contract_id}
+            )
+            if md_response.status_code == 200:
+                quote_data = md_response.json()
+                # Handle both single quote and list of quotes
+                if isinstance(quote_data, list) and quote_data:
+                    quote_data = quote_data[0]
+                
+                return {
+                    "symbol": symbol,
+                    "bid": float(quote_data.get("bid", 0)),
+                    "ask": float(quote_data.get("ask", 0)),
+                    "last": float(quote_data.get("last", 0)),
+                    "volume": int(quote_data.get("volume", 0)),
+                    "time": quote_data.get("time", ""),
+                }
+            return None
+        except Exception as e:
+            logger.error(f"Error getting Tradovate quote for {symbol}: {e}")
+            return None
+    
+    async def place_bracket_order(
+        self,
+        account_id: str,
+        symbol: str,
+        side: str,
+        quantity: float,
+        entry_price: Optional[float] = None,
+        profit_target: Optional[float] = None,
+        stop_loss: Optional[float] = None
+    ) -> OrderResponse:
+        """Place bracket order (OCO) with Tradovate"""
+        if not await self._ensure_valid_token():
+            return OrderResponse(
+                success=False,
+                error="Token expired and refresh failed"
+            )
+        
+        try:
+            # Get contract details
+            contract_response = await self.session.get(
+                f"/contract/find?symbol={symbol}"
+            )
+            if contract_response.status_code != 200:
+                return OrderResponse(
+                    success=False,
+                    error=f"Symbol {symbol} not found"
+                )
+            
+            contracts = contract_response.json()
+            if not contracts or not isinstance(contracts, list):
+                return OrderResponse(
+                    success=False,
+                    error=f"Symbol {symbol} not found"
+                )
+            
+            contract = contracts[0]
+            
+            # Build bracket orders
+            bracket_orders = []
+            if profit_target:
+                bracket_orders.append({
+                    "orderType": "Limit",
+                    "side": "Sell" if side.lower() == "buy" else "Buy",
+                    "orderQty": quantity,
+                    "price": profit_target
+                })
+            if stop_loss:
+                bracket_orders.append({
+                    "orderType": "StopMarket",
+                    "side": "Sell" if side.lower() == "buy" else "Buy",
+                    "orderQty": quantity,
+                    "stopPrice": stop_loss
+                })
+            
+            order_data = {
+                "accountId": int(account_id),
+                "contractId": contract["contractId"],
+                "orderType": "Market" if not entry_price else "Limit",
+                "side": side.capitalize(),
+                "orderQty": quantity,
+                "isAutomated": True
+            }
+            
+            if entry_price:
+                order_data["price"] = entry_price
+            if bracket_orders:
+                order_data["bracketOrders"] = bracket_orders
+            
+            response = await self.session.post("/order/placeorder", json=order_data)
+            
+            if response.status_code == 200:
+                result = response.json()
+                return OrderResponse(
+                    success=True,
+                    order_id=str(result.get("orderId", "")),
+                    broker="tradovate",
+                    status=result.get("status", "submitted"),
+                    filled_quantity=result.get("filledQty", 0),
+                    filled_price=result.get("avgFillPrice", 0),
+                    commission=result.get("commission", 0),
+                    timestamp=datetime.now()
+                )
+            else:
+                error_msg = response.text
+                logger.error(f"Tradovate bracket order failed: {error_msg}")
+                return OrderResponse(
+                    success=False,
+                    error=error_msg
+                )
+        except Exception as e:
+            logger.error(f"Error placing Tradovate bracket order: {e}")
+            return OrderResponse(
+                success=False,
+                error=str(e)
+            )
     
     async def modify_position(
         self,
