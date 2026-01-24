@@ -35,13 +35,7 @@ class TradeLockerExecutor(BaseExecutor):
         super().__init__(config)
         self.config = config
 
-        # SDK only)
-        self.api_url = self.config.get("api_url")
-        self.ws_url = self.config.get("ws_url")
-        self.api_key = self.config.get("api_key")
-        self.environment = self.config.get("environment", "demo")
-
-        # SDK configuration (preferred)
+        # SDK configuration (required)
         self._sdk_username = self.config.get("username")
         self._sdk_password = self.config.get("password")
         self._sdk_server = self.config.get("server")
