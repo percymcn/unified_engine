@@ -209,7 +209,7 @@ class ProjectXExecutor(BaseExecutor):
     async def _get_accounts_httpx(self) -> List[Account]:
         """Get accounts via httpx (fallback)."""
         try:
-            response = await self._session.post("/Account/search", json={})
+            response = await self._session.post("/api/Account/search", json={})
             if response.status_code == 200:
                 data = response.json()
                 accounts_data = data if isinstance(data, list) else data.get("accounts", data.get("data", []))
@@ -278,7 +278,7 @@ class ProjectXExecutor(BaseExecutor):
             if account_id:
                 search_data["accountId"] = account_id
 
-            response = await self._session.post("/Position/searchOpen", json=search_data)
+            response = await self._session.post("/api/Position/searchOpen", json=search_data)
             if response.status_code == 200:
                 data = response.json()
                 positions_data = data if isinstance(data, list) else data.get("positions", data.get("data", []))
@@ -395,7 +395,7 @@ class ProjectXExecutor(BaseExecutor):
             if order.take_profit:
                 order_data["takeProfit"] = order.take_profit
 
-            response = await self._session.post("/Order/place", json=order_data)
+            response = await self._session.post("/api/Order/place", json=order_data)
 
             if response.status_code == 200:
                 result = response.json()
@@ -464,7 +464,7 @@ class ProjectXExecutor(BaseExecutor):
             if accounts:
                 close_data["accountId"] = accounts[0].id
 
-            response = await self._session.post("/Position/closeContract", json=close_data)
+            response = await self._session.post("/api/Position/closeContract", json=close_data)
 
             if response.status_code == 200:
                 result = response.json()
@@ -499,7 +499,7 @@ class ProjectXExecutor(BaseExecutor):
             if "take_profit" in modifications:
                 modify_data["takeProfit"] = modifications["take_profit"]
 
-            response = await self._session.post("/Order/modify", json=modify_data)
+            response = await self._session.post("/api/Order/modify", json=modify_data)
 
             if response.status_code == 200:
                 return OrderResponse(
@@ -519,7 +519,7 @@ class ProjectXExecutor(BaseExecutor):
     async def cancel_order(self, order_id: str) -> OrderResponse:
         """Cancel order."""
         try:
-            response = await self._session.post("/Order/cancel", json={"orderId": order_id})
+            response = await self._session.post("/api/Order/cancel", json={"orderId": order_id})
 
             if response.status_code == 200:
                 return OrderResponse(
@@ -550,7 +550,7 @@ class ProjectXExecutor(BaseExecutor):
         """Get pending orders."""
         try:
             if self._session:
-                response = await self._session.post("/Order/searchOpen", json={})
+                response = await self._session.post("/api/Order/searchOpen", json={})
                 if response.status_code == 200:
                     data = response.json()
                     return data if isinstance(data, list) else data.get("orders", data.get("data", []))
