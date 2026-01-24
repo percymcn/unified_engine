@@ -142,7 +142,7 @@ class Container:
     def _get_repositories(self):
         """Get repository instances from current session."""
         # Create a new session for this request
-        session = self._session_factory.create()
+        session = self._session_factory.create_session()
 
         return (
             SQLAlchemySignalRepository(session),
@@ -155,7 +155,7 @@ class Container:
 
     def _get_symbol_alias_repository(self):
         """Get symbol alias repository instance."""
-        session = self._session_factory.create()
+        session = self._session_factory.create_session()
         return SQLAlchemySymbolAliasRepository(session)
 
     # Use case factories
@@ -285,17 +285,17 @@ class Container:
 
     def _get_account_group_repository(self) -> AccountGroupRepository:
         """Get account group repository instance."""
-        session = self._session_factory.create()
+        session = self._session_factory.create_session()
         return AccountGroupRepository(session)
 
     def update_account_settings_use_case(self) -> UpdateAccountSettingsUseCase:
         """Create UpdateAccountSettingsUseCase with injected dependencies."""
-        session = self._session_factory.create()
+        session = self._session_factory.create_session()
         return UpdateAccountSettingsUseCase(session)
 
     def get_account_settings_use_case(self) -> GetAccountSettingsUseCase:
         """Create GetAccountSettingsUseCase with injected dependencies."""
-        session = self._session_factory.create()
+        session = self._session_factory.create_session()
         return GetAccountSettingsUseCase(session)
 
     def create_account_group_use_case(self) -> CreateAccountGroupUseCase:

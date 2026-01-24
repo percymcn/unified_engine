@@ -663,6 +663,15 @@ class TestConnectionUseCase:
                         )
 
             except Exception as e:
+                error_str = str(e)
+                # Check if it's a DNS/network error vs auth error
+                if "Name or service not known" in error_str or "getaddrinfo failed" in error_str:
+                    return TestConnectionResponse(
+                        success=False,
+                        status="failed",
+                        message="ProjectX/TopStep API endpoint unreachable. Check network connectivity and API URL configuration.",
+                        details={"error": "DNS resolution failed", "suggestion": "Verify PROJECTX_API_URL environment variable or network access"}
+                    )
                 return TestConnectionResponse(
                     success=False,
                     status="failed",
@@ -670,13 +679,22 @@ class TestConnectionUseCase:
                     details={"error": str(e)}
                 )
 
-        except Exception as e:
-            return TestConnectionResponse(
-                success=False,
-                status="failed",
-                message=f"ProjectX/TopStep test error: {str(e)}",
-                details={"error": str(e)}
-            )
+            except Exception as e:
+                error_str = str(e)
+                # Check if it's a DNS/network error vs auth error
+                if "Name or service not known" in error_str or "getaddrinfo failed" in error_str:
+                    return TestConnectionResponse(
+                        success=False,
+                        status="failed",
+                        message="ProjectX/TopStep API endpoint unreachable. Check network connectivity and API URL configuration.",
+                        details={"error": "DNS resolution failed", "suggestion": "Verify PROJECTX_API_URL environment variable or network access"}
+                    )
+                return TestConnectionResponse(
+                    success=False,
+                    status="failed",
+                    message=f"ProjectX/TopStep test error: {str(e)}",
+                    details={"error": str(e)}
+                )
 
     async def _test_mt4(self, credentials: dict) -> TestConnectionResponse:
         """Test MT4 connection (MetaAPI or Manager API)."""
