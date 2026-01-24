@@ -300,11 +300,11 @@ function LoginPageContent() {
             </button>
           </form>
 
-          {/* Google OAuth (show only when not loading) */}
-          {!oauthLoading && (
+          {/* Google OAuth - Show when enabled or still loading (to avoid flicker) */}
+          {(isGoogleEnabled || oauthLoading) && (
             <>
               {/* Divider - only show if Google is enabled */}
-              {isGoogleEnabled && (
+              {isGoogleEnabled && !oauthLoading && (
                 <div className="relative my-6">
                   <div className="absolute inset-0 flex items-center">
                     <div className="w-full border-t border-gray-700" />
@@ -317,8 +317,8 @@ function LoginPageContent() {
                 </div>
               )}
 
-              {/* Google Login Button - only show if enabled */}
-              {isGoogleEnabled && (
+              {/* Google Login Button - show when enabled */}
+              {isGoogleEnabled && !oauthLoading && (
                 <div className="w-full">
                   <button
                     type="button"

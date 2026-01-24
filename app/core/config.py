@@ -49,7 +49,13 @@ class Settings(BaseSettings):
 
     # API
     API_V1_STR: str = "/api/v1"
-    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:8080"]
+    CORS_ORIGINS: List[str] = [
+        "http://localhost:3000",
+        "http://localhost:3456",
+        "http://localhost:8080",
+        "https://tradeflow.fluxeo.net",
+        "https://www.tradeflow.fluxeo.net",
+    ]
     RATE_LIMIT_PER_MINUTE: int = 100
     
     # WebSocket

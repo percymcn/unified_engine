@@ -26,21 +26,31 @@ export function useOAuthProviders() {
     async function fetchProviders() {
       try {
         const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8765";
-        const response = await fetch(`${BACKEND_URL}/api/v1/oauth/providers`);
+        console.log('[OAuth] Fetching providers from:', `${BACKEND_URL}/api/v1/oauth/providers`);
+        const response = await fetch(`${BACKEND_URL}/api/v1/oauth/providers`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'omit',
+        });
+        
+        console.log('[OAuth] Response status:', response.status);
         
         if (!response.ok) {
-          // If endpoint doesn't exist or fails, assume no OAuth configured
+          console.warn(`[OAuth] Providers endpoint returned ${response.status}`);
           setProviders([]);
           setIsLoading(false);
           return;
         }
 
         const data: OAuthProvidersResponse = await response.json();
+        console.log('[OAuth] Providers received:', data.providers);
         setProviders(data.providers || []);
-      } catch {
-        // Fail-open: if check fails, assume no OAuth configured
+      } catch (err) {
+        console.error('[OAuth] Failed to fetch providers:', err);
         setProviders([]);
-        setError(null); // Don't show error, just no OAuth
+        setError(null);
       } finally {
         setIsLoading(false);
       }
