@@ -4,7 +4,7 @@
 
 set -e
 
-API_URL="${API_URL:-http://localhost:3012}"
+API_URL="${API_URL:-http://localhost:8765}"
 BASE_URL="${BASE_URL:-$API_URL}"
 
 echo "=== Signal Intelligence Smoke Tests ==="

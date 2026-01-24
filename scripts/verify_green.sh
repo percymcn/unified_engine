@@ -86,7 +86,7 @@ check_backend_health() {
     local attempt=1
     
     while [ $attempt -le $max_attempts ]; do
-        local response=$(curl -s -w "\n%{http_code}" http://localhost:3012/health 2>/dev/null || echo -e "\n000")
+        local response=$(curl -s -w "\n%{http_code}" http://localhost:8765/health 2>/dev/null || echo -e "\n000")
         local body=$(echo "$response" | head -n -1)
         local status_code=$(echo "$response" | tail -n 1)
         
@@ -179,7 +179,7 @@ check_api_endpoints() {
     local all_ok=true
     
     for endpoint in "${endpoints[@]}"; do
-        local response=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:3012$endpoint" 2>/dev/null || echo "000")
+        local response=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:8765$endpoint" 2>/dev/null || echo "000")
         
         if [ "$response" = "200" ] || [ "$response" = "401" ] || [ "$response" = "405" ]; then
             log_success "$endpoint: HTTP $response"

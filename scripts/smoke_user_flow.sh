@@ -18,7 +18,7 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 # Configuration
-API_BASE_URL="${API_BASE_URL:-http://localhost:3012}"
+API_BASE_URL="${API_BASE_URL:-http://localhost:8765}"
 TEST_USERNAME="smoke_test_$(date +%s)"
 TEST_EMAIL="${TEST_USERNAME}@smoketest.local"
 TEST_PASSWORD="SmokeTest123!"

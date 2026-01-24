@@ -30,7 +30,7 @@ docker service ps redis --no-trunc 2>&1 | head -3 || echo "⚠️  Redis service
 echo ""
 
 echo "5. Health Checks"
-API_URL="${API_URL:-http://localhost:3012}"
+API_URL="${API_URL:-http://localhost:8765}"
 echo "Testing API at: $API_URL"
 curl -f -s "$API_URL/health" 2>&1 | head -5 || echo "❌ API health check failed"
 echo ""
