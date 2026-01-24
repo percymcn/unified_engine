@@ -24,11 +24,18 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const isLocal = process.env.NEXT_PUBLIC_LOCAL_BANNER === "1";
+  
   return (
     <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-background text-foreground`}
       >
+        {isLocal && (
+          <div className="fixed top-0 left-0 right-0 z-50 bg-yellow-500 text-black text-center py-2 px-4 text-sm font-semibold border-b-2 border-yellow-600">
+            🚧 LOCAL MODE - Development Environment 🚧
+          </div>
+        )}
         <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>

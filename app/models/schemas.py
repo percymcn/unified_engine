@@ -306,6 +306,11 @@ class Token(BaseModel):
     token_type: str = "bearer"
     expires_in: Optional[int] = None
 
+class LoginRequest(BaseModel):
+    """Request model for login endpoint"""
+    username: str
+    password: str
+
 class TokenData(BaseModel):
     username: Optional[str] = None
     user_id: Optional[int] = None

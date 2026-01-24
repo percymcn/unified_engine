@@ -44,14 +44,16 @@ export async function POST(request: NextRequest): Promise<NextResponse<LoginResp
       );
     }
 
-    // Backend expects query parameters
-    const params = new URLSearchParams();
-    params.append('username', username);
-    params.append('password', password);
-
-    // Proxy request to backend with query params
-    const backendResponse = await fetch(`${BACKEND_URL}/api/v1/auth/login?${params.toString()}`, {
+    // Proxy request to backend with JSON body (preferred)
+    const backendResponse = await fetch(`${BACKEND_URL}/api/v1/auth/login`, {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        username,
+        password,
+      }),
     });
 
     // Handle backend errors

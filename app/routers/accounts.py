@@ -88,6 +88,7 @@ async def get_accounts(
     skip: int = 0,
     limit: int = 100,
     current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     """Get all accounts for current user via hexagonal architecture"""
     container = get_container(request)
@@ -768,6 +769,7 @@ async def get_account(
     request: Request,
     account_id: str,
     current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     """Get specific account via hexagonal architecture"""
     container = get_container(request)

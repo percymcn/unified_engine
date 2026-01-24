@@ -1,28 +1,39 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Header
+from fastapi import APIRouter, Depends, HTTPException, status, Header, Request, Body
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+import bcrypt
 from typing import Optional
 
 from app.db.database import get_db
 from app.models.models import User, UserSession
-from app.models.schemas import UserCreate, User as UserSchema, Token, TokenData
+from app.models.schemas import UserCreate, User as UserSchema, Token, TokenData, LoginRequest
 from app.core.config import settings
 from app.core.event_emitter import emit_user_event
 
 router = APIRouter()
 security = HTTPBearer()
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against its hash"""
-    return pwd_context.verify(plain_password, hashed_password)
+    if not hashed_password:
+        return False
+    try:
+        return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+    except Exception:
+        return False
 
 def get_password_hash(password: str) -> str:
-    """Generate password hash"""
-    return pwd_context.hash(password)
+    """Generate password hash using bcrypt"""
+    # Ensure password is a string and encode to bytes
+    password_bytes = password.encode('utf-8')
+    if len(password_bytes) > 72:
+        raise ValueError("Password cannot be longer than 72 bytes")
+    # Generate salt and hash
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(password_bytes, salt)
+    return hashed.decode('utf-8')
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     """Create JWT access token"""
@@ -113,6 +124,26 @@ async def get_current_user_optional(
 @router.post("/register", response_model=UserSchema)
 async def register(user: UserCreate, db: Session = Depends(get_db)):
     """Register new user"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    # Validate password length (bcrypt limit is 72 bytes)
+    if not isinstance(user.password, str):
+        logger.error("Register: password is not a string", extra={"password_type": type(user.password).__name__})
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid password format"
+        )
+    
+    password_bytes = user.password.encode('utf-8')
+    if len(password_bytes) > 72:
+        raise HTTPException(
+            status_code=400,
+            detail="Password cannot be longer than 72 bytes. Please use a shorter password."
+        )
+    
+    logger.info(f"Registering user: {user.username}, email: {user.email}")
+    
     # Check if user already exists
     db_user = get_user_by_email(db, user.email)
     if db_user:
@@ -128,8 +159,9 @@ async def register(user: UserCreate, db: Session = Depends(get_db)):
             detail="Username already registered"
         )
     
-    # Create new user
-    hashed_password = get_password_hash(user.password)
+    # Create new user - ensure we hash ONLY the password string
+    password_str = str(user.password)  # Explicitly convert to string
+    hashed_password = get_password_hash(password_str)
     db_user = User(
         email=user.email,
         username=user.username,
@@ -149,17 +181,51 @@ async def register(user: UserCreate, db: Session = Depends(get_db)):
         "username": db_user.username
     })
     
+    logger.info(f"User registered successfully: {db_user.id}, username: {db_user.username}")
     return db_user
 
 @router.post("/login", response_model=Token)
 async def login(
-    username: str,
-    password: str,
+    request: Request,
+    login_data: Optional[LoginRequest] = Body(None),
+    username: Optional[str] = None,
+    password: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
-    """Login user and return access token"""
+    """Login user and return access token
+    
+    Accepts JSON body (preferred) or query parameters (backward compatibility).
+    JSON body format: {"username": str, "password": str}
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    # Try to get JSON body first
+    try:
+        body = await request.json()
+        if body and isinstance(body, dict) and "username" in body and "password" in body:
+            username = body["username"]
+            password = body["password"]
+            logger.info(f"Login attempt via JSON body for username: {username}")
+        elif login_data:
+            username = login_data.username
+            password = login_data.password
+            logger.info(f"Login attempt via Pydantic body for username: {username}")
+    except Exception:
+        # No JSON body, will try query params
+        pass
+    
+    # Fallback to query params if no body provided
+    if not username or not password:
+        if username is None or password is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Username and password are required. Provide as JSON body: {'username': str, 'password': str} or as query parameters."
+            )
+    
     user = authenticate_user(db, username, password)
     if not user:
+        logger.warning(f"Login failed for username: {username}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
@@ -180,6 +246,8 @@ async def login(
     await emit_user_event("login", user.id, {
         "username": user.username
     })
+    
+    logger.info(f"Login successful for user: {user.id}, username: {user.username}")
     
     return {
         "access_token": access_token,

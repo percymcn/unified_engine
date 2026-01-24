@@ -1,18 +1,29 @@
 ---
-status: investigating
+status: resolved
 trigger: "postgres-ports-drift: TradeFlow has ENV/DB/port drift - sometimes SQLite, sometimes Postgres, backend sometimes on 8000 instead of 8765. Need to anchor to canonical settings."
 created: 2026-01-23T17:00:00Z
-updated: 2026-01-23T18:10:00Z
+updated: 2026-01-23T19:30:00Z
+resolved: 2026-01-23T19:30:00Z
 symptoms_prefilled: true
 goal: find_and_fix
 ---
+
+## RESOLVED
+
+All phases completed:
+- scripts/local_up_postgres.sh created
+- .env fixed (Postgres + port 8765)
+- All scripts normalized to port 8765
+- docs/DB_POLICY.md created
+- webhook_key column added to trading_accounts
+- Stack verified running (backend 8765, UI 3456)
 
 ## Current Focus
 
 hypothesis: ROOT CAUSE CONFIRMED - .env has wrong PORT=8000 and DATABASE_URL=sqlite, scripts have inconsistent port defaults
 test: Verified all config sources
 expecting: Need to normalize to canonical: Postgres on 5432, API on 8765, UI on 3456
-next_action: PHASE B - Create local_up_postgres.sh and fix all inconsistent settings
+next_action: COMPLETED - All fixes applied
 
 ## Symptoms
 
