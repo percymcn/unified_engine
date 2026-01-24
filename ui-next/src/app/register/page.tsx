@@ -33,7 +33,6 @@ import {
   Zap,
   ArrowRight,
   Loader2,
-  Info,
 } from "lucide-react";
 import { useOAuthProviders } from "@/lib/useOAuthProviders";
 
