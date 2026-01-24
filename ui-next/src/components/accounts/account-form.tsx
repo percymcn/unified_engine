@@ -141,53 +141,19 @@ export function AccountForm({
   const credentialSchema = getBrokerCredentialSchema(broker);
   const isBrokerSupported = credentialSchema !== null;
   
-  // Check if TradeLocker requires Brand API (e.g., GATESFX server)
-  const requiresBrandAPI = useMemo(() => {
-    if (broker !== 'tradelocker') return false;
-    const server = credentials.server?.toUpperCase() || '';
-    return server === 'GATESFX' || server === 'GATES FX';
-  }, [broker, credentials.server]);
-
-  // Check if backend test result indicates Brand API required
-  const backendRequiresBrandAPI = useMemo(() => {
-    return testResult?.details?.mode === 'brand_api_required';
-  }, [testResult]);
-
-  const effectiveRequiresBrandAPI = requiresBrandAPI || backendRequiresBrandAPI;
-  
   const allFields = useMemo(() => {
     if (!credentialSchema) return [];
-    
-    // For TradeLocker with Brand API requirement, adjust required fields
-    if (broker === 'tradelocker' && effectiveRequiresBrandAPI) {
-      // Brand API mode: api_key is required, username/password/server are optional
-      const brandAPIFields = credentialSchema.optionalFields.filter(f => f.name === 'apiKey');
-      const sdkFields = credentialSchema.requiredFields.filter(f => 
-        f.name !== 'username' && f.name !== 'password' && f.name !== 'server'
-      );
-      const optionalSDKFields = credentialSchema.requiredFields.filter(f => 
-        f.name === 'username' || f.name === 'password' || f.name === 'server'
-      );
-      return [...brandAPIFields, ...sdkFields, ...optionalSDKFields, ...credentialSchema.optionalFields.filter(f => f.name !== 'apiKey')];
-    }
-    
     return [...credentialSchema.requiredFields, ...credentialSchema.optionalFields];
-  }, [credentialSchema, broker, effectiveRequiresBrandAPI]);
+  }, [credentialSchema]);
 
   // Check if all required credentials are filled
   const hasRequiredCredentials = useMemo(() => {
     if (!credentialSchema) return false;
-    
-    // For TradeLocker with Brand API requirement, check api_key instead
-    if (broker === 'tradelocker' && effectiveRequiresBrandAPI) {
-      return !!credentials.apiKey && credentials.apiKey.trim().length > 0;
-    }
-    
     return credentialSchema.requiredFields.every((field) => {
       const value = credentials[field.name];
       return value && value.trim().length > 0;
     });
-  }, [credentialSchema, credentials, broker, effectiveRequiresBrandAPI]);
+  }, [credentialSchema, credentials]);
 
   // Handle test connection
   const handleTestConnection = async () => {
@@ -657,29 +623,10 @@ export function AccountForm({
                       ? 'Leave blank to keep existing credentials'
                       : 'Required to connect to broker API'}
                   </p>
-                  
-                  {/* Brand API requirement hint for TradeLocker */}
-                  {broker === 'tradelocker' && effectiveRequiresBrandAPI && (
-                    <Alert className="mt-2 border-blue-200 bg-blue-50">
-                      <AlertDescription className="text-sm text-blue-900">
-                        <strong>Brand API Required:</strong> This broker (GATESFX) requires Brand API Key mode. Username/password authentication is not supported.
-                      </AlertDescription>
-                    </Alert>
-                  )}
                 </div>
 
                 {allFields.map((field) => {
-                  // For TradeLocker with Brand API requirement, adjust field requirements
-                  const isRequired = broker === 'tradelocker' && effectiveRequiresBrandAPI
-                    ? field.name === 'apiKey'
-                    : field.required && !isEdit;
-                  
-                  // Hide username/password/server if Brand API required and api_key provided
-                  const shouldHide = broker === 'tradelocker' && effectiveRequiresBrandAPI && 
-                    (field.name === 'username' || field.name === 'password' || field.name === 'server') &&
-                    credentials.apiKey && credentials.apiKey.trim().length > 0;
-                  
-                  if (shouldHide) return null;
+                  const isRequired = field.required && !isEdit;
                   
                   return (
                     <CredentialFieldInput
@@ -825,29 +772,10 @@ export function AccountForm({
                       ? 'Leave blank to keep existing credentials'
                       : 'Required to connect to broker API'}
                   </p>
-                  
-                  {/* Brand API requirement hint for TradeLocker */}
-                  {broker === 'tradelocker' && effectiveRequiresBrandAPI && (
-                    <Alert className="mt-2 border-blue-200 bg-blue-50">
-                      <AlertDescription className="text-sm text-blue-900">
-                        <strong>Brand API Required:</strong> This broker (GATESFX) requires Brand API Key mode. Username/password authentication is not supported.
-                      </AlertDescription>
-                    </Alert>
-                  )}
                 </div>
 
                 {allFields.map((field) => {
-                  // For TradeLocker with Brand API requirement, adjust field requirements
-                  const isRequired = broker === 'tradelocker' && effectiveRequiresBrandAPI
-                    ? field.name === 'apiKey'
-                    : field.required && !isEdit;
-                  
-                  // Hide username/password/server if Brand API required and api_key provided
-                  const shouldHide = broker === 'tradelocker' && effectiveRequiresBrandAPI && 
-                    (field.name === 'username' || field.name === 'password' || field.name === 'server') &&
-                    credentials.apiKey && credentials.apiKey.trim().length > 0;
-                  
-                  if (shouldHide) return null;
+                  const isRequired = field.required && !isEdit;
                   
                   return (
                     <CredentialFieldInput

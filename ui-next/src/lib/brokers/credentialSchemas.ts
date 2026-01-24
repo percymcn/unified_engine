@@ -71,17 +71,12 @@ export interface BrokerCredentialSchema {
 /**
  * TradeLocker Credential Schema
  * 
- * Supports two authentication modes:
- * 1. SDK mode (preferred): Uses username/password/server
- * 2. Brand API mode (fallback/required for some brokers): Uses API key
- * 
- * Note: Some brokers (e.g., GATESFX) require Brand API and don't support SDK mode.
+ * Uses official SDK with username/password/server credentials.
  */
 export const TRADELOCKER_SCHEMA: BrokerCredentialSchema = {
   broker: 'tradelocker',
   displayName: 'TradeLocker',
   requiredFields: [
-    // SDK mode fields (required unless Brand API is required)
     {
       name: 'username',
       backendName: 'username',
@@ -108,7 +103,7 @@ export const TRADELOCKER_SCHEMA: BrokerCredentialSchema = {
       required: true,
       type: 'string',
       label: 'Server',
-      description: 'TradeLocker server name (e.g., "Demo Server", "Live Server", "GATESFX")',
+      description: 'TradeLocker server name (e.g., "Demo Server", "Live Server")',
       storageLocation: 'credentials',
       storageColumn: 'encrypted_data',
     },
@@ -128,21 +123,10 @@ export const TRADELOCKER_SCHEMA: BrokerCredentialSchema = {
       storageLocation: 'credentials',
       storageColumn: 'encrypted_data',
     },
-    // Brand API mode field
-    {
-      name: 'apiKey',
-      backendName: 'api_key',
-      required: false,
-      type: 'password',
-      label: 'API Key (Brand API Mode)',
-      description: 'TradeLocker Brand API key. Required for brokers like GATESFX. Alternative to username/password.',
-      storageLocation: 'trading_accounts',
-      storageColumn: 'api_key',
-    },
   ],
   testConnectionEndpoint: '/api/v1/accounts/test-connection',
   createAccountEndpoint: '/api/v1/accounts/',
-  notes: 'Provide either (username, password, server) for SDK mode or (api_key) for Brand API mode. Some brokers (e.g., GATESFX) require Brand API.',
+  notes: 'Provide username, password, and server for SDK authentication.',
 };
 
 /**

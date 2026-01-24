@@ -3,14 +3,16 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { Loader2, ArrowLeft, Settings, Shield, GitBranch } from 'lucide-react';
+import { Loader2, ArrowLeft, Settings, Shield, GitBranch, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AccountSettingsForm } from '@/components/accounts/account-settings-form';
 import { Account, AccountSettings, AccountGroup, BROKER_DISPLAY_NAMES } from '@/types/account';
-import { getAccountSettings, updateAccountSettings, getAccountGroups } from '@/lib/api/accounts';
+import { getAccountSettings, updateAccountSettings, getAccountGroups, refreshBrokerAccounts, updateAccount, DiscoveredAccount } from '@/lib/api/accounts';
 import { useToast } from '@/hooks/use-toast';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 
 export default function AccountSettingsPage() {
   const params = useParams();
@@ -23,6 +25,10 @@ export default function AccountSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [account, setAccount] = useState<Account | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [discoveredAccounts, setDiscoveredAccounts] = useState<DiscoveredAccount[]>([]);
+  const [selectedAccountIds, setSelectedAccountIds] = useState<Set<string>>(new Set());
+  const [defaultAccountId, setDefaultAccountId] = useState<string>('');
 
   useEffect(() => {
     loadData();
@@ -44,6 +50,28 @@ export default function AccountSettingsPage() {
       setSettings(settingsData);
       setGroups(groupsData);
       setAccount(accountResponse);
+      
+      // Load broker account selection if available
+      if (accountResponse.enabled_broker_account_ids) {
+        setSelectedAccountIds(new Set(accountResponse.enabled_broker_account_ids));
+      }
+      if (accountResponse.default_broker_account_id) {
+        setDefaultAccountId(accountResponse.default_broker_account_id);
+      }
+      if (accountResponse.discovered_accounts_cache) {
+        setDiscoveredAccounts(accountResponse.discovered_accounts_cache as DiscoveredAccount[]);
+      }
+      
+      // Load broker account selection if available
+      if (accountResponse.enabled_broker_account_ids) {
+        setSelectedAccountIds(new Set(accountResponse.enabled_broker_account_ids));
+      }
+      if (accountResponse.default_broker_account_id) {
+        setDefaultAccountId(accountResponse.default_broker_account_id);
+      }
+      if (accountResponse.discovered_accounts_cache) {
+        setDiscoveredAccounts(accountResponse.discovered_accounts_cache as DiscoveredAccount[]);
+      }
     } catch (err) {
       console.error('Failed to load account settings:', err);
       setError('Failed to load account settings. Please try again.');
@@ -52,7 +80,90 @@ export default function AccountSettingsPage() {
     }
   };
 
-  const handleSave = async (updates: Partial<AccountSettings>) => {
+  const handleRefreshAccounts = async () => {
+    if (!account) return;
+    
+    try {
+      setRefreshing(true);
+      const result = await refreshBrokerAccounts(account.id);
+      
+      if (result.accounts && result.accounts.length > 0) {
+        setDiscoveredAccounts(result.accounts);
+        toast({
+          title: 'Accounts Refreshed',
+          description: `Found ${result.accounts.length} account(s)`,
+        });
+      } else {
+        toast({
+          title: 'No Accounts Found',
+          description: result.message || 'No accounts discovered',
+          variant: 'default',
+        });
+      }
+    } catch (err) {
+      console.error('Failed to refresh accounts:', err);
+      toast({
+        title: 'Refresh Failed',
+        description: err instanceof Error ? err.message : 'Failed to refresh accounts',
+        variant: 'destructive',
+      });
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const handleAccountToggle = (accountId: string, checked: boolean) => {
+    const newSelected = new Set(selectedAccountIds);
+    if (checked) {
+      newSelected.add(accountId);
+    } else {
+      newSelected.delete(accountId);
+      if (defaultAccountId === accountId) {
+        setDefaultAccountId('');
+      }
+    }
+    setSelectedAccountIds(newSelected);
+    
+    if (!defaultAccountId && newSelected.size > 0) {
+      setDefaultAccountId(Array.from(newSelected)[0]);
+    }
+  };
+
+  const handleDefaultChange = (accountId: string) => {
+    if (selectedAccountIds.has(accountId)) {
+      setDefaultAccountId(accountId);
+    }
+  };
+
+  const handleSaveAccountSelection = async () => {
+    if (!account) return;
+    
+    try {
+      setSaving(true);
+      await updateAccount(account.id, {
+        enabled_broker_account_ids: Array.from(selectedAccountIds),
+        default_broker_account_id: defaultAccountId || undefined,
+        discovered_accounts_cache: discoveredAccounts,
+      });
+      
+      toast({
+        title: 'Account Selection Saved',
+        description: 'Broker account selection updated successfully',
+      });
+      
+      // Reload account data
+      await loadData();
+    } catch (err) {
+      console.error('Failed to save account selection:', err);
+      toast({
+        title: 'Save Failed',
+        description: 'Failed to save account selection',
+        variant: 'destructive',
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
     try {
       setSaving(true);
 
@@ -150,6 +261,150 @@ export default function AccountSettingsPage() {
           Configure position sizing, risk limits, and signal routing for this account.
         </p>
       </div>
+
+      {/* Broker Account Selection Section */}
+      {account && (
+        <div className="space-y-4 p-4 border rounded-lg">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold">Broker Account Selection</h2>
+              <p className="text-sm text-muted-foreground">
+                Manage which broker accounts are enabled and set the default account
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefreshAccounts}
+              disabled={refreshing}
+            >
+              {refreshing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Refreshing...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Refresh Accounts
+                </>
+              )}
+            </Button>
+          </div>
+
+          {discoveredAccounts.length > 0 && (
+            <div className="space-y-3">
+              <div className="space-y-2">
+                {discoveredAccounts.map((acc) => {
+                  const accId = acc.broker_account_id || acc.id || '';
+                  const displayName = acc.display_name || acc.name || accId;
+                  const isSelected = selectedAccountIds.has(accId);
+                  const isDefault = defaultAccountId === accId;
+                  
+                  return (
+                    <div key={accId} className="flex items-start gap-3 p-3 border rounded-md">
+                      <Checkbox
+                        id={`account-${accId}`}
+                        checked={isSelected}
+                        onCheckedChange={(checked) =>
+                          handleAccountToggle(accId, checked as boolean)
+                        }
+                        className="mt-1"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Label
+                            htmlFor={`account-${accId}`}
+                            className="font-medium cursor-pointer"
+                          >
+                            {displayName}
+                          </Label>
+                          {acc.status === 'active' && (
+                            <span className="text-xs px-1.5 py-0.5 bg-green-100 text-green-700 rounded">
+                              Active
+                            </span>
+                          )}
+                          {acc.status === 'inactive' && (
+                            <span className="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded">
+                              Inactive
+                            </span>
+                          )}
+                          <span className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">
+                            {acc.account_type}
+                          </span>
+                          {isDefault && (
+                            <span className="text-xs px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded">
+                              Default
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {acc.meta?.currency || acc.currency || 'USD'} • 
+                          Balance: {(acc.meta?.balance || acc.balance || 0).toFixed(2)} • 
+                          Equity: {(acc.meta?.equity || acc.equity || 0).toFixed(2)}
+                        </div>
+                        {acc.account_number && acc.account_number !== accId && (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            Account #: {acc.account_number}
+                          </div>
+                        )}
+                      </div>
+                      {isSelected && (
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="radio"
+                            id={`default-${accId}`}
+                            name="defaultAccount"
+                            checked={isDefault}
+                            onChange={() => handleDefaultChange(accId)}
+                            className="cursor-pointer"
+                          />
+                          <Label
+                            htmlFor={`default-${accId}`}
+                            className="text-xs text-muted-foreground cursor-pointer"
+                          >
+                            Default
+                          </Label>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              
+              <div className="flex items-center gap-2 pt-2">
+                <Button
+                  onClick={handleSaveAccountSelection}
+                  disabled={saving || selectedAccountIds.size === 0}
+                  size="sm"
+                >
+                  {saving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    'Save Selection'
+                  )}
+                </Button>
+                {selectedAccountIds.size === 0 && (
+                  <span className="text-xs text-muted-foreground">
+                    Select at least one account
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+          
+          {discoveredAccounts.length === 0 && (
+            <Alert>
+              <AlertDescription>
+                No accounts discovered. Click "Refresh Accounts" to discover accounts from the broker.
+              </AlertDescription>
+            </Alert>
+          )}
+        </div>
+      )}
 
       {/* Settings Tabs */}
       <Tabs defaultValue="position-sizing" className="space-y-6">

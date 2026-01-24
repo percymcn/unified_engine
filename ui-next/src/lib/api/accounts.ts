@@ -187,16 +187,25 @@ export async function discoverAccounts(
     throw new Error(error.message || `Failed to discover accounts: ${response.statusText}`);
   }
 
+/**
+ * Refresh discovered broker accounts for an account
+ */
+export async function refreshBrokerAccounts(accountId: number): Promise<DiscoverAccountsResult> {
+  const response = await fetch(`/api/accounts/${accountId}/refresh-accounts`, {
+    method: 'POST',
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: 'Failed to refresh accounts' }));
+    throw new Error(error.message || `Failed to refresh accounts: ${response.statusText}`);
+  }
+
   return response.json() as Promise<DiscoverAccountsResult>;
 }
 
 // ============================================================================
 // Account Settings API
 // ============================================================================
-
-/**
- * Get account settings (position sizing, risk limits, routing)
- */
 export async function getAccountSettings(accountId: number): Promise<AccountSettings> {
   const response = await fetch(`/api/accounts/${accountId}/settings`);
 
