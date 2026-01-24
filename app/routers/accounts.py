@@ -695,6 +695,7 @@ async def create_account(
     request: Request,
     account: AccountCreate,
     current_user: User = Depends(require_broker_slot),
+    db: Session = Depends(get_db),
 ):
     """Create new trading account with encrypted credentials.
 
@@ -749,17 +750,66 @@ async def create_account(
         "is_active": response.is_active,
     })
 
+    # Fetch the created account to return full Account object
+    from app.models.database_models import TradingAccount as TradingAccountORM
+    orm_account = db.query(TradingAccountORM).filter(
+        TradingAccountORM.account_number == account.account_id,
+        TradingAccountORM.user_id == current_user.id
+    ).order_by(TradingAccountORM.created_at.desc()).first()
+    
+    if not orm_account:
+        # Fallback: try to find by account_number pattern
+        orm_account = db.query(TradingAccountORM).filter(
+            TradingAccountORM.user_id == current_user.id,
+            TradingAccountORM.broker == account.broker
+        ).order_by(TradingAccountORM.created_at.desc()).first()
+
+    if orm_account:
+        return {
+            "id": orm_account.id,
+            "account_id": orm_account.account_number,
+            "user_id": orm_account.user_id,
+            "broker": orm_account.broker.value,
+            "account_type": orm_account.account_type.value,
+            "currency": orm_account.currency or "USD",
+            "leverage": int(orm_account.leverage) if orm_account.leverage else 100,
+            "balance": float(orm_account.balance) if orm_account.balance else 0.0,
+            "equity": float(orm_account.equity) if orm_account.equity else 0.0,
+            "margin": float(orm_account.margin) if orm_account.margin else 0.0,
+            "free_margin": float(orm_account.free_margin) if orm_account.free_margin else 0.0,
+            "is_active": orm_account.is_active,
+            "is_connected": orm_account.is_connected,
+            "last_sync": orm_account.last_sync.isoformat() if orm_account.last_sync else None,
+            "created_at": orm_account.created_at.isoformat() if orm_account.created_at else None,
+            "webhook_key": orm_account.webhook_key,
+        }
+    
+    # Fallback response if account not found in DB
     result = {
-        "id": response.account_id,
+        "id": int(response.account_id) if response.account_id.isdigit() else 0,
+        "account_id": response.account_id,
+        "user_id": current_user.id,
         "broker": response.broker.value,
+        "account_type": account.account_type.value,
+        "currency": account.currency or "USD",
+        "leverage": account.leverage or 100,
+        "balance": 0.0,
+        "equity": 0.0,
+        "margin": 0.0,
+        "free_margin": 0.0,
         "is_active": response.is_active,
-        "message": "Account created with encrypted credentials",
+        "is_connected": False,
+        "last_sync": None,
+        "created_at": None,
+        "webhook_key": None,
     }
 
     # Include auto-alias count if any were created
     if response.auto_aliases_created > 0:
         result["auto_aliases_created"] = response.auto_aliases_created
         result["message"] = f"Account created with {response.auto_aliases_created} auto-detected symbol aliases"
+    else:
+        result["message"] = "Account created with encrypted credentials"
 
     return result
 
