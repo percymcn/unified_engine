@@ -63,10 +63,10 @@ API_URL=http://localhost:8000 ./scripts/verify_oauth_providers.sh
 - `METAAPI_APPLICATION` - Application name (default: "tradeflow")
 
 **Fallback: Manager API mode**
-- `MT4_MANAGER_HOST` / `MT5_MANAGER_HOST` - Manager API host
-- `MT4_MANAGER_PORT` / `MT5_MANAGER_PORT` - Manager API port
-- `MT4_MANAGER_LOGIN` / `MT5_MANAGER_LOGIN` - Manager login
-- `MT4_MANAGER_PASSWORD` / `MT5_MANAGER_PASSWORD` - Manager password
+- `MT4_MANAGER_LOGIN` / `MT5_MANAGER_LOGIN` - Manager login (required)
+- `MT4_MANAGER_PASSWORD` / `MT5_MANAGER_PASSWORD` - Manager password (required)
+
+**Note:** Manager API host/port are platform-level defaults (not user credentials). See contract at `/api/v1/brokers/contracts` for user-provided fields.
 
 **Code references:**
 - `app/brokers/mt4_executor.py` - MT4 executor
@@ -109,14 +109,14 @@ API_URL=http://localhost:8000 ./scripts/verify_oauth_providers.sh
 ### Tradovate
 
 **OAuth mode (preferred):**
-- `TRADOVATE_CLIENT_ID` - OAuth client ID
-- `TRADOVATE_CLIENT_SECRET` - OAuth client secret
-- `TRADOVATE_OAUTH_REDIRECT_URI` - OAuth redirect URI
-- `TRADOVATE_OAUTH_ENVIRONMENT` - "demo" or "live"
+- OAuth mode doesn't require user-provided credentials (handled via redirect flow)
+- Platform-level OAuth config (`TRADOVATE_CLIENT_ID`, `TRADOVATE_CLIENT_SECRET`) is separate from user credentials
+- See contract at `/api/v1/brokers/contracts` for details
 
 **Password mode (fallback):**
-- `TRADOVATE_USER_ID` - User ID
-- `TRADOVATE_PASSWORD` - Password
+- `TRADOVATE_USER_ID` - User ID (required)
+- `TRADOVATE_PASSWORD` - Password (required)
+- Optional: `TRADOVATE_APP_ID`, `TRADOVATE_CID`, `TRADOVATE_SEC` (see contract)
 
 **Code references:**
 - `app/brokers/tradovate_executor.py` - Tradovate executor

@@ -118,7 +118,7 @@ check_broker "mt4_sdk" METAAPI_TOKEN METAAPI_ACCOUNT_ID
 echo ""
 
 echo "MT4 (Manager API fallback):"
-check_broker "mt4_manager" MT4_MANAGER_LOGIN MT4_MANAGER_PASSWORD MT4_MANAGER_HOST MT4_MANAGER_PORT
+check_broker "mt4_manager" MT4_MANAGER_LOGIN MT4_MANAGER_PASSWORD
 echo ""
 
 # MT5
@@ -127,7 +127,7 @@ check_broker "mt5_sdk" METAAPI_TOKEN METAAPI_ACCOUNT_ID
 echo ""
 
 echo "MT5 (Manager API fallback):"
-check_broker "mt5_manager" MT5_MANAGER_LOGIN MT5_MANAGER_PASSWORD MT5_MANAGER_HOST MT5_MANAGER_PORT
+check_broker "mt5_manager" MT5_MANAGER_LOGIN MT5_MANAGER_PASSWORD
 echo ""
 
 # TradeLocker
@@ -140,11 +140,9 @@ check_broker "tradelocker_brand" TRADELOCKER_API_KEY
 echo ""
 
 # Tradovate
-echo "Tradovate (OAuth):"
-check_broker "tradovate_oauth" TRADOVATE_CLIENT_ID TRADOVATE_CLIENT_SECRET
-echo ""
-
-echo "Tradovate (Password fallback):"
+# Note: OAuth mode doesn't require user-provided credentials (handled via redirect)
+# Platform-level OAuth config (TRADOVATE_CLIENT_ID/SECRET) is separate from user credentials
+echo "Tradovate (Password mode):"
 check_broker "tradovate_password" TRADOVATE_USER_ID TRADOVATE_PASSWORD
 echo ""
 
