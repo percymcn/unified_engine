@@ -751,17 +751,20 @@ async def create_account(
     })
 
     # Fetch the created account to return full Account object
-    from app.models.database_models import TradingAccount as TradingAccountORM
+    from app.models.database_models import TradingAccount as TradingAccountORM, BrokerType as ORMBrokerType
+    # Map domain broker to ORM broker enum
+    orm_broker = ORMBrokerType.PROJECTX if account.broker.value == "projectx" else getattr(ORMBrokerType, account.broker.value.upper(), ORMBrokerType.PROJECTX)
+    
     orm_account = db.query(TradingAccountORM).filter(
         TradingAccountORM.account_number == account.account_id,
         TradingAccountORM.user_id == current_user.id
     ).order_by(TradingAccountORM.created_at.desc()).first()
     
     if not orm_account:
-        # Fallback: try to find by account_number pattern
+        # Fallback: try to find by broker enum
         orm_account = db.query(TradingAccountORM).filter(
             TradingAccountORM.user_id == current_user.id,
-            TradingAccountORM.broker == account.broker
+            TradingAccountORM.broker == orm_broker
         ).order_by(TradingAccountORM.created_at.desc()).first()
 
     if orm_account:
