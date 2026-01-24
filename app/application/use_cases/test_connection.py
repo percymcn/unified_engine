@@ -606,7 +606,7 @@ class TestConnectionUseCase:
 
                 async with httpx.AsyncClient(timeout=10.0) as client:
                     response = await client.post(
-                        f"{api_url}/Auth/loginKey",
+                        f"{api_url}/api/Auth/loginKey",
                         json={"userName": username, "apiKey": api_key},
                         headers={"Content-Type": "application/json", "Accept": "text/plain"}
                     )
@@ -626,7 +626,7 @@ class TestConnectionUseCase:
                         if auth_token:
                             try:
                                 sym_response = await client.get(
-                                    f"{api_url}/Contract/Search",
+                                    f"{api_url}/api/Contract/Search",
                                     headers={"Authorization": f"Bearer {auth_token}"}
                                 )
                                 if sym_response.status_code == 200:

@@ -130,7 +130,7 @@ class ProjectXExecutor(BaseExecutor):
 
             # Authenticate via ProjectX Gateway API
             auth_response = await self._session.post(
-                "/Auth/loginKey",
+                "/api/Auth/loginKey",
                 json={"userName": self._username, "apiKey": self._api_key},
                 headers={"Content-Type": "application/json", "Accept": "text/plain"}
             )
