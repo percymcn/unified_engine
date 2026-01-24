@@ -84,8 +84,17 @@ class AccountMapper:
 
         # User and account info
         orm_model.user_id = entity.user_id
-        orm_model.account_number = entity.id.value  # Use domain ID as account_number if not set
-        orm_model.account_name = entity.server
+        # account_number stores the broker's account ID (from server field if it's a broker account ID)
+        # account_name stores the display name
+        # If server looks like a broker account ID (UUID format or auto- prefix), use it for account_number
+        if entity.server and (entity.server.startswith('auto-') or (len(entity.server) == 36 and '-' in entity.server)):
+            # Likely a broker account ID
+            orm_model.account_number = entity.server
+            orm_model.account_name = entity.server  # Use as name too if no better name
+        else:
+            # Use domain ID as account_number (fallback)
+            orm_model.account_number = entity.id.value
+            orm_model.account_name = entity.server or entity.id.value
 
         # Financial fields
         orm_model.currency = entity.currency

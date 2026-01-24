@@ -306,6 +306,8 @@ class CreateAccountUseCase:
             import uuid
 
             # Create domain account entity
+            # Use request.account_id (broker account ID) for account_number
+            # Generate UUID for domain ID (will be mapped to database integer ID)
             account = Account(
                 id=AccountId(str(uuid.uuid4())),
                 user_id=request.user_id,
@@ -316,7 +318,7 @@ class CreateAccountUseCase:
                 margin=Money(Decimal("0"), request.currency),
                 leverage=request.leverage,
                 currency=request.currency,
-                server=request.server,
+                server=request.server or request.account_id,  # Use broker account_id as server/account_name if server not provided
                 is_active=True,
                 is_connected=False,
             )
@@ -335,7 +337,14 @@ class CreateAccountUseCase:
                     from sqlalchemy import select
                     # Access session via repository
                     session = self._account_repo._session
-                    stmt = select(TradingAccount).where(TradingAccount.id == int(saved_account.id.value))
+                    # Use account_number to find the account (broker account ID) instead of trying to convert UUID to int
+                    # After save, saved_account.id.value should be the integer DB ID as string, but to be safe,
+                    # we'll query by account_number which contains the broker account ID
+                    account_number = request.account_id if request.account_id else saved_account.id.value
+                    stmt = select(TradingAccount).where(
+                        TradingAccount.account_number == account_number,
+                        TradingAccount.user_id == request.user_id
+                    ).order_by(TradingAccount.created_at.desc()).limit(1)
                     result = await session.execute(stmt)
                     orm_account = result.scalar_one_or_none()
                     if orm_account and not orm_account.webhook_key:
@@ -343,7 +352,7 @@ class CreateAccountUseCase:
                         short_random = secrets.token_urlsafe(6)[:8]
                         orm_account.webhook_key = f"webhook_{broker_slug}_user{request.user_id}_{short_random}"
                         await session.commit()
-                        logger.info(f"Generated webhook key for account {saved_account.id.value}: {orm_account.webhook_key[:20]}...")
+                        logger.info(f"Generated webhook key for account {orm_account.id}: {orm_account.webhook_key[:20]}...")
             except Exception as e:
                 # Don't fail account creation if webhook key generation fails
                 logger.warning(f"Failed to generate webhook key (non-critical): {e}")
