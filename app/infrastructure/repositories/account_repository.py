@@ -45,10 +45,28 @@ class SQLAlchemyAccountRepository(AccountRepository):
         Returns:
             Persisted Account entity with updated ID
         """
-        # Check if account exists
-        stmt = select(AccountORM).where(AccountORM.id == int(account.id.value))
-        result = await self._session.execute(stmt)
-        existing = result.scalar_one_or_none()
+        # For new accounts (UUID domain ID), check by account_number instead of database ID
+        # For existing accounts (integer ID as string), check by database ID
+        existing = None
+        
+        # Try to parse account.id.value as integer to determine if it's a database ID
+        try:
+            db_id = int(account.id.value)
+            # It's a database ID (existing account)
+            stmt = select(AccountORM).where(AccountORM.id == db_id)
+            result = await self._session.execute(stmt)
+            existing = result.scalar_one_or_none()
+        except (ValueError, TypeError):
+            # It's a UUID or other string (new account) - check by account_number instead
+            # We need to get the account_number from the mapper's to_model logic
+            # For now, check if account_number matches (from server field which contains broker account ID)
+            if account.server:
+                stmt = select(AccountORM).where(
+                    AccountORM.account_number == account.server,
+                    AccountORM.user_id == account.user_id
+                )
+                result = await self._session.execute(stmt)
+                existing = result.scalar_one_or_none()
 
         if existing:
             # Update existing account
@@ -70,7 +88,17 @@ class SQLAlchemyAccountRepository(AccountRepository):
         Args:
             account: Domain Account entity to delete
         """
-        stmt = select(AccountORM).where(AccountORM.id == int(account.id.value))
+        # Try to parse as integer (database ID) first
+        try:
+            db_id = int(account.id.value)
+            stmt = select(AccountORM).where(AccountORM.id == db_id)
+        except (ValueError, TypeError):
+            # Not an integer - try account_number (broker account ID) and user_id
+            stmt = select(AccountORM).where(
+                AccountORM.account_number == account.id.value,
+                AccountORM.user_id == account.user_id
+            )
+        
         result = await self._session.execute(stmt)
         orm_model = result.scalar_one_or_none()
 
@@ -88,7 +116,14 @@ class SQLAlchemyAccountRepository(AccountRepository):
         Returns:
             Account entity if found, None otherwise
         """
-        stmt = select(AccountORM).where(AccountORM.id == int(account_id.value))
+        # Try to parse as integer (database ID) first
+        try:
+            db_id = int(account_id.value)
+            stmt = select(AccountORM).where(AccountORM.id == db_id)
+        except (ValueError, TypeError):
+            # Not an integer - try account_number (broker account ID)
+            stmt = select(AccountORM).where(AccountORM.account_number == account_id.value)
+        
         result = await self._session.execute(stmt)
         orm_model = result.scalar_one_or_none()
 
