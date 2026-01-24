@@ -54,14 +54,22 @@ def generate_broker_webhook_key(broker: str, user_id: int) -> str:
 
 
 class DiscoveredAccount(BaseModel):
-    """Discovered account from broker"""
-    id: str
-    name: Optional[str] = None
-    account_type: str
-    currency: str
-    is_live: bool
-    balance: float = 0.0
-    equity: float = 0.0
+    """Discovered account from broker - standardized format"""
+    broker_account_id: str = Field(..., description="Broker's account ID")
+    account_number: Optional[str] = Field(None, description="Account number (if different from broker_account_id)")
+    display_name: str = Field(..., description="Display name for the account")
+    status: str = Field(default="unknown", description="Account status: active|inactive|unknown")
+    account_type: str = Field(default="unknown", description="Account type: eval|funded|demo|unknown")
+    broker: str = Field(..., description="Broker identifier")
+    meta: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
+    
+    # Legacy fields for backward compatibility
+    id: Optional[str] = Field(None, description="Alias for broker_account_id")
+    name: Optional[str] = Field(None, description="Alias for display_name")
+    currency: Optional[str] = Field(None, description="Account currency")
+    is_live: Optional[bool] = Field(None, description="Is live account")
+    balance: Optional[float] = Field(None, description="Account balance")
+    equity: Optional[float] = Field(None, description="Account equity")
 
 
 class DiscoverAccountsResponse(BaseModel):
@@ -129,6 +137,10 @@ async def get_accounts(
             "is_connected": acc.is_connected,
             "last_sync": acc.last_sync.isoformat() if acc.last_sync else None,
             "webhook_key": orm_account.webhook_key if orm_account else None,  # Patch 1.2.1
+            # Broker account selection
+            "enabled_broker_account_ids": orm_account.enabled_broker_account_ids if orm_account else [],
+            "default_broker_account_id": orm_account.default_broker_account_id if orm_account else None,
+            "discovered_accounts_cache": orm_account.discovered_accounts_cache if orm_account else None,
         }
         accounts_with_webhook.append(account_dict)
     
@@ -336,27 +348,62 @@ async def discover_accounts(
                 message=f"Error discovering accounts: {str(e)}"
             )
         
-        # Normalize to DiscoveredAccount format
+        # Normalize to DiscoveredAccount format (standardized)
         discovered = []
         for acc in broker_accounts:
             # Extract account fields - executors return Account objects with various attributes
             acc_id = str(getattr(acc, 'id', ''))
-            account_name = getattr(acc, 'name', None) or getattr(acc, 'account_name', None) or getattr(acc, 'account_number', None) or acc_id
-            account_type = getattr(acc, 'account_type', 'live')
-            currency = getattr(acc, 'currency', 'USD')
+            account_number = getattr(acc, 'account_number', None) or acc_id
+            account_name = getattr(acc, 'name', None) or getattr(acc, 'account_name', None) or account_number or acc_id
             
-            # Determine is_live
+            # Determine account_type
+            account_type_raw = getattr(acc, 'account_type', 'live')
+            # Map to standardized types
+            if account_type_raw in ('evaluation', 'eval', 'challenge'):
+                account_type = 'eval'
+            elif account_type_raw in ('funded', 'live'):
+                account_type = 'funded'
+            elif account_type_raw == 'demo':
+                account_type = 'demo'
+            else:
+                account_type = 'unknown'
+            
+            # Determine status
             is_live = getattr(acc, 'is_live', False)
-            if not is_live and account_type:
-                is_live = account_type == "live"
+            is_active = getattr(acc, 'is_active', True)
+            # If test-connection succeeded, treat as active unless broker says otherwise
+            if is_active and is_live:
+                status = 'active'
+            elif not is_active:
+                status = 'inactive'
+            else:
+                status = 'unknown'
             
+            currency = getattr(acc, 'currency', 'USD')
             balance = float(getattr(acc, 'balance', 0))
             equity = float(getattr(acc, 'equity', 0))
             
+            # Build metadata
+            meta = {
+                'currency': currency,
+                'balance': balance,
+                'equity': equity,
+                'leverage': getattr(acc, 'leverage', None),
+                'margin': getattr(acc, 'margin', None),
+                'free_margin': getattr(acc, 'free_margin', None),
+            }
+            
             discovered.append(DiscoveredAccount(
+                broker_account_id=acc_id,
+                account_number=account_number if account_number != acc_id else None,
+                display_name=account_name,
+                status=status,
+                account_type=account_type,
+                broker=broker_type.value,
+                meta=meta,
+                # Legacy fields for backward compatibility
                 id=acc_id,
                 name=account_name,
-                account_type=account_type,
                 currency=currency,
                 is_live=is_live,
                 balance=balance,
@@ -768,6 +815,16 @@ async def create_account(
         ).order_by(TradingAccountORM.created_at.desc()).first()
 
     if orm_account:
+        # Update broker account selection fields if provided
+        if account.enabled_broker_account_ids is not None:
+            orm_account.enabled_broker_account_ids = account.enabled_broker_account_ids
+        if account.default_broker_account_id is not None:
+            orm_account.default_broker_account_id = account.default_broker_account_id
+        if account.discovered_accounts_cache is not None:
+            orm_account.discovered_accounts_cache = account.discovered_accounts_cache
+        
+        db.commit()
+        
         return {
             "id": orm_account.id,
             "account_id": orm_account.account_number,
@@ -785,6 +842,9 @@ async def create_account(
             "last_sync": orm_account.last_sync.isoformat() if orm_account.last_sync else None,
             "created_at": orm_account.created_at.isoformat() if orm_account.created_at else None,
             "webhook_key": orm_account.webhook_key,
+            "enabled_broker_account_ids": orm_account.enabled_broker_account_ids or [],
+            "default_broker_account_id": orm_account.default_broker_account_id,
+            "discovered_accounts_cache": orm_account.discovered_accounts_cache,
         }
     
     # Fallback response if account not found in DB
@@ -859,6 +919,10 @@ async def get_account(
         "server": account.server,
         "last_sync": account.last_sync.isoformat() if account.last_sync else None,
         "webhook_key": orm_account.webhook_key if orm_account else None,  # Patch 1.2.1
+        # Broker account selection
+        "enabled_broker_account_ids": orm_account.enabled_broker_account_ids if orm_account else [],
+        "default_broker_account_id": orm_account.default_broker_account_id if orm_account else None,
+        "discovered_accounts_cache": orm_account.discovered_accounts_cache if orm_account else None,
     }
 
 @router.put("/{account_id}")
@@ -867,8 +931,9 @@ async def update_account(
     account_id: str,
     account_update: AccountUpdate,
     current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
-    """Update account with credential re-encryption"""
+    """Update account with credential re-encryption and broker account selection"""
     container = get_container(request)
     use_case = container.update_account_use_case()
 
@@ -901,11 +966,143 @@ async def update_account(
             detail=response.error,
         )
 
+    # Update broker account selection fields directly in ORM
+    from app.models.database_models import TradingAccount as TradingAccountORM
+    orm_account = db.query(TradingAccountORM).filter(
+        TradingAccountORM.id == int(account_id),
+        TradingAccountORM.user_id == current_user.id
+    ).first()
+    
+    if not orm_account:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Account not found"
+        )
+    
+    # Update broker account selection if provided
+    if account_update.enabled_broker_account_ids is not None:
+        orm_account.enabled_broker_account_ids = account_update.enabled_broker_account_ids
+    if account_update.default_broker_account_id is not None:
+        orm_account.default_broker_account_id = account_update.default_broker_account_id
+    if account_update.discovered_accounts_cache is not None:
+        orm_account.discovered_accounts_cache = account_update.discovered_accounts_cache
+    
+    db.commit()
+    
     return {
-        "id": response.account_id,
-        "updated": response.updated,
+        "id": orm_account.id,
+        "account_id": orm_account.account_number,
+        "broker": orm_account.broker.value,
+        "enabled_broker_account_ids": orm_account.enabled_broker_account_ids or [],
+        "default_broker_account_id": orm_account.default_broker_account_id,
+        "discovered_accounts_cache": orm_account.discovered_accounts_cache,
+        "updated": True,
         "message": "Account updated successfully",
     }
+
+@router.post("/{account_id}/refresh-accounts")
+async def refresh_broker_accounts(
+    request: Request,
+    account_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Refresh discovered broker accounts using stored credentials.
+    
+    Re-discovers accounts from broker and updates the discovered_accounts_cache.
+    Does not change enabled/default selections unless explicitly requested.
+    """
+    from app.models.database_models import TradingAccount as TradingAccountORM
+    from app.core.encryption import decrypt
+    
+    # Get account
+    orm_account = db.query(TradingAccountORM).filter(
+        TradingAccountORM.id == int(account_id),
+        TradingAccountORM.user_id == current_user.id,
+        TradingAccountORM.is_active == True
+    ).first()
+    
+    if not orm_account:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Account not found"
+        )
+    
+    # Build credentials from stored account
+    credentials = {}
+    broker = orm_account.broker.value
+    
+    try:
+        if broker == "tradelocker":
+            if orm_account.api_key:
+                credentials["api_key"] = decrypt(orm_account.api_key)
+            # Check metadata for SDK credentials
+            if orm_account.extra_metadata:
+                import json
+                meta = json.loads(orm_account.extra_metadata) if isinstance(orm_account.extra_metadata, str) else orm_account.extra_metadata
+                if meta.get("username"):
+                    credentials["username"] = meta["username"]
+                if meta.get("password"):
+                    credentials["password"] = meta["password"]
+                if meta.get("server"):
+                    credentials["server"] = meta["server"]
+        elif broker in ("projectx", "topstep"):
+            if orm_account.api_key:
+                credentials["username"] = decrypt(orm_account.api_key)
+            if orm_account.api_secret:
+                credentials["api_key"] = decrypt(orm_account.api_secret)
+        elif broker == "tradovate":
+            if orm_account.access_token:
+                credentials["access_token"] = decrypt(orm_account.access_token)
+            credentials["environment"] = orm_account.oauth_environment or "demo"
+        elif broker in ("mt4", "mt5"):
+            if orm_account.api_key:
+                credentials["metaapi_token"] = decrypt(orm_account.api_key)
+            if orm_account.extra_metadata:
+                import json
+                meta = json.loads(orm_account.extra_metadata) if isinstance(orm_account.extra_metadata, str) else orm_account.extra_metadata
+                if meta.get("metaapi_account_id"):
+                    credentials["metaapi_account_id"] = meta["metaapi_account_id"]
+        
+        # Call discover endpoint logic
+        discover_body = DiscoverAccountsBody(
+            broker=broker,
+            credentials=credentials
+        )
+        
+        # Call discover_accounts (it doesn't need db, but we'll pass request)
+        discover_response = await discover_accounts(request, discover_body, current_user)
+        
+        # Update cache
+        if discover_response.accounts:
+            orm_account.discovered_accounts_cache = [
+                {
+                    "broker_account_id": acc.broker_account_id,
+                    "account_number": acc.account_number,
+                    "display_name": acc.display_name,
+                    "status": acc.status,
+                    "account_type": acc.account_type,
+                    "meta": acc.meta,
+                }
+                for acc in discover_response.accounts
+            ]
+            db.commit()
+        
+        return {
+            "account_id": account_id,
+            "discovered_count": len(discover_response.accounts),
+            "accounts": discover_response.accounts,
+            "message": discover_response.message or "Accounts refreshed successfully",
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to refresh accounts for {account_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to refresh accounts: {str(e)}"
+        )
+
 
 @router.delete("/{account_id}")
 async def delete_account(

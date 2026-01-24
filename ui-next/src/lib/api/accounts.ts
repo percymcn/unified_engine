@@ -21,16 +21,23 @@ export interface TestConnectionResult {
 }
 
 /**
- * Discovered account from broker
+ * Discovered account from broker - standardized format
  */
 export interface DiscoveredAccount {
-  id: string;
-  name: string | null;
-  account_type: string;
-  currency: string;
-  is_live: boolean;
-  balance: number;
-  equity: number;
+  broker_account_id: string;
+  account_number: string | null;
+  display_name: string;
+  status: 'active' | 'inactive' | 'unknown';
+  account_type: 'eval' | 'funded' | 'demo' | 'unknown';
+  broker: string;
+  meta: Record<string, unknown>;
+  // Legacy fields for backward compatibility
+  id?: string;
+  name?: string | null;
+  currency?: string;
+  is_live?: boolean;
+  balance?: number;
+  equity?: number;
 }
 
 /**

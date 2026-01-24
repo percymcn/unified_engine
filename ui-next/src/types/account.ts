@@ -18,6 +18,10 @@ export interface Account {
   last_sync?: string;
   created_at: string;
   webhook_key?: string | null;  // Patch 1.2.1
+  // Broker account selection (for multi-account brokers)
+  enabled_broker_account_ids?: string[];
+  default_broker_account_id?: string | null;
+  discovered_accounts_cache?: Array<Record<string, unknown>>;
 }
 
 export interface AccountCreate {
@@ -32,6 +36,10 @@ export interface AccountCreate {
   login?: number;
   password?: string;
   broker_config?: Record<string, unknown>;
+  // Broker account selection (for multi-account brokers)
+  enabled_broker_account_ids?: string[];
+  default_broker_account_id?: string;
+  discovered_accounts_cache?: Array<Record<string, unknown>>;
 }
 
 export interface AccountUpdate {
@@ -44,6 +52,10 @@ export interface AccountUpdate {
   api_key?: string;
   api_secret?: string;
   broker_config?: Record<string, unknown>;
+  // Broker account selection
+  enabled_broker_account_ids?: string[];
+  default_broker_account_id?: string;
+  discovered_accounts_cache?: Array<Record<string, unknown>>;
 }
 
 export interface AccountBalance {

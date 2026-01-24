@@ -158,6 +158,11 @@ class TradingAccount(Base):
     # Per-broker webhook key (Patch 1.2.1)
     webhook_key = Column(Text, unique=True, nullable=True, index=True)
 
+    # Broker account selection (for multi-account brokers)
+    enabled_broker_account_ids = Column(JSON, nullable=True, description="List of enabled broker account IDs")
+    default_broker_account_id = Column(String(100), nullable=True, description="Default broker account ID")
+    discovered_accounts_cache = Column(JSON, nullable=True, description="Cached discovered accounts metadata")
+
     # Metadata
     extra_metadata = Column(JSON)
     created_at = Column(DateTime, default=datetime.utcnow)

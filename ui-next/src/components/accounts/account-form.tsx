@@ -224,13 +224,17 @@ export function AccountForm({
               if (discoverResult.accounts && discoverResult.accounts.length > 0) {
                 if (discoverResult.accounts.length === 1) {
                   // Exactly one account - auto-select it
-                  setSelectedAccountIds(new Set([discoverResult.accounts[0].id]));
-                  setDefaultAccountId(discoverResult.accounts[0].id);
+                  const acc = discoverResult.accounts[0];
+                  const accId = acc.broker_account_id || acc.id || '';
+                  setSelectedAccountIds(new Set([accId]));
+                  setDefaultAccountId(accId);
                 } else {
                   // Multiple accounts - select all, set first as default
-                  const allIds = new Set(discoverResult.accounts.map(acc => acc.id));
+                  const allIds = new Set(discoverResult.accounts.map(acc => acc.broker_account_id || acc.id || '').filter(Boolean));
                   setSelectedAccountIds(allIds);
-                  setDefaultAccountId(discoverResult.accounts[0].id);
+                  if (allIds.size > 0) {
+                    setDefaultAccountId(Array.from(allIds)[0]);
+                  }
                 }
               }
         } catch (error) {
@@ -329,23 +333,8 @@ export function AccountForm({
         console.log('Create account - credential keys:', Object.keys(backendCredentials));
       }
 
-      // Include discovered account selections in broker_config
-      const brokerConfigWithAccounts = { ...backendCredentials };
-      if (selectedAccountIds.size > 0) {
-        brokerConfigWithAccounts.selected_account_ids = Array.from(selectedAccountIds);
-        if (defaultAccountId && selectedAccountIds.has(defaultAccountId)) {
-          brokerConfigWithAccounts.default_account_id = defaultAccountId;
-        }
-      }
-
-      // Use discovered account ID if available, otherwise use existing (edit mode) or auto-generate
-      const finalAccountId = discoveredAccounts.length > 0 && selectedAccountIds.size > 0
-        ? Array.from(selectedAccountIds)[0] // Use first selected account ID
-        : isEdit && account?.account_id
-          ? account.account_id // Preserve existing account ID in edit mode
-          : `auto-${Date.now()}`; // Auto-generate for new accounts
-
-      const data: AccountCreate = {
+      // Include discovered account selections
+      const accountData: AccountCreate = {
         account_id: finalAccountId,
         broker,
         account_type: accountType,
@@ -353,8 +342,25 @@ export function AccountForm({
         leverage: parseInt(leverage),
         broker_config: brokerConfigWithAccounts,
       };
+      
+      // Add broker account selection if accounts were discovered
+      if (discoveredAccounts.length > 0 && selectedAccountIds.size > 0) {
+        accountData.enabled_broker_account_ids = Array.from(selectedAccountIds);
+        if (defaultAccountId && selectedAccountIds.has(defaultAccountId)) {
+          accountData.default_broker_account_id = defaultAccountId;
+        }
+        // Cache discovered accounts metadata
+        accountData.discovered_accounts_cache = discoveredAccounts.map(acc => ({
+          broker_account_id: acc.broker_account_id || acc.id,
+          account_number: acc.account_number,
+          display_name: acc.display_name || acc.name,
+          status: acc.status,
+          account_type: acc.account_type,
+          meta: acc.meta || {},
+        }));
+      }
 
-      await onSubmit(data);
+      await onSubmit(accountData);
       onClose();
     } catch (error) {
       console.error('Failed to submit account:', error);
@@ -560,57 +566,73 @@ export function AccountForm({
                         </div>
                         
                         <div className="space-y-2 max-h-48 overflow-y-auto">
-                          {discoveredAccounts.map((acc) => (
-                            <div key={acc.id} className="flex items-start gap-3 p-2 border rounded-md">
-                              <Checkbox
-                                id={`account-${acc.id}`}
-                                checked={selectedAccountIds.has(acc.id)}
-                                onCheckedChange={(checked) =>
-                                  handleAccountToggle(acc.id, checked as boolean)
-                                }
-                                className="mt-1"
-                              />
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <Label
-                                    htmlFor={`account-${acc.id}`}
-                                    className="font-medium cursor-pointer"
-                                  >
-                                    {acc.name || acc.id}
-                                  </Label>
-                                  {acc.is_live && (
-                                    <span className="text-xs px-1.5 py-0.5 bg-red-100 text-red-700 rounded">
-                                      Live
+                          {discoveredAccounts.map((acc) => {
+                            const accId = acc.broker_account_id || acc.id || '';
+                            const displayName = acc.display_name || acc.name || accId;
+                            return (
+                              <div key={accId} className="flex items-start gap-3 p-2 border rounded-md">
+                                <Checkbox
+                                  id={`account-${accId}`}
+                                  checked={selectedAccountIds.has(accId)}
+                                  onCheckedChange={(checked) =>
+                                    handleAccountToggle(accId, checked as boolean)
+                                  }
+                                  className="mt-1"
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <Label
+                                      htmlFor={`account-${accId}`}
+                                      className="font-medium cursor-pointer"
+                                    >
+                                      {displayName}
+                                    </Label>
+                                    {acc.status === 'active' && (
+                                      <span className="text-xs px-1.5 py-0.5 bg-green-100 text-green-700 rounded">
+                                        Active
+                                      </span>
+                                    )}
+                                    {acc.status === 'inactive' && (
+                                      <span className="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded">
+                                        Inactive
+                                      </span>
+                                    )}
+                                    <span className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">
+                                      {acc.account_type}
                                     </span>
+                                  </div>
+                                  <div className="text-xs text-muted-foreground mt-1">
+                                    {acc.meta?.currency || acc.currency || 'USD'} • 
+                                    Balance: {(acc.meta?.balance || acc.balance || 0).toFixed(2)} • 
+                                    Equity: {(acc.meta?.equity || acc.equity || 0).toFixed(2)}
+                                  </div>
+                                  {acc.account_number && acc.account_number !== accId && (
+                                    <div className="text-xs text-muted-foreground mt-1">
+                                      Account #: {acc.account_number}
+                                    </div>
                                   )}
-                                  <span className="text-xs text-muted-foreground">
-                                    {acc.account_type}
-                                  </span>
                                 </div>
-                                <div className="text-xs text-muted-foreground mt-1">
-                                  {acc.currency} • Balance: {acc.balance.toFixed(2)} • Equity: {acc.equity.toFixed(2)}
-                                </div>
+                                {selectedAccountIds.has(accId) && (
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      type="radio"
+                                      id={`default-${accId}`}
+                                      name="defaultAccount"
+                                      checked={defaultAccountId === accId}
+                                      onChange={() => handleDefaultChange(accId)}
+                                      className="cursor-pointer"
+                                    />
+                                    <Label
+                                      htmlFor={`default-${accId}`}
+                                      className="text-xs text-muted-foreground cursor-pointer"
+                                    >
+                                      Default
+                                    </Label>
+                                  </div>
+                                )}
                               </div>
-                              {selectedAccountIds.has(acc.id) && (
-                                <div className="flex items-center gap-2">
-                                  <input
-                                    type="radio"
-                                    id={`default-${acc.id}`}
-                                    name="defaultAccount"
-                                    checked={defaultAccountId === acc.id}
-                                    onChange={() => handleDefaultChange(acc.id)}
-                                    className="cursor-pointer"
-                                  />
-                                  <Label
-                                    htmlFor={`default-${acc.id}`}
-                                    className="text-xs text-muted-foreground cursor-pointer"
-                                  >
-                                    Default
-                                  </Label>
-                                </div>
-                              )}
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                         
                         {selectedAccountIds.size === 0 && (
@@ -711,6 +733,174 @@ export function AccountForm({
                       </Alert>
                     )}
                     
+                        <div className="space-y-2 max-h-48 overflow-y-auto">
+                          {discoveredAccounts.map((acc) => {
+                            const accId = acc.broker_account_id || acc.id || '';
+                            const displayName = acc.display_name || acc.name || accId;
+                            return (
+                              <div key={accId} className="flex items-start gap-3 p-2 border rounded-md">
+                                <Checkbox
+                                  id={`account-${accId}`}
+                                  checked={selectedAccountIds.has(accId)}
+                                  onCheckedChange={(checked) =>
+                                    handleAccountToggle(accId, checked as boolean)
+                                  }
+                                  className="mt-1"
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <Label
+                                      htmlFor={`account-${accId}`}
+                                      className="font-medium cursor-pointer"
+                                    >
+                                      {displayName}
+                                    </Label>
+                                    {acc.status === 'active' && (
+                                      <span className="text-xs px-1.5 py-0.5 bg-green-100 text-green-700 rounded">
+                                        Active
+                                      </span>
+                                    )}
+                                    {acc.status === 'inactive' && (
+                                      <span className="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded">
+                                        Inactive
+                                      </span>
+                                    )}
+                                    <span className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">
+                                      {acc.account_type}
+                                    </span>
+                                  </div>
+                                  <div className="text-xs text-muted-foreground mt-1">
+                                    {acc.meta?.currency || acc.currency || 'USD'} • 
+                                    Balance: {(acc.meta?.balance || acc.balance || 0).toFixed(2)} • 
+                                    Equity: {(acc.meta?.equity || acc.equity || 0).toFixed(2)}
+                                  </div>
+                                  {acc.account_number && acc.account_number !== accId && (
+                                    <div className="text-xs text-muted-foreground mt-1">
+                                      Account #: {acc.account_number}
+                                    </div>
+                                  )}
+                                </div>
+                                {selectedAccountIds.has(accId) && (
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      type="radio"
+                                      id={`default-${accId}`}
+                                      name="defaultAccount"
+                                      checked={defaultAccountId === accId}
+                                      onChange={() => handleDefaultChange(accId)}
+                                      className="cursor-pointer"
+                                    />
+                                    <Label
+                                      htmlFor={`default-${accId}`}
+                                      className="text-xs text-muted-foreground cursor-pointer"
+                                    >
+                                      Default
+                                    </Label>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                        
+                        {selectedAccountIds.size === 0 && (
+                          <p className="text-xs text-muted-foreground">
+                            Select at least one account to continue.
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                {/* Standard credential fields for other brokers */}
+                <div>
+                  <Label className="text-sm font-semibold">
+                    {isEdit ? 'Update Credentials (optional)' : 'Credentials'}
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {isEdit
+                      ? 'Leave blank to keep existing credentials'
+                      : 'Required to connect to broker API'}
+                  </p>
+                  
+                  {/* Brand API requirement hint for TradeLocker */}
+                  {broker === 'tradelocker' && effectiveRequiresBrandAPI && (
+                    <Alert className="mt-2 border-blue-200 bg-blue-50">
+                      <AlertDescription className="text-sm text-blue-900">
+                        <strong>Brand API Required:</strong> This broker (GATESFX) requires Brand API Key mode. Username/password authentication is not supported.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </div>
+
+                {allFields.map((field) => {
+                  // For TradeLocker with Brand API requirement, adjust field requirements
+                  const isRequired = broker === 'tradelocker' && effectiveRequiresBrandAPI
+                    ? field.name === 'apiKey'
+                    : field.required && !isEdit;
+                  
+                  // Hide username/password/server if Brand API required and api_key provided
+                  const shouldHide = broker === 'tradelocker' && effectiveRequiresBrandAPI && 
+                    (field.name === 'username' || field.name === 'password' || field.name === 'server') &&
+                    credentials.apiKey && credentials.apiKey.trim().length > 0;
+                  
+                  if (shouldHide) return null;
+                  
+                  return (
+                    <CredentialFieldInput
+                      key={field.name}
+                      field={field}
+                      value={credentials[field.name] || ''}
+                      onChange={(value) => handleCredentialChange(field.name, value)}
+                      required={isRequired}
+                      broker={broker}
+                    />
+                  );
+                })}
+
+                {/* Test Connection Button */}
+                {!isEdit && (
+                  <div className="space-y-3 pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full"
+                      onClick={handleTestConnection}
+                      disabled={!hasRequiredCredentials || testing}
+                    >
+                      {testing ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Testing Connection...
+                        </>
+                      ) : (
+                        <>
+                          <Wifi className="mr-2 h-4 w-4" />
+                          Test & Validate
+                        </>
+                      )}
+                    </Button>
+
+                    {/* Test Result Display */}
+                    {testResult && (
+                      <Alert
+                        variant={testResult.success ? 'default' : 'destructive'}
+                        className={testResult.success ? 'border-chart-2' : ''}
+                      >
+                        {testResult.success ? (
+                          <CheckCircle2 className="h-4 w-4 text-chart-2" />
+                        ) : (
+                          <XCircle className="h-4 w-4" />
+                        )}
+                        <AlertDescription className="ml-2">
+                          {testResult.message}
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                    
                     {/* Account Discovery */}
                     {discovering && (
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -729,57 +919,73 @@ export function AccountForm({
                         </div>
                         
                         <div className="space-y-2 max-h-48 overflow-y-auto">
-                          {discoveredAccounts.map((acc) => (
-                            <div key={acc.id} className="flex items-start gap-3 p-2 border rounded-md">
-                              <Checkbox
-                                id={`account-${acc.id}`}
-                                checked={selectedAccountIds.has(acc.id)}
-                                onCheckedChange={(checked) =>
-                                  handleAccountToggle(acc.id, checked as boolean)
-                                }
-                                className="mt-1"
-                              />
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <Label
-                                    htmlFor={`account-${acc.id}`}
-                                    className="font-medium cursor-pointer"
-                                  >
-                                    {acc.name || acc.id}
-                                  </Label>
-                                  {acc.is_live && (
-                                    <span className="text-xs px-1.5 py-0.5 bg-red-100 text-red-700 rounded">
-                                      Live
+                          {discoveredAccounts.map((acc) => {
+                            const accId = acc.broker_account_id || acc.id || '';
+                            const displayName = acc.display_name || acc.name || accId;
+                            return (
+                              <div key={accId} className="flex items-start gap-3 p-2 border rounded-md">
+                                <Checkbox
+                                  id={`account-${accId}`}
+                                  checked={selectedAccountIds.has(accId)}
+                                  onCheckedChange={(checked) =>
+                                    handleAccountToggle(accId, checked as boolean)
+                                  }
+                                  className="mt-1"
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <Label
+                                      htmlFor={`account-${accId}`}
+                                      className="font-medium cursor-pointer"
+                                    >
+                                      {displayName}
+                                    </Label>
+                                    {acc.status === 'active' && (
+                                      <span className="text-xs px-1.5 py-0.5 bg-green-100 text-green-700 rounded">
+                                        Active
+                                      </span>
+                                    )}
+                                    {acc.status === 'inactive' && (
+                                      <span className="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded">
+                                        Inactive
+                                      </span>
+                                    )}
+                                    <span className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">
+                                      {acc.account_type}
                                     </span>
+                                  </div>
+                                  <div className="text-xs text-muted-foreground mt-1">
+                                    {acc.meta?.currency || acc.currency || 'USD'} • 
+                                    Balance: {(acc.meta?.balance || acc.balance || 0).toFixed(2)} • 
+                                    Equity: {(acc.meta?.equity || acc.equity || 0).toFixed(2)}
+                                  </div>
+                                  {acc.account_number && acc.account_number !== accId && (
+                                    <div className="text-xs text-muted-foreground mt-1">
+                                      Account #: {acc.account_number}
+                                    </div>
                                   )}
-                                  <span className="text-xs text-muted-foreground">
-                                    {acc.account_type}
-                                  </span>
                                 </div>
-                                <div className="text-xs text-muted-foreground mt-1">
-                                  {acc.currency} • Balance: {acc.balance.toFixed(2)} • Equity: {acc.equity.toFixed(2)}
-                                </div>
+                                {selectedAccountIds.has(accId) && (
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      type="radio"
+                                      id={`default-${accId}`}
+                                      name="defaultAccount"
+                                      checked={defaultAccountId === accId}
+                                      onChange={() => handleDefaultChange(accId)}
+                                      className="cursor-pointer"
+                                    />
+                                    <Label
+                                      htmlFor={`default-${accId}`}
+                                      className="text-xs text-muted-foreground cursor-pointer"
+                                    >
+                                      Default
+                                    </Label>
+                                  </div>
+                                )}
                               </div>
-                              {selectedAccountIds.has(acc.id) && (
-                                <div className="flex items-center gap-2">
-                                  <input
-                                    type="radio"
-                                    id={`default-${acc.id}`}
-                                    name="defaultAccount"
-                                    checked={defaultAccountId === acc.id}
-                                    onChange={() => handleDefaultChange(acc.id)}
-                                    className="cursor-pointer"
-                                  />
-                                  <Label
-                                    htmlFor={`default-${acc.id}`}
-                                    className="text-xs text-muted-foreground cursor-pointer"
-                                  >
-                                    Default
-                                  </Label>
-                                </div>
-                              )}
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                         
                         {selectedAccountIds.size === 0 && (

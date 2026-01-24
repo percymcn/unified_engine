@@ -67,6 +67,10 @@ class AccountCreate(AccountBase):
     detected_format: Optional[Dict[str, Any]] = None
     symbol_map: Optional[Dict[str, str]] = None
     sample_symbols: Optional[List[str]] = None
+    # Broker account selection (for multi-account brokers)
+    enabled_broker_account_ids: Optional[List[str]] = Field(None, description="List of enabled broker account IDs")
+    default_broker_account_id: Optional[str] = Field(None, description="Default broker account ID (required if accounts discovered)")
+    discovered_accounts_cache: Optional[List[Dict[str, Any]]] = Field(None, description="Cached discovered accounts metadata")
 
 class AccountUpdate(BaseModel):
     balance: Optional[float] = None
@@ -78,6 +82,10 @@ class AccountUpdate(BaseModel):
     api_key: Optional[str] = None
     api_secret: Optional[str] = None
     broker_config: Optional[Dict[str, Any]] = None
+    # Broker account selection
+    enabled_broker_account_ids: Optional[List[str]] = Field(None, description="List of enabled broker account IDs")
+    default_broker_account_id: Optional[str] = Field(None, description="Default broker account ID")
+    discovered_accounts_cache: Optional[List[Dict[str, Any]]] = Field(None, description="Cached discovered accounts metadata")
 
 class Account(AccountBase):
     id: int
