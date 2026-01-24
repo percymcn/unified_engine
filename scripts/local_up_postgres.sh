@@ -18,7 +18,7 @@ PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 cd "$PROJECT_DIR"
 
 # Canonical settings
-export DATABASE_URL="postgresql://trading_user:trading_password@127.0.0.1:5432/trading_db"
+export DATABASE_URL="postgresql://trading_user:trading_password@localhost:5432/trading_db"
 export BACKEND_URL="http://127.0.0.1:8765"
 export API_PORT=8765
 export UI_PORT=3456
