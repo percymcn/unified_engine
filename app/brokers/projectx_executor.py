@@ -77,7 +77,7 @@ class ProjectXExecutor(BaseExecutor):
         self._is_connected = False
 
         # API URL for httpx fallback
-        self._api_url = config.get("api_url", "https://gateway-api.s2f.projectx.com/api")
+        self._api_url = config.get("api_url", "https://api.topstepx.com")
 
         # Check for required credentials
         self.is_available = bool(self._api_key and self._username) if self._use_sdk else bool(self._api_key)

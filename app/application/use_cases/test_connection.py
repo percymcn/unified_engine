@@ -602,7 +602,7 @@ class TestConnectionUseCase:
             try:
                 import httpx
 
-                api_url = "https://gateway-api.s2f.projectx.com/api"
+                api_url = "https://api.topstepx.com"
 
                 async with httpx.AsyncClient(timeout=10.0) as client:
                     response = await client.post(

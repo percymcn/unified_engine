@@ -116,8 +116,8 @@ class Settings(BaseSettings):
     TRADOVATE_OAUTH_ENVIRONMENT: str = "demo"  # "demo" or "live"
     
     # ProjectX/TopStep Configuration (Legacy - httpx fallback)
-    PROJECTX_API_URL: str = "https://gateway-api.s2f.projectx.com/api"
-    PROJECTX_WS_URL: str = "wss://gateway.projectx.com/ws"
+    PROJECTX_API_URL: str = "https://api.topstepx.com"
+    PROJECTX_WS_URL: str = "wss://rtc.topstepx.com/hubs/user"
     PROJECTX_API_TOKEN: Optional[str] = None
     PROJECTX_ENV: str = "LIVE"  # LIVE or DEMO
 
