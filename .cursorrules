@@ -1,0 +1,23 @@
+WORK ONLY in /home/pharma5/unified_engine
+
+MANDATORY FIRST ACTIONS:
+1) Read .cursor_mandatory_context.md
+2) Run ./scripts/gsd_preflight_gate.sh
+If preflight fails: STOP and fix invariants first.
+
+CANONICAL INVARIANTS (DO NOT CHANGE):
+- Postgres 5432 is the only DB target
+- API 8765
+- UI 3456
+- Broker credential schemas must match GET /api/v1/brokers/contracts exactly
+- Billing tiers must match GET /api/billing/plans exactly
+- Never add SQLite usage. .local backups are quarantined and must remain quarantined.
+
+CHANGE POLICY:
+- Small commits only, each with a report in .gsd/reports when it changes behavior
+- Update .planning/STATE.md when milestones move
+
+AFTER ANY CHANGE:
+- Run ./scripts/gsd_postflight_gate.sh
+- Run ./scripts/verify_green.sh
+
