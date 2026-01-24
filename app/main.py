@@ -583,11 +583,19 @@ if __name__ == "__main__":
     host = os.getenv("HOST", settings.HOST)
     reload = os.getenv("RELOAD", str(settings.RELOAD)).lower() == "true"
     
+    # Configure reload directories to exclude ui-next/ and node_modules
+    reload_dirs = None
+    if reload:
+        # Only watch app/ directory for changes
+        reload_dirs = ["app"]
+        logger.info(f"Reload enabled: watching {reload_dirs} (excluding ui-next/ and node_modules/)")
+    
     uvicorn.run(
         "app.main:app",
         host=host,
         port=port,
         reload=reload,
+        reload_dirs=reload_dirs,
         log_level=settings.LOG_LEVEL.lower(),
         access_log=True
     )

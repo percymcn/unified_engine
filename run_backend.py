@@ -81,6 +81,7 @@ def main():
     
     if reload:
         cmd.append('--reload')
+        cmd.extend(['--reload-dir', 'app'])  # Only watch app/ directory
     
     # Print startup info
     print(f"\n🚀 Starting Unified Trading Engine Backend")

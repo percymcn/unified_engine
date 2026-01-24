@@ -65,6 +65,7 @@ DATABASE_URL="$DATABASE_URL" uvicorn app.main:app \
     --host 0.0.0.0 \
     --port $API_PORT \
     --reload \
+    --reload-dir app \
     > "$API_LOG" 2>&1 &
 API_PID=$!
 echo "  PID: $API_PID"
