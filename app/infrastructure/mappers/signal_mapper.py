@@ -41,15 +41,21 @@ class SignalMapper:
         if orm_model.target_accounts:
             target_accounts = [AccountId(str(acc_id)) for acc_id in orm_model.target_accounts]
 
-        # Build optional value objects
-        volume = Volume(Decimal(str(orm_model.quantity))) if orm_model.quantity else None
+        # Build optional value objects (column is 'volume' not 'quantity')
+        volume = Volume(Decimal(str(orm_model.volume))) if orm_model.volume else None
         price = Price(Decimal(str(orm_model.price))) if orm_model.price else None
         stop_loss = StopLoss(Price(Decimal(str(orm_model.stop_loss)))) if orm_model.stop_loss else None
         take_profit = TakeProfit(Price(Decimal(str(orm_model.take_profit)))) if orm_model.take_profit else None
 
+        # Handle source enum - may be stored as enum or string
+        source_value = orm_model.source.value if hasattr(orm_model.source, 'value') else orm_model.source
+
+        # Handle status - may be stored as string
+        status = SignalMapper._map_status_to_domain(orm_model.status)
+
         return Signal(
-            id=SignalId(str(orm_model.id)),
-            source=SignalSource(orm_model.source),
+            id=SignalId(str(orm_model.id)),  # Use integer ID from DB
+            source=SignalSource(source_value),
             symbol=Symbol(orm_model.symbol),
             action=SignalAction(orm_model.action.lower()),  # Normalize to lowercase
             volume=volume,
@@ -57,12 +63,12 @@ class SignalMapper:
             stop_loss=stop_loss,
             take_profit=take_profit,
             target_accounts=target_accounts,
-            status=SignalMapper._map_status_to_domain(orm_model.status),
-            comment=None,  # ORM doesn't have comment field
-            strategy_id=orm_model.source_id,
-            strategy_name=None,  # ORM doesn't have strategy_name
+            status=status,
+            comment=orm_model.comment,
+            strategy_id=orm_model.strategy_id,
+            strategy_name=orm_model.strategy_name,
             raw_payload=orm_model.raw_payload,
-            created_at=orm_model.received_at,
+            created_at=orm_model.created_at,
             processed_at=orm_model.processed_at,
             error_message=orm_model.error_message,
         )
@@ -79,17 +85,21 @@ class SignalMapper:
         Returns:
             SQLAlchemy Signal model
         """
-        if orm_model is None:
+        is_new = orm_model is None
+        if is_new:
             orm_model = SignalORM()
+            # For new signals, store the domain's UUID as signal_id for external tracking
+            orm_model.signal_id = entity.id.value
 
         # Basic fields
         orm_model.source = entity.source.value
-        orm_model.source_id = entity.strategy_id
+        orm_model.strategy_id = entity.strategy_id
+        orm_model.strategy_name = entity.strategy_name
         orm_model.symbol = entity.symbol.value
         orm_model.action = entity.action.value.upper()  # ORM uses uppercase
 
-        # Optional numeric fields
-        orm_model.quantity = float(entity.volume.value) if entity.volume else None
+        # Optional numeric fields (column is 'volume' not 'quantity')
+        orm_model.volume = float(entity.volume.value) if entity.volume else None
         orm_model.price = float(entity.price.value) if entity.price else None
         orm_model.stop_loss = float(entity.stop_loss.price.value) if entity.stop_loss else None
         orm_model.take_profit = float(entity.take_profit.price.value) if entity.take_profit else None
@@ -97,24 +107,42 @@ class SignalMapper:
         # Target accounts - convert to JSON-serializable list
         orm_model.target_accounts = [acc_id.value for acc_id in entity.target_accounts] if entity.target_accounts else []
 
-        # Status
-        orm_model.status = SignalMapper._map_status_to_orm(entity.status)
+        # Comment
+        orm_model.comment = entity.comment
+
+        # Status - store as string for DB
+        status = SignalMapper._map_status_to_orm(entity.status)
+        orm_model.status = status.value if hasattr(status, 'value') else str(status)
 
         # Metadata
         orm_model.raw_payload = entity.raw_payload
         orm_model.error_message = entity.error_message
 
         # Timestamps
-        orm_model.received_at = entity.created_at
-        orm_model.processed_at = entity.processed_at
+        if entity.processed_at:
+            orm_model.processed_at = entity.processed_at
 
         return orm_model
 
     @staticmethod
     def _map_status_to_domain(orm_status) -> SignalStatus:
-        """Map ORM SignalStatus enum to domain SignalStatus"""
+        """Map ORM SignalStatus enum or string to domain SignalStatus"""
         from app.models.database_models import SignalStatus as ORMSignalStatus
 
+        # Handle string status values
+        if isinstance(orm_status, str):
+            string_mapping = {
+                "received": SignalStatus.PENDING,
+                "pending": SignalStatus.PENDING,
+                "processing": SignalStatus.PROCESSING,
+                "executed": SignalStatus.PROCESSED,
+                "processed": SignalStatus.PROCESSED,
+                "failed": SignalStatus.FAILED,
+                "ignored": SignalStatus.SKIPPED,
+            }
+            return string_mapping.get(orm_status.lower(), SignalStatus.PENDING)
+
+        # Handle enum values
         mapping = {
             ORMSignalStatus.RECEIVED: SignalStatus.PENDING,
             ORMSignalStatus.PROCESSING: SignalStatus.PROCESSING,

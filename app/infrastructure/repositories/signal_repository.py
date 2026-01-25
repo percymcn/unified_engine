@@ -36,6 +36,14 @@ class SQLAlchemySignalRepository(SignalRepository):
         self._session = session
         self._mapper = SignalMapper()
 
+    def _is_new_signal(self, signal_id: SignalId) -> bool:
+        """Check if signal ID is a new UUID (not yet persisted) vs existing integer."""
+        try:
+            int(signal_id.value)
+            return False  # Valid integer = existing signal
+        except ValueError:
+            return True  # UUID string = new signal
+
     async def save(self, signal: Signal) -> Signal:
         """
         Persist signal entity (create or update).
@@ -46,18 +54,22 @@ class SQLAlchemySignalRepository(SignalRepository):
         Returns:
             Persisted Signal entity with updated ID
         """
-        # Check if signal exists
-        stmt = select(SignalORM).where(SignalORM.id == int(signal.id.value))
-        result = await self._session.execute(stmt)
-        existing = result.scalar_one_or_none()
-
-        if existing:
-            # Update existing signal
-            orm_model = self._mapper.to_model(signal, existing)
-        else:
-            # Create new signal
+        if self._is_new_signal(signal.id):
+            # New signal - create without lookup
             orm_model = self._mapper.to_model(signal)
             self._session.add(orm_model)
+        else:
+            # Existing signal - lookup by integer ID
+            stmt = select(SignalORM).where(SignalORM.id == int(signal.id.value))
+            result = await self._session.execute(stmt)
+            existing = result.scalar_one_or_none()
+
+            if existing:
+                orm_model = self._mapper.to_model(signal, existing)
+            else:
+                # ID looks like integer but not found - treat as new
+                orm_model = self._mapper.to_model(signal)
+                self._session.add(orm_model)
 
         await self._session.flush()
         await self._session.refresh(orm_model)
@@ -71,6 +83,9 @@ class SQLAlchemySignalRepository(SignalRepository):
         Args:
             signal: Domain Signal entity to delete
         """
+        if self._is_new_signal(signal.id):
+            return  # New signals don't exist in DB yet
+
         stmt = select(SignalORM).where(SignalORM.id == int(signal.id.value))
         result = await self._session.execute(stmt)
         orm_model = result.scalar_one_or_none()
@@ -89,7 +104,13 @@ class SQLAlchemySignalRepository(SignalRepository):
         Returns:
             Signal entity if found, None otherwise
         """
-        stmt = select(SignalORM).where(SignalORM.id == int(signal_id.value))
+        # Check if ID is valid integer (persisted signal)
+        try:
+            int_id = int(signal_id.value)
+        except ValueError:
+            return None  # UUID = not yet persisted
+
+        stmt = select(SignalORM).where(SignalORM.id == int_id)
         result = await self._session.execute(stmt)
         orm_model = result.scalar_one_or_none()
 
@@ -112,7 +133,7 @@ class SQLAlchemySignalRepository(SignalRepository):
         stmt = (
             select(SignalORM)
             .where(SignalORM.status == ORMSignalStatus.RECEIVED)
-            .order_by(SignalORM.received_at.asc())
+            .order_by(SignalORM.created_at.asc())
             .limit(limit)
         )
         result = await self._session.execute(stmt)
@@ -137,7 +158,7 @@ class SQLAlchemySignalRepository(SignalRepository):
         stmt = (
             select(SignalORM)
             .where(SignalORM.status == orm_status)
-            .order_by(SignalORM.received_at.desc())
+            .order_by(SignalORM.created_at.desc())
             .limit(limit)
         )
         result = await self._session.execute(stmt)
@@ -160,7 +181,7 @@ class SQLAlchemySignalRepository(SignalRepository):
         stmt = (
             select(SignalORM)
             .where(SignalORM.user_id == user_id)
-            .order_by(SignalORM.received_at.desc())
+            .order_by(SignalORM.created_at.desc())
             .limit(limit)
             .offset(offset)
         )
@@ -182,8 +203,8 @@ class SQLAlchemySignalRepository(SignalRepository):
         """
         stmt = (
             select(SignalORM)
-            .where(SignalORM.received_at >= since)
-            .order_by(SignalORM.received_at.desc())
+            .where(SignalORM.created_at >= since)
+            .order_by(SignalORM.created_at.desc())
             .limit(limit)
         )
         result = await self._session.execute(stmt)
