@@ -16,6 +16,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { useToast } from '@/hooks/use-toast';
 
 interface WebhookConfigCardProps {
   config: WebhookConfig;
@@ -39,6 +40,7 @@ export function WebhookConfigCard({
   onRegenerateKey,
 }: WebhookConfigCardProps) {
   const [copied, setCopied] = useState(false);
+  const { toast } = useToast();
 
   const webhookUrl = `${window.location.origin}/api/v1/webhooks/${config.webhook_key}`;
 
@@ -46,6 +48,7 @@ export function WebhookConfigCard({
     try {
       await navigator.clipboard.writeText(webhookUrl);
       setCopied(true);
+      toast({ title: 'Copied!' });
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
       console.error('Failed to copy:', error);

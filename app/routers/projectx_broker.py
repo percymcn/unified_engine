@@ -298,17 +298,16 @@ async def get_projectx_executor(
             try:
                 from app.infrastructure.repositories.credential_repository import CredentialRepository
                 from app.db.database import get_async_session
-                async_session = next(get_async_session())
-                cred_repo = CredentialRepository(async_session)
-                
-                # Get credentials for this account
-                all_creds = await cred_repo.get_by_service("projectx")
-                for cred in all_creds:
-                    cred_data = cred.get("credential_data", {})
-                    if cred_data.get("account_id") == account.account_number:
-                        username = username or cred_data.get("username")
-                        api_key = api_key or cred_data.get("api_key")
-                        break
+                async for async_session in get_async_session():
+                    cred_repo = CredentialRepository(async_session)
+                    # Get credentials for this account
+                    all_creds = await cred_repo.get_by_service("projectx")
+                    for cred in all_creds:
+                        cred_data = cred.get("credential_data", {})
+                        if cred_data.get("account_id") == account.account_number:
+                            username = username or cred_data.get("username")
+                            api_key = api_key or cred_data.get("api_key")
+                            break
             except Exception as e:
                 logger.debug(f"Failed to get credentials from repository: {e}")
         

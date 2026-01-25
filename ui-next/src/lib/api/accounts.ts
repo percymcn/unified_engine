@@ -114,7 +114,11 @@ export async function getAccounts(): Promise<Account[]> {
     throw new Error(`Failed to fetch accounts: ${response.statusText}`);
   }
 
-  return response.json();
+  const data = await response.json();
+  if (Array.isArray(data)) {
+    return data;
+  }
+  return data.accounts || [];
 }
 
 /**

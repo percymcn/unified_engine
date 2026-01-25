@@ -43,6 +43,7 @@ class Capability(str, Enum):
     MARKET_QUOTE = "market.quote"
     MARKET_HISTORY = "market.history"  # OHLCV
     MARKET_ORDERBOOK = "market.orderbook"  # Level 2
+    MARKET_SYMBOLS = "market.symbols"
     
     # Streaming
     STREAMING_SUBSCRIBE = "streaming.subscribe"
@@ -94,6 +95,7 @@ class BrokerCapabilityMatrix:
                     Capability.ORDERS_CANCEL,
                     Capability.MARKET_QUOTE,
                     Capability.MARKET_HISTORY,  # get_price_history
+                    Capability.MARKET_SYMBOLS,  # get_symbols
                     # Note: cancel_all, bracket, chain not explicitly supported
                     # streaming via WebSocket but not formal subscribe/unsubscribe API
                 }
@@ -110,6 +112,7 @@ class BrokerCapabilityMatrix:
                     Capability.ORDERS_CANCEL,
                     Capability.ORDERS_BRACKET,  # place_bracket_order implemented
                     Capability.MARKET_QUOTE,
+                    Capability.MARKET_SYMBOLS,  # get_symbols
                     Capability.STREAMING_SUBSCRIBE,  # WebSocket subscriptions
                     Capability.STREAMING_UNSUBSCRIBE,
                     # Note: cancel_all, chain, history, orderbook, analytics not explicitly supported
@@ -132,6 +135,7 @@ class BrokerCapabilityMatrix:
                     Capability.MARKET_QUOTE,
                     Capability.MARKET_HISTORY,  # get_market_data
                     Capability.MARKET_ORDERBOOK,  # get_orderbook implemented
+                    Capability.MARKET_SYMBOLS,  # get_symbols
                     Capability.STREAMING_SUBSCRIBE,  # subscribe_realtime_data
                     Capability.STREAMING_UNSUBSCRIBE,
                     Capability.ANALYTICS_PERFORMANCE,  # get_performance_stats
@@ -177,8 +181,10 @@ class BrokerCapabilityMatrix:
                     Capability.POSITIONS_HISTORY,  # get_deal_history
                     Capability.ORDERS_LIST,
                     Capability.ORDERS_PLACE,
+                    Capability.ORDERS_MODIFY,
                     Capability.ORDERS_CANCEL,
                     Capability.MARKET_QUOTE,
+                    Capability.MARKET_SYMBOLS,  # get_symbols
                     # Note: modify, cancel_all, bracket, chain, orderbook, analytics, indicators not supported
                 }
             ),
@@ -191,8 +197,10 @@ class BrokerCapabilityMatrix:
                     Capability.POSITIONS_HISTORY,  # get_deal_history
                     Capability.ORDERS_LIST,
                     Capability.ORDERS_PLACE,
+                    Capability.ORDERS_MODIFY,
                     Capability.ORDERS_CANCEL,
                     Capability.MARKET_QUOTE,
+                    Capability.MARKET_SYMBOLS,  # get_symbols
                     # Note: modify, cancel_all, bracket, chain, orderbook, analytics, indicators not supported
                 }
             ),

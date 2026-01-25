@@ -17,6 +17,7 @@ import {
   Shield,
   Settings2,
   UserCircle,
+  Wrench,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -32,6 +33,7 @@ const settingsNavigation = [
   { name: 'Account Groups', href: '/settings/groups', icon: FolderOpen },
   { name: 'Symbol Mapping', href: '/settings/symbols', icon: ArrowRightLeft },
   { name: 'Signal Routing', href: '/settings/routing', icon: GitBranch },
+  { name: 'Broker Tools', href: '/settings/broker-tools', icon: Wrench },
   { name: 'Risk Management', href: '/settings/risk', icon: Shield },
   { name: 'Preferences', href: '/settings/preferences', icon: Settings2 },
   { name: 'API Keys', href: '/settings/api-keys', icon: Key },

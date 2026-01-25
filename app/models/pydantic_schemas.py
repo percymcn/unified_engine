@@ -385,10 +385,10 @@ class Position(BaseModel):
 
 class Account(BaseModel):
     """Account model"""
-    id: int
-    user_id: int
+    id: int | str
+    user_id: Optional[int] = None
     broker: str
-    account_number: str
+    account_number: Optional[str] = None
     account_type: str
     currency: str
     balance: float = 0.0
@@ -396,7 +396,7 @@ class Account(BaseModel):
     margin: float = 0.0
     free_margin: float = 0.0
     leverage: int = 100
-    is_connected: bool
+    is_connected: bool = False
     last_sync: Optional[datetime] = None
     created_at: datetime
     updated_at: Optional[datetime] = None

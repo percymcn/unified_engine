@@ -88,6 +88,29 @@ def generate_webhook_key() -> str:
     return secrets.token_urlsafe(32)
 
 
+def serialize_webhook_config(config: WebhookConfig) -> dict:
+    """Serialize WebhookConfig ORM to response dict with ISO timestamps."""
+    return {
+        "id": config.id,
+        "name": config.name,
+        "webhook_key": config.webhook_key,
+        "source": config.source,
+        "routing_strategy": config.routing_strategy,
+        "default_account_id": config.default_account_id,
+        "specific_account_ids": config.specific_account_ids,
+        "routing_rules": config.routing_rules,
+        "symbol_filter": config.symbol_filter,
+        "action_filter": config.action_filter,
+        "is_active": config.is_active,
+        "total_signals": config.total_signals,
+        "successful_signals": config.successful_signals,
+        "failed_signals": config.failed_signals,
+        "last_signal_at": config.last_signal_at.isoformat() if config.last_signal_at else None,
+        "created_at": config.created_at.isoformat() if config.created_at else None,
+        "updated_at": config.updated_at.isoformat() if config.updated_at else None,
+    }
+
+
 @router.get("/", response_model=List[WebhookConfigResponse])
 async def get_webhook_configs(
     current_user: User = Depends(get_current_user),
@@ -97,7 +120,7 @@ async def get_webhook_configs(
     configs = db.query(WebhookConfig).filter(
         WebhookConfig.user_id == current_user.id
     ).all()
-    return configs
+    return [serialize_webhook_config(config) for config in configs]
 
 
 @router.post("/", response_model=WebhookConfigResponse, status_code=status.HTTP_201_CREATED)
@@ -173,7 +196,7 @@ async def create_webhook_config(
     db.commit()
     db.refresh(db_config)
 
-    return db_config
+    return serialize_webhook_config(db_config)
 
 
 @router.get("/{config_id}", response_model=WebhookConfigResponse)
@@ -194,7 +217,7 @@ async def get_webhook_config(
             detail="Webhook configuration not found"
         )
 
-    return config
+    return serialize_webhook_config(config)
 
 
 @router.put("/{config_id}", response_model=WebhookConfigResponse)
@@ -270,7 +293,7 @@ async def update_webhook_config(
 
     db.commit()
     db.refresh(config)
-    return config
+    return serialize_webhook_config(config)
 
 
 @router.delete("/{config_id}")
@@ -319,7 +342,7 @@ async def regenerate_webhook_key(
 
     db.commit()
     db.refresh(config)
-    return config
+    return serialize_webhook_config(config)
 
 
 # Routing-specific schemas

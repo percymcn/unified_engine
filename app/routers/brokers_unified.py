@@ -20,19 +20,20 @@ from typing import Optional, Dict, Any, List
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Path, Request
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from app.db.database import get_db
 from app.routers.auth import get_current_user
 from app.models.models import User
-from app.models.database_models import TradingAccount, BrokerType as DBBrokerType
-from app.core.encryption import decrypt
+from app.models.database_models import TradingAccount, BrokerType as DBBrokerType, Credential
+from app.core.encryption import decrypt, get_encryption_service
 from app.domain.enums import BrokerType
 from app.brokers.capabilities import get_capability_matrix, Capability, BrokerType as CapBrokerType
 from app.schemas.brokers import (
     AccountOut, PositionOut, OrderOut, QuoteOut, OHLCVOut, OrderBookOut,
-    PerformanceStatsOut, SessionStatsOut, PortfolioMetricsOut,
-    OrderCreate, BracketOrderCreate, OrderModify, StreamSubscribe,
+    PerformanceStatsOut, SessionStatsOut, PortfolioMetricsOut, BalanceOut,
+    OrderCreate, BracketOrderCreate, OrderModify, PositionClose, PositionModify,
+    StreamSubscribe,
     OrderSide, OrderType, OrderStatus, PositionSide
 )
 
@@ -42,6 +43,44 @@ router = APIRouter(prefix="/api/v1/brokers", tags=["brokers-unified"])
 
 # Timeout for executor operations (seconds)
 EXECUTOR_TIMEOUT = 30.0
+
+
+def _serialize_datetime(value: Any) -> Optional[str]:
+    """Convert datetime to ISO string for response models."""
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return value
+
+
+def _load_user_credentials(
+    db: Session,
+    user_id: int,
+    broker_value: str,
+    account_number: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Load decrypted credentials for a broker, scoped to a user."""
+    encryption = get_encryption_service()
+    credentials: Dict[str, Any] = {}
+
+    rows = db.query(Credential).filter(
+        Credential.user_id == user_id,
+        Credential.service == broker_value,
+        Credential.is_active == True
+    ).all()
+
+    for row in rows:
+        try:
+            data = encryption.decrypt_dict(row.encrypted_data)
+        except Exception:
+            continue
+
+        data_account_id = data.get("account_id") or data.get("metaapi_account_id")
+        if account_number and data_account_id and str(data_account_id) != str(account_number):
+            continue
+
+        credentials.update(data)
+
+    return credentials
 
 
 async def execute_with_timeout(coro, operation_name: str, timeout: float = EXECUTOR_TIMEOUT):
@@ -147,6 +186,13 @@ async def get_broker_executor(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"{broker} account {account_id} not found or not accessible"
         )
+
+    credentials = _load_user_credentials(
+        db,
+        current_user.id,
+        db_broker.value,
+        account.account_number,
+    )
     
     # Create executor based on broker type
     executor = None
@@ -154,8 +200,37 @@ async def get_broker_executor(
     try:
         if broker_enum == BrokerType.TRADELOCKER:
             from app.brokers.tradelocker_executor import TradeLockerExecutor
-            executor = TradeLockerExecutor()
-            # Credentials are loaded from config or account fields
+            username = credentials.get("username")
+            password = credentials.get("password")
+            server = credentials.get("server")
+            environment = credentials.get("environment") or account.oauth_environment
+
+            if not username and account.api_key:
+                try:
+                    username = decrypt(account.api_key)
+                except Exception:
+                    pass
+            if not password and account.api_secret:
+                try:
+                    password = decrypt(account.api_secret)
+                except Exception:
+                    pass
+
+            if not username or not password or not server:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="TradeLocker credentials not configured for this user"
+                )
+
+            executor = TradeLockerExecutor(
+                username=username,
+                password=password,
+                server=server,
+                sdk_environment=environment,
+                account_id=credentials.get("account_id") or account.account_number,
+                account_num=credentials.get("account_num") or account.account_number,
+                user_id=current_user.id,
+            )
             
         elif broker_enum == BrokerType.TRADOVATE:
             from app.brokers.tradovate_executor import TradovateExecutor
@@ -166,6 +241,8 @@ async def get_broker_executor(
                     access_token = decrypt(account.access_token)
                 except:
                     pass
+            if not access_token:
+                access_token = credentials.get("access_token")
             
             environment = account.oauth_environment or "demo"
             executor = TradovateExecutor(
@@ -210,6 +287,9 @@ async def get_broker_executor(
                     pass
             
             if not username or not api_key:
+                username = username or credentials.get("username")
+                api_key = api_key or credentials.get("api_key")
+            if not username or not api_key:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"{broker} account {account_id} missing credentials. Please update account credentials."
@@ -241,6 +321,10 @@ async def get_broker_executor(
                     metaapi_account_id = metadata.get("metaapi_account_id")
                 except:
                     pass
+
+            if not metaapi_token or not metaapi_account_id:
+                metaapi_token = metaapi_token or credentials.get("metaapi_token")
+                metaapi_account_id = metaapi_account_id or credentials.get("metaapi_account_id")
             
             executor = MT4Executor(
                 metaapi_token=metaapi_token,
@@ -267,6 +351,10 @@ async def get_broker_executor(
                     metaapi_account_id = metadata.get("metaapi_account_id")
                 except:
                     pass
+
+            if not metaapi_token or not metaapi_account_id:
+                metaapi_token = metaapi_token or credentials.get("metaapi_token")
+                metaapi_account_id = metaapi_account_id or credentials.get("metaapi_account_id")
             
             executor = MT5Executor(
                 metaapi_token=metaapi_token,
@@ -309,6 +397,22 @@ async def get_broker_executor(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to initialize {broker} executor. Please contact support."
         )
+
+
+def get_account_record(account_id: int, current_user: User, db: Session) -> TradingAccount:
+    """Fetch a trading account for the current user."""
+    account = db.query(TradingAccount).filter(
+        TradingAccount.id == account_id,
+        TradingAccount.user_id == current_user.id
+    ).first()
+
+    if not account:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Account {account_id} not found or not accessible"
+        )
+
+    return account
 
 
 def check_capability(broker: str, capability: Capability) -> None:
@@ -365,8 +469,8 @@ async def get_accounts(
                 leverage=getattr(acc, 'leverage', 100),
                 is_active=getattr(acc, 'is_active', True),
                 is_live=getattr(acc, 'is_live', True),
-                created_at=getattr(acc, 'created_at', datetime.now()).isoformat() if hasattr(acc, 'created_at') else None,
-                updated_at=datetime.now().isoformat(),
+                created_at=_serialize_datetime(getattr(acc, 'created_at', None)),
+                updated_at=_serialize_datetime(getattr(acc, 'updated_at', None)) or datetime.now().isoformat(),
             )
             for acc in accounts
         ]
@@ -404,6 +508,41 @@ async def get_account_info(
             leverage=getattr(account, 'leverage', 100),
             is_active=getattr(account, 'is_active', True),
             is_live=getattr(account, 'is_live', True),
+        )
+    finally:
+        await executor.disconnect()
+
+
+@router.get("/{broker}/balance", response_model=BalanceOut)
+async def get_balance(
+    broker: str = Path(..., description="Broker identifier"),
+    account_id: int = Query(..., description="Database account ID"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get account balance summary."""
+    check_capability(broker, Capability.ACCOUNTS_INFO)
+
+    account_record = get_account_record(account_id, current_user, db)
+    broker_account_id = str(account_record.account_number or account_record.id)
+
+    executor = await get_broker_executor(broker, account_id, current_user, db)
+    try:
+        account_info = await executor.get_account_info(broker_account_id)
+        if not account_info:
+            raise HTTPException(status_code=404, detail="Account info not available")
+
+        return BalanceOut(
+            broker=broker,
+            account_id=str(getattr(account_info, "id", broker_account_id)),
+            currency=getattr(account_info, "currency", "USD"),
+            balance=float(getattr(account_info, "balance", 0)),
+            equity=float(getattr(account_info, "equity", 0)),
+            margin=float(getattr(account_info, "margin", 0)),
+            free_margin=float(getattr(account_info, "free_margin", 0)),
+            leverage=int(getattr(account_info, "leverage", 100)),
+            updated_at=datetime.now().isoformat(),
+            raw=account_info.__dict__ if hasattr(account_info, "__dict__") else None,
         )
     finally:
         await executor.disconnect()
@@ -451,11 +590,135 @@ async def get_positions(
         await executor.disconnect()
 
 
+@router.post("/{broker}/positions/{position_id}/close", response_model=PositionOut)
+async def close_position(
+    broker: str = Path(..., description="Broker identifier"),
+    position_id: str = Path(..., description="Broker position ID"),
+    body: PositionClose = ...,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Close a position (full or partial)."""
+    check_capability(broker, Capability.POSITIONS_OPEN)
+
+    executor = await get_broker_executor(broker, body.account_id, current_user, db)
+    try:
+        result = await executor.close_position(position_id, body.quantity)
+        if hasattr(result, "success") and not result.success:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=result.error or "Position close failed"
+            )
+
+        # Fetch latest positions to return updated state
+        positions = await executor.get_positions()
+        for pos in positions:
+            if str(pos.id) == str(position_id):
+                return PositionOut(
+                    broker=broker,
+                    account_id=str(pos.account_id),
+                    position_id=str(pos.id),
+                    symbol=pos.symbol,
+                    side=PositionSide.LONG if pos.side.lower() in ("buy", "long") else PositionSide.SHORT,
+                    size=float(pos.size),
+                    entry_price=float(pos.entry_price),
+                    current_price=float(pos.current_price) if pos.current_price else None,
+                    unrealized_pnl=float(pos.unrealized_pnl),
+                    realized_pnl=float(getattr(pos, "realized_pnl", 0)),
+                    margin=float(getattr(pos, "margin", 0)),
+                    stop_loss=float(pos.stop_loss) if pos.stop_loss else None,
+                    take_profit=float(pos.take_profit) if pos.take_profit else None,
+                    opened_at=pos.open_time.isoformat() if hasattr(pos, "open_time") and pos.open_time else None,
+                    closed_at=pos.close_time.isoformat() if hasattr(pos, "close_time") and pos.close_time else None,
+                    is_active=getattr(pos, "is_active", True),
+                )
+
+        # Fallback: return minimal response
+        return PositionOut(
+            broker=broker,
+            account_id=str(body.account_id),
+            position_id=str(position_id),
+            symbol="",
+            side=PositionSide.LONG,
+            size=0.0,
+            entry_price=0.0,
+            unrealized_pnl=0.0,
+            realized_pnl=0.0,
+            is_active=False,
+        )
+    finally:
+        await executor.disconnect()
+
+
+@router.patch("/{broker}/positions/{position_id}", response_model=PositionOut)
+async def modify_position(
+    broker: str = Path(..., description="Broker identifier"),
+    position_id: str = Path(..., description="Broker position ID"),
+    body: PositionModify = ...,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Modify position stop loss / take profit."""
+    check_capability(broker, Capability.POSITIONS_OPEN)
+
+    executor = await get_broker_executor(broker, body.account_id, current_user, db)
+    try:
+        if not hasattr(executor, "modify_position"):
+            raise HTTPException(
+                status_code=status.HTTP_501_NOT_IMPLEMENTED,
+                detail=f"{broker} does not support position modification"
+            )
+
+        result = await executor.modify_position(position_id, body.stop_loss, body.take_profit)
+        if isinstance(result, dict) and result.get("error"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=result.get("error")
+            )
+
+        positions = await executor.get_positions()
+        for pos in positions:
+            if str(pos.id) == str(position_id):
+                return PositionOut(
+                    broker=broker,
+                    account_id=str(pos.account_id),
+                    position_id=str(pos.id),
+                    symbol=pos.symbol,
+                    side=PositionSide.LONG if pos.side.lower() in ("buy", "long") else PositionSide.SHORT,
+                    size=float(pos.size),
+                    entry_price=float(pos.entry_price),
+                    current_price=float(pos.current_price) if pos.current_price else None,
+                    unrealized_pnl=float(pos.unrealized_pnl),
+                    realized_pnl=float(getattr(pos, "realized_pnl", 0)),
+                    margin=float(getattr(pos, "margin", 0)),
+                    stop_loss=float(pos.stop_loss) if pos.stop_loss else None,
+                    take_profit=float(pos.take_profit) if pos.take_profit else None,
+                    opened_at=pos.open_time.isoformat() if hasattr(pos, "open_time") and pos.open_time else None,
+                    closed_at=pos.close_time.isoformat() if hasattr(pos, "close_time") and pos.close_time else None,
+                    is_active=getattr(pos, "is_active", True),
+                )
+
+        return PositionOut(
+            broker=broker,
+            account_id=str(body.account_id),
+            position_id=str(position_id),
+            symbol="",
+            side=PositionSide.LONG,
+            size=0.0,
+            entry_price=0.0,
+            unrealized_pnl=0.0,
+            realized_pnl=0.0,
+            is_active=True,
+        )
+    finally:
+        await executor.disconnect()
+
+
 @router.get("/{broker}/positions/history", response_model=List[PositionOut])
 async def get_position_history(
     broker: str = Path(..., description="Broker identifier"),
     account_id: int = Query(..., description="Database account ID"),
-    symbol: str = Query(..., description="Instrument symbol"),
+    symbol: str = Query("", description="Instrument symbol"),
     days: int = Query(30, ge=1, le=365, description="Number of days"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -465,14 +728,18 @@ async def get_position_history(
     
     executor = await get_broker_executor(broker, account_id, current_user, db)
     try:
-        # Check if executor has get_position_history method
-        if not hasattr(executor, 'get_position_history'):
+        if hasattr(executor, "get_position_history"):
+            history = await executor.get_position_history(symbol, days=days)
+        elif hasattr(executor, "get_deal_history"):
+            end_time = datetime.utcnow()
+            start_time = end_time - timedelta(days=days)
+            history = await executor.get_deal_history(start_time, end_time)
+        else:
             raise HTTPException(
                 status_code=status.HTTP_501_NOT_IMPLEMENTED,
                 detail=f"{broker} does not support position history"
             )
-        
-        history = await executor.get_position_history(symbol, days=days)
+
         # Convert to PositionOut format
         return [
             PositionOut(
@@ -488,6 +755,56 @@ async def get_position_history(
                 realized_pnl=float(h.get("realized_pnl", 0)),
                 opened_at=h.get("opened_at"),
                 closed_at=h.get("closed_at"),
+                is_active=False,
+                raw=h,
+            )
+            for h in history
+        ]
+    finally:
+        await executor.disconnect()
+
+
+@router.get("/{broker}/history", response_model=List[PositionOut])
+async def get_trade_history(
+    broker: str = Path(..., description="Broker identifier"),
+    account_id: int = Query(..., description="Database account ID"),
+    symbol: Optional[str] = Query(None, description="Instrument symbol"),
+    days: int = Query(30, ge=1, le=365, description="Number of days"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get trade history (closed positions or deals)."""
+    check_capability(broker, Capability.POSITIONS_HISTORY)
+
+    executor = await get_broker_executor(broker, account_id, current_user, db)
+    try:
+        history: List[Dict[str, Any]] = []
+        if hasattr(executor, "get_position_history"):
+            history = await executor.get_position_history(symbol or "", days=days)
+        elif hasattr(executor, "get_deal_history"):
+            end_time = datetime.utcnow()
+            start_time = end_time - timedelta(days=days)
+            history = await executor.get_deal_history(start_time, end_time)
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_501_NOT_IMPLEMENTED,
+                detail=f"{broker} does not support trade history"
+            )
+
+        return [
+            PositionOut(
+                broker=broker,
+                account_id=str(h.get("account_id", "")),
+                position_id=str(h.get("id", h.get("position_id", ""))),
+                symbol=h.get("symbol", symbol or ""),
+                side=PositionSide.LONG if h.get("side", "").lower() in ("buy", "long") else PositionSide.SHORT,
+                size=float(h.get("size", h.get("volume", 0)) or 0),
+                entry_price=float(h.get("entry_price", h.get("open_price", 0)) or 0),
+                current_price=None,
+                unrealized_pnl=0.0,
+                realized_pnl=float(h.get("realized_pnl", h.get("profit", 0)) or 0),
+                opened_at=h.get("opened_at", h.get("open_time")),
+                closed_at=h.get("closed_at", h.get("close_time")),
                 is_active=False,
                 raw=h,
             )
@@ -551,11 +868,18 @@ async def place_order(
     executor = await get_broker_executor(broker, order_data.account_id, current_user, db)
     try:
         from app.models.pydantic_schemas import OrderRequest
-        
+        order_type_value = order_data.order_type.value
+        side_value = order_data.side.value
+        if order_type_value in ("market", "limit", "stop", "stop_limit"):
+            if order_type_value == "market":
+                order_type_value = f"market_{side_value}"
+            else:
+                order_type_value = f"{side_value}_{order_type_value}"
+
         order_req = OrderRequest(
             account_id=str(order_data.account_id),
             symbol=order_data.symbol,
-            order_type=order_data.order_type.value,
+            order_type=order_type_value,
             quantity=order_data.quantity,
             price=order_data.price,
             stop_loss=order_data.stop_loss,
@@ -827,6 +1151,63 @@ async def get_quote(
     finally:
         await executor.disconnect()
 
+
+@router.get("/{broker}/quotes/{symbol}", response_model=QuoteOut)
+async def get_quote_alias(
+    broker: str = Path(..., description="Broker identifier"),
+    symbol: str = Path(..., description="Instrument symbol"),
+    account_id: int = Query(..., description="Database account ID"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Alias for quote endpoint using path param."""
+    check_capability(broker, Capability.MARKET_QUOTE)
+
+    executor = await get_broker_executor(broker, account_id, current_user, db)
+    try:
+        quote = await executor.get_quote(symbol)
+        if not quote:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Quote not available for {symbol}"
+            )
+
+        return QuoteOut(
+            broker=broker,
+            symbol=symbol,
+            bid=float(quote.get("bid", 0)),
+            ask=float(quote.get("ask", 0)),
+            last=float(quote.get("last", 0)) if quote.get("last") else None,
+            volume=int(quote.get("volume", 0)) if quote.get("volume") else None,
+            timestamp=quote.get("timestamp", datetime.now().isoformat()),
+            raw=quote,
+        )
+    finally:
+        await executor.disconnect()
+
+
+@router.get("/{broker}/symbols", response_model=List[str])
+async def get_symbols(
+    broker: str = Path(..., description="Broker identifier"),
+    account_id: int = Query(..., description="Database account ID"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get available symbols/instruments."""
+    check_capability(broker, Capability.MARKET_SYMBOLS)
+
+    executor = await get_broker_executor(broker, account_id, current_user, db)
+    try:
+        if not hasattr(executor, "get_symbols"):
+            raise HTTPException(
+                status_code=status.HTTP_501_NOT_IMPLEMENTED,
+                detail=f"{broker} does not support symbols"
+            )
+
+        symbols = await executor.get_symbols()
+        return list(symbols or [])
+    finally:
+        await executor.disconnect()
 
 @router.get("/{broker}/market/history", response_model=List[OHLCVOut])
 async def get_market_history(

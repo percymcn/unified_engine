@@ -30,19 +30,30 @@ class TradeLockerExecutor(BaseExecutor):
     (SDK doesn't expose WebSocket API).
     """
 
-    def __init__(self):
+    def __init__(
+        self,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
+        server: Optional[str] = None,
+        sdk_environment: Optional[str] = None,
+        account_id: Optional[str] = None,
+        account_num: Optional[str] = None,
+        user_id: Optional[int] = None,
+    ):
         config = settings.get_broker_config("tradelocker")
         super().__init__(config)
         self.config = config
 
         # SDK configuration (required)
-        self._sdk_username = self.config.get("username")
-        self._sdk_password = self.config.get("password")
-        self._sdk_server = self.config.get("server")
-        self._sdk_environment = self.config.get("sdk_environment", "https://demo.tradelocker.com")
+        self._sdk_username = username or self.config.get("username")
+        self._sdk_password = password or self.config.get("password")
+        self._sdk_server = server or self.config.get("server")
+        self._sdk_environment = sdk_environment or self.config.get("sdk_environment", "https://demo.tradelocker.com")
         # Pre-resolved account info (from stored credentials, avoids rediscovery)
-        self._sdk_account_id = self.config.get("account_id")
-        self._sdk_account_num = self.config.get("account_num") or self.config.get("account_number")
+        self._sdk_account_id = account_id or self.config.get("account_id")
+        self._sdk_account_num = account_num or self.config.get("account_num") or self.config.get("account_number")
+        if user_id is not None:
+            self.user_id = user_id
 
         # Runtime state
         self.sio = None  # WebSocket client
@@ -54,7 +65,7 @@ class TradeLockerExecutor(BaseExecutor):
         self.is_available = self._sdk_available
 
         if not self.is_available:
-            logger.warning("TradeLocker executor disabled: SDK credentials (username/password/server) not configured")
+            logger.info("TradeLocker executor disabled: SDK credentials (username/password/server) not configured")
         else:
             logger.info("TradeLocker will use official SDK (user credentials)")
         
@@ -622,4 +633,3 @@ class TradeLockerExecutor(BaseExecutor):
     def is_connected(self) -> bool:
         """Check if broker is connected"""
         return self._use_sdk and self._sdk_wrapper is not None
-

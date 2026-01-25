@@ -6,7 +6,9 @@ Use case for updating per-account position sizing and risk limit settings.
 import logging
 from typing import Optional
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.database_models import TradingAccount, AccountGroup
 from app.application.dto.account_settings_dto import (
     AccountSettingsRequest,
@@ -32,10 +34,18 @@ class UpdateAccountSettingsUseCase:
         Validates account ownership before updating.
         """
         # Get account
-        account = self._session.query(TradingAccount).filter(
-            TradingAccount.id == request.account_id,
-            TradingAccount.user_id == user_id
-        ).first()
+        if isinstance(self._session, AsyncSession):
+            stmt = select(TradingAccount).where(
+                TradingAccount.id == request.account_id,
+                TradingAccount.user_id == user_id
+            )
+            result = await self._session.execute(stmt)
+            account = result.scalar_one_or_none()
+        else:
+            account = self._session.query(TradingAccount).filter(
+                TradingAccount.id == request.account_id,
+                TradingAccount.user_id == user_id
+            ).first()
 
         if not account:
             raise AccountNotFoundError(f"Account {request.account_id} not found")
@@ -95,10 +105,18 @@ class UpdateAccountSettingsUseCase:
                 updates['group_name'] = None
                 updates['group_color'] = None
             else:
-                group = self._session.query(AccountGroup).filter(
-                    AccountGroup.id == request.group_id,
-                    AccountGroup.user_id == user_id
-                ).first()
+                if isinstance(self._session, AsyncSession):
+                    stmt = select(AccountGroup).where(
+                        AccountGroup.id == request.group_id,
+                        AccountGroup.user_id == user_id
+                    )
+                    result = await self._session.execute(stmt)
+                    group = result.scalar_one_or_none()
+                else:
+                    group = self._session.query(AccountGroup).filter(
+                        AccountGroup.id == request.group_id,
+                        AccountGroup.user_id == user_id
+                    ).first()
                 if not group:
                     raise ValueError(f"Group {request.group_id} not found")
                 updates['group_id'] = group.id
@@ -116,8 +134,12 @@ class UpdateAccountSettingsUseCase:
         for field, value in updates.items():
             setattr(account, field, value)
 
-        self._session.commit()
-        self._session.refresh(account)
+        if isinstance(self._session, AsyncSession):
+            await self._session.commit()
+            await self._session.refresh(account)
+        else:
+            self._session.commit()
+            self._session.refresh(account)
 
         logger.info(f"Updated settings for account {request.account_id}: {list(updates.keys())}")
 
@@ -162,10 +184,18 @@ class GetAccountSettingsUseCase:
 
     async def execute(self, request: GetAccountSettingsRequest) -> AccountSettingsResponse:
         """Get current account settings."""
-        account = self._session.query(TradingAccount).filter(
-            TradingAccount.id == request.account_id,
-            TradingAccount.user_id == request.user_id
-        ).first()
+        if isinstance(self._session, AsyncSession):
+            stmt = select(TradingAccount).where(
+                TradingAccount.id == request.account_id,
+                TradingAccount.user_id == request.user_id
+            )
+            result = await self._session.execute(stmt)
+            account = result.scalar_one_or_none()
+        else:
+            account = self._session.query(TradingAccount).filter(
+                TradingAccount.id == request.account_id,
+                TradingAccount.user_id == request.user_id
+            ).first()
 
         if not account:
             raise AccountNotFoundError(f"Account {request.account_id} not found")

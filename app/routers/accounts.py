@@ -4,6 +4,8 @@ from typing import List, Optional, Dict, Any
 from decimal import Decimal
 
 from app.db.database import get_db
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.models import User
 from app.models.schemas import Account as AccountSchema, AccountCreate, AccountUpdate
 from app.routers.auth import get_current_user
@@ -136,6 +138,7 @@ async def get_accounts(
     request: Request,
     skip: int = 0,
     limit: int = 100,
+    include_inactive: bool = False,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -147,7 +150,7 @@ async def get_accounts(
     dto_request = GetAccountsRequest(
         user_id=current_user.id,
         broker=None,  # Get all brokers
-        active_only=False,  # Include inactive accounts
+        active_only=not include_inactive,
     )
     response = await use_case.execute(dto_request)
 
@@ -166,6 +169,9 @@ async def get_accounts(
             # Skip if account not found in DB
             continue
         
+        if not include_inactive and not orm_account.is_active:
+            continue
+
         account_dict = {
             "id": int(acc.id),  # Frontend expects number
             "account_id": orm_account.account_number or acc.id,
@@ -915,6 +921,22 @@ async def create_account(
             orm_account.default_broker_account_id = account.default_broker_account_id
         if account.discovered_accounts_cache is not None:
             orm_account.discovered_accounts_cache = account.discovered_accounts_cache
+
+        # Ensure default settings are initialized for new accounts
+        if not orm_account.position_sizing_mode:
+            orm_account.position_sizing_mode = "fixed"
+        if orm_account.fixed_lot_size is None:
+            orm_account.fixed_lot_size = 0.01
+        if orm_account.percent_of_balance is None:
+            orm_account.percent_of_balance = 1.0
+        if orm_account.percent_of_equity is None:
+            orm_account.percent_of_equity = 1.0
+        if orm_account.risk_percent_per_trade is None:
+            orm_account.risk_percent_per_trade = 1.0
+        if orm_account.is_signal_enabled is None:
+            orm_account.is_signal_enabled = True
+        if orm_account.signal_priority is None:
+            orm_account.signal_priority = 0
         
         db.commit()
         
@@ -1384,10 +1406,18 @@ async def get_account_settings(
     container = get_container(request)
     use_case = container.get_account_settings_use_case()
 
-    orm_account = db.query(TradingAccountORM).filter(
-        TradingAccountORM.id == account_id,
-        TradingAccountORM.user_id == current_user.id
-    ).first()
+    if hasattr(db, "query"):
+        orm_account = db.query(TradingAccountORM).filter(
+            TradingAccountORM.id == account_id,
+            TradingAccountORM.user_id == current_user.id
+        ).first()
+    else:
+        stmt = select(TradingAccountORM).where(
+            TradingAccountORM.id == account_id,
+            TradingAccountORM.user_id == current_user.id
+        )
+        result = await db.execute(stmt)
+        orm_account = result.scalar_one_or_none()
 
     if not orm_account:
         raise HTTPException(

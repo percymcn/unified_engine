@@ -43,6 +43,7 @@ interface AccountCardProps {
   onEdit: (account: Account) => void;
   onDelete: (account: Account) => void;
   onSyncComplete?: (account: Account) => void;
+  onSyncRefresh?: () => void;
 }
 
 export function AccountCard({
@@ -50,6 +51,7 @@ export function AccountCard({
   onEdit,
   onDelete,
   onSyncComplete,
+  onSyncRefresh,
 }: AccountCardProps) {
   const [syncing, setSyncing] = useState(false);
   const { toast } = useToast();
@@ -60,6 +62,7 @@ export function AccountCard({
     try {
       const updatedAccount = await syncAccount(account.id);
       onSyncComplete?.(updatedAccount);
+      onSyncRefresh?.();
       toast({
         title: 'Sync Complete',
         description: 'Account data has been updated from the broker.',
@@ -235,7 +238,7 @@ export function AccountCard({
                   const webhookUrl = `${baseUrl}/api/v1/webhooks/incoming?broker=${account.broker}&user=${userId}&key=${account.webhookKey}`;
                   navigator.clipboard.writeText(webhookUrl);
                   toast({
-                    title: 'Copied',
+                    title: 'Copied!',
                     description: `Webhook URL copied. Paste this in TradingView for ${BROKER_DISPLAY_NAMES[account.broker]} only.`,
                   });
                 }}

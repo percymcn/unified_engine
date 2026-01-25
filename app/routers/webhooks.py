@@ -200,6 +200,17 @@ async def generate_primary_webhook_key(
     db.commit()
     db.refresh(config)
 
+    # Ensure primary webhook key maps to an active account for execute endpoint
+    primary_account = db.query(TradingAccount).filter(
+        TradingAccount.user_id == current_user.id
+    ).order_by(TradingAccount.updated_at.desc()).first()
+
+    if primary_account:
+        if config.default_account_id is None:
+            config.default_account_id = primary_account.id
+        primary_account.webhook_key = config.webhook_key
+        db.commit()
+
     return {
         "webhook_key": config.webhook_key,
         "config_id": config.id,

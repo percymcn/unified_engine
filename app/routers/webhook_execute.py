@@ -31,7 +31,7 @@ from pydantic import BaseModel, Field
 
 from app.db.database import get_db
 from app.models.models import WebhookLog, ExecutionLog, BrokerType as ModelsBrokerType
-from app.models.database_models import TradingAccount, DiscardBin
+from app.models.database_models import TradingAccount, DiscardBin, WebhookConfig
 from app.models.schemas import WebhookLogCreate
 from app.dependencies import get_container
 from app.application.dto.signal_dto import ProcessSignalRequest
@@ -155,11 +155,43 @@ async def execute_tradingview_signal(
     except Exception as e:
         logger.error(f"Failed to create webhook log: {e}")
 
-    # Lookup account by webhook_key
+    # Lookup account by webhook_key (account-level keys)
     account = db.query(TradingAccount).filter(
-        TradingAccount.webhook_key == webhook_key,
-        TradingAccount.is_active == True
+        TradingAccount.webhook_key == webhook_key
     ).first()
+
+    # Fall back to primary webhook config keys (user-level keys)
+    if not account:
+        webhook_config = db.query(WebhookConfig).filter(
+            WebhookConfig.webhook_key == webhook_key,
+            WebhookConfig.is_active == True
+        ).first()
+        logger.info(
+            "Webhook execute fallback: webhook_config_found=%s webhook_key_prefix=%s",
+            bool(webhook_config),
+            webhook_key[:12] + "..." if len(webhook_key) > 12 else webhook_key
+        )
+
+        if webhook_config:
+            candidate_account_id = webhook_config.default_account_id
+            if not candidate_account_id and webhook_config.specific_account_ids:
+                candidate_account_id = webhook_config.specific_account_ids[0]
+
+            if candidate_account_id:
+                account = db.query(TradingAccount).filter(
+                    TradingAccount.id == candidate_account_id,
+                    TradingAccount.user_id == webhook_config.user_id
+                ).first()
+            else:
+                account = db.query(TradingAccount).filter(
+                    TradingAccount.user_id == webhook_config.user_id
+                ).order_by(TradingAccount.updated_at.desc()).first()
+
+            logger.info(
+                "Webhook execute resolved account: account_id=%s user_id=%s",
+                account.id if account else None,
+                webhook_config.user_id
+            )
 
     if not account:
         log_event(

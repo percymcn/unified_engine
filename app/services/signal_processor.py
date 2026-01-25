@@ -182,6 +182,9 @@ class SignalProcessor:
         """Initialize all broker connections"""
         for broker_name, broker in self.brokers.items():
             try:
+                if hasattr(broker, "is_available") and not broker.is_available:
+                    logger.info(f"Skipping global init for {broker_name}: platform credentials not configured")
+                    continue
                 success = await broker.initialize()
                 if success:
                     logger.info(f"Initialized {broker_name} broker")

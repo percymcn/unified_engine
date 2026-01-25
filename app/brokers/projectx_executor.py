@@ -82,7 +82,7 @@ class ProjectXExecutor(BaseExecutor):
         # Check for required credentials
         self.is_available = bool(self._api_key and self._username) if self._use_sdk else bool(self._api_key)
         if not self.is_available:
-            logger.warning("ProjectX executor disabled: credentials not configured")
+            logger.info("ProjectX executor disabled: credentials not configured")
 
     @property
     def is_using_sdk(self) -> bool:

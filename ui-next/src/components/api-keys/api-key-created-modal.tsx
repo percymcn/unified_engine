@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Copy, Check, AlertTriangle } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface ApiKeyCreatedModalProps {
   apiKey: ApiKeyCreateResponse | null;
@@ -22,12 +23,14 @@ interface ApiKeyCreatedModalProps {
 
 export function ApiKeyCreatedModal({ apiKey, open, onClose }: ApiKeyCreatedModalProps) {
   const [copied, setCopied] = useState(false);
+  const { toast } = useToast();
 
   const handleCopy = async () => {
     if (!apiKey) return;
 
     await navigator.clipboard.writeText(apiKey.api_key);
     setCopied(true);
+    toast({ title: 'Copied!' });
     setTimeout(() => setCopied(false), 2000);
   };
 

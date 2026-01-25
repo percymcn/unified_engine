@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Plus, Loader2 } from 'lucide-react';
@@ -80,6 +81,7 @@ export function AccountList() {
 
   const searchParams = useSearchParams();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   // Filter accounts based on selected group
   const filteredAccounts = useMemo(() => {
@@ -121,6 +123,9 @@ export function AccountList() {
 
       const newAccount = await response.json();
       setAccounts((prev) => [...prev, newAccount]);
+      await queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      await queryClient.invalidateQueries({ queryKey: ['account-settings'] });
+      await fetchAccounts();
 
       toast({
         title: 'Account Connected',
@@ -235,6 +240,9 @@ export function AccountList() {
     try {
       const newAccount = await createAccount(data);
       setAccounts((prev) => [...prev, newAccount]);
+      await queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      await queryClient.invalidateQueries({ queryKey: ['account-settings'] });
+      await fetchAccounts();
       toast({
         title: 'Account Created',
         description: 'Your broker account has been connected successfully.',
@@ -303,11 +311,17 @@ export function AccountList() {
       setAccounts((prev) =>
         prev.map((acc) => (acc.id === updatedAccount.id ? accountWithSettings : acc))
       );
+      await queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      await queryClient.invalidateQueries({ queryKey: ['account-settings'] });
+      await fetchAccounts();
     } catch {
       // If settings fetch fails, just update with the basic account
       setAccounts((prev) =>
         prev.map((acc) => (acc.id === updatedAccount.id ? { ...acc, ...updatedAccount } : acc))
       );
+      await queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      await queryClient.invalidateQueries({ queryKey: ['account-settings'] });
+      await fetchAccounts();
     }
   };
 
@@ -400,6 +414,7 @@ export function AccountList() {
             onEdit={setEditingAccount}
             onDelete={setDeletingAccount}
             onSyncComplete={handleSyncComplete}
+            onSyncRefresh={fetchAccounts}
           />
         ))}
       </div>

@@ -9,7 +9,11 @@ logger = logging.getLogger(__name__)
 
 # Create synchronous database engine (existing code)
 # For Postgres: use connection pooling; for SQLite: single-threaded mode
-_is_sqlite = "sqlite" in settings.DATABASE_URL
+_sync_database_url = settings.DATABASE_URL
+if _sync_database_url.startswith("postgresql+asyncpg://"):
+    _sync_database_url = _sync_database_url.replace("postgresql+asyncpg://", "postgresql://", 1)
+
+_is_sqlite = "sqlite" in _sync_database_url
 _engine_kwargs = {
     "echo": settings.DEBUG,
     "pool_pre_ping": True,  # Verify connections before using them
@@ -22,7 +26,7 @@ else:
     _engine_kwargs["pool_size"] = settings.DATABASE_POOL_SIZE
     _engine_kwargs["max_overflow"] = settings.DATABASE_MAX_OVERFLOW
 
-engine = create_engine(settings.DATABASE_URL, **_engine_kwargs)
+engine = create_engine(_sync_database_url, **_engine_kwargs)
 
 # Create async database engine (for new infrastructure layer)
 # Convert DATABASE_URL to async dialect if needed

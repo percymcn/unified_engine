@@ -77,7 +77,7 @@ class MT5Executor(BaseExecutor):
         self.is_available = has_sdk_credentials or has_manager_credentials
 
         if not self.is_available:
-            logger.warning("MT5 executor disabled: no credentials configured (MetaAPI or Manager API)")
+            logger.info("MT5 executor disabled: no credentials configured (MetaAPI or Manager API)")
 
     @property
     def is_using_sdk(self) -> bool:

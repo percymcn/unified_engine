@@ -6,7 +6,7 @@ Handles CRUD operations and queries for Account entities.
 """
 
 from typing import Optional, List
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.ports.repository_port import AccountRepository
@@ -14,6 +14,7 @@ from app.domain.entities.account import Account
 from app.domain.value_objects import AccountId
 from app.domain.enums import BrokerType
 from app.models.database_models import TradingAccount as AccountORM
+from app.models.database_models import WebhookConfig
 from app.infrastructure.mappers import AccountMapper
 
 
@@ -88,22 +89,71 @@ class SQLAlchemyAccountRepository(AccountRepository):
         Args:
             account: Domain Account entity to delete
         """
+        account_value = None
+        user_id = None
+        if hasattr(account, "id"):
+            account_value = account.id.value
+            user_id = getattr(account, "user_id", None)
+        elif hasattr(account, "value"):
+            account_value = account.value
+
+        if account_value is None:
+            return
+
         # Try to parse as integer (database ID) first
         try:
-            db_id = int(account.id.value)
+            db_id = int(account_value)
             stmt = select(AccountORM).where(AccountORM.id == db_id)
         except (ValueError, TypeError):
             # Not an integer - try account_number (broker account ID) and user_id
             stmt = select(AccountORM).where(
-                AccountORM.account_number == account.id.value,
-                AccountORM.user_id == account.user_id
+                AccountORM.account_number == account_value
             )
+            if user_id is not None:
+                stmt = stmt.where(AccountORM.user_id == user_id)
         
         result = await self._session.execute(stmt)
         orm_model = result.scalar_one_or_none()
 
         if orm_model:
-            await self._session.delete(orm_model)
+            await self._session.execute(
+                update(WebhookConfig)
+                .where(WebhookConfig.default_account_id == orm_model.id)
+                .values(default_account_id=None)
+            )
+
+            result = await self._session.execute(
+                select(WebhookConfig).where(WebhookConfig.user_id == orm_model.user_id)
+            )
+            configs = result.scalars().all()
+            account_id_str = str(orm_model.id)
+
+            for config in configs:
+                changed = False
+                specific_ids = config.specific_account_ids or []
+                filtered_ids = [aid for aid in specific_ids if str(aid) != account_id_str]
+                if filtered_ids != specific_ids:
+                    config.specific_account_ids = filtered_ids
+                    changed = True
+
+                if config.routing_rules:
+                    filtered_rules = [
+                        rule for rule in config.routing_rules
+                        if str(rule.get("target_account_id")) != account_id_str
+                    ]
+                    if filtered_rules != config.routing_rules:
+                        config.routing_rules = filtered_rules
+                        changed = True
+
+                if changed:
+                    self._session.add(config)
+
+            orm_model.is_active = False
+            orm_model.is_connected = False
+            orm_model.is_signal_enabled = False
+            orm_model.webhook_key = None
+            orm_model.enabled_broker_account_ids = None
+            orm_model.default_broker_account_id = None
             await self._session.flush()
 
     async def get_by_id(self, account_id: AccountId) -> Optional[Account]:

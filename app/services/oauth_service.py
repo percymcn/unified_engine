@@ -220,9 +220,6 @@ class OAuthService:
             full_name=name,
             avatar_url=avatar_url,
             is_verified=True,  # OAuth providers verify emails
-            oauth_provider=provider.value,
-            oauth_id=provider_user_id,
-            role="free_user"
         )
         db.add(user)
         db.flush()

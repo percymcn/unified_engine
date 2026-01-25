@@ -5,8 +5,10 @@ Repository for account equity history tracking.
 """
 
 from typing import Optional
+import inspect
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.models.database_models import AccountEquityHistory
 
@@ -14,7 +16,7 @@ from app.models.database_models import AccountEquityHistory
 class EquityHistoryRepository:
     """Repository for equity history tracking"""
 
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session):
         self._session = session
 
     async def get_latest(self, account_id: int) -> Optional[AccountEquityHistory]:
@@ -31,7 +33,9 @@ class EquityHistoryRepository:
             AccountEquityHistory.account_id == account_id
         ).order_by(AccountEquityHistory.timestamp.desc()).limit(1)
 
-        result = await self._session.execute(stmt)
+        result = self._session.execute(stmt)
+        if inspect.isawaitable(result):
+            result = await result
         return result.scalar_one_or_none()
 
     async def create(
@@ -66,8 +70,12 @@ class EquityHistoryRepository:
             drawdown_pct=drawdown_pct
         )
         self._session.add(record)
-        await self._session.commit()
-        await self._session.refresh(record)
+        commit_result = self._session.commit()
+        if inspect.isawaitable(commit_result):
+            await commit_result
+        refresh_result = self._session.refresh(record)
+        if inspect.isawaitable(refresh_result):
+            await refresh_result
         return record
 
     async def update_peak(self, account_id: int, new_peak: float):

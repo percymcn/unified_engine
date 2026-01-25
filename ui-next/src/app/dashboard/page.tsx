@@ -31,6 +31,8 @@ import { cn } from '@/lib/utils';
 import { CopyButton } from '@/components/ui/copy-button';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/providers/user-provider';
+import confetti from 'canvas-confetti';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface PendingSignal {
   signal_id: string;
@@ -73,6 +75,17 @@ export default function DashboardPage() {
   const { subscribeToSignals, subscribeToOrders, status: wsStatus } = useWebSocketContext();
   const { user, refetch: refetchUser } = useUser();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const fireTestConfetti = useCallback(() => {
+    confetti({
+      particleCount: 120,
+      spread: 70,
+      origin: { y: 0.7 },
+      colors: ['#10b981', '#3b82f6', '#22c55e'],
+      zIndex: 9999,
+    });
+  }, []);
 
   // Handle signal updates (increment active signals)
   const handleSignalUpdate = useCallback(() => {
@@ -205,6 +218,10 @@ export default function DashboardPage() {
       const data = await response.json();
       setPrimaryWebhookKey(data.webhook_key || null);
       await refetchUser();
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['user-profile'] }),
+        queryClient.invalidateQueries({ queryKey: ['webhook-configs'] }),
+      ]);
       toast({
         title: 'Webhook key updated',
         description: 'Your new webhook key is ready to copy.',
@@ -220,6 +237,12 @@ export default function DashboardPage() {
       setGeneratingKey(false);
     }
   };
+
+  const handleTestWebhookSuccess = useCallback(() => {
+    setRecentlyUpdated('trades');
+    setTimeout(() => setRecentlyUpdated(null), 2000);
+    fireTestConfetti();
+  }, [fireTestConfetti]);
 
   const formatCurrency = (value: number): string => {
     return new Intl.NumberFormat('en-US', {
@@ -360,7 +383,7 @@ export default function DashboardPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap gap-2">
-            <TestWebhookButton />
+            <TestWebhookButton onSuccess={handleTestWebhookSuccess} />
           </div>
           <div className="rounded-lg border bg-muted/40 p-4 space-y-3">
             <div className="flex items-center justify-between gap-3 flex-wrap">

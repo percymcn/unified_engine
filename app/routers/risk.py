@@ -142,7 +142,7 @@ async def get_risk_dashboard_summary(
     # Initialize drawdown service
     pnl_repo = DailyPnLRepository(db)
     equity_repo = EquityHistoryRepository(db)
-    drawdown_service = DrawdownService(pnl_repo, equity_repo)
+    drawdown_service = DrawdownService(equity_repo)
 
     for account in accounts:
         counters = await counter_service.get_counters(account.id)
@@ -164,7 +164,7 @@ async def get_risk_dashboard_summary(
 
         # Check if daily loss limit hit (from daily_pnl table)
         is_halted = False
-        if drawdown and drawdown.daily_loss_halted:
+        if drawdown and getattr(drawdown, "daily_loss_halted", False):
             is_halted = True
 
         account_summary = {

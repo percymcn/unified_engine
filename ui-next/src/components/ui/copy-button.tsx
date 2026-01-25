@@ -9,6 +9,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { useToast } from '@/hooks/use-toast';
 
 interface CopyButtonProps {
   text: string;
@@ -18,16 +19,18 @@ interface CopyButtonProps {
 
 export function CopyButton({ text, className, tooltip = 'Copy to clipboard' }: CopyButtonProps) {
   const [copied, setCopied] = React.useState(false);
+  const { toast } = useToast();
 
   const handleCopy = React.useCallback(async () => {
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
+      toast({ title: 'Copied!' });
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error('Failed to copy:', err);
     }
-  }, [text]);
+  }, [text, toast]);
 
   return (
     <TooltipProvider>

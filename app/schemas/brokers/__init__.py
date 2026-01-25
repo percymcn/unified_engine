@@ -135,6 +135,20 @@ class QuoteOut(BaseModel):
     raw: Optional[Dict[str, Any]] = Field(None, description="Provider-specific fields")
 
 
+class BalanceOut(BaseModel):
+    """Normalized balance response."""
+    broker: str = Field(..., description="Broker identifier")
+    account_id: str = Field(..., description="Broker account ID")
+    currency: str = Field(default="USD", description="Account currency")
+    balance: float = Field(..., description="Account balance")
+    equity: float = Field(..., description="Account equity")
+    margin: float = Field(default=0.0, description="Used margin")
+    free_margin: float = Field(default=0.0, description="Free margin")
+    leverage: int = Field(default=100, description="Account leverage")
+    updated_at: Optional[str] = Field(None, description="Last update timestamp")
+    raw: Optional[Dict[str, Any]] = Field(None, description="Provider-specific fields")
+
+
 class OHLCVOut(BaseModel):
     """Normalized OHLCV candle data."""
     broker: str = Field(..., description="Broker identifier")
@@ -245,6 +259,19 @@ class OrderModify(BaseModel):
     stop_loss: Optional[float] = Field(None, description="New stop loss")
     take_profit: Optional[float] = Field(None, description="New take profit")
     quantity: Optional[float] = Field(None, gt=0, description="New quantity")
+
+
+class PositionClose(BaseModel):
+    """Position close request."""
+    account_id: int = Field(..., description="Database account ID")
+    quantity: Optional[float] = Field(None, gt=0, description="Partial close quantity")
+
+
+class PositionModify(BaseModel):
+    """Position modification request."""
+    account_id: int = Field(..., description="Database account ID")
+    stop_loss: Optional[float] = Field(None, description="New stop loss")
+    take_profit: Optional[float] = Field(None, description="New take profit")
 
 
 class StreamSubscribe(BaseModel):

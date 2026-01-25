@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -40,10 +41,20 @@ export default function RoutingConfigPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingConfig, setEditingConfig] = useState<WebhookConfig | undefined>();
   const [deletingConfig, setDeletingConfig] = useState<WebhookConfig | undefined>();
+  const queryClient = useQueryClient();
 
   // Load data
   useEffect(() => {
     loadData();
+  }, []);
+
+  useEffect(() => {
+    const handleFocus = () => {
+      loadData();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
   }, []);
 
   const loadData = async () => {
@@ -56,6 +67,7 @@ export default function RoutingConfigPage() {
       ]);
       setConfigs(configsData);
       setAccounts(accountsData);
+      await queryClient.invalidateQueries({ queryKey: ['accounts'] });
       
       // Only show error if accounts fail AND we have no configs (likely no accounts connected)
       if (accountsData.length === 0 && configsData.length === 0) {

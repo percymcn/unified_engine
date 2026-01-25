@@ -11,6 +11,7 @@ class BaseExecutor(ABC):
 
     def __init__(self, account_config: Dict[str, Any]):
         self.account_config = account_config
+        self.user_id = account_config.get("user_id")
         self.api_key = account_config.get("api_key")
         self.api_secret = account_config.get("api_secret")
         self.access_token = account_config.get("access_token")
@@ -214,4 +215,3 @@ class BaseExecutor(ABC):
     def is_connected(self) -> bool:
         """Check if broker is connected"""
         return hasattr(self, 'session') and self.session is not None and not self.session.is_closed
-

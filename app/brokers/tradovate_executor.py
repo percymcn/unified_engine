@@ -73,7 +73,7 @@ class TradovateExecutor(BaseExecutor):
         # Check for required credentials (OAuth mode is always available if token provided)
         self.is_available = bool(self._use_oauth or (self.user_id and self.password))
         if not self.is_available:
-            logger.warning("Tradovate executor disabled: no OAuth token or credentials configured")
+            logger.info("Tradovate executor disabled: no OAuth token or credentials configured")
         
     async def initialize(self) -> bool:
         """Initialize Tradovate connection"""
@@ -857,4 +857,3 @@ class TradovateExecutor(BaseExecutor):
     def is_connected(self) -> bool:
         """Check if broker is connected"""
         return self._is_connected and hasattr(self, 'session') and self.session is not None and not self.session.is_closed
-

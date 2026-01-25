@@ -76,7 +76,7 @@ class MT4Executor(BaseExecutor):
         self.is_available = has_sdk_credentials or has_manager_credentials
 
         if not self.is_available:
-            logger.warning("MT4 executor disabled: no credentials configured (MetaAPI or Manager API)")
+            logger.info("MT4 executor disabled: no credentials configured (MetaAPI or Manager API)")
         
     @property
     def is_using_sdk(self) -> bool:
@@ -867,4 +867,3 @@ class MT4Executor(BaseExecutor):
         if self._sdk_service:
             return self._sdk_service.is_connected
         return hasattr(self, 'session') and self.session is not None and not self.session.is_closed
-
