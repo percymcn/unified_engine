@@ -31,8 +31,13 @@ export async function GET() {
 
     // Parse responses (handle failures gracefully)
     const signals = signalsRes.ok ? await signalsRes.json() : [];
-    const accounts = accountsRes.ok ? await accountsRes.json() : [];
+    const accountsData = accountsRes.ok ? await accountsRes.json() : [];
     const trades = tradesRes.ok ? await tradesRes.json() : [];
+
+    // Normalize accounts response - backend returns {accounts: [], total} or just []
+    const accounts = Array.isArray(accountsData)
+      ? accountsData
+      : (accountsData?.accounts || []);
 
     // Calculate today's trades
     const today = new Date().toISOString().split('T')[0];
@@ -41,14 +46,15 @@ export async function GET() {
       : 0;
 
     // Calculate total balance across accounts
-    const totalBalance = Array.isArray(accounts)
-      ? accounts.reduce((sum: number, acc: { balance?: number }) => sum + (acc.balance || 0), 0)
-      : 0;
+    const totalBalance = accounts.reduce(
+      (sum: number, acc: { balance?: number }) => sum + (acc.balance || 0),
+      0
+    );
 
     // Count connected brokers (accounts with active status)
-    const connectedBrokers = Array.isArray(accounts)
-      ? accounts.filter((acc: { is_active?: boolean }) => acc.is_active).length
-      : 0;
+    const connectedBrokers = accounts.filter(
+      (acc: { is_active?: boolean }) => acc.is_active
+    ).length;
 
     // Count pending signals
     const activeSignals = Array.isArray(signals) ? signals.length : 0;

@@ -12,9 +12,7 @@ import { Loader2, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Account } from '@/types/account';
 
-interface BrokerToolsProps {}
-
-export function BrokerTools({}: BrokerToolsProps) {
+export default function BrokerToolsPage() {
   const { toast } = useToast();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [selectedBroker, setSelectedBroker] = useState<string>('');
@@ -23,28 +21,19 @@ export function BrokerTools({}: BrokerToolsProps) {
   const [results, setResults] = useState<Record<string, any>>({});
   const [symbol, setSymbol] = useState('MNQ');
   
-  const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:8765';
-  
   useEffect(() => {
     loadAccounts();
   }, []);
-  
+
   const loadAccounts = async () => {
     try {
-      const token = document.cookie
-        .split('; ')
-        .find(row => row.startsWith('access_token='))
-        ?.split('=')[1];
-      
-      const response = await fetch(`${baseUrl}/api/v1/accounts/`, {
-        headers: {
-          ...(token && { 'Authorization': `Bearer ${token}` }),
-        },
-      });
-      
+      // Use BFF route which handles auth via httpOnly cookie
+      const response = await fetch('/api/accounts');
+
       if (response.ok) {
         const data = await response.json();
-        setAccounts(data.accounts || []);
+        // Backend returns {accounts: [], total}
+        setAccounts(data.accounts || data || []);
       }
     } catch (error) {
       console.error('Failed to load accounts:', error);
@@ -60,38 +49,29 @@ export function BrokerTools({}: BrokerToolsProps) {
       });
       return;
     }
-    
+
     const key = endpoint.split('?')[0].split('/').pop() || endpoint;
     setLoading(key);
-    
+
     try {
-      const token = document.cookie
-        .split('; ')
-        .find(row => row.startsWith('access_token='))
-        ?.split('=')[1];
-      
-      const options: RequestInit = {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token && { 'Authorization': `Bearer ${token}` }),
-        },
-      };
-      
-      if (body && method !== 'GET') {
-        options.body = JSON.stringify(body);
-      }
-      
-      let url = `${baseUrl}${endpoint}`;
-      if (method === 'GET' && body) {
-        url += '?' + new URLSearchParams(body).toString();
-      }
-      
-      const response = await fetch(url, options);
+      // Use BFF proxy which handles auth via httpOnly cookie
+      const response = await fetch('/api/broker-tools', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          endpoint,
+          method,
+          body: method !== 'GET' ? body : undefined,
+        }),
+      });
+
       const data = await response.json();
-      
-      setResults(prev => ({ ...prev, [key]: { success: response.ok, data, status: response.status } }));
-      
+
+      setResults(prev => ({
+        ...prev,
+        [key]: { success: response.ok, data, status: response.status },
+      }));
+
       if (response.ok) {
         toast({
           title: 'Success',
@@ -100,15 +80,16 @@ export function BrokerTools({}: BrokerToolsProps) {
       } else {
         toast({
           title: 'Error',
-          description: data.detail || `API call failed: ${response.status}`,
+          description: data.detail || data.error || `API call failed: ${response.status}`,
           variant: 'destructive',
         });
       }
-    } catch (error: any) {
-      setResults(prev => ({ ...prev, [key]: { success: false, error: error.message } }));
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'API call failed';
+      setResults(prev => ({ ...prev, [key]: { success: false, error: message } }));
       toast({
         title: 'Error',
-        description: error.message || 'API call failed',
+        description: message,
         variant: 'destructive',
       });
     } finally {

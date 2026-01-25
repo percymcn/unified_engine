@@ -136,6 +136,8 @@ export function AccountForm({
   const [selectedAccountIds, setSelectedAccountIds] = useState<Set<string>>(new Set());
   const [defaultAccountId, setDefaultAccountId] = useState<string>('');
   const [discovering, setDiscovering] = useState(false);
+  const [manualAccountId, setManualAccountId] = useState<string>('');
+  const [showManualInput, setShowManualInput] = useState(false);
 
   // Get broker-specific credential schema
   const credentialSchema = getBrokerCredentialSchema(broker);
@@ -203,10 +205,17 @@ export function AccountForm({
               }
             }
           }
+          // Show manual input if no accounts discovered
+          if (!discoverResult.accounts || discoverResult.accounts.length === 0) {
+            setShowManualInput(true);
+          } else {
+            setShowManualInput(false);
+          }
         } catch (error) {
           console.error('Account discovery error:', error);
-          // Don't fail the form if discovery fails
+          // Don't fail the form if discovery fails - show manual input
           setDiscoveredAccounts([]);
+          setShowManualInput(true);
         } finally {
           setDiscovering(false);
         }
@@ -215,6 +224,7 @@ export function AccountForm({
         setDiscoveredAccounts([]);
         setSelectedAccountIds(new Set());
         setDefaultAccountId('');
+        setShowManualInput(false);
       }
     } catch (error) {
       console.error('Test connection error:', error);
@@ -225,6 +235,7 @@ export function AccountForm({
       });
       setDiscoveredAccounts([]);
       setSelectedAccountIds(new Set());
+      setShowManualInput(false);
       setDefaultAccountId('');
     } finally {
       setTesting(false);
@@ -249,6 +260,8 @@ export function AccountForm({
     setDiscoveredAccounts([]);
     setSelectedAccountIds(new Set());
     setDefaultAccountId('');
+    setManualAccountId('');
+    setShowManualInput(false);
   };
   
   // Handle account selection toggle
@@ -299,10 +312,10 @@ export function AccountForm({
         console.log('Create account - credential keys:', Object.keys(backendCredentials));
       }
 
-      // Determine account_id: use existing if editing, otherwise use default account ID or empty
-      const finalAccountId = isEdit 
-        ? account?.account_id || '' 
-        : (defaultAccountId || '');
+      // Determine account_id: use existing if editing, otherwise use default account ID or manual input
+      const finalAccountId = isEdit
+        ? account?.account_id || ''
+        : (defaultAccountId || manualAccountId || '');
 
       // Build broker_config with credentials
       const brokerConfigWithAccounts = {
@@ -784,6 +797,24 @@ export function AccountForm({
                         )}
                       </div>
                     )}
+
+                    {/* Manual Account ID Input - shown when discovery returns empty */}
+                    {showManualInput && discoveredAccounts.length === 0 && testResult?.success && (
+                      <div className="space-y-3 pt-2 border-t border-border">
+                        <div>
+                          <Label className="text-sm font-semibold">Manual Account ID</Label>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            No accounts were discovered. Enter your account ID manually.
+                          </p>
+                        </div>
+                        <Input
+                          id="manual-account-id"
+                          value={manualAccountId}
+                          onChange={(e) => setManualAccountId(e.target.value)}
+                          placeholder="Enter account ID (e.g., 12345)"
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
               </>
@@ -807,9 +838,14 @@ export function AccountForm({
             >
               Cancel
             </Button>
-            <Button 
-              type="submit" 
-              disabled={submitting || !isBrokerSupported || (discoveredAccounts.length > 0 && selectedAccountIds.size === 0)}
+            <Button
+              type="submit"
+              disabled={
+                submitting ||
+                !isBrokerSupported ||
+                (discoveredAccounts.length > 0 && selectedAccountIds.size === 0) ||
+                (showManualInput && discoveredAccounts.length === 0 && !manualAccountId.trim())
+              }
             >
               {submitting
                 ? 'Saving...'

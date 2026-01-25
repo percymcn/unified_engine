@@ -22,8 +22,20 @@ import { TrialStatusWidget } from '@/components/dashboard/trial-status-widget';
 import { OpenPositionsWidget } from '@/components/dashboard/open-positions-widget';
 import { FlowGuardBot } from '@/components/signal-intelligence/flowguard-bot';
 import { SignalHeatMap } from '@/components/signal-intelligence/signal-heat-map';
+import { GuardModal } from '@/components/signal-intelligence/guard-modal';
 import { useWebSocketContext } from '@/providers/websocket-provider';
 import { cn } from '@/lib/utils';
+
+interface PendingSignal {
+  signal_id: string;
+  symbol: string;
+  action: string;
+  quantity?: number;
+  reason?: string;
+  reason_detail?: string;
+  warning_type?: string;
+  message?: string;
+}
 
 interface DashboardStats {
   activeSignals: number;
@@ -44,6 +56,10 @@ export default function DashboardPage() {
   const [expiringContracts, setExpiringContracts] = useState<FuturesInfo[]>([]);
   const [contractsLoading, setContractsLoading] = useState(true);
   const [recentlyUpdated, setRecentlyUpdated] = useState<string | null>(null);
+
+  // Guard modal state for pending webhook confirmations
+  const [guardModalOpen, setGuardModalOpen] = useState(false);
+  const [pendingSignal, setPendingSignal] = useState<PendingSignal | null>(null);
 
   // WebSocket for real-time updates
   const { subscribeToSignals, subscribeToOrders, status: wsStatus } = useWebSocketContext();
@@ -82,6 +98,51 @@ export default function DashboardPage() {
       unsubOrders();
     };
   }, [subscribeToSignals, subscribeToOrders, handleSignalUpdate, handleOrderUpdate]);
+
+  // Poll for pending webhook confirmations (signals awaiting user action)
+  useEffect(() => {
+    async function checkPendingSignals() {
+      try {
+        const response = await fetch('/api/signals?status=pending_confirmation&limit=1');
+        if (response.ok) {
+          const data = await response.json();
+          const signals = Array.isArray(data) ? data : (data?.signals || []);
+          if (signals.length > 0 && !guardModalOpen) {
+            const sig = signals[0];
+            setPendingSignal({
+              signal_id: sig.signal_id || sig.id?.toString(),
+              symbol: sig.symbol,
+              action: sig.action,
+              quantity: sig.quantity,
+              reason: sig.guard_reason || sig.reason,
+              reason_detail: sig.reason_detail,
+              warning_type: sig.warning_type || sig.guard_rule,
+              message: sig.message || `Signal requires confirmation: ${sig.guard_reason || 'Manual review required'}`,
+            });
+            setGuardModalOpen(true);
+          }
+        }
+      } catch (err) {
+        // Silent fail - don't interrupt user experience
+        console.debug('Error checking pending signals:', err);
+      }
+    }
+
+    // Check immediately and then every 10 seconds
+    checkPendingSignals();
+    const interval = setInterval(checkPendingSignals, 10000);
+    return () => clearInterval(interval);
+  }, [guardModalOpen]);
+
+  // Handle guard modal action completion
+  const handleGuardActionComplete = useCallback(() => {
+    setPendingSignal(null);
+    // Refresh stats after action
+    fetch('/api/dashboard/stats')
+      .then((res) => res.json())
+      .then((data) => setStats(data))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     async function fetchStats() {
@@ -322,6 +383,26 @@ export default function DashboardPage() {
 
       {/* FlowGuard Bot - Floating */}
       <FlowGuardBot />
+
+      {/* Guard Modal for Pending Webhook Confirmations */}
+      {pendingSignal && (
+        <GuardModal
+          open={guardModalOpen}
+          onOpenChange={setGuardModalOpen}
+          modalData={{
+            type: 'webhook_warning',
+            message: pendingSignal.message || 'Signal requires confirmation',
+            symbol: pendingSignal.symbol,
+            action: pendingSignal.action,
+            quantity: pendingSignal.quantity,
+            reason: pendingSignal.reason,
+            reason_detail: pendingSignal.reason_detail,
+            warning_type: pendingSignal.warning_type,
+          }}
+          signalId={pendingSignal.signal_id}
+          onActionComplete={handleGuardActionComplete}
+        />
+      )}
     </div>
   );
 }
