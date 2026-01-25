@@ -70,8 +70,8 @@ class ProcessSignalUseCase:
             # Convert DTO to domain entity
             signal = self._to_domain_entity(request)
 
-            # Save initial signal
-            await self._signal_repo.save(signal)
+            # Save initial signal - use returned signal with DB-generated ID
+            signal = await self._signal_repo.save(signal)
 
             # Process through domain service
             processed_signal = await self._signal_service.process_signal(signal)
@@ -103,7 +103,8 @@ class ProcessSignalUseCase:
 
     def _to_domain_entity(self, request: ProcessSignalRequest) -> Signal:
         """Convert request DTO to domain entity"""
-        signal_id = SignalId(str(uuid.uuid4()))
+        # Use provided signal_id or generate new UUID
+        signal_id = SignalId(request.signal_id) if request.signal_id else SignalId(str(uuid.uuid4()))
 
         # Build optional value objects
         volume = Volume(request.volume) if request.volume else None

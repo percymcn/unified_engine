@@ -72,6 +72,7 @@ class SQLAlchemySignalRepository(SignalRepository):
                 self._session.add(orm_model)
 
         await self._session.flush()
+        await self._session.commit()  # Persist signal to database
         await self._session.refresh(orm_model)
 
         return self._mapper.to_entity(orm_model)

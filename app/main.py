@@ -61,6 +61,7 @@ from app.routers.admin import router as admin_router
 from app.routers.broker_contracts import router as broker_contracts_router
 from app.routers.projectx_broker import router as projectx_broker_router
 from app.routers.broker_health import router as broker_health_router
+from app.routers.webhook_execute import router as webhook_execute_router
 from app.core.event_emitter import event_emitter
 from app.tasks.token_refresh import refresh_expiring_tokens
 
@@ -237,6 +238,7 @@ app.include_router(admin_router, tags=["admin"])
 app.include_router(broker_contracts_router, tags=["broker-contracts"])
 app.include_router(projectx_broker_router, tags=["projectx-broker"])
 app.include_router(broker_health_router, tags=["brokers", "health"])
+app.include_router(webhook_execute_router, prefix="/api/v1/webhook", tags=["webhook-execute"])
 
 # WebSocket endpoint
 @app.websocket("/ws")

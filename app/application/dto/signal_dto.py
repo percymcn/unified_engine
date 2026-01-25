@@ -24,6 +24,7 @@ class ProcessSignalRequest:
     strategy_id: Optional[str] = None
     strategy_name: Optional[str] = None
     raw_payload: Optional[dict] = None
+    signal_id: Optional[str] = None  # Pre-defined UUID to use instead of generating new
 
     def __post_init__(self):
         # Validation
