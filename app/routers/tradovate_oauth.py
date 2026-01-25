@@ -1,22 +1,51 @@
 """
 Tradovate OAuth Router
 Handles OAuth flow for connecting Tradovate accounts
+
+Uses Redis for state storage to support multi-process / multi-worker deployments.
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 import secrets
 import httpx
+import logging
 from urllib.parse import urlencode
 
 from app.db.database import get_db
 from app.routers.auth import get_current_user
 from app.models.models import User
 from app.core.config import settings
+from app.cache.redis_client import redis_client
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/auth/tradovate", tags=["tradovate-oauth"])
 
-# In-memory state store (use Redis in production for multi-instance deployments)
-_oauth_states: dict[str, dict] = {}
+# Redis key prefix and TTL for OAuth state
+OAUTH_STATE_KEY_PREFIX = "tradovate:oauth_state:"
+OAUTH_STATE_TTL_SECONDS = 600  # 10 minutes
+
+
+async def _store_oauth_state(state: str, data: dict) -> bool:
+    """Store OAuth state in Redis with TTL."""
+    key = f"{OAUTH_STATE_KEY_PREFIX}{state}"
+    result = await redis_client.set(key, data, expire=OAUTH_STATE_TTL_SECONDS)
+    if not result:
+        logger.warning(f"Failed to store OAuth state in Redis (state={state[:8]}...)")
+    return result
+
+
+async def _get_and_delete_oauth_state(state: str) -> dict | None:
+    """
+    Retrieve and delete OAuth state from Redis (one-time use).
+    Returns None if state doesn't exist or is expired.
+    """
+    key = f"{OAUTH_STATE_KEY_PREFIX}{state}"
+    data = await redis_client.get(key)
+    if data:
+        # Delete after retrieval (one-time use for CSRF protection)
+        await redis_client.delete(key)
+    return data
 
 
 @router.get("/authorize")
@@ -46,10 +75,18 @@ async def initiate_oauth(
 
     # Generate state for CSRF protection
     state = secrets.token_urlsafe(32)
-    _oauth_states[state] = {
+    state_data = {
         "user_id": current_user.id,
         "environment": environment,
     }
+
+    # Store state in Redis with TTL
+    stored = await _store_oauth_state(state, state_data)
+    if not stored:
+        raise HTTPException(
+            status_code=503,
+            detail="Unable to initialize OAuth flow. Please try again."
+        )
 
     params = {
         "client_id": settings.TRADOVATE_CLIENT_ID,
@@ -86,8 +123,8 @@ async def oauth_callback(
         environment: The Tradovate environment (demo/live)
         user_id: The user ID associated with this token
     """
-    # Validate state to prevent CSRF attacks
-    state_data = _oauth_states.pop(state, None)
+    # Validate state to prevent CSRF attacks (one-time use via Redis)
+    state_data = await _get_and_delete_oauth_state(state)
     if not state_data:
         raise HTTPException(
             status_code=400,

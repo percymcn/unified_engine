@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { AUTH_COOKIE_NAME } from '@/lib/auth';
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -74,8 +75,8 @@ export async function GET(request: Request) {
       new URL('/dashboard', FRONTEND_URL)
     );
 
-    // Set secure HTTP-only cookie
-    redirectResponse.cookies.set('token', authData.access_token, {
+    // Set secure HTTP-only cookie (using AUTH_COOKIE_NAME for consistency)
+    redirectResponse.cookies.set(AUTH_COOKIE_NAME, authData.access_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
