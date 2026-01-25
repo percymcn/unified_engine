@@ -81,6 +81,11 @@ class UpdateAccountSettingsUseCase:
         if request.trade_cooldown_seconds is not None:
             self._validate_range(request.trade_cooldown_seconds, 0, 3600, "trade_cooldown_seconds")
             updates['trade_cooldown_seconds'] = request.trade_cooldown_seconds
+        # Default stop loss/take profit (stored in broker-specific units)
+        if request.default_stop_loss is not None:
+            updates['default_stop_loss'] = request.default_stop_loss
+        if request.default_take_profit is not None:
+            updates['default_take_profit'] = request.default_take_profit
 
         # Grouping - validate group exists and belongs to user
         if request.group_id is not None:
@@ -139,6 +144,8 @@ class UpdateAccountSettingsUseCase:
             max_open_positions=account.max_open_positions,
             max_daily_trades=account.max_daily_trades,
             trade_cooldown_seconds=account.trade_cooldown_seconds,
+            default_stop_loss=getattr(account, 'default_stop_loss', None),
+            default_take_profit=getattr(account, 'default_take_profit', None),
             group_id=account.group_id,
             group_name=account.group_name,
             group_color=account.group_color,
@@ -177,6 +184,8 @@ class GetAccountSettingsUseCase:
             max_open_positions=account.max_open_positions,
             max_daily_trades=account.max_daily_trades,
             trade_cooldown_seconds=account.trade_cooldown_seconds,
+            default_stop_loss=getattr(account, 'default_stop_loss', None),
+            default_take_profit=getattr(account, 'default_take_profit', None),
             group_id=account.group_id,
             group_name=account.group_name,
             group_color=account.group_color,

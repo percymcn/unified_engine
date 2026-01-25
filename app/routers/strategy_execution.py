@@ -7,7 +7,8 @@ from sqlalchemy.orm import Session
 from typing import Dict, Optional, Any
 
 from app.db.database import get_db
-from app.models.models import Account, User
+from app.models.models import User
+from app.models.database_models import TradingAccount
 from app.routers.auth import get_current_user
 from app.services.strategy_runner import strategy_runner
 
@@ -24,9 +25,9 @@ async def run_strategy(
 ):
     """Run a strategy for an account"""
     # Verify account ownership
-    account = db.query(Account).filter(
-        Account.id == account_id,
-        Account.user_id == current_user.id
+    account = db.query(TradingAccount).filter(
+        TradingAccount.id == account_id,
+        TradingAccount.user_id == current_user.id
     ).first()
     
     if not account:
@@ -56,9 +57,9 @@ async def start_periodic_strategy(
 ):
     """Start periodic execution of a strategy"""
     # Verify account ownership
-    account = db.query(Account).filter(
-        Account.id == account_id,
-        Account.user_id == current_user.id
+    account = db.query(TradingAccount).filter(
+        TradingAccount.id == account_id,
+        TradingAccount.user_id == current_user.id
     ).first()
     
     if not account:
@@ -83,9 +84,9 @@ async def stop_periodic_strategy(
 ):
     """Stop periodic execution of a strategy"""
     # Verify account ownership
-    account = db.query(Account).filter(
-        Account.id == account_id,
-        Account.user_id == current_user.id
+    account = db.query(TradingAccount).filter(
+        TradingAccount.id == account_id,
+        TradingAccount.user_id == current_user.id
     ).first()
     
     if not account:

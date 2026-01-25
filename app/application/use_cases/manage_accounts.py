@@ -263,14 +263,31 @@ class SyncAccountUseCase:
             raise BrokerConnectionError(f"No adapter for broker: {account.broker}")
 
         # Sync account info
-        info = await broker.get_account_info()
-        account.update_balance(Money(Decimal(str(info.get("balance", 0))), account.currency))
-        account.update_equity(Money(Decimal(str(info.get("equity", 0))), account.currency))
-        account.update_margin(Money(Decimal(str(info.get("margin", 0))), account.currency))
+        # get_account_info returns Account Pydantic model (not dict)
+        info = await broker.get_account_info(account.id.value)
+        if info:
+            # Account is a Pydantic model with attributes, not dict
+            account.update_balance(Money(Decimal(str(info.balance)), account.currency))
+            account.update_equity(Money(Decimal(str(info.equity)), account.currency))
+            account.update_margin(Money(Decimal(str(info.margin)), account.currency))
+            # Update free_margin if available
+            if hasattr(info, 'free_margin') and info.free_margin is not None:
+                account.free_margin = Decimal(str(info.free_margin))
+        else:
+            logger.warning(f"get_account_info returned None for account {account.id.value}")
 
-        # Get positions and orders count
-        positions = await broker.get_positions()
-        orders = await broker.get_orders()
+        # Get positions and orders count - pass account_id
+        try:
+            positions = await broker.get_positions(account.id.value)
+        except Exception as e:
+            logger.warning(f"Could not get positions: {e}")
+            positions = []
+        
+        try:
+            orders = await broker.get_orders(account.id.value)
+        except Exception as e:
+            logger.warning(f"Could not get orders: {e}")
+            orders = []
 
         # Save updated account
         await self._account_repo.save(account)

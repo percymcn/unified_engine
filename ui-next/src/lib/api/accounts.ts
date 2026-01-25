@@ -187,6 +187,9 @@ export async function discoverAccounts(
     throw new Error(error.message || `Failed to discover accounts: ${response.statusText}`);
   }
 
+  return response.json() as Promise<DiscoverAccountsResult>;
+}
+
 /**
  * Refresh discovered broker accounts for an account
  */

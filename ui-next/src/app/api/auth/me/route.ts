@@ -43,8 +43,8 @@ export async function GET(): Promise<NextResponse<MeResponse>> {
       );
     }
 
-    // Verify token with backend /api/auth/me endpoint
-    const backendResponse = await fetch(`${BACKEND_URL}/api/auth/me`, {
+    // Verify token with backend /api/v1/auth/me endpoint
+    const backendResponse = await fetch(`${BACKEND_URL}/api/v1/auth/me`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,

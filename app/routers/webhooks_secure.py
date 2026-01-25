@@ -17,8 +17,8 @@ import logging
 import hashlib
 
 from app.db.database import get_db
-from app.models.models import WebhookLog, User, Account  # Use Account from models.py
-from app.models.database_models import DiscardBin  # DiscardBin is in database_models
+from app.models.models import WebhookLog, User
+from app.models.database_models import DiscardBin, TradingAccount
 from app.models.schemas import WebhookLogCreate
 from app.routers.auth import get_current_user
 from app.dependencies import get_container
@@ -139,12 +139,12 @@ async def incoming_webhook(
                     detail=f"Invalid broker: {broker}"
                 )
         
-        # Use Account model (table name: accounts) - webhook_key was added to accounts table
-        broker_account = db.query(Account).filter(
-            Account.user_id == user,
-            Account.broker == broker_enum,
-            Account.webhook_key == webhook_key,  # This column exists on accounts table
-            Account.is_active == True
+        # Use TradingAccount model (table name: trading_accounts)
+        broker_account = db.query(TradingAccount).filter(
+            TradingAccount.user_id == user,
+            TradingAccount.broker == broker_enum,
+            TradingAccount.webhook_key == webhook_key,
+            TradingAccount.is_active == True
         ).first()
         
         if not broker_account:

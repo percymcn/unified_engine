@@ -38,7 +38,9 @@ class TradeLockerSDKWrapper:
         username: str,
         password: str,
         server: str,
-        max_workers: int = 3
+        max_workers: int = 3,
+        account_id: Optional[int] = None,
+        account_num: Optional[int] = None,
     ):
         """
         Initialize the SDK wrapper.
@@ -49,6 +51,8 @@ class TradeLockerSDKWrapper:
             password: TradeLocker account password
             server: TradeLocker server name
             max_workers: Max concurrent threads for SDK calls
+            account_id: Pre-resolved account ID (skip discovery if provided)
+            account_num: Pre-resolved account number (skip discovery if provided)
         """
         self._environment = environment
         self._username = username
@@ -57,8 +61,9 @@ class TradeLockerSDKWrapper:
         self._executor = ThreadPoolExecutor(max_workers=max_workers)
         self._tl = None
         self._initialized = False
-        self._acc_num = None
-        self._acc_id = None
+        # Pre-resolved account info (avoids rediscovery on each init)
+        self._acc_num = account_num
+        self._acc_id = account_id
 
     async def initialize(self) -> bool:
         """
@@ -84,12 +89,29 @@ class TradeLockerSDKWrapper:
 
             self._tl = await loop.run_in_executor(self._executor, create_client)
 
-            # Get default account numbers
-            self._acc_num = self._tl.get_acc_nums()[0] if self._tl.get_acc_nums() else None
-            self._acc_id = self._tl.get_acc_ids()[0] if self._tl.get_acc_ids() else None
+            # If account_id/account_num were pre-resolved (from stored credentials), skip discovery
+            if self._acc_id is not None and self._acc_num is not None:
+                logger.info(f"Using pre-resolved account: num={self._acc_num}, id={self._acc_id}")
+            else:
+                # Get default account from get_all_accounts() (v0.56.1+ compatible)
+                # get_acc_nums/get_acc_ids don't exist in newer SDK versions
+                def get_first_account():
+                    try:
+                        accounts = self._tl.get_all_accounts()
+                        if accounts is not None and len(accounts) > 0:
+                            # accounts is a DataFrame with columns: id, accNum, etc.
+                            first_row = accounts.iloc[0]
+                            acc_id = first_row.get('id', first_row.get('accountId', None))
+                            acc_num = first_row.get('accNum', first_row.get('accountNumber', acc_id))
+                            return acc_num, acc_id
+                    except Exception as e:
+                        logger.warning(f"Failed to get accounts via get_all_accounts: {e}")
+                    return None, None
+
+                self._acc_num, self._acc_id = await loop.run_in_executor(self._executor, get_first_account)
 
             self._initialized = True
-            logger.info(f"TradeLocker SDK initialized. Account: {self._acc_num}")
+            logger.info(f"TradeLocker SDK initialized. Account: {self._acc_num}, ID: {self._acc_id}")
             return True
 
         except ImportError:

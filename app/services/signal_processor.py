@@ -10,7 +10,7 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.cache.redis_client import redis_client
-from app.models.models import Signal, WebhookLog, Account as AccountModel
+from app.models.models import Signal, WebhookLog
 from app.models.pydantic_schemas import (
     SignalRequest, SignalResponse, OrderRequest, OrderResponse,
     TradeRequest, TradeResponse, WebhookRequest

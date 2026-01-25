@@ -61,17 +61,6 @@ export default function AccountSettingsPage() {
       if (accountResponse.discovered_accounts_cache) {
         setDiscoveredAccounts(accountResponse.discovered_accounts_cache as DiscoveredAccount[]);
       }
-      
-      // Load broker account selection if available
-      if (accountResponse.enabled_broker_account_ids) {
-        setSelectedAccountIds(new Set(accountResponse.enabled_broker_account_ids));
-      }
-      if (accountResponse.default_broker_account_id) {
-        setDefaultAccountId(accountResponse.default_broker_account_id);
-      }
-      if (accountResponse.discovered_accounts_cache) {
-        setDiscoveredAccounts(accountResponse.discovered_accounts_cache as DiscoveredAccount[]);
-      }
     } catch (err) {
       console.error('Failed to load account settings:', err);
       setError('Failed to load account settings. Please try again.');
@@ -164,6 +153,13 @@ export default function AccountSettingsPage() {
       setSaving(false);
     }
   };
+
+  const handleSave = async (updates: {
+    positionSizing?: Partial<AccountSettings['positionSizing']>;
+    riskLimits?: Partial<AccountSettings['riskLimits']>;
+    grouping?: Partial<AccountSettings['grouping']>;
+    routing?: Partial<AccountSettings['routing']>;
+  }) => {
     try {
       setSaving(true);
 

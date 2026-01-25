@@ -40,6 +40,9 @@ class TradeLockerExecutor(BaseExecutor):
         self._sdk_password = self.config.get("password")
         self._sdk_server = self.config.get("server")
         self._sdk_environment = self.config.get("sdk_environment", "https://demo.tradelocker.com")
+        # Pre-resolved account info (from stored credentials, avoids rediscovery)
+        self._sdk_account_id = self.config.get("account_id")
+        self._sdk_account_num = self.config.get("account_num") or self.config.get("account_number")
 
         # Runtime state
         self.sio = None  # WebSocket client
@@ -88,11 +91,27 @@ class TradeLockerExecutor(BaseExecutor):
     async def _initialize_sdk(self) -> bool:
         """Initialize using official SDK."""
         try:
+            # Parse account_id/account_num as integers if provided
+            account_id = None
+            account_num = None
+            if self._sdk_account_id:
+                try:
+                    account_id = int(self._sdk_account_id)
+                except (ValueError, TypeError):
+                    pass
+            if self._sdk_account_num:
+                try:
+                    account_num = int(self._sdk_account_num)
+                except (ValueError, TypeError):
+                    pass
+
             self._sdk_wrapper = TradeLockerSDKWrapper(
                 environment=self._sdk_environment,
                 username=self._sdk_username,
                 password=self._sdk_password,
-                server=self._sdk_server
+                server=self._sdk_server,
+                account_id=account_id,
+                account_num=account_num,
             )
             return await self._sdk_wrapper.initialize()
         except Exception as e:

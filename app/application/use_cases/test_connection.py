@@ -124,6 +124,36 @@ class TestConnectionUseCase:
 
         return await tester(credentials)
 
+    def _normalize_tradelocker_environment(self, environment: str) -> str:
+        """
+        Normalize TradeLocker environment to ensure it has proper URL scheme.
+
+        Handles common user input patterns:
+        - "demo" -> "https://demo.tradelocker.com"
+        - "live" -> "https://live.tradelocker.com"
+        - "demo.tradelocker.com" -> "https://demo.tradelocker.com"
+        - "https://demo.tradelocker.com" -> "https://demo.tradelocker.com" (unchanged)
+        """
+        if not environment:
+            return "https://demo.tradelocker.com"
+
+        environment = environment.strip()
+
+        # Already has scheme - return as-is
+        if environment.startswith("http://") or environment.startswith("https://"):
+            return environment
+
+        # Common shorthand: "demo" or "live"
+        if environment.lower() in ("demo", "live"):
+            return f"https://{environment.lower()}.tradelocker.com"
+
+        # Domain without scheme
+        if "." in environment:
+            return f"https://{environment}"
+
+        # Fallback: assume it's a subdomain of tradelocker.com
+        return f"https://{environment}.tradelocker.com"
+
     async def _test_tradelocker(self, credentials: dict) -> TestConnectionResponse:
         """Test TradeLocker connection."""
         try:
@@ -247,7 +277,9 @@ class TestConnectionUseCase:
                 try:
                     from app.brokers.tradelocker_sdk_wrapper import TradeLockerSDKWrapper
 
-                    environment = credentials.get("environment", "https://demo.tradelocker.com")
+                    # Normalize environment URL to ensure it has proper scheme
+                    raw_environment = credentials.get("environment", "https://demo.tradelocker.com")
+                    environment = self._normalize_tradelocker_environment(raw_environment)
                     wrapper = TradeLockerSDKWrapper(
                         environment=environment,
                         username=username,
@@ -257,6 +289,19 @@ class TestConnectionUseCase:
 
                     success = await wrapper.initialize()
                     if success:
+                        # Verify accounts are fetchable (required for signal execution)
+                        acc_num = wrapper.account_number
+                        acc_id = wrapper.account_id
+
+                        if not acc_num and not acc_id:
+                            wrapper.shutdown()
+                            return TestConnectionResponse(
+                                success=False,
+                                status="failed",
+                                message="TradeLocker SDK connected but no accounts found. Please verify your account has trading permissions.",
+                                details={"mode": "sdk", "server": server}
+                            )
+
                         # Get symbols for format detection
                         symbols = []
                         try:
@@ -276,7 +321,13 @@ class TestConnectionUseCase:
                             success=True,
                             status="connected",
                             message="Successfully connected to TradeLocker via SDK",
-                            details={"mode": "sdk", "server": server},
+                            details={
+                                "mode": "sdk",
+                                "server": server,
+                                "environment": environment,
+                                "account_id": str(acc_id) if acc_id else None,
+                                "account_number": str(acc_num) if acc_num else None,
+                            },
                             detected_format=detected_format,
                             symbol_map=symbol_map,
                             sample_symbols=sample_symbols,

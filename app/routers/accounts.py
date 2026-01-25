@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from decimal import Decimal
 
 from app.db.database import get_db
-from app.models.models import Account, User
+from app.models.models import User
 from app.models.schemas import Account as AccountSchema, AccountCreate, AccountUpdate
 from app.routers.auth import get_current_user
 from app.core.event_emitter import emit_account_event
@@ -29,6 +29,8 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 import secrets
 import hashlib
+from app.core.encryption import get_encryption_service
+from app.models.database_models import Credential
 
 
 class TestConnectionBody(BaseModel):
@@ -87,8 +89,47 @@ class FetchAvailableAccountsBody(BaseModel):
     """Optional request body for fetching available accounts"""
     credentials: Optional[dict] = None  # Override stored credentials
 
+class ConnectAccountBody(BaseModel):
+    """Request body for connecting an existing account"""
+    oauth_tokens: Optional[Dict[str, Any]] = None
+
 
 router = APIRouter()
+
+def _load_credential_fallback(
+    db: Session,
+    user_id: int,
+    broker: str,
+    account_number: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Load decrypted credentials from the credentials store.
+
+    Falls back to the latest matching credential record when TradingAccount fields are empty.
+    Filters by account_number when provided.
+    """
+    credentials: Dict[str, Any] = {}
+    encryption = get_encryption_service()
+
+    rows = db.query(Credential).filter(
+        Credential.user_id == user_id,
+        Credential.service == broker,
+        Credential.is_active == True
+    ).all()
+
+    for row in rows:
+        try:
+            data = encryption.decrypt_dict(row.encrypted_data)
+        except Exception:
+            continue
+
+        data_account_id = data.get("account_id") or data.get("metaapi_account_id")
+        if account_number and data_account_id and str(data_account_id) != str(account_number):
+            continue
+
+        credentials.update(data)
+
+    return credentials
 
 @router.get("/")
 async def get_accounts(
@@ -116,31 +157,36 @@ async def get_accounts(
     
     accounts_with_webhook = []
     for acc in response.accounts:
-        # Get webhook_key from ORM
+        # Get full account details from ORM since AccountSummaryDTO is lightweight
         orm_account = db.query(TradingAccountORM).filter(
             TradingAccountORM.id == int(acc.id)
         ).first()
         
+        if not orm_account:
+            # Skip if account not found in DB
+            continue
+        
         account_dict = {
-            "id": acc.id,
-            "account_id": orm_account.account_number if orm_account else acc.id,
-            "user_id": acc.user_id,
+            "id": int(acc.id),  # Frontend expects number
+            "account_id": orm_account.account_number or acc.id,
+            "user_id": current_user.id,
             "broker": acc.broker.value,
-            "account_type": acc.account_type.value if hasattr(acc, 'account_type') else "demo",
+            "account_type": orm_account.account_type.value if orm_account.account_type else "demo",
             "balance": float(acc.balance),
             "equity": float(acc.equity),
-            "margin": float(acc.margin) if hasattr(acc, 'margin') else 0.0,
-            "free_margin": float(acc.free_margin) if hasattr(acc, 'free_margin') else 0.0,
-            "leverage": acc.leverage,
-            "currency": acc.currency,
-            "is_active": acc.is_active,
+            "margin": float(orm_account.margin) if orm_account.margin else 0.0,
+            "free_margin": float(orm_account.free_margin) if orm_account.free_margin else 0.0,
+            "leverage": int(orm_account.leverage) if orm_account.leverage else 100,
+            "currency": orm_account.currency or "USD",
+            "is_active": orm_account.is_active if hasattr(orm_account, 'is_active') else True,
             "is_connected": acc.is_connected,
-            "last_sync": acc.last_sync.isoformat() if acc.last_sync else None,
-            "webhook_key": orm_account.webhook_key if orm_account else None,  # Patch 1.2.1
+            "last_sync": orm_account.last_sync.isoformat() if orm_account.last_sync else None,
+            "created_at": orm_account.created_at.isoformat() if orm_account.created_at else None,
+            "webhook_key": orm_account.webhook_key,
             # Broker account selection
-            "enabled_broker_account_ids": orm_account.enabled_broker_account_ids if orm_account else [],
-            "default_broker_account_id": orm_account.default_broker_account_id if orm_account else None,
-            "discovered_accounts_cache": orm_account.discovered_accounts_cache if orm_account else None,
+            "enabled_broker_account_ids": orm_account.enabled_broker_account_ids or [],
+            "default_broker_account_id": orm_account.default_broker_account_id,
+            "discovered_accounts_cache": orm_account.discovered_accounts_cache,
         }
         accounts_with_webhook.append(account_dict)
     
@@ -205,6 +251,42 @@ async def test_connection(
 
     return result
 
+@router.post("/{account_id}/connect")
+async def connect_account(
+    request: Request,
+    account_id: str,
+    body: ConnectAccountBody,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Connect an existing account to its broker and mark it as connected.
+
+    Optionally accepts OAuth tokens for brokers like Tradovate.
+    """
+    container = get_container(request)
+    use_case = container.connect_account_use_case()
+
+    dto_request = ConnectAccountRequest(
+        account_id=account_id,
+        oauth_tokens=body.oauth_tokens,
+    )
+
+    response = await use_case.execute(dto_request)
+
+    if response.error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=response.error,
+        )
+
+    return {
+        "id": response.account_id,
+        "is_connected": response.is_connected,
+        "balance": float(response.balance or 0),
+        "equity": float(response.equity or 0),
+        "message": "Account connected successfully",
+    }
+
 
 @router.post("/discover")
 async def discover_accounts(
@@ -256,7 +338,18 @@ async def discover_accounts(
             if body.credentials.get("server"):
                 executor._sdk_server = body.credentials.get("server")
             if body.credentials.get("environment"):
-                executor._sdk_environment = body.credentials.get("environment")
+                # Normalize environment URL to ensure it has proper scheme
+                raw_env = body.credentials.get("environment")
+                if raw_env:
+                    raw_env = raw_env.strip()
+                    if not raw_env.startswith("http://") and not raw_env.startswith("https://"):
+                        if raw_env.lower() in ("demo", "live"):
+                            raw_env = f"https://{raw_env.lower()}.tradelocker.com"
+                        elif "." in raw_env:
+                            raw_env = f"https://{raw_env}"
+                        else:
+                            raw_env = f"https://{raw_env}.tradelocker.com"
+                executor._sdk_environment = raw_env
             if body.credentials.get("api_key"):
                 executor.api_key = body.credentials.get("api_key")
             # Re-check availability
@@ -896,33 +989,42 @@ async def get_account(
             detail="Account not found"
         )
 
-    # Get webhook_key from ORM (Patch 1.2.1)
+    # Get webhook_key and other fields from ORM (Patch 1.2.1)
     from app.models.database_models import TradingAccount as TradingAccountORM
+    # AccountDTO.id is already a string, not AccountId object
+    account_id_str = account.id if isinstance(account.id, str) else str(account.id)
     orm_account = db.query(TradingAccountORM).filter(
-        TradingAccountORM.id == int(account.id.value)
+        TradingAccountORM.id == int(account_id_str)
     ).first()
 
+    if not orm_account:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Account not found in database"
+        )
+
     return {
-        "id": account.id.value,
-        "account_id": orm_account.account_number if orm_account else account.id.value,
+        "id": int(account_id_str),
+        "account_id": orm_account.account_number or account_id_str,
         "user_id": account.user_id,
         "broker": account.broker.value,
-        "account_type": account.account_type.value if hasattr(account, 'account_type') else "demo",
+        "account_type": account.account_type.value if account.account_type else "demo",
         "balance": float(account.balance),
         "equity": float(account.equity),
         "margin": float(account.margin),
         "free_margin": float(account.free_margin),
-        "leverage": account.leverage,
-        "currency": account.currency,
+        "leverage": int(account.leverage) if account.leverage else 100,
+        "currency": account.currency or "USD",
         "is_active": account.is_active,
         "is_connected": account.is_connected,
         "server": account.server,
         "last_sync": account.last_sync.isoformat() if account.last_sync else None,
-        "webhook_key": orm_account.webhook_key if orm_account else None,  # Patch 1.2.1
+        "created_at": orm_account.created_at.isoformat() if orm_account.created_at else None,
+        "webhook_key": orm_account.webhook_key,
         # Broker account selection
-        "enabled_broker_account_ids": orm_account.enabled_broker_account_ids if orm_account else [],
-        "default_broker_account_id": orm_account.default_broker_account_id if orm_account else None,
-        "discovered_accounts_cache": orm_account.discovered_accounts_cache if orm_account else None,
+        "enabled_broker_account_ids": orm_account.enabled_broker_account_ids or [],
+        "default_broker_account_id": orm_account.default_broker_account_id,
+        "discovered_accounts_cache": orm_account.discovered_accounts_cache,
     }
 
 @router.put("/{account_id}")
@@ -1030,7 +1132,7 @@ async def refresh_broker_accounts(
         )
     
     # Build credentials from stored account
-    credentials = {}
+    credentials: Dict[str, Any] = {}
     broker = orm_account.broker.value
     
     try:
@@ -1064,6 +1166,16 @@ async def refresh_broker_accounts(
                 meta = json.loads(orm_account.extra_metadata) if isinstance(orm_account.extra_metadata, str) else orm_account.extra_metadata
                 if meta.get("metaapi_account_id"):
                     credentials["metaapi_account_id"] = meta["metaapi_account_id"]
+
+        # Fall back to credential store if TradingAccount fields are incomplete
+        fallback = _load_credential_fallback(
+            db=db,
+            user_id=current_user.id,
+            broker=broker,
+            account_number=orm_account.account_number
+        )
+        for key, value in fallback.items():
+            credentials.setdefault(key, value)
         
         # Call discover endpoint logic
         discover_body = DiscoverAccountsBody(
@@ -1139,28 +1251,61 @@ async def sync_account(
     request: Request,
     account_id: str,
     current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     """Sync account data from broker via hexagonal architecture"""
     container = get_container(request)
     use_case = container.sync_account_use_case()
 
+    # Convert account_id to string if it's a number (from frontend)
+    account_id_str = str(account_id)
+
     # Execute use case
-    dto_request = SyncAccountRequest(account_id=account_id)
+    dto_request = SyncAccountRequest(account_id=account_id_str)
 
     try:
         response = await use_case.execute(dto_request)
 
+        # Get full account details from ORM to return complete Account object
+        from app.models.database_models import TradingAccount as TradingAccountORM
+        orm_account = db.query(TradingAccountORM).filter(
+            TradingAccountORM.id == int(account_id_str)
+        ).first()
+
+        if not orm_account:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Account not found"
+            )
+
+        # Return full Account object that frontend expects
         return {
-            "account_id": response.account_id,
+            "id": int(account_id_str),
+            "account_id": orm_account.account_number or account_id_str,
+            "user_id": current_user.id,
+            "broker": orm_account.broker.value,
+            "account_type": orm_account.account_type.value if orm_account.account_type else "demo",
             "balance": float(response.balance),
             "equity": float(response.equity),
             "margin": float(response.margin),
             "free_margin": float(response.free_margin),
-            "synced_at": response.synced_at.isoformat(),
+            "leverage": int(orm_account.leverage) if orm_account.leverage else 100,
+            "currency": orm_account.currency or "USD",
+            "is_active": orm_account.is_active if hasattr(orm_account, 'is_active') else True,
+            "is_connected": True,  # Just synced, so connected
+            "server": orm_account.server,
+            "last_sync": response.synced_at.isoformat(),
+            "created_at": orm_account.created_at.isoformat() if orm_account.created_at else None,
+            "webhook_key": orm_account.webhook_key,
+            "enabled_broker_account_ids": orm_account.enabled_broker_account_ids or [],
+            "default_broker_account_id": orm_account.default_broker_account_id,
+            "discovered_accounts_cache": orm_account.discovered_accounts_cache,
             "positions_count": response.positions_count,
             "orders_count": response.orders_count,
             "message": "Account synced successfully",
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -1260,6 +1405,8 @@ async def get_account_settings(
                 "max_open_positions": response.max_open_positions,
                 "max_daily_trades": response.max_daily_trades,
                 "trade_cooldown_seconds": response.trade_cooldown_seconds,
+                "default_stop_loss": getattr(response, 'default_stop_loss', None),
+                "default_take_profit": getattr(response, 'default_take_profit', None),
             },
             "grouping": {
                 "group_id": response.group_id,
@@ -1319,6 +1466,8 @@ async def update_account_settings(
         max_open_positions=settings.max_open_positions,
         max_daily_trades=settings.max_daily_trades,
         trade_cooldown_seconds=settings.trade_cooldown_seconds,
+        default_stop_loss=settings.default_stop_loss,
+        default_take_profit=settings.default_take_profit,
         group_id=settings.group_id,
         is_signal_enabled=settings.is_signal_enabled,
         signal_priority=settings.signal_priority,
@@ -1344,6 +1493,8 @@ async def update_account_settings(
                 "max_open_positions": response.max_open_positions,
                 "max_daily_trades": response.max_daily_trades,
                 "trade_cooldown_seconds": response.trade_cooldown_seconds,
+                "default_stop_loss": getattr(response, 'default_stop_loss', None),
+                "default_take_profit": getattr(response, 'default_take_profit', None),
             },
             "grouping": {
                 "group_id": response.group_id,

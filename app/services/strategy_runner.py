@@ -9,7 +9,8 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
-from app.models.models import AccountStrategy, Strategy, Account, Signal
+from app.models.models import AccountStrategy, Strategy, Signal
+from app.models.database_models import TradingAccount
 from app.models.pydantic_schemas import SignalRequest
 from app.services.signal_processor import signal_processor
 from app.core.config import settings
@@ -75,7 +76,7 @@ class StrategyRunner:
                 return {"success": False, "error": "Strategy not active"}
             
             # Get account
-            account = db.query(Account).filter(Account.id == account_id).first()
+            account = db.query(TradingAccount).filter(TradingAccount.id == account_id).first()
             if not account:
                 return {"success": False, "error": "Account not found"}
             
@@ -147,7 +148,7 @@ class StrategyRunner:
             from app.models.pydantic_schemas import SignalRequest
             
             # Get account to determine broker
-            account = db.query(Account).filter(Account.id == signal_data.get("account_id")).first()
+            account = db.query(TradingAccount).filter(TradingAccount.id == signal_data.get("account_id")).first()
             broker = account.broker.value if account else "mt4"
             
             signal_request = SignalRequest(

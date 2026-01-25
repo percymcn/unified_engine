@@ -117,8 +117,20 @@ class AccountFetcherService:
         try:
             from app.brokers.tradelocker_sdk_wrapper import TradeLockerSDKWrapper
 
+            # Normalize environment URL to ensure it has proper scheme
+            raw_env = credentials.get("environment", "https://demo.tradelocker.com")
+            if raw_env:
+                raw_env = raw_env.strip()
+                if not raw_env.startswith("http://") and not raw_env.startswith("https://"):
+                    if raw_env.lower() in ("demo", "live"):
+                        raw_env = f"https://{raw_env.lower()}.tradelocker.com"
+                    elif "." in raw_env:
+                        raw_env = f"https://{raw_env}"
+                    else:
+                        raw_env = f"https://{raw_env}.tradelocker.com"
+
             wrapper = TradeLockerSDKWrapper(
-                environment=credentials.get("environment", "https://demo.tradelocker.com"),
+                environment=raw_env,
                 username=credentials.get("username", credentials.get("email", "")),
                 password=credentials.get("password", ""),
                 server=credentials.get("server", "")
@@ -132,40 +144,50 @@ class AccountFetcherService:
                 # Get account state for balance/equity info
                 account_state = await wrapper.get_account_state()
 
-                # TradeLocker SDK provides account numbers and IDs
-                acc_nums = wrapper._tl.get_acc_nums() if wrapper._tl else []
-                acc_ids = wrapper._tl.get_acc_ids() if wrapper._tl else []
+                # Use get_all_accounts() (v0.56.1+ compatible)
+                # get_acc_nums/get_acc_ids don't exist in newer SDK versions
+                all_accounts_df = None
+                if wrapper._tl:
+                    try:
+                        loop = asyncio.get_event_loop()
+                        all_accounts_df = await loop.run_in_executor(None, wrapper._tl.get_all_accounts)
+                    except Exception as e:
+                        logger.warning(f"Failed to get accounts via get_all_accounts: {e}")
 
-                for i, (acc_num, acc_id) in enumerate(zip(acc_nums, acc_ids)):
-                    # Determine account type from name/config
-                    env = credentials.get("environment", "")
-                    account_type = "demo" if "demo" in env.lower() else "live"
+                if all_accounts_df is not None and len(all_accounts_df) > 0:
+                    for _, row in all_accounts_df.iterrows():
+                        acc_id = row.get('id', row.get('accountId', None))
+                        acc_num = row.get('accNum', row.get('accountNumber', acc_id))
 
-                    # Get balance from account state if available
-                    balance = None
-                    equity = None
-                    currency = "USD"
+                        # Determine account type from name/config
+                        env = credentials.get("environment", "")
+                        account_type = "demo" if "demo" in env.lower() else "live"
 
-                    if account_state:
-                        balance = account_state.get("balance", account_state.get("Balance"))
-                        equity = account_state.get("equity", account_state.get("Equity"))
-                        currency = account_state.get("currency", "USD")
+                        # Get balance from account state if available
+                        balance = None
+                        equity = None
+                        currency = "USD"
 
-                    account = BrokerAccountInfo(
-                        id=str(acc_id),  # Numeric ID
-                        name=f"Account {acc_num}",
-                        account_type=account_type,
-                        balance=float(balance) if balance else None,
-                        equity=float(equity) if equity else None,
-                        currency=currency,
-                        broker_type=broker_type,
-                        is_active=True,
-                        metadata={
-                            "account_number": acc_num,
-                            "server": credentials.get("server", ""),
-                        }
-                    )
-                    accounts.append(account)
+                        if account_state:
+                            balance = account_state.get("balance", account_state.get("Balance"))
+                            equity = account_state.get("equity", account_state.get("Equity"))
+                            currency = account_state.get("currency", "USD")
+
+                        account = BrokerAccountInfo(
+                            id=str(acc_id),  # Numeric ID
+                            name=f"Account {acc_num}",
+                            account_type=account_type,
+                            balance=float(balance) if balance else None,
+                            equity=float(equity) if equity else None,
+                            currency=currency,
+                            broker_type=broker_type,
+                            is_active=True,
+                            metadata={
+                                "account_number": acc_num,
+                                "server": credentials.get("server", ""),
+                            }
+                        )
+                        accounts.append(account)
 
             finally:
                 wrapper.shutdown()

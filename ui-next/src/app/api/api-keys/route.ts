@@ -17,7 +17,7 @@ export async function GET(_request: NextRequest) {
   }
 
   try {
-    const response = await fetch(`${BACKEND_URL}/api-keys/`, {
+    const response = await fetch(`${BACKEND_URL}/api/v1/api-keys/`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    const response = await fetch(`${BACKEND_URL}/api-keys/`, {
+    const response = await fetch(`${BACKEND_URL}/api/v1/api-keys/`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,

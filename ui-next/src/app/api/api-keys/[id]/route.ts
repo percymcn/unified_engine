@@ -20,7 +20,7 @@ export async function GET(
   }
 
   try {
-    const response = await fetch(`${BACKEND_URL}/api-keys/${id}`, {
+    const response = await fetch(`${BACKEND_URL}/api/v1/api-keys/${id}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -59,7 +59,7 @@ export async function DELETE(
   }
 
   try {
-    const response = await fetch(`${BACKEND_URL}/api-keys/${id}`, {
+    const response = await fetch(`${BACKEND_URL}/api/v1/api-keys/${id}`, {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${token}`,

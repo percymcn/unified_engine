@@ -2,12 +2,13 @@
 Account Group Repository
 
 SQLAlchemy implementation for account group persistence.
+Uses async SQLAlchemy 2.x patterns.
 """
 import logging
 from typing import List, Optional
 
-from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func, update, delete
 
 from app.models.database_models import AccountGroup, TradingAccount
 
@@ -15,9 +16,9 @@ logger = logging.getLogger(__name__)
 
 
 class AccountGroupRepository:
-    """Repository for account group operations"""
+    """Repository for account group operations (async)"""
 
-    def __init__(self, session: Session):
+    def __init__(self, session: AsyncSession):
         self._session = session
 
     async def create(
@@ -38,17 +39,19 @@ class AccountGroupRepository:
             is_active=True,
         )
         self._session.add(group)
-        self._session.commit()
-        self._session.refresh(group)
+        await self._session.commit()
+        await self._session.refresh(group)
         logger.info(f"Created account group: {group.id} ({name}) for user {user_id}")
         return group
 
     async def get_by_id(self, group_id: int, user_id: int) -> Optional[AccountGroup]:
         """Get group by ID, verifying ownership."""
-        return self._session.query(AccountGroup).filter(
+        stmt = select(AccountGroup).where(
             AccountGroup.id == group_id,
             AccountGroup.user_id == user_id,
-        ).first()
+        )
+        result = await self._session.execute(stmt)
+        return result.scalar_one_or_none()
 
     async def get_by_user(
         self,
@@ -56,12 +59,12 @@ class AccountGroupRepository:
         active_only: bool = True,
     ) -> List[AccountGroup]:
         """Get all groups for a user."""
-        query = self._session.query(AccountGroup).filter(
-            AccountGroup.user_id == user_id
-        )
+        stmt = select(AccountGroup).where(AccountGroup.user_id == user_id)
         if active_only:
-            query = query.filter(AccountGroup.is_active == True)
-        return query.order_by(AccountGroup.name).all()
+            stmt = stmt.where(AccountGroup.is_active == True)
+        stmt = stmt.order_by(AccountGroup.name)
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
 
     async def update(
         self,
@@ -81,26 +84,28 @@ class AccountGroupRepository:
         if name is not None:
             group.name = name
             # Update cached name in accounts
-            self._session.query(TradingAccount).filter(
+            stmt = update(TradingAccount).where(
                 TradingAccount.group_id == group_id
-            ).update({"group_name": name})
+            ).values(group_name=name)
+            await self._session.execute(stmt)
 
         if description is not None:
             group.description = description
         if color is not None:
             group.color = color
             # Update cached color in accounts
-            self._session.query(TradingAccount).filter(
+            stmt = update(TradingAccount).where(
                 TradingAccount.group_id == group_id
-            ).update({"group_color": color})
+            ).values(group_color=color)
+            await self._session.execute(stmt)
 
         if icon is not None:
             group.icon = icon
         if is_active is not None:
             group.is_active = is_active
 
-        self._session.commit()
-        self._session.refresh(group)
+        await self._session.commit()
+        await self._session.refresh(group)
         logger.info(f"Updated account group: {group_id}")
         return group
 
@@ -115,24 +120,23 @@ class AccountGroupRepository:
             return False
 
         # Clear group references in accounts
-        self._session.query(TradingAccount).filter(
+        stmt = update(TradingAccount).where(
             TradingAccount.group_id == group_id
-        ).update({
-            "group_id": None,
-            "group_name": None,
-            "group_color": None,
-        })
+        ).values(group_id=None, group_name=None, group_color=None)
+        await self._session.execute(stmt)
 
-        self._session.delete(group)
-        self._session.commit()
+        await self._session.delete(group)
+        await self._session.commit()
         logger.info(f"Deleted account group: {group_id}")
         return True
 
     async def get_account_count(self, group_id: int) -> int:
         """Get the number of accounts in a group."""
-        return self._session.query(func.count(TradingAccount.id)).filter(
+        stmt = select(func.count(TradingAccount.id)).where(
             TradingAccount.group_id == group_id
-        ).scalar() or 0
+        )
+        result = await self._session.execute(stmt)
+        return result.scalar() or 0
 
     async def add_account_to_group(
         self,
@@ -147,10 +151,12 @@ class AccountGroupRepository:
             return False
 
         # Verify account exists and belongs to user
-        account = self._session.query(TradingAccount).filter(
+        stmt = select(TradingAccount).where(
             TradingAccount.id == account_id,
             TradingAccount.user_id == user_id,
-        ).first()
+        )
+        result = await self._session.execute(stmt)
+        account = result.scalar_one_or_none()
         if not account:
             return False
 
@@ -159,7 +165,7 @@ class AccountGroupRepository:
         account.group_name = group.name
         account.group_color = group.color
 
-        self._session.commit()
+        await self._session.commit()
         logger.info(f"Added account {account_id} to group {group_id}")
         return True
 
@@ -169,10 +175,12 @@ class AccountGroupRepository:
         user_id: int,
     ) -> bool:
         """Remove an account from its group."""
-        account = self._session.query(TradingAccount).filter(
+        stmt = select(TradingAccount).where(
             TradingAccount.id == account_id,
             TradingAccount.user_id == user_id,
-        ).first()
+        )
+        result = await self._session.execute(stmt)
+        account = result.scalar_one_or_none()
         if not account:
             return False
 
@@ -181,6 +189,6 @@ class AccountGroupRepository:
         account.group_name = None
         account.group_color = None
 
-        self._session.commit()
+        await self._session.commit()
         logger.info(f"Removed account {account_id} from group {previous_group_id}")
         return True

@@ -9,7 +9,8 @@ from datetime import datetime
 from sqlalchemy import func, and_
 
 from app.db.database import get_db
-from app.models.models import Strategy, AccountStrategy, Account, Signal, User
+from app.models.models import Strategy, AccountStrategy, Signal, User
+from app.models.database_models import TradingAccount
 from app.routers.auth import get_current_user
 
 router = APIRouter(prefix="/strategies", tags=["strategies"])
@@ -124,9 +125,9 @@ async def enable_strategy(
 ):
     """Enable a strategy for an account"""
     # Verify account ownership
-    account = db.query(Account).filter(
-        Account.id == account_id,
-        Account.user_id == current_user.id
+    account = db.query(TradingAccount).filter(
+        TradingAccount.id == account_id,
+        TradingAccount.user_id == current_user.id
     ).first()
     
     if not account:
@@ -189,9 +190,9 @@ async def disable_strategy(
 ):
     """Disable a strategy for an account"""
     # Verify account ownership
-    account = db.query(Account).filter(
-        Account.id == account_id,
-        Account.user_id == current_user.id
+    account = db.query(TradingAccount).filter(
+        TradingAccount.id == account_id,
+        TradingAccount.user_id == current_user.id
     ).first()
     
     if not account:

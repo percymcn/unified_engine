@@ -10,7 +10,8 @@ import logging
 
 from app.db.database import get_db
 from app.routers.auth import get_current_user, get_current_user_optional
-from app.models.models import User, Account
+from app.models.models import User
+from app.models.database_models import TradingAccount
 from app.services.stripe_service import (
     stripe_service,
     PRICING_TIERS,
@@ -121,9 +122,9 @@ async def get_subscription_status(
     broker_limit = get_broker_limit(tier)
 
     # Count active broker accounts
-    brokers_used = db.query(Account).filter(
-        Account.user_id == current_user.id,
-        Account.is_active == True
+    brokers_used = db.query(TradingAccount).filter(
+        TradingAccount.user_id == current_user.id,
+        TradingAccount.is_active == True
     ).count()
 
     return SubscriptionStatus(

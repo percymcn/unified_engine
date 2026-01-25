@@ -17,7 +17,7 @@ export async function GET(request: Request) {
 
   try {
     const response = await fetch(
-      `${BACKEND_URL}/api/admin/users?${searchParams.toString()}`,
+      `${BACKEND_URL}/api/v1/admin/plans?${searchParams.toString()}`,
       {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -29,7 +29,7 @@ export async function GET(request: Request) {
     return NextResponse.json(data, { status: response.status });
   } catch {
     return NextResponse.json(
-      { error: "Failed to fetch users" },
+      { error: "Failed to fetch plans" },
       { status: 500 }
     );
   }

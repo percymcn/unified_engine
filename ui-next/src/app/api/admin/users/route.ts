@@ -19,7 +19,7 @@ export async function GET(request: Request) {
   }
 
   // Extract path after /api/admin
-  const backendPath = pathname.replace("/api/admin", "/api/admin");
+  const backendPath = pathname.replace("/api/admin", "/api/v1/admin");
 
   try {
     const response = await fetch(`${BACKEND_URL}${backendPath}?${searchParams.toString()}`, {
@@ -49,7 +49,7 @@ export async function PATCH(request: Request) {
   }
 
   const body = await request.json();
-  const backendPath = pathname.replace("/api/admin", "/api/admin");
+  const backendPath = pathname.replace("/api/admin", "/api/v1/admin");
 
   try {
     const response = await fetch(`${BACKEND_URL}${backendPath}`, {
@@ -81,7 +81,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const backendPath = pathname.replace("/api/admin", "/api/admin");
+  const backendPath = pathname.replace("/api/admin", "/api/v1/admin");
 
   try {
     const response = await fetch(`${BACKEND_URL}${backendPath}`, {

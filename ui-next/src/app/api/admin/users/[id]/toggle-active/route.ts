@@ -6,7 +6,10 @@ export const revalidate = 0;
 
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:8765";
 
-export async function GET() {
+export async function PATCH(
+  _request: Request,
+  { params }: { params: { id: string } }
+) {
   const cookieStore = await cookies();
   const token = cookieStore.get("token")?.value;
 
@@ -15,17 +18,22 @@ export async function GET() {
   }
 
   try {
-    const response = await fetch(`${BACKEND_URL}/api/admin/plans`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    const response = await fetch(
+      `${BACKEND_URL}/api/v1/admin/users/${params.id}/toggle-active`,
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
 
     const data = await response.json();
     return NextResponse.json(data, { status: response.status });
   } catch {
     return NextResponse.json(
-      { error: "Failed to fetch plans" },
+      { error: "Failed to toggle user" },
       { status: 500 }
     );
   }

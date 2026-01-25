@@ -115,7 +115,7 @@ class User(Base):
     })
 
     # Relationships
-    accounts = relationship("Account", back_populates="owner")
+    accounts = relationship("TradingAccount", back_populates="user")
     sessions = relationship("UserSession", back_populates="user")
     signals = relationship("Signal", back_populates="user")
     # Relationships for database_models.py classes
@@ -138,48 +138,12 @@ class UserSession(Base):
     # Relationships
     user = relationship("User", back_populates="sessions")
 
-class Account(Base):
-    __tablename__ = "accounts"
-    __table_args__ = {'extend_existing': True}
-
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    organization_id = Column(Integer, index=True)  # Multi-tenancy (FK disabled for now)
-    account_id = Column(String, unique=True, index=True, nullable=False)
-    broker = Column(SQLEnum(BrokerType), nullable=False)
-    account_type = Column(SQLEnum(AccountType), nullable=False)
-    currency = Column(String, default="USD")
-    balance = Column(Float, default=0.0)
-    equity = Column(Float, default=0.0)
-    margin = Column(Float, default=0.0)
-    free_margin = Column(Float, default=0.0)
-    leverage = Column(Integer, default=100)
-    is_active = Column(Boolean, default=True)
-    is_connected = Column(Boolean, default=False)
-    api_key = Column(String)  # Encrypted
-    api_secret = Column(String)  # Encrypted
-    server = Column(String)
-    login = Column(Integer)
-    password = Column(String)  # Encrypted
-    broker_config = Column(JSON)  # Store broker-specific config
-    last_sync = Column(DateTime(timezone=True))
-    webhook_key = Column(String)  # Patch 1.2.1: Per-broker webhook key
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    
-    # Relationships
-    owner = relationship("User", back_populates="accounts")
-    # organization = relationship("Organization", back_populates="accounts")  # Disabled
-    trades = relationship("Trade", back_populates="account")
-    positions = relationship("Position", back_populates="account")
-    orders = relationship("Order", back_populates="account")
-
 class Trade(Base):
     __tablename__ = "trades"
     __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
-    account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False)
+    account_id = Column(Integer, ForeignKey("trading_accounts.id"), nullable=False)
     trade_id = Column(String, unique=True, index=True, nullable=False)
     broker_trade_id = Column(String, index=True)  # Original broker trade ID
     symbol = Column(String, nullable=False)
@@ -202,14 +166,14 @@ class Trade(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # Relationships
-    account = relationship("Account", back_populates="trades")
+    account = relationship("TradingAccount", back_populates="trades")
 
 class Position(Base):
     __tablename__ = "positions"
     __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
-    account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False)
+    account_id = Column(Integer, ForeignKey("trading_accounts.id"), nullable=False)
     position_id = Column(String, unique=True, index=True, nullable=False)
     broker_position_id = Column(String, index=True)  # Original broker position ID
     symbol = Column(String, nullable=False)
@@ -232,14 +196,14 @@ class Position(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # Relationships
-    account = relationship("Account", back_populates="positions")
+    account = relationship("TradingAccount", back_populates="positions")
 
 class Order(Base):
     __tablename__ = "orders"
     __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
-    account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False)
+    account_id = Column(Integer, ForeignKey("trading_accounts.id"), nullable=False)
     order_id = Column(String, unique=True, index=True, nullable=False)
     broker_order_id = Column(String, index=True)  # Original broker order ID
     symbol = Column(String, nullable=False)
@@ -259,7 +223,7 @@ class Order(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # Relationships
-    account = relationship("Account", back_populates="orders")
+    account = relationship("TradingAccount", back_populates="orders")
 
 class Signal(Base):
     __tablename__ = "signals"
@@ -316,7 +280,7 @@ class ExecutionLog(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     signal_id = Column(String, ForeignKey("signals.signal_id"))
-    account_id = Column(Integer, ForeignKey("accounts.id"))
+    account_id = Column(Integer, ForeignKey("trading_accounts.id"))
     broker = Column(SQLEnum(BrokerType), nullable=False)
     action = Column(String, nullable=False)
     symbol = Column(String, nullable=False)
@@ -346,7 +310,7 @@ class Alert(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
-    account_id = Column(Integer, ForeignKey("accounts.id"))
+    account_id = Column(Integer, ForeignKey("trading_accounts.id"))
     alert_type = Column(String, nullable=False)  # margin_call, stop_out, etc.
     message = Column(Text, nullable=False)
     severity = Column(String, default="info")  # info, warning, error, critical
@@ -393,7 +357,7 @@ class AccountStrategy(Base):
     __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
-    account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False)
+    account_id = Column(Integer, ForeignKey("trading_accounts.id"), nullable=False)
     strategy_id = Column(Integer, ForeignKey("strategies.id"), nullable=False)
     is_enabled = Column(Boolean, default=False)
     parameters = Column(JSON)  # Account-specific strategy parameters
@@ -401,7 +365,7 @@ class AccountStrategy(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # Relationships
-    account = relationship("Account", backref="strategies")
+    account = relationship("TradingAccount", back_populates="strategies")
     strategy = relationship("Strategy", backref="accounts")
 
 
@@ -442,7 +406,7 @@ class BrokerSymbolFormat(Base):
     __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
-    account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False, unique=True, index=True)
+    account_id = Column(Integer, ForeignKey("trading_accounts.id"), nullable=False, unique=True, index=True)
     detected_patterns = Column(JSON)  # {"suffix": ".pro", "prefix": "", "case": "upper", "confidence": 0.95}
     sample_symbols = Column(JSON)     # ["EURUSD.pro", "GBPUSD.pro", "US30.pro"] - first 20 symbols
     common_symbols_map = Column(JSON) # {"EURUSD": "EURUSD.pro", "US30": "US30.pro"} - mapped common symbols
@@ -450,7 +414,7 @@ class BrokerSymbolFormat(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Relationships
-    account = relationship("Account", backref="symbol_format")
+    account = relationship("TradingAccount", back_populates="broker_symbol_format")
 
 
 class FuturesContract(Base):
@@ -491,7 +455,7 @@ class UserContractPosition(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False, index=True)
+    account_id = Column(Integer, ForeignKey("trading_accounts.id"), nullable=False, index=True)
     contract_code = Column(String(20), nullable=False, index=True)  # "NQH25"
     symbol_root = Column(String(10), nullable=False)  # "NQ"
     last_traded_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -500,7 +464,7 @@ class UserContractPosition(Base):
 
     # Relationships
     user = relationship("User", backref="contract_positions")
-    account = relationship("Account", backref="contract_positions")
+    account = relationship("TradingAccount", back_populates="contract_positions")
 
 
 # Enhanced models import disabled - causes User relationship conflicts

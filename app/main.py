@@ -60,7 +60,7 @@ from app.routers.webhooks_secure import router as webhooks_secure_router
 from app.routers.admin import router as admin_router
 from app.routers.broker_contracts import router as broker_contracts_router
 from app.routers.projectx_broker import router as projectx_broker_router
-from app.routers.brokers_unified import router as brokers_unified_router
+from app.routers.broker_health import router as broker_health_router
 from app.core.event_emitter import event_emitter
 from app.tasks.token_refresh import refresh_expiring_tokens
 
@@ -232,7 +232,7 @@ app.include_router(webhooks_secure_router, prefix="/api/v1/webhooks", tags=["web
 app.include_router(admin_router, tags=["admin"])
 app.include_router(broker_contracts_router, tags=["broker-contracts"])
 app.include_router(projectx_broker_router, tags=["projectx-broker"])
-app.include_router(brokers_unified_router, tags=["brokers-unified"])
+app.include_router(broker_health_router, tags=["brokers", "health"])
 
 # WebSocket endpoint
 @app.websocket("/ws")

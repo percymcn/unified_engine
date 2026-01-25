@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
+from datetime import datetime
 
 from app.db.database import get_db
-from app.models.models import Position, Account, User
+from app.models.models import Position, User
+from app.models.database_models import TradingAccount
 from app.models.schemas import Position as PositionSchema, PositionCreate
 from app.routers.auth import get_current_user
 
@@ -17,8 +19,8 @@ async def get_positions(
     db: Session = Depends(get_db)
 ):
     """Get all positions for current user"""
-    positions = db.query(Position).join(Account).filter(
-        Account.user_id == current_user.id,
+    positions = db.query(Position).join(TradingAccount).filter(
+        TradingAccount.user_id == current_user.id,
         Position.is_active == True
     ).offset(skip).limit(limit).all()
     return positions
@@ -32,9 +34,9 @@ async def create_position(
 ):
     """Create new position"""
     # Verify account ownership
-    account = db.query(Account).filter(
-        Account.id == account_id,
-        Account.user_id == current_user.id
+    account = db.query(TradingAccount).filter(
+        TradingAccount.id == account_id,
+        TradingAccount.user_id == current_user.id
     ).first()
     
     if not account:
@@ -59,9 +61,9 @@ async def get_position(
     db: Session = Depends(get_db)
 ):
     """Get specific position"""
-    position = db.query(Position).join(Account).filter(
+    position = db.query(Position).join(TradingAccount).filter(
         Position.id == position_id,
-        Account.user_id == current_user.id
+        TradingAccount.user_id == current_user.id
     ).first()
     
     if not position:
@@ -79,9 +81,9 @@ async def close_position(
     db: Session = Depends(get_db)
 ):
     """Close position"""
-    position = db.query(Position).join(Account).filter(
+    position = db.query(Position).join(TradingAccount).filter(
         Position.id == position_id,
-        Account.user_id == current_user.id
+        TradingAccount.user_id == current_user.id
     ).first()
     
     if not position:
@@ -106,9 +108,9 @@ async def get_account_positions(
 ):
     """Get positions for specific account"""
     # Verify account ownership
-    account = db.query(Account).filter(
-        Account.id == account_id,
-        Account.user_id == current_user.id
+    account = db.query(TradingAccount).filter(
+        TradingAccount.id == account_id,
+        TradingAccount.user_id == current_user.id
     ).first()
     
     if not account:

@@ -8,7 +8,8 @@ from typing import NamedTuple
 
 from app.db.database import get_db
 from app.routers.auth import get_current_user
-from app.models.models import User, Account
+from app.models.models import User
+from app.models.database_models import TradingAccount
 from app.services.stripe_service import get_broker_limit as stripe_get_broker_limit
 
 
@@ -96,9 +97,9 @@ def check_broker_limit(
         return True, 0, -1
 
     # Count current broker connections
-    current_count = db.query(Account).filter(
-        Account.user_id == user.id,
-        Account.is_active == True
+    current_count = db.query(TradingAccount).filter(
+        TradingAccount.user_id == user.id,
+        TradingAccount.is_active == True
     ).count()
 
     can_add = current_count < limits.max_broker_connections

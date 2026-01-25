@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from app.db.database import get_db
 from app.routers.auth import get_current_user
 from app.core.rbac import require_permission, require_role
-from app.models.models import User, Account, Trade, Signal, Position
+from app.models.models import User, Trade, Signal, Position
 from app.models.enhanced_models import (
     UserSubscription, SubscriptionTier, UsageMetric,
     Organization, AuditLog, Notification

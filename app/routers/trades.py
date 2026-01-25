@@ -3,7 +3,8 @@ from sqlalchemy.orm import Session
 from typing import List
 
 from app.db.database import get_db
-from app.models.models import Trade, Account, User
+from app.models.models import Trade, User
+from app.models.database_models import TradingAccount
 from app.models.schemas import Trade as TradeSchema, TradeCreate
 from app.routers.auth import get_current_user
 
@@ -17,8 +18,8 @@ async def get_trades(
     db: Session = Depends(get_db)
 ):
     """Get all trades for current user"""
-    trades = db.query(Trade).join(Account).filter(
-        Account.user_id == current_user.id
+    trades = db.query(Trade).join(TradingAccount).filter(
+        TradingAccount.user_id == current_user.id
     ).offset(skip).limit(limit).all()
     return trades
 
@@ -31,9 +32,9 @@ async def create_trade(
 ):
     """Create new trade"""
     # Verify account ownership
-    account = db.query(Account).filter(
-        Account.id == account_id,
-        Account.user_id == current_user.id
+    account = db.query(TradingAccount).filter(
+        TradingAccount.id == account_id,
+        TradingAccount.user_id == current_user.id
     ).first()
     
     if not account:
@@ -58,9 +59,9 @@ async def get_trade(
     db: Session = Depends(get_db)
 ):
     """Get specific trade"""
-    trade = db.query(Trade).join(Account).filter(
+    trade = db.query(Trade).join(TradingAccount).filter(
         Trade.id == trade_id,
-        Account.user_id == current_user.id
+        TradingAccount.user_id == current_user.id
     ).first()
     
     if not trade:
@@ -81,9 +82,9 @@ async def get_account_trades(
 ):
     """Get trades for specific account"""
     # Verify account ownership
-    account = db.query(Account).filter(
-        Account.id == account_id,
-        Account.user_id == current_user.id
+    account = db.query(TradingAccount).filter(
+        TradingAccount.id == account_id,
+        TradingAccount.user_id == current_user.id
     ).first()
     
     if not account:

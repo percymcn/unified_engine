@@ -140,6 +140,13 @@ class TradingAccount(Base):
     max_daily_trades = Column(Integer)  # Maximum trades per day
     trade_cooldown_seconds = Column(Integer)  # Minimum seconds between trades
     max_positions_per_symbol = Column(Integer, default=1)  # Maximum positions per instrument
+    # Default stop loss/take profit in broker-specific units (pips/points/percent)
+    # NOTE: These are stored in broker-specific units because they cannot be converted
+    # to absolute prices without an entry price. When used with a signal, the backend
+    # should convert them using the signal's entry price. Backend conversion is not
+    # yet implemented, so these are stored as metadata for future enhancement.
+    default_stop_loss = Column(Float, nullable=True)  # Default stop loss in broker-specific units
+    default_take_profit = Column(Float, nullable=True)  # Default take profit in broker-specific units
 
     # Account grouping
     group_id = Column(Integer, ForeignKey("account_groups.id"))
@@ -159,18 +166,26 @@ class TradingAccount(Base):
     webhook_key = Column(Text, unique=True, nullable=True, index=True)
 
     # Broker account selection (for multi-account brokers)
-    enabled_broker_account_ids = Column(JSON, nullable=True, description="List of enabled broker account IDs")
-    default_broker_account_id = Column(String(100), nullable=True, description="Default broker account ID")
-    discovered_accounts_cache = Column(JSON, nullable=True, description="Cached discovered accounts metadata")
+    enabled_broker_account_ids = Column(JSON, nullable=True)  # List of enabled broker account IDs
+    default_broker_account_id = Column(String(100), nullable=True)  # Default broker account ID
+    discovered_accounts_cache = Column(JSON, nullable=True)  # Cached discovered accounts metadata
 
     # Metadata
     extra_metadata = Column(JSON)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # Relationships (no back_populates - User.accounts refers to Account model, not TradingAccount)
-    user = relationship("User")
+    # Relationships
+    user = relationship("User", back_populates="accounts")
     group = relationship("AccountGroup", back_populates="accounts")
+    trades = relationship("Trade", back_populates="account")
+    positions = relationship("Position", back_populates="account")
+    orders = relationship("Order", back_populates="account")
+    strategies = relationship("AccountStrategy", back_populates="account")
+    alerts = relationship("Alert", backref="account")
+    execution_logs = relationship("ExecutionLog", backref="account")
+    broker_symbol_format = relationship("BrokerSymbolFormat", back_populates="account", uselist=False)
+    contract_positions = relationship("UserContractPosition", back_populates="account")
 
 
 class WebhookConfig(Base):

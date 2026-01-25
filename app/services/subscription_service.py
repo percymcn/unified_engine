@@ -78,8 +78,8 @@ class SubscriptionService:
             return True
         
         # Count current accounts
-        from app.models.models import Account
-        current_count = db.query(Account).filter(Account.user_id == user.id).count()
+        from app.models.database_models import TradingAccount
+        current_count = db.query(TradingAccount).filter(TradingAccount.user_id == user.id).count()
         
         return current_count < max_accounts
     

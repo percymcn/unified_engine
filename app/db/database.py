@@ -11,7 +11,8 @@ logger = logging.getLogger(__name__)
 engine = create_engine(
     settings.DATABASE_URL,
     connect_args={"check_same_thread": False} if "sqlite" in settings.DATABASE_URL else {},
-    echo=settings.DEBUG
+    echo=settings.DEBUG,
+    pool_pre_ping=True,  # Verify connections before using them
 )
 
 # Create async database engine (for new infrastructure layer)
