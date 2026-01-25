@@ -6,6 +6,34 @@
   .text-balance {
     text-wrap: balance;
   }
+
+  /* Glassmorphism effect for premium card feel */
+  .glass {
+    @apply backdrop-blur-md bg-card/80 border border-white/10;
+  }
+
+  .glass-hover {
+    @apply transition-all duration-300 hover:bg-card/90 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5;
+  }
+
+  /* Glow effect for emphasis */
+  .glow {
+    @apply shadow-lg shadow-primary/20;
+  }
+
+  .glow-success {
+    @apply shadow-lg shadow-green-500/20;
+  }
+
+  /* Pulse ring animation */
+  .pulse-ring {
+    @apply relative;
+  }
+
+  .pulse-ring::after {
+    content: '';
+    @apply absolute inset-0 rounded-full animate-ping opacity-25 bg-primary;
+  }
 }
 
 @layer base {

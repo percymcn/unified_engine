@@ -299,9 +299,51 @@ export function TrialStatusWidget() {
         ) : (
           // Active trial view
           <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-green-500/10 flex items-center justify-center">
-                <Activity className="h-5 w-5 text-green-500" />
+            <div className="flex items-center gap-4">
+              {/* Circular Progress Ring */}
+              <div className="relative h-16 w-16">
+                <svg className="h-16 w-16 -rotate-90" viewBox="0 0 64 64">
+                  {/* Background circle */}
+                  <circle
+                    cx="32"
+                    cy="32"
+                    r="28"
+                    fill="none"
+                    strokeWidth="4"
+                    className="stroke-muted"
+                  />
+                  {/* Progress circle - color shifts based on days remaining */}
+                  <circle
+                    cx="32"
+                    cy="32"
+                    r="28"
+                    fill="none"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                    className={`transition-all duration-500 ${
+                      daysRemaining <= 1
+                        ? "stroke-red-500"
+                        : daysRemaining <= 2
+                        ? "stroke-amber-500"
+                        : "stroke-green-500"
+                    }`}
+                    style={{
+                      strokeDasharray: `${(1 - daysProgress / 100) * 175.9} 175.9`,
+                    }}
+                  />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <span className={`text-lg font-bold ${
+                    daysRemaining <= 1
+                      ? "text-red-500"
+                      : daysRemaining <= 2
+                      ? "text-amber-500"
+                      : "text-green-500"
+                  }`}>
+                    {daysRemaining}d
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">left</span>
+                </div>
               </div>
               <div>
                 <p className="font-medium">Trial Active</p>
@@ -310,6 +352,9 @@ export function TrialStatusWidget() {
                   {trialStatus?.trial_started_at
                     ? new Date(trialStatus.trial_started_at).toLocaleDateString()
                     : "recently"}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {hoursRemaining}h remaining today
                 </p>
               </div>
             </div>

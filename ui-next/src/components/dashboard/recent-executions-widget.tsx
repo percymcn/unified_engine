@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Activity, Clock, ArrowRight, RefreshCw } from "lucide-react";
+import { Activity, Clock, ArrowRight, RefreshCw, Sparkles } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import confetti from "canvas-confetti";
 
 interface ExecutionAccountInfo {
   broker: string;
@@ -29,11 +30,36 @@ interface Execution {
 
 const POLL_INTERVAL = 15000; // 15 seconds
 
+// Fire celebratory confetti for successful trades
+function fireConfetti() {
+  const count = 100;
+  const defaults = {
+    origin: { y: 0.7 },
+    zIndex: 9999,
+  };
+
+  function fire(particleRatio: number, opts: confetti.Options) {
+    confetti({
+      ...defaults,
+      ...opts,
+      particleCount: Math.floor(count * particleRatio),
+    });
+  }
+
+  fire(0.25, { spread: 26, startVelocity: 55, colors: ["#10b981", "#22c55e"] });
+  fire(0.2, { spread: 60, colors: ["#3b82f6", "#6366f1"] });
+  fire(0.35, { spread: 100, decay: 0.91, scalar: 0.8 });
+  fire(0.1, { spread: 120, startVelocity: 25, decay: 0.92, scalar: 1.2 });
+  fire(0.1, { spread: 120, startVelocity: 45 });
+}
+
 export function RecentExecutionsWidget() {
   const [executions, setExecutions] = useState<Execution[]>([]);
   const [loading, setLoading] = useState(true);
   const [isPolling, setIsPolling] = useState(false);
   const [newIds, setNewIds] = useState<Set<number>>(new Set());
+  const [showSparkle, setShowSparkle] = useState(false);
+  const lastSuccessCount = useRef(0);
 
   const fetchExecutions = useCallback(async (isInitial = false) => {
     try {
@@ -49,6 +75,15 @@ export function RecentExecutionsWidget() {
           const incoming = newExecutions.filter((e: Execution) => !existingIds.has(e.id));
           if (incoming.length > 0) {
             setNewIds(new Set(incoming.map((e: Execution) => e.id)));
+
+            // Fire confetti for successful new executions
+            const successfulNew = incoming.filter((e: Execution) => e.status === "success");
+            if (successfulNew.length > 0) {
+              fireConfetti();
+              setShowSparkle(true);
+              setTimeout(() => setShowSparkle(false), 2000);
+            }
+
             // Clear highlights after 3 seconds
             setTimeout(() => setNewIds(new Set()), 3000);
           }
@@ -124,13 +159,19 @@ export function RecentExecutionsWidget() {
   }
 
   return (
-    <Card>
+    <Card className="transition-shadow duration-300 hover:shadow-lg dark:hover:shadow-primary/5">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-lg">
-            <Activity className="h-5 w-5 text-primary" />
+            <Activity className={cn(
+              "h-5 w-5 text-primary transition-transform",
+              showSparkle && "animate-bounce"
+            )} />
             Recent Executions
-            {isPolling && (
+            {showSparkle && (
+              <Sparkles className="h-4 w-4 text-yellow-500 animate-pulse" />
+            )}
+            {isPolling && !showSparkle && (
               <RefreshCw className="h-3 w-3 text-muted-foreground animate-spin" />
             )}
           </CardTitle>
@@ -148,8 +189,12 @@ export function RecentExecutionsWidget() {
           <div
             key={execution.id}
             className={cn(
-              "flex items-center justify-between py-1.5 border-b last:border-0 transition-colors duration-500",
-              newIds.has(execution.id) && "bg-primary/10 animate-pulse"
+              "flex items-center justify-between py-2 px-2 -mx-2 rounded-lg border-b last:border-0 transition-all duration-500",
+              newIds.has(execution.id) && execution.status === "success"
+                ? "bg-green-500/10 ring-2 ring-green-500/30 animate-pulse shadow-lg shadow-green-500/20"
+                : newIds.has(execution.id)
+                ? "bg-primary/10 ring-2 ring-primary/30 animate-pulse"
+                : "hover:bg-muted/50"
             )}
           >
             <div className="flex-1 min-w-0">

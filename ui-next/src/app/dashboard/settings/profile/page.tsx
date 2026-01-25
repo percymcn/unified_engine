@@ -6,7 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { UserCircle, Lock, Mail, User, ImageIcon, Calendar, Loader2 } from "lucide-react";
+import { UserCircle, Lock, Mail, User, ImageIcon, Calendar, Loader2, Trophy, Zap, Target, TrendingUp, Shield, Star } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface UserProfile {
   id: number;
@@ -300,6 +307,125 @@ export default function ProfileSettingsPage() {
               "Save Profile"
             )}
           </Button>
+        </CardContent>
+      </Card>
+
+      {/* Achievement Badges */}
+      <Card className="border-primary/20 bg-gradient-to-br from-background to-primary/5">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Trophy className="h-5 w-5 text-yellow-500" />
+            Achievements
+          </CardTitle>
+          <CardDescription>Your trading milestones and accomplishments</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <TooltipProvider>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              {/* First Trade Badge */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex flex-col items-center p-4 rounded-xl bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20 hover:scale-105 transition-transform cursor-default">
+                    <div className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center mb-2">
+                      <Zap className="h-6 w-6 text-green-500" />
+                    </div>
+                    <span className="text-xs font-medium text-center">First Trade</span>
+                    <Badge variant="outline" className="mt-1 text-[10px] border-green-500/50 text-green-600">Unlocked</Badge>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="font-semibold">First Trade</p>
+                  <p className="text-xs text-muted-foreground">Execute your first trade signal</p>
+                </TooltipContent>
+              </Tooltip>
+
+              {/* 10 Signals Badge */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex flex-col items-center p-4 rounded-xl bg-gradient-to-br from-blue-500/10 to-indigo-500/10 border border-blue-500/20 hover:scale-105 transition-transform cursor-default">
+                    <div className="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center mb-2">
+                      <Target className="h-6 w-6 text-blue-500" />
+                    </div>
+                    <span className="text-xs font-medium text-center">10 Signals</span>
+                    <Badge variant="outline" className="mt-1 text-[10px] border-blue-500/50 text-blue-600">Unlocked</Badge>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="font-semibold">Signal Starter</p>
+                  <p className="text-xs text-muted-foreground">Process 10 trading signals</p>
+                </TooltipContent>
+              </Tooltip>
+
+              {/* Multi-Broker Badge */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex flex-col items-center p-4 rounded-xl bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20 hover:scale-105 transition-transform cursor-default">
+                    <div className="w-12 h-12 rounded-full bg-purple-500/20 flex items-center justify-center mb-2">
+                      <TrendingUp className="h-6 w-6 text-purple-500" />
+                    </div>
+                    <span className="text-xs font-medium text-center">Multi-Broker</span>
+                    <Badge variant="outline" className="mt-1 text-[10px] border-purple-500/50 text-purple-600">Unlocked</Badge>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="font-semibold">Diversified Trader</p>
+                  <p className="text-xs text-muted-foreground">Connect 2+ broker accounts</p>
+                </TooltipContent>
+              </Tooltip>
+
+              {/* Risk Manager Badge */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex flex-col items-center p-4 rounded-xl bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/20 hover:scale-105 transition-transform cursor-default">
+                    <div className="w-12 h-12 rounded-full bg-amber-500/20 flex items-center justify-center mb-2">
+                      <Shield className="h-6 w-6 text-amber-500" />
+                    </div>
+                    <span className="text-xs font-medium text-center">Risk Manager</span>
+                    <Badge variant="outline" className="mt-1 text-[10px] border-amber-500/50 text-amber-600">Unlocked</Badge>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="font-semibold">Protected Trader</p>
+                  <p className="text-xs text-muted-foreground">Configure risk management settings</p>
+                </TooltipContent>
+              </Tooltip>
+
+              {/* 100 Signals - Locked */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex flex-col items-center p-4 rounded-xl bg-muted/30 border border-muted hover:scale-105 transition-transform cursor-default opacity-50">
+                    <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-2">
+                      <Star className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                    <span className="text-xs font-medium text-center text-muted-foreground">100 Signals</span>
+                    <Badge variant="outline" className="mt-1 text-[10px]">Locked</Badge>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="font-semibold">Signal Pro</p>
+                  <p className="text-xs text-muted-foreground">Process 100 trading signals</p>
+                  <p className="text-xs text-primary mt-1">Progress: 12/100</p>
+                </TooltipContent>
+              </Tooltip>
+
+              {/* Profitable Month - Locked */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex flex-col items-center p-4 rounded-xl bg-muted/30 border border-muted hover:scale-105 transition-transform cursor-default opacity-50">
+                    <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-2">
+                      <Trophy className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                    <span className="text-xs font-medium text-center text-muted-foreground">Profit Month</span>
+                    <Badge variant="outline" className="mt-1 text-[10px]">Locked</Badge>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="font-semibold">Monthly Winner</p>
+                  <p className="text-xs text-muted-foreground">End a month with positive P&L</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          </TooltipProvider>
         </CardContent>
       </Card>
 

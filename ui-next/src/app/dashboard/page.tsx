@@ -23,6 +23,8 @@ import { OpenPositionsWidget } from '@/components/dashboard/open-positions-widge
 import { FlowGuardBot } from '@/components/signal-intelligence/flowguard-bot';
 import { SignalHeatMap } from '@/components/signal-intelligence/signal-heat-map';
 import { GuardModal } from '@/components/signal-intelligence/guard-modal';
+import { StreakBadge } from '@/components/dashboard/streak-badge';
+import { OnboardingTooltip } from '@/components/dashboard/onboarding-tooltip';
 import { useWebSocketContext } from '@/providers/websocket-provider';
 import { cn } from '@/lib/utils';
 
@@ -242,20 +244,23 @@ export default function DashboardPage() {
             Welcome to Tradeflow. Monitor your trading signals and accounts.
           </p>
         </div>
-        {/* WebSocket connection indicator */}
-        <div className="flex items-center gap-2 text-sm">
-          <div
-            className={cn(
-              'h-2 w-2 rounded-full',
-              wsStatus === 'connected' && 'bg-green-500',
-              wsStatus === 'connecting' && 'bg-amber-500 animate-pulse',
-              wsStatus === 'disconnected' && 'bg-red-500',
-              wsStatus === 'error' && 'bg-red-500'
-            )}
-          />
-          <span className="text-muted-foreground hidden sm:inline">
-            {wsStatus === 'connected' ? 'Live' : wsStatus === 'connecting' ? 'Connecting...' : 'Offline'}
-          </span>
+        {/* Streak badge + WebSocket connection indicator */}
+        <div className="flex items-center gap-4">
+          <StreakBadge />
+          <div className="flex items-center gap-2 text-sm">
+            <div
+              className={cn(
+                'h-2 w-2 rounded-full',
+                wsStatus === 'connected' && 'bg-green-500',
+                wsStatus === 'connecting' && 'bg-amber-500 animate-pulse',
+                wsStatus === 'disconnected' && 'bg-red-500',
+                wsStatus === 'error' && 'bg-red-500'
+              )}
+            />
+            <span className="text-muted-foreground hidden sm:inline">
+              {wsStatus === 'connected' ? 'Live' : wsStatus === 'connecting' ? 'Connecting...' : 'Offline'}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -273,7 +278,7 @@ export default function DashboardPage() {
             <Card
               key={stat.key}
               className={cn(
-                'transition-all duration-300',
+                'glass glass-hover transition-all duration-300',
                 recentlyUpdated === stat.key && 'ring-2 ring-primary animate-pulse'
               )}
             >
@@ -383,6 +388,9 @@ export default function DashboardPage() {
 
       {/* FlowGuard Bot - Floating */}
       <FlowGuardBot />
+
+      {/* Onboarding Tooltip for First-Time Users */}
+      <OnboardingTooltip />
 
       {/* Guard Modal for Pending Webhook Confirmations */}
       {pendingSignal && (
