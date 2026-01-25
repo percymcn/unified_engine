@@ -24,6 +24,9 @@ from app.models.database_models import (
 )
 from app.routers.auth import get_current_user
 from app.services.signal_intelligence_guard import SignalIntelligenceGuard
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/signal-intelligence", tags=["signal-intelligence"])
 
@@ -87,7 +90,7 @@ class ResetCounterRequest(BaseModel):
 class ModalActionRequest(BaseModel):
     """Handle guard modal action"""
     signal_id: str
-    action: str  # "breakeven", "close", "ignore", "hedge"
+    action: str  # "breakeven", "close", "ignore", "hedge", "execute", "discard"
     session_key: Optional[str] = None
 
 
@@ -353,47 +356,47 @@ async def handle_modal_action(
             from app.models.models import Position
             from app.models.database_models import TradingAccount
             from app.domain.enums import SignalAction
-            
+
             if request.session_key:
                 parts = request.session_key.split(":")
                 if len(parts) >= 2:
                     symbol = parts[1]
-                    
+
                     # Get user's open positions for this symbol
                     accounts = db.query(TradingAccount).filter(
                         TradingAccount.user_id == current_user.id,
                         TradingAccount.is_active == True
                     ).all()
-                    
+
                     account_ids = [a.id for a in accounts]
                     positions = db.query(Position).filter(
                         Position.account_id.in_(account_ids),
                         Position.symbol == symbol,
                         Position.status == "open"
                     ).all()
-                    
+
                     hedged_count = 0
                     for position in positions:
                         try:
                             account = next((a for a in accounts if a.id == position.account_id), None)
                             if not account:
                                 continue
-                            
+
                             # Determine reverse side
                             reverse_side = "sell" if position.side.lower() == "buy" else "buy"
                             hedge_quantity = (position.quantity or 0.0) * 0.5  # 0.5x size
-                            
+
                             if hedge_quantity <= 0:
                                 continue
-                                
+
                             from app.infrastructure.container import Container
                             container = Container()
                             await container.initialize()
-                            
+
                             brokers = container.brokers()
                             broker_type = account.broker.value
                             broker_adapter = brokers.get(broker_type)
-                            
+
                             if broker_adapter and hasattr(broker_adapter, 'place_order'):
                                 from app.models.pydantic_schemas import OrderRequest
                                 order_request = OrderRequest(
@@ -411,7 +414,7 @@ async def handle_modal_action(
                         except Exception as e:
                             logger.error(f"Failed to hedge position {position.id}: {e}")
                             continue
-                    
+
                     return {
                         "message": f"Hedged {hedged_count} position(s)",
                         "action": "hedge",
@@ -420,6 +423,60 @@ async def handle_modal_action(
         except Exception as e:
             logger.error(f"Hedge action failed: {e}")
             return {"message": f"Hedge action failed: {str(e)}", "action": "hedge", "error": str(e)}
+
+    elif request.action == "execute":
+        # User confirmed execution despite guard warning
+        # Mark signal for execution (remove from pending confirmation)
+        from app.models.database_models import Signal as SignalORM
+        signal = db.query(SignalORM).filter(
+            SignalORM.signal_id == request.signal_id
+        ).first()
+
+        if signal:
+            # Update signal status to allow execution
+            signal.status = "confirmed"
+            db.commit()
+            logger.info(f"Signal {request.signal_id} confirmed for execution by user {current_user.id}")
+            return {
+                "message": "Signal confirmed for execution",
+                "action": "execute",
+                "signal_id": request.signal_id
+            }
+        else:
+            return {
+                "message": "Signal not found, may have already been processed",
+                "action": "execute",
+                "signal_id": request.signal_id
+            }
+
+    elif request.action == "discard":
+        # User chose to discard signal
+        from app.models.database_models import Signal as SignalORM
+        signal = db.query(SignalORM).filter(
+            SignalORM.signal_id == request.signal_id
+        ).first()
+
+        if signal:
+            signal.status = "discarded"
+            db.commit()
+            logger.info(f"Signal {request.signal_id} discarded by user {current_user.id}")
+
+            # Log to discard bin
+            discard_entry = DiscardBin(
+                user_id=current_user.id,
+                received_at=datetime.utcnow(),
+                reason="user_discarded",
+                symbol=signal.symbol,
+                side=signal.action
+            )
+            db.add(discard_entry)
+            db.commit()
+
+        return {
+            "message": "Signal discarded",
+            "action": "discard",
+            "signal_id": request.signal_id
+        }
 
     else:
         raise HTTPException(

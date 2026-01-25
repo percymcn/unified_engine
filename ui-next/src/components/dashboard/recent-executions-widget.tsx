@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Activity, Clock, ArrowRight } from "lucide-react";
+import { Activity, Clock, ArrowRight, RefreshCw } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 
 interface ExecutionAccountInfo {
   broker: string;
@@ -21,30 +22,58 @@ interface Execution {
   volume: number;
   price: number | null;
   status: string;
+  guard_reason?: string | null;
   execution_time_ms: number | null;
   created_at: string;
 }
 
+const POLL_INTERVAL = 15000; // 15 seconds
+
 export function RecentExecutionsWidget() {
   const [executions, setExecutions] = useState<Execution[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isPolling, setIsPolling] = useState(false);
+  const [newIds, setNewIds] = useState<Set<number>>(new Set());
 
-  useEffect(() => {
-    async function fetchExecutions() {
-      try {
-        const response = await fetch("/api/dashboard/executions?limit=10");
-        if (response.ok) {
-          const data = await response.json();
-          setExecutions(data.executions || []);
+  const fetchExecutions = useCallback(async (isInitial = false) => {
+    try {
+      if (!isInitial) setIsPolling(true);
+      const response = await fetch("/api/dashboard/executions?limit=10");
+      if (response.ok) {
+        const data = await response.json();
+        const newExecutions = data.executions || [];
+
+        // Detect new executions for highlight animation
+        if (!isInitial && executions.length > 0) {
+          const existingIds = new Set(executions.map((e: Execution) => e.id));
+          const incoming = newExecutions.filter((e: Execution) => !existingIds.has(e.id));
+          if (incoming.length > 0) {
+            setNewIds(new Set(incoming.map((e: Execution) => e.id)));
+            // Clear highlights after 3 seconds
+            setTimeout(() => setNewIds(new Set()), 3000);
+          }
         }
-      } catch (error) {
-        console.error("Error fetching executions:", error);
-      } finally {
-        setLoading(false);
+
+        setExecutions(newExecutions);
       }
+    } catch (error) {
+      console.error("Error fetching executions:", error);
+    } finally {
+      setLoading(false);
+      setIsPolling(false);
     }
-    fetchExecutions();
-  }, []);
+  }, [executions]);
+
+  // Initial fetch + polling
+  useEffect(() => {
+    fetchExecutions(true);
+
+    const interval = setInterval(() => {
+      fetchExecutions(false);
+    }, POLL_INTERVAL);
+
+    return () => clearInterval(interval);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) {
     return (
@@ -101,6 +130,9 @@ export function RecentExecutionsWidget() {
           <CardTitle className="flex items-center gap-2 text-lg">
             <Activity className="h-5 w-5 text-primary" />
             Recent Executions
+            {isPolling && (
+              <RefreshCw className="h-3 w-3 text-muted-foreground animate-spin" />
+            )}
           </CardTitle>
           <Link
             href="/dashboard/trades"
@@ -115,7 +147,10 @@ export function RecentExecutionsWidget() {
         {executions.map((execution) => (
           <div
             key={execution.id}
-            className="flex items-center justify-between py-1.5 border-b last:border-0"
+            className={cn(
+              "flex items-center justify-between py-1.5 border-b last:border-0 transition-colors duration-500",
+              newIds.has(execution.id) && "bg-primary/10 animate-pulse"
+            )}
           >
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
@@ -125,14 +160,25 @@ export function RecentExecutionsWidget() {
                   className={
                     execution.action.toUpperCase().includes("BUY")
                       ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                      : execution.action.toUpperCase().includes("CLOSE")
+                      ? "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400"
                       : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
                   }
                 >
-                  {execution.action.toUpperCase().includes("BUY") ? "BUY" : "SELL"}
+                  {execution.action.toUpperCase().includes("BUY")
+                    ? "BUY"
+                    : execution.action.toUpperCase().includes("CLOSE")
+                    ? "CLOSE"
+                    : "SELL"}
                 </Badge>
                 <span className="text-xs text-muted-foreground">
                   {execution.volume.toFixed(2)}
                 </span>
+                {newIds.has(execution.id) && (
+                  <Badge variant="default" className="text-xs bg-primary">
+                    NEW
+                  </Badge>
+                )}
               </div>
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
                 <Clock className="h-3 w-3" />
@@ -141,6 +187,14 @@ export function RecentExecutionsWidget() {
                 })}
                 <span className="mx-1">-</span>
                 <span className="capitalize">{execution.account.broker}</span>
+                {execution.guard_reason && (
+                  <>
+                    <span className="mx-1">-</span>
+                    <span className="text-amber-600 dark:text-amber-400">
+                      {execution.guard_reason}
+                    </span>
+                  </>
+                )}
               </div>
             </div>
             <Badge
@@ -150,6 +204,8 @@ export function RecentExecutionsWidget() {
                   ? "border-green-500 text-green-600"
                   : execution.status === "failed"
                   ? "border-red-500 text-red-600"
+                  : execution.status === "skipped"
+                  ? "border-gray-500 text-gray-600"
                   : "border-amber-500 text-amber-600"
               }
             >
