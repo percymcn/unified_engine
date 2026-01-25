@@ -114,20 +114,22 @@ export function StreakBadge() {
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <Badge
-            variant="outline"
-            className={cn(
-              "gap-1.5 px-3 py-1 cursor-default transition-all duration-300",
-              isNew && "animate-bounce ring-2 ring-yellow-500/50",
-              streak.currentStreak >= 7 && "border-orange-500/50 bg-orange-500/10"
-            )}
-          >
-            <Icon className={cn("h-4 w-4", getStreakColor(), isNew && "animate-pulse")} />
-            <span className={cn("font-semibold", getStreakColor())}>
-              {streak.currentStreak}
-            </span>
-            <span className="text-muted-foreground text-xs">day streak</span>
-          </Badge>
+          <div className="inline-flex">
+            <Badge
+              variant="outline"
+              className={cn(
+                "gap-1.5 px-3 py-1 cursor-default transition-all duration-300",
+                isNew && "animate-bounce ring-2 ring-yellow-500/50",
+                streak.currentStreak >= 7 && "border-orange-500/50 bg-orange-500/10"
+              )}
+            >
+              <Icon className={cn("h-4 w-4", getStreakColor(), isNew && "animate-pulse")} />
+              <span className={cn("font-semibold", getStreakColor())}>
+                {streak.currentStreak}
+              </span>
+              <span className="text-muted-foreground text-xs">day streak</span>
+            </Badge>
+          </div>
         </TooltipTrigger>
         <TooltipContent side="bottom" className="text-center">
           <div className="space-y-1">

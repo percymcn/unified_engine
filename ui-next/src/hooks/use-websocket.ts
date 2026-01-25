@@ -121,7 +121,10 @@ export function useWebSocket(
       ws.onerror = (error) => {
         if (isUnmountingRef.current) return;
 
-        console.error('WebSocket error:', error);
+        // Only log first error to reduce spam
+        if (reconnectAttempts === 0) {
+          console.warn('WebSocket connection failed - will retry with backoff');
+        }
         setStatus('error');
         onError?.(error);
       };
@@ -133,18 +136,23 @@ export function useWebSocket(
         setStatus('disconnected');
         onDisconnect?.();
 
-        // Attempt reconnect if within limits
+        // Attempt reconnect with exponential backoff if within limits
         if (reconnectAttempts < maxReconnectAttempts) {
+          // Exponential backoff: 3s, 6s, 12s, 24s, 48s... capped at 60s
+          const backoffMs = Math.min(reconnectInterval * Math.pow(2, reconnectAttempts), 60000);
           reconnectTimeoutRef.current = setTimeout(() => {
             if (!isUnmountingRef.current) {
               setReconnectAttempts((prev) => prev + 1);
               connect();
             }
-          }, reconnectInterval);
+          }, backoffMs);
         }
       };
     } catch (error) {
-      console.error('Failed to create WebSocket:', error);
+      // Only log first creation error
+      if (reconnectAttempts === 0) {
+        console.warn('Failed to create WebSocket connection');
+      }
       setStatus('error');
     }
   }, [
