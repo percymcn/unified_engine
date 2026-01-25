@@ -8,12 +8,21 @@ import logging
 logger = logging.getLogger(__name__)
 
 # Create synchronous database engine (existing code)
-engine = create_engine(
-    settings.DATABASE_URL,
-    connect_args={"check_same_thread": False} if "sqlite" in settings.DATABASE_URL else {},
-    echo=settings.DEBUG,
-    pool_pre_ping=True,  # Verify connections before using them
-)
+# For Postgres: use connection pooling; for SQLite: single-threaded mode
+_is_sqlite = "sqlite" in settings.DATABASE_URL
+_engine_kwargs = {
+    "echo": settings.DEBUG,
+    "pool_pre_ping": True,  # Verify connections before using them
+}
+
+if _is_sqlite:
+    _engine_kwargs["connect_args"] = {"check_same_thread": False}
+else:
+    # Postgres pooling configuration
+    _engine_kwargs["pool_size"] = settings.DATABASE_POOL_SIZE
+    _engine_kwargs["max_overflow"] = settings.DATABASE_MAX_OVERFLOW
+
+engine = create_engine(settings.DATABASE_URL, **_engine_kwargs)
 
 # Create async database engine (for new infrastructure layer)
 # Convert DATABASE_URL to async dialect if needed
@@ -25,12 +34,17 @@ elif async_database_url.startswith("sqlite:///"):
 
 # Create async engine with graceful degradation for missing drivers
 # This allows alembic migrations to run without asyncpg/aiosqlite installed
+_async_engine_kwargs = {
+    "echo": settings.DEBUG,
+    "future": True,
+}
+if not _is_sqlite:
+    # Postgres async pooling configuration
+    _async_engine_kwargs["pool_size"] = settings.DATABASE_POOL_SIZE
+    _async_engine_kwargs["max_overflow"] = settings.DATABASE_MAX_OVERFLOW
+
 try:
-    async_engine = create_async_engine(
-        async_database_url,
-        echo=settings.DEBUG,
-        future=True,
-    )
+    async_engine = create_async_engine(async_database_url, **_async_engine_kwargs)
 except ModuleNotFoundError as e:
     logger.warning(f"Async database driver not available: {e}. Async operations will not work.")
     async_engine = None

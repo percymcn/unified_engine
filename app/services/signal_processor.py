@@ -27,10 +27,141 @@ from app.services.signal_deduplication_service import (
     DuplicateCheckResult,
     DeduplicationScope
 )
-from app.models.database_models import RejectedSignal, RejectedSignalReason, TradingAccount
+from app.models.database_models import RejectedSignal, RejectedSignalReason, TradingAccount, Credential
 from app.services.trial_service import TrialService, TrialStatus
+from app.core.encryption import get_encryption_service
 
 logger = logging.getLogger(__name__)
+
+
+def _load_account_credentials(db: Session, account: TradingAccount) -> Dict[str, Any]:
+    """Load decrypted credentials for a trading account.
+
+    First checks TradingAccount fields, then falls back to Credential table.
+    This is used by signal_processor to create account-specific executors.
+    """
+    credentials: Dict[str, Any] = {}
+    encryption = get_encryption_service()
+    broker_value = account.broker.value
+
+    # For OAuth-based brokers (Tradovate), check TradingAccount OAuth fields first
+    if account.access_token:
+        credentials["access_token"] = account.access_token
+    if account.refresh_token:
+        credentials["refresh_token"] = account.refresh_token
+    if account.oauth_environment:
+        credentials["environment"] = account.oauth_environment
+
+    # If OAuth tokens found, return early (Tradovate primarily uses these)
+    if credentials.get("access_token"):
+        credentials["account_id"] = account.account_number
+        return credentials
+
+    # Load from Credential table
+    rows = db.query(Credential).filter(
+        Credential.user_id == account.user_id,
+        Credential.service == broker_value,
+        Credential.is_active == True
+    ).all()
+
+    for row in rows:
+        try:
+            data = encryption.decrypt_dict(row.encrypted_data)
+        except Exception as e:
+            logger.warning(f"Failed to decrypt credential {row.id}: {e}")
+            continue
+
+        # Match by account_id/account_number
+        data_account_id = data.get("account_id") or data.get("metaapi_account_id")
+        if account.account_number and data_account_id and str(data_account_id) != str(account.account_number):
+            continue
+
+        credentials.update(data)
+
+    # Also include account_number/id for broker use
+    credentials["account_id"] = account.account_number
+    if account.default_broker_account_id:
+        credentials["broker_account_id"] = account.default_broker_account_id
+
+    return credentials
+
+
+async def _create_account_executor(account: TradingAccount, db: Session):
+    """Create a broker executor configured with account-specific credentials.
+
+    Used for signal execution to ensure each account uses its own credentials.
+    Returns (executor, needs_cleanup) tuple. If needs_cleanup is True, caller should
+    call executor.disconnect() after use.
+    """
+    credentials = _load_account_credentials(db, account)
+    broker_type = account.broker.value
+    executor = None
+    needs_cleanup = True
+
+    if broker_type == "tradelocker":
+        if credentials.get("username") and credentials.get("password") and credentials.get("server"):
+            executor = TradeLockerExecutor()
+            executor._sdk_username = credentials.get("username")
+            executor._sdk_password = credentials.get("password")
+            executor._sdk_server = credentials.get("server")
+
+            # Normalize environment URL
+            raw_env = credentials.get("environment", "https://demo.tradelocker.com")
+            if raw_env and not raw_env.startswith("http"):
+                if raw_env.lower() in ("demo", "live"):
+                    raw_env = f"https://{raw_env.lower()}.tradelocker.com"
+                else:
+                    raw_env = f"https://{raw_env}.tradelocker.com"
+            executor._sdk_environment = raw_env
+
+            # Pre-resolved account info to skip rediscovery
+            if credentials.get("broker_account_id"):
+                executor._sdk_account_id = credentials.get("broker_account_id")
+            if credentials.get("account_num"):
+                executor._sdk_account_num = credentials.get("account_num")
+
+            executor._sdk_available = True
+            executor.is_available = True
+
+    elif broker_type == "tradovate":
+        if credentials.get("access_token"):
+            executor = TradovateExecutor(
+                account_id=account.id,
+                access_token=credentials.get("access_token"),
+                environment=credentials.get("environment") or account.oauth_environment or "demo"
+            )
+
+    elif broker_type in ("projectx", "topstep"):
+        if credentials.get("username") and credentials.get("api_key"):
+            executor = ProjectXExecutor(
+                username=credentials.get("username"),
+                api_key=credentials.get("api_key")
+            )
+
+    elif broker_type == "mt4":
+        executor = MT4Executor()
+        if credentials.get("metaapi_token") and credentials.get("metaapi_account_id"):
+            executor._metaapi_token = credentials.get("metaapi_token")
+            executor._metaapi_account_id = credentials.get("metaapi_account_id")
+
+    elif broker_type == "mt5":
+        executor = MT5Executor()
+        if credentials.get("metaapi_token") and credentials.get("metaapi_account_id"):
+            executor._metaapi_token = credentials.get("metaapi_token")
+            executor._metaapi_account_id = credentials.get("metaapi_account_id")
+
+    # Initialize the executor if created
+    if executor:
+        try:
+            await asyncio.wait_for(executor.initialize(), timeout=15.0)
+            if not executor.is_connected:
+                logger.warning(f"Executor for {broker_type} initialized but not connected")
+        except asyncio.TimeoutError:
+            logger.warning(f"Executor initialization for {broker_type} timed out")
+        except Exception as e:
+            logger.warning(f"Executor initialization for {broker_type} failed: {e}")
+
+    return executor, needs_cleanup
 
 class SignalProcessor:
     """Unified signal processor for all brokers"""
@@ -943,9 +1074,24 @@ class SignalProcessor:
         Returns:
             Execution result dict
         """
+        broker = None
+        needs_cleanup = False
+
         try:
             broker_type = account.broker.value
-            broker = self.brokers.get(broker_type)
+
+            # Create account-specific executor with credentials
+            db = next(get_db())
+            try:
+                broker, needs_cleanup = await _create_account_executor(account, db)
+            finally:
+                db.close()
+
+            # Fall back to singleton executor if account-specific creation failed
+            if not broker or not broker.is_connected:
+                logger.info(f"Using singleton executor for {broker_type} (account executor unavailable)")
+                broker = self.brokers.get(broker_type)
+                needs_cleanup = False
 
             if not broker:
                 return {
@@ -1052,7 +1198,15 @@ class SignalProcessor:
                 "account_number": account.account_number,
                 "error": str(e)
             }
-    
+
+        finally:
+            # Clean up account-specific executor if created
+            if needs_cleanup and broker:
+                try:
+                    await broker.disconnect()
+                except Exception as cleanup_err:
+                    logger.debug(f"Executor cleanup error (non-critical): {cleanup_err}")
+
     def _map_action_to_order_type(self, action: str) -> str:
         """Map signal action to order type"""
         action_map = {

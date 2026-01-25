@@ -87,8 +87,12 @@ async def lifespan(app: FastAPI):
 
     try:
         # Create database tables (ignore if already exist)
+        # Run sync operation in thread pool to avoid MissingGreenlet error with asyncpg
+        import concurrent.futures
         try:
-            Base.metadata.create_all(bind=engine)
+            loop = asyncio.get_event_loop()
+            with concurrent.futures.ThreadPoolExecutor() as pool:
+                await loop.run_in_executor(pool, Base.metadata.create_all, engine)
             logger.info("✅ Database tables created")
         except Exception as e:
             if "already exists" in str(e):
