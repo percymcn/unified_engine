@@ -25,18 +25,17 @@ export function useOAuthProviders() {
   useEffect(() => {
     async function fetchProviders() {
       try {
-        const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8765";
-        console.log('[OAuth] Fetching providers from:', `${BACKEND_URL}/api/v1/oauth/providers`);
-        const response = await fetch(`${BACKEND_URL}/api/v1/oauth/providers`, {
+        // Use BFF route to avoid CORS issues and allow redirect_uri override for local dev
+        console.log('[OAuth] Fetching providers from BFF: /api/auth/providers');
+        const response = await fetch('/api/auth/providers', {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
           },
-          credentials: 'omit',
         });
-        
+
         console.log('[OAuth] Response status:', response.status);
-        
+
         if (!response.ok) {
           console.warn(`[OAuth] Providers endpoint returned ${response.status}`);
           setProviders([]);
