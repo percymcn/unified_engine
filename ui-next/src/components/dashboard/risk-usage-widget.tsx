@@ -44,7 +44,7 @@ export function RiskUsageWidget() {
 
   if (loading) {
     return (
-      <Card>
+      <Card className="glass glass-hover">
         <CardHeader>
           <CardTitle>Risk Status</CardTitle>
         </CardHeader>
@@ -61,7 +61,7 @@ export function RiskUsageWidget() {
   if (!summary) return null;
 
   return (
-    <Card>
+    <Card className="glass glass-hover">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg">Risk Status</CardTitle>

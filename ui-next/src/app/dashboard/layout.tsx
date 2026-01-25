@@ -24,7 +24,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             <Header />
 
             {/* Page content */}
-            <main className="flex-1 overflow-auto p-6">
+            <main className="flex-1 overflow-auto overflow-x-hidden p-4 md:p-6">
               {/* Upgrade prompt when trial is low/expired */}
               <TrialPromptWrapper />
               {children}

@@ -276,7 +276,7 @@ export function AccountCard({
             size="sm"
             asChild
           >
-            <Link href={`/dashboard/settings/accounts/${account.id}/settings`}>
+            <Link href={`/dashboard/settings/accounts/${account.id.toString()}/settings`}>
               <Settings className="h-4 w-4" />
             </Link>
           </Button>

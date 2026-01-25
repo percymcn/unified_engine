@@ -13,6 +13,7 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
+import { motion } from "framer-motion";
 
 interface EquityDataPoint {
   date: string;
@@ -73,7 +74,7 @@ export function EquityChartWidget() {
 
   if (loading) {
     return (
-      <Card className="col-span-2">
+      <Card className="col-span-2 glass glass-hover">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-lg">
             <TrendingUp className="h-5 w-5 text-chart-1" />
@@ -95,7 +96,7 @@ export function EquityChartWidget() {
 
   if (!equityData || equityData.data.length === 0) {
     return (
-      <Card className="col-span-2">
+      <Card className="col-span-2 glass glass-hover">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-lg">
             <TrendingUp className="h-5 w-5 text-chart-1" />
@@ -122,7 +123,7 @@ export function EquityChartWidget() {
   const padding = (maxEquity - minEquity) * 0.1 || 100;
 
   return (
-    <Card className="col-span-2">
+    <Card className="col-span-2 glass glass-hover">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-lg">
@@ -178,7 +179,11 @@ export function EquityChartWidget() {
         </div>
 
         {/* Chart */}
-        <div className="h-[200px] w-full">
+        <motion.div
+          className="h-[200px] w-full"
+          whileHover={{ scale: 1.01 }}
+          transition={{ type: "spring", stiffness: 250, damping: 20 }}
+        >
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart
               data={equityData.data}
@@ -235,7 +240,7 @@ export function EquityChartWidget() {
               />
             </AreaChart>
           </ResponsiveContainer>
-        </div>
+        </motion.div>
       </CardContent>
     </Card>
   );

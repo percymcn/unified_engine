@@ -14,6 +14,7 @@ export interface User {
   avatar_url: string | null;
   timezone: string | null;
   subscription_tier: string;
+  primary_webhook_key?: string | null;
 }
 
 /**

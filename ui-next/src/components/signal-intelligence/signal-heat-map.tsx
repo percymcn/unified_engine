@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { motion } from "framer-motion";
 
 interface SignalHistoryEntry {
   symbol: string;
@@ -57,7 +58,7 @@ export function SignalHeatMap({ symbol }: HeatMapProps) {
 
   if (loading) {
     return (
-      <Card>
+      <Card className="glass glass-hover">
         <CardHeader>
           <CardTitle className="text-sm">24h Signal Heat Map</CardTitle>
         </CardHeader>
@@ -87,7 +88,7 @@ export function SignalHeatMap({ symbol }: HeatMapProps) {
   const totalSells = signals.filter(s => s.action.toLowerCase() === "sell").length;
 
   return (
-    <Card>
+    <Card className="glass glass-hover">
       <CardHeader>
         <CardTitle className="text-sm">24h Signal Heat Map</CardTitle>
       </CardHeader>
@@ -120,9 +121,11 @@ export function SignalHeatMap({ symbol }: HeatMapProps) {
                 return (
                   <Tooltip key={hour}>
                     <TooltipTrigger asChild>
-                      <div
+                      <motion.div
                         className={`h-8 rounded ${bgColor}`}
                         style={{ opacity: 0.3 + intensity * 0.7 }}
+                        whileHover={{ scale: 1.08 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 18 }}
                       />
                     </TooltipTrigger>
                     <TooltipContent>
@@ -148,9 +151,11 @@ export function SignalHeatMap({ symbol }: HeatMapProps) {
                 return (
                   <Tooltip key={hour}>
                     <TooltipTrigger asChild>
-                      <div
+                      <motion.div
                         className={`h-8 rounded ${bgColor}`}
                         style={{ opacity: 0.3 + intensity * 0.7 }}
+                        whileHover={{ scale: 1.08 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 18 }}
                       />
                     </TooltipTrigger>
                     <TooltipContent>

@@ -112,7 +112,7 @@ export function RecentExecutionsWidget() {
 
   if (loading) {
     return (
-      <Card>
+      <Card className="glass glass-hover">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Activity className="h-5 w-5 text-primary" />
@@ -138,7 +138,7 @@ export function RecentExecutionsWidget() {
 
   if (executions.length === 0) {
     return (
-      <Card>
+      <Card className="glass glass-hover">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Activity className="h-5 w-5 text-primary" />
@@ -159,7 +159,7 @@ export function RecentExecutionsWidget() {
   }
 
   return (
-    <Card className="transition-shadow duration-300 hover:shadow-lg dark:hover:shadow-primary/5">
+    <Card className="glass glass-hover transition-shadow duration-300 hover:shadow-lg dark:hover:shadow-primary/5">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-lg">

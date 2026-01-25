@@ -10,6 +10,17 @@ import {
   UpdateAccountGroupRequest,
 } from '@/types/account';
 
+export class ApiError extends Error {
+  status: number;
+  payload?: Record<string, unknown>;
+
+  constructor(message: string, status: number, payload?: Record<string, unknown>) {
+    super(message);
+    this.status = status;
+    this.payload = payload;
+  }
+}
+
 /**
  * Response from connection test
  */
@@ -47,6 +58,51 @@ export interface DiscoverAccountsResult {
   accounts: DiscoveredAccount[];
   message?: string | null;
 }
+
+export interface AccountSettingsResponse extends AccountSettings {
+  account?: Account;
+}
+
+const buildApiError = async (response: Response, fallback: string) => {
+  const payload = await response.json().catch(() => ({}));
+  const message =
+    (payload as { error?: string; detail?: string }).error ||
+    (payload as { error?: string; detail?: string }).detail ||
+    fallback;
+  return new ApiError(message, response.status, payload as Record<string, unknown>);
+};
+
+const mapAccountSettingsResponse = (data: any): AccountSettingsResponse => ({
+  accountId: data.account_id,
+  positionSizing: {
+    mode: data.position_sizing.mode,
+    fixedLotSize: data.position_sizing.fixed_lot_size,
+    percentOfBalance: data.position_sizing.percent_of_balance,
+    percentOfEquity: data.position_sizing.percent_of_equity,
+    riskPercentPerTrade: data.position_sizing.risk_percent_per_trade,
+  },
+  riskLimits: {
+    maxPositionSize: data.risk_limits.max_position_size,
+    maxDailyLoss: data.risk_limits.max_daily_loss,
+    maxDailyLossPct: data.risk_limits.max_daily_loss_pct,
+    maxDrawdownPct: data.risk_limits.max_drawdown_pct,
+    maxOpenPositions: data.risk_limits.max_open_positions,
+    maxDailyTrades: data.risk_limits.max_daily_trades,
+    tradeCooldownSeconds: data.risk_limits.trade_cooldown_seconds,
+    defaultStopLoss: data.risk_limits.default_stop_loss ?? null,
+    defaultTakeProfit: data.risk_limits.default_take_profit ?? null,
+  },
+  grouping: {
+    groupId: data.grouping.group_id,
+    groupName: data.grouping.group_name,
+    groupColor: data.grouping.group_color,
+  },
+  routing: {
+    isSignalEnabled: data.routing.is_signal_enabled,
+    signalPriority: data.routing.signal_priority,
+  },
+  account: data.account,
+});
 
 /**
  * Get all accounts for the authenticated user
@@ -209,46 +265,16 @@ export async function refreshBrokerAccounts(accountId: number): Promise<Discover
 // ============================================================================
 // Account Settings API
 // ============================================================================
-export async function getAccountSettings(accountId: number): Promise<AccountSettings> {
+export async function getAccountSettings(accountId: number): Promise<AccountSettingsResponse> {
   const response = await fetch(`/api/accounts/${accountId}/settings`);
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch account settings: ${response.statusText}`);
+    throw await buildApiError(response, 'Failed to fetch account settings');
   }
 
   const data = await response.json();
 
-  // Transform API response to frontend format
-  return {
-    accountId: data.account_id,
-    positionSizing: {
-      mode: data.position_sizing.mode,
-      fixedLotSize: data.position_sizing.fixed_lot_size,
-      percentOfBalance: data.position_sizing.percent_of_balance,
-      percentOfEquity: data.position_sizing.percent_of_equity,
-      riskPercentPerTrade: data.position_sizing.risk_percent_per_trade,
-    },
-    riskLimits: {
-      maxPositionSize: data.risk_limits.max_position_size,
-      maxDailyLoss: data.risk_limits.max_daily_loss,
-      maxDailyLossPct: data.risk_limits.max_daily_loss_pct,
-      maxDrawdownPct: data.risk_limits.max_drawdown_pct,
-      maxOpenPositions: data.risk_limits.max_open_positions,
-      maxDailyTrades: data.risk_limits.max_daily_trades,
-      tradeCooldownSeconds: data.risk_limits.trade_cooldown_seconds,
-      defaultStopLoss: data.risk_limits.default_stop_loss ?? null,
-      defaultTakeProfit: data.risk_limits.default_take_profit ?? null,
-    },
-    grouping: {
-      groupId: data.grouping.group_id,
-      groupName: data.grouping.group_name,
-      groupColor: data.grouping.group_color,
-    },
-    routing: {
-      isSignalEnabled: data.routing.is_signal_enabled,
-      signalPriority: data.routing.signal_priority,
-    },
-  };
+  return mapAccountSettingsResponse(data);
 }
 
 /**
@@ -257,7 +283,7 @@ export async function getAccountSettings(accountId: number): Promise<AccountSett
 export async function updateAccountSettings(
   accountId: number,
   settings: AccountSettingsUpdate
-): Promise<AccountSettings> {
+): Promise<AccountSettingsResponse> {
   // Transform to API format (snake_case)
   const payload: Record<string, unknown> = {};
 
@@ -326,42 +352,12 @@ export async function updateAccountSettings(
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to update account settings: ${response.statusText}`);
+    throw await buildApiError(response, 'Failed to update account settings');
   }
 
   const data = await response.json();
 
-  // Transform API response to frontend format
-  return {
-    accountId: data.account_id,
-    positionSizing: {
-      mode: data.position_sizing.mode,
-      fixedLotSize: data.position_sizing.fixed_lot_size,
-      percentOfBalance: data.position_sizing.percent_of_balance,
-      percentOfEquity: data.position_sizing.percent_of_equity,
-      riskPercentPerTrade: data.position_sizing.risk_percent_per_trade,
-    },
-    riskLimits: {
-      maxPositionSize: data.risk_limits.max_position_size,
-      maxDailyLoss: data.risk_limits.max_daily_loss,
-      maxDailyLossPct: data.risk_limits.max_daily_loss_pct,
-      maxDrawdownPct: data.risk_limits.max_drawdown_pct,
-      maxOpenPositions: data.risk_limits.max_open_positions,
-      maxDailyTrades: data.risk_limits.max_daily_trades,
-      tradeCooldownSeconds: data.risk_limits.trade_cooldown_seconds,
-      defaultStopLoss: data.risk_limits.default_stop_loss ?? null,
-      defaultTakeProfit: data.risk_limits.default_take_profit ?? null,
-    },
-    grouping: {
-      groupId: data.grouping.group_id,
-      groupName: data.grouping.group_name,
-      groupColor: data.grouping.group_color,
-    },
-    routing: {
-      isSignalEnabled: data.routing.is_signal_enabled,
-      signalPriority: data.routing.signal_priority,
-    },
-  };
+  return mapAccountSettingsResponse(data);
 }
 
 // ============================================================================

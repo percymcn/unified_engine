@@ -10,6 +10,7 @@ import pytz
 
 from app.db.database import get_db
 from app.models.models import User
+from app.models.database_models import WebhookConfig
 from app.models.schemas import PreferencesResponse, PreferencesUpdate, NotificationPreferences, DeduplicationSettings
 from app.schemas.user import ProfileResponse, ProfileUpdate, PasswordChange, PasswordChangeResponse
 from app.routers.auth import get_current_user, verify_password, get_password_hash, get_user_by_email
@@ -24,16 +25,23 @@ router = APIRouter()
 @router.get("/me/profile", response_model=ProfileResponse)
 async def get_profile(
     current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     """
     Get current user's profile information.
     """
+    webhook_config = db.query(WebhookConfig).filter(
+        WebhookConfig.user_id == current_user.id,
+        WebhookConfig.is_active == True
+    ).order_by(WebhookConfig.updated_at.desc()).first()
+
     return ProfileResponse(
         id=current_user.id,
         email=current_user.email,
         username=current_user.username,
         full_name=current_user.full_name,
         avatar_url=getattr(current_user, 'avatar_url', None),
+        primary_webhook_key=webhook_config.webhook_key if webhook_config else None,
         created_at=current_user.created_at,
     )
 
@@ -70,12 +78,18 @@ async def update_profile(
     db.commit()
     db.refresh(current_user)
 
+    webhook_config = db.query(WebhookConfig).filter(
+        WebhookConfig.user_id == current_user.id,
+        WebhookConfig.is_active == True
+    ).order_by(WebhookConfig.updated_at.desc()).first()
+
     return ProfileResponse(
         id=current_user.id,
         email=current_user.email,
         username=current_user.username,
         full_name=current_user.full_name,
         avatar_url=getattr(current_user, 'avatar_url', None),
+        primary_webhook_key=webhook_config.webhook_key if webhook_config else None,
         created_at=current_user.created_at,
     )
 

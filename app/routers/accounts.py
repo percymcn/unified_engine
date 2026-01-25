@@ -1372,14 +1372,28 @@ async def get_account_settings(
     request: Request,
     account_id: int,
     current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     """
     Get current account settings (position sizing, risk limits, routing).
 
     Returns all configured settings for the specified account.
     """
+    from app.models.database_models import TradingAccount as TradingAccountORM
+
     container = get_container(request)
     use_case = container.get_account_settings_use_case()
+
+    orm_account = db.query(TradingAccountORM).filter(
+        TradingAccountORM.id == account_id,
+        TradingAccountORM.user_id == current_user.id
+    ).first()
+
+    if not orm_account:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Account not found"
+        )
 
     dto_request = GetAccountSettingsRequest(
         account_id=account_id,
@@ -1416,6 +1430,27 @@ async def get_account_settings(
             "routing": {
                 "is_signal_enabled": response.is_signal_enabled,
                 "signal_priority": response.signal_priority,
+            },
+            "account": {
+                "id": orm_account.id,
+                "account_id": orm_account.account_number,
+                "user_id": orm_account.user_id,
+                "broker": orm_account.broker.value,
+                "account_type": orm_account.account_type.value if orm_account.account_type else "demo",
+                "currency": orm_account.currency or "USD",
+                "leverage": int(orm_account.leverage) if orm_account.leverage else 100,
+                "is_active": orm_account.is_active,
+                "is_connected": orm_account.is_connected,
+                "balance": float(orm_account.balance or 0.0),
+                "equity": float(orm_account.equity or 0.0),
+                "margin": float(orm_account.margin or 0.0),
+                "free_margin": float(orm_account.free_margin or 0.0),
+                "last_sync": orm_account.last_sync.isoformat() if orm_account.last_sync else None,
+                "created_at": orm_account.created_at.isoformat() if orm_account.created_at else None,
+                "webhook_key": orm_account.webhook_key,
+                "enabled_broker_account_ids": orm_account.enabled_broker_account_ids or [],
+                "default_broker_account_id": orm_account.default_broker_account_id,
+                "discovered_accounts_cache": orm_account.discovered_accounts_cache,
             },
         }
     except Exception as e:

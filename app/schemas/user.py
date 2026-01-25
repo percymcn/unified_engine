@@ -15,6 +15,7 @@ class ProfileResponse(BaseModel):
     username: str
     full_name: Optional[str] = None
     avatar_url: Optional[str] = None
+    primary_webhook_key: Optional[str] = None
     created_at: datetime
 
     class Config:

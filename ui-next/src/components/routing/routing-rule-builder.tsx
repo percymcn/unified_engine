@@ -72,7 +72,7 @@ export function RoutingRuleBuilder({
             updateCondition({ field: value as RoutingConditionField })
           }
         >
-          <SelectTrigger>
+          <SelectTrigger className="min-h-11">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -94,7 +94,7 @@ export function RoutingRuleBuilder({
             updateCondition({ operator: value as RoutingConditionOperator })
           }
         >
-          <SelectTrigger>
+          <SelectTrigger className="min-h-11">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -126,7 +126,7 @@ export function RoutingRuleBuilder({
             onChange({ ...rule, target_account_id: parseInt(value) })
           }
         >
-          <SelectTrigger>
+          <SelectTrigger className="min-h-11">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

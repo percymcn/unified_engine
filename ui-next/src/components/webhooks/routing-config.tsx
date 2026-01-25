@@ -22,7 +22,7 @@ interface RoutingConfigProps {
   defaultAccountId?: number;
   specificAccountIds: number[];
   routingRules: RoutingRule[];
-  accounts: Account[];
+  accounts: Account[] | { accounts: Account[] } | null;
   onStrategyChange: (strategy: RoutingStrategy) => void;
   onDefaultAccountChange: (accountId: number | undefined) => void;
   onSpecificAccountsChange: (accountIds: number[]) => void;
@@ -63,6 +63,11 @@ export function RoutingConfig({
   onSpecificAccountsChange,
   onRoutingRulesChange,
 }: RoutingConfigProps) {
+  const accountList = Array.isArray(accounts)
+    ? accounts
+    : accounts?.accounts || [];
+  const hasAccounts = accountList.length > 0;
+
   const handleAccountToggle = (accountId: number, checked: boolean) => {
     if (checked) {
       onSpecificAccountsChange([...specificAccountIds, accountId]);
@@ -79,7 +84,7 @@ export function RoutingConfig({
         operator: 'equals',
         value: '',
       },
-      target_account_id: accounts[0]?.id || 0,
+      target_account_id: accountList[0]?.id || 0,
       priority: routingRules.length,
     };
     onRoutingRulesChange([...routingRules, newRule]);
@@ -127,14 +132,14 @@ export function RoutingConfig({
         {strategy === 'specific_accounts' && (
           <div className="space-y-3 pt-4 border-t border-border">
             <Label>Select Accounts</Label>
-            {accounts.length === 0 ? (
+            {!hasAccounts ? (
               <p className="text-sm text-muted-foreground">
                 No accounts available. Create accounts first.
               </p>
             ) : (
               <div className="space-y-2">
-                {accounts.map((account) => (
-                  <div key={account.id} className="flex items-center space-x-3">
+                {accountList.map((account) => (
+                  <div key={account.id} className="flex items-start gap-3 py-2">
                     <Checkbox
                       id={`specific-${account.id}`}
                       checked={specificAccountIds.includes(account.id)}
@@ -144,7 +149,7 @@ export function RoutingConfig({
                     />
                     <Label
                       htmlFor={`specific-${account.id}`}
-                      className="text-sm font-normal cursor-pointer"
+                      className="text-sm font-normal cursor-pointer break-words"
                     >
                       {BROKER_DISPLAY_NAMES[account.broker as keyof typeof BROKER_DISPLAY_NAMES]} -{' '}
                       {account.account_id}
@@ -165,7 +170,14 @@ export function RoutingConfig({
                   Rules are evaluated in priority order (lowest first)
                 </p>
               </div>
-              <Button type="button" variant="outline" size="sm" onClick={handleAddRule}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleAddRule}
+                className="min-h-10 px-3"
+                disabled={!hasAccounts}
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Rule
               </Button>
@@ -181,7 +193,7 @@ export function RoutingConfig({
                   <RoutingRuleBuilder
                     key={rule.id}
                     rule={rule}
-                    accounts={accounts}
+                    accounts={accountList}
                     onChange={(updatedRule) => handleUpdateRule(index, updatedRule)}
                     onRemove={() => handleRemoveRule(index)}
                   />
@@ -197,18 +209,25 @@ export function RoutingConfig({
                 onValueChange={(value) =>
                   onDefaultAccountChange(value === 'none' ? undefined : parseInt(value))
                 }
+                disabled={!hasAccounts}
               >
-                <SelectTrigger id="fallback-account" className="mt-2">
-                  <SelectValue placeholder="No fallback (signal will fail)" />
+                <SelectTrigger id="fallback-account" className="mt-2 w-full min-h-11">
+                  <SelectValue placeholder={hasAccounts ? "No fallback (signal will fail)" : "No accounts available"} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">No fallback</SelectItem>
-                  {accounts.map((account) => (
-                    <SelectItem key={account.id} value={account.id.toString()}>
-                      {BROKER_DISPLAY_NAMES[account.broker as keyof typeof BROKER_DISPLAY_NAMES]} -{' '}
-                      {account.account_id}
+                  {hasAccounts ? (
+                    accountList.map((account) => (
+                      <SelectItem key={account.id} value={account.id.toString()}>
+                        {BROKER_DISPLAY_NAMES[account.broker as keyof typeof BROKER_DISPLAY_NAMES]} -{' '}
+                        {account.account_id}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="no-accounts" disabled>
+                      No accounts available
                     </SelectItem>
-                  ))}
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -223,18 +242,25 @@ export function RoutingConfig({
               onValueChange={(value) =>
                 onDefaultAccountChange(value === 'none' ? undefined : parseInt(value))
               }
+              disabled={!hasAccounts}
             >
-              <SelectTrigger id="default-account" className="mt-2">
-                <SelectValue placeholder="Select default account" />
+              <SelectTrigger id="default-account" className="mt-2 w-full min-h-11">
+                <SelectValue placeholder={hasAccounts ? "Select default account" : "No accounts available"} />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">No default account</SelectItem>
-                {accounts.map((account) => (
-                  <SelectItem key={account.id} value={account.id.toString()}>
-                    {BROKER_DISPLAY_NAMES[account.broker as keyof typeof BROKER_DISPLAY_NAMES]} -{' '}
-                    {account.account_id}
+                {hasAccounts ? (
+                  accountList.map((account) => (
+                    <SelectItem key={account.id} value={account.id.toString()}>
+                      {BROKER_DISPLAY_NAMES[account.broker as keyof typeof BROKER_DISPLAY_NAMES]} -{' '}
+                      {account.account_id}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="no-accounts" disabled>
+                    No accounts available
                   </SelectItem>
-                ))}
+                )}
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground mt-1">

@@ -47,7 +47,7 @@ export function RejectedSignalsWidget() {
 
   if (loading) {
     return (
-      <Card>
+      <Card className="glass glass-hover">
         <CardHeader>
           <CardTitle>Rejected Signals</CardTitle>
         </CardHeader>
@@ -63,7 +63,7 @@ export function RejectedSignalsWidget() {
 
   if (signals.length === 0) {
     return (
-      <Card>
+      <Card className="glass glass-hover">
         <CardHeader>
           <CardTitle className="text-lg">Rejected Signals</CardTitle>
         </CardHeader>
@@ -77,7 +77,7 @@ export function RejectedSignalsWidget() {
   }
 
   return (
-    <Card>
+    <Card className="glass glass-hover">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg">Rejected Signals</CardTitle>

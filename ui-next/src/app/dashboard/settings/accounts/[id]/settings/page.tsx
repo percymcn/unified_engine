@@ -1,73 +1,133 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { Loader2, ArrowLeft, Settings, Shield, GitBranch, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { Loader2, ArrowLeft, Settings, Shield, GitBranch, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AccountSettingsForm } from '@/components/accounts/account-settings-form';
 import { Account, AccountSettings, AccountGroup, BROKER_DISPLAY_NAMES } from '@/types/account';
-import { getAccountSettings, updateAccountSettings, getAccountGroups, refreshBrokerAccounts, updateAccount, DiscoveredAccount } from '@/lib/api/accounts';
+import { ApiError, getAccountSettings, updateAccountSettings, getAccountGroups, refreshBrokerAccounts, updateAccount, DiscoveredAccount } from '@/lib/api/accounts';
 import { useToast } from '@/hooks/use-toast';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 export default function AccountSettingsPage() {
   const params = useParams();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const accountId = Number(params.id);
+  const isValidAccountId = Number.isFinite(accountId) && accountId > 0;
 
   const [settings, setSettings] = useState<AccountSettings | null>(null);
-  const [groups, setGroups] = useState<AccountGroup[]>([]);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [account, setAccount] = useState<Account | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [discoveredAccounts, setDiscoveredAccounts] = useState<DiscoveredAccount[]>([]);
   const [selectedAccountIds, setSelectedAccountIds] = useState<Set<string>>(new Set());
   const [defaultAccountId, setDefaultAccountId] = useState<string>('');
+  const lastErrorRef = useRef<string | null>(null);
+
+  const settingsQuery = useQuery({
+    queryKey: ['account-settings', accountId],
+    queryFn: () => getAccountSettings(accountId),
+    enabled: isValidAccountId,
+    retry: (failureCount, error) => {
+      if (error instanceof ApiError) {
+        if (error.status === 404 || error.status === 401) {
+          return false;
+        }
+      }
+      return failureCount < 2;
+    },
+    retryDelay: (attempt) => 500 * Math.pow(2, attempt),
+  });
+
+  const groupsQuery = useQuery({
+    queryKey: ['account-groups'],
+    queryFn: getAccountGroups,
+    retry: (failureCount, error) => {
+      if (error instanceof ApiError && error.status === 401) {
+        return false;
+      }
+      return failureCount < 2;
+    },
+    retryDelay: (attempt) => 500 * Math.pow(2, attempt),
+  });
+
+  const groups = useMemo<AccountGroup[]>(
+    () => groupsQuery.data || [],
+    [groupsQuery.data]
+  );
 
   useEffect(() => {
-    loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accountId]);
-
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Fetch account details and settings in parallel
-      const [settingsData, groupsData, accountResponse] = await Promise.all([
-        getAccountSettings(accountId),
-        getAccountGroups(),
-        fetch(`/api/accounts/${accountId}`).then(r => r.json()),
-      ]);
-
-      setSettings(settingsData);
-      setGroups(groupsData);
-      setAccount(accountResponse);
-      
-      // Load broker account selection if available
-      if (accountResponse.enabled_broker_account_ids) {
-        setSelectedAccountIds(new Set(accountResponse.enabled_broker_account_ids));
-      }
-      if (accountResponse.default_broker_account_id) {
-        setDefaultAccountId(accountResponse.default_broker_account_id);
-      }
-      if (accountResponse.discovered_accounts_cache) {
-        setDiscoveredAccounts(accountResponse.discovered_accounts_cache as DiscoveredAccount[]);
-      }
-    } catch (err) {
-      console.error('Failed to load account settings:', err);
-      setError('Failed to load account settings. Please try again.');
-    } finally {
-      setLoading(false);
+    if (settingsQuery.data) {
+      setSettings(settingsQuery.data);
     }
-  };
+  }, [settingsQuery.data]);
+
+  useEffect(() => {
+    if (!settingsQuery.data?.account) return;
+    const accountResponse = settingsQuery.data.account;
+
+    setAccount(accountResponse);
+
+    if (accountResponse.enabled_broker_account_ids) {
+      setSelectedAccountIds(new Set(accountResponse.enabled_broker_account_ids));
+    } else {
+      setSelectedAccountIds(new Set());
+    }
+
+    if (accountResponse.default_broker_account_id) {
+      setDefaultAccountId(accountResponse.default_broker_account_id);
+    } else {
+      setDefaultAccountId('');
+    }
+
+    if (accountResponse.discovered_accounts_cache) {
+      setDiscoveredAccounts(accountResponse.discovered_accounts_cache as DiscoveredAccount[]);
+    } else {
+      setDiscoveredAccounts([]);
+    }
+  }, [settingsQuery.data?.account]);
+
+  useEffect(() => {
+    if (!settingsQuery.isError || settingsQuery.isFetching) return;
+    const error = settingsQuery.error;
+    const message =
+      error instanceof ApiError
+        ? error.message
+        : 'Failed to load account settings. Please try again.';
+    if (lastErrorRef.current !== message) {
+      toast({
+        title: 'Account settings failed to load',
+        description: message,
+        variant: 'destructive',
+      });
+      lastErrorRef.current = message;
+    }
+  }, [settingsQuery.isError, settingsQuery.error, settingsQuery.isFetching, toast]);
+
+  useEffect(() => {
+    if (!groupsQuery.isError || groupsQuery.isFetching) return;
+    const error = groupsQuery.error;
+    const message =
+      error instanceof ApiError
+        ? error.message
+        : 'Failed to load account groups.';
+    if (lastErrorRef.current !== message) {
+      toast({
+        title: 'Account groups failed to load',
+        description: message,
+        variant: 'destructive',
+      });
+      lastErrorRef.current = message;
+    }
+  }, [groupsQuery.isError, groupsQuery.error, groupsQuery.isFetching, toast]);
 
   const handleRefreshAccounts = async () => {
     if (!account) return;
@@ -140,8 +200,7 @@ export default function AccountSettingsPage() {
         description: 'Broker account selection updated successfully',
       });
       
-      // Reload account data
-      await loadData();
+      await queryClient.invalidateQueries({ queryKey: ['account-settings', accountId] });
     } catch (err) {
       console.error('Failed to save account selection:', err);
       toast({
@@ -189,6 +248,7 @@ export default function AccountSettingsPage() {
 
       const updated = await updateAccountSettings(accountId, updatePayload);
       setSettings(updated);
+      queryClient.setQueryData(['account-settings', accountId], updated);
 
       toast({
         title: 'Settings Saved',
@@ -206,16 +266,24 @@ export default function AccountSettingsPage() {
     }
   };
 
-  if (loading) {
+  const isLoading = settingsQuery.isLoading || groupsQuery.isLoading;
+  if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mr-2" />
-        <span className="text-muted-foreground">Loading account settings...</span>
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-8 w-32" />
+        </div>
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-10 w-full" />
+        <div className="grid gap-4 md:grid-cols-3">
+          <Skeleton className="h-40 w-full" />
+          <Skeleton className="h-40 w-full md:col-span-2" />
+        </div>
       </div>
     );
   }
 
-  if (error || !settings) {
+  if (!isValidAccountId) {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
@@ -228,9 +296,40 @@ export default function AccountSettingsPage() {
         </div>
         <Alert variant="destructive">
           <AlertDescription>
-            {error || 'Failed to load account settings.'}
+            Invalid account ID. Please select an account again.
           </AlertDescription>
         </Alert>
+      </div>
+    );
+  }
+
+  if (settingsQuery.isError || !settings) {
+    const error = settingsQuery.error;
+    const isNotFound = error instanceof ApiError && error.status === 404;
+    const message = isNotFound
+      ? 'Account not found. It may have been deleted or you may not have access.'
+      : error instanceof ApiError
+      ? error.message
+      : 'Failed to load account settings. Please try again.';
+
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/dashboard/settings/accounts">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Accounts
+            </Link>
+          </Button>
+        </div>
+        <Alert variant="destructive">
+          <AlertDescription>{message}</AlertDescription>
+        </Alert>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => settingsQuery.refetch()}>
+            Retry
+          </Button>
+        </div>
       </div>
     );
   }

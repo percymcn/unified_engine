@@ -4,6 +4,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 from decimal import Decimal
 import uuid
+import secrets
 import json
 import logging
 
@@ -159,6 +160,51 @@ async def evaluate_guard_layer(
         # Fail open - log but don't block execution
         logger.warning(f"Guard layer evaluation failed, continuing execution (fail open): {guard_error}")
         return None
+
+
+@router.post("/generate-key")
+async def generate_primary_webhook_key(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Generate or regenerate the primary webhook key for the current user.
+
+    If no active webhook config exists, create a default config and return its key.
+    """
+    config = db.query(WebhookConfig).filter(
+        WebhookConfig.user_id == current_user.id,
+        WebhookConfig.is_active == True
+    ).order_by(WebhookConfig.updated_at.desc()).first()
+
+    created = False
+    if not config:
+        config = WebhookConfig(
+            user_id=current_user.id,
+            name="Primary Webhook",
+            webhook_key=secrets.token_urlsafe(32),
+            source="tradingview",
+            routing_strategy="default_only",
+            default_account_id=None,
+            specific_account_ids=[],
+            routing_rules=[],
+            symbol_filter=None,
+            action_filter=None,
+            is_active=True,
+        )
+        db.add(config)
+        created = True
+    else:
+        config.webhook_key = secrets.token_urlsafe(32)
+
+    db.commit()
+    db.refresh(config)
+
+    return {
+        "webhook_key": config.webhook_key,
+        "config_id": config.id,
+        "created": created,
+    }
 
 @router.post("/tradingview")
 async def tradingview_webhook(request: Request, db: Session = Depends(get_db)):

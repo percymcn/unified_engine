@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Webhook, RefreshCw } from 'lucide-react';
+import { Webhook, RefreshCw, KeyRound, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { WebhookEndpointCard } from '@/components/webhooks/webhook-endpoint-card';
 import { IntegrationInstructions } from '@/components/webhooks/integration-instructions';
@@ -9,6 +9,8 @@ import { WebhookEndpoint } from '@/types/webhook';
 import { WebhookConfig } from '@/types/routing';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
+import { CopyButton } from '@/components/ui/copy-button';
+import { useToast } from '@/hooks/use-toast';
 
 const WEBHOOK_ENDPOINTS: WebhookEndpoint[] = [
   {
@@ -62,6 +64,8 @@ export default function WebhooksPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [baseUrl, setBaseUrl] = useState('');
+  const [generatingKey, setGeneratingKey] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     // Get base URL from environment - prefer WEBHOOK_BASE_URL for public-facing URLs
@@ -74,9 +78,11 @@ export default function WebhooksPage() {
     fetchConfigs();
   }, []);
 
-  const fetchConfigs = async () => {
+  const fetchConfigs = async (showLoading = true) => {
     try {
-      setLoading(true);
+      if (showLoading) {
+        setLoading(true);
+      }
       setError(null);
       const response = await fetch('/api/webhook-configs');
 
@@ -103,7 +109,9 @@ export default function WebhooksPage() {
       console.error('Failed to load webhook configs:', err);
       setError('Unable to connect to server. Please check your connection and try again.');
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
     }
   };
 
@@ -128,6 +136,34 @@ export default function WebhooksPage() {
 
   const getConfigForSource = (source: string): WebhookConfig | undefined => {
     return configs.find((c) => c.source === source && c.is_active);
+  };
+
+  const primaryConfig = configs.find((config) => config.is_active) || configs[0];
+  const primaryKey = primaryConfig?.webhook_key || '';
+
+  const handleGenerateKey = async () => {
+    try {
+      setGeneratingKey(true);
+      const response = await fetch('/api/webhooks/generate-key', { method: 'POST' });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ detail: 'Failed to generate webhook key' }));
+        throw new Error(err.detail || 'Failed to generate webhook key');
+      }
+      await fetchConfigs(false);
+      toast({
+        title: 'Webhook key updated',
+        description: 'Your new webhook key is ready to copy.',
+      });
+    } catch (err) {
+      console.error('Failed to generate key:', err);
+      toast({
+        title: 'Webhook key update failed',
+        description: err instanceof Error ? err.message : 'Failed to generate webhook key',
+        variant: 'destructive',
+      });
+    } finally {
+      setGeneratingKey(false);
+    }
   };
 
   if (loading) {
@@ -177,9 +213,48 @@ export default function WebhooksPage() {
       {/* Base URL Info */}
       <div className="rounded-lg border p-4 bg-muted/50">
         <h3 className="font-semibold mb-2">Base URL</h3>
-        <p className="text-sm text-muted-foreground">
-          All webhook URLs start with: <code className="font-mono">{baseUrl}</code>
-        </p>
+        <div className="flex items-center gap-2">
+          <div className="text-sm text-muted-foreground break-all font-mono">{baseUrl}</div>
+          <CopyButton text={baseUrl} tooltip="Copy base URL" />
+        </div>
+      </div>
+
+      {/* Webhook Key */}
+      <div className="rounded-lg border p-4 space-y-3">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <div className="flex items-center gap-2">
+              <KeyRound className="h-4 w-4 text-primary" />
+              <h3 className="font-semibold">Webhook Key</h3>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Use this key in your webhook URLs to authenticate requests.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleGenerateKey}
+            disabled={generatingKey}
+          >
+            {generatingKey ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              'Generate new key'
+            )}
+          </Button>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex-1 rounded-md bg-muted px-3 py-2 font-mono text-xs break-all">
+            {primaryKey || 'No key yet. Click generate to create one.'}
+          </div>
+          {primaryKey && (
+            <CopyButton text={primaryKey} tooltip="Copy webhook key" />
+          )}
+        </div>
       </div>
 
       {/* Endpoint Cards */}

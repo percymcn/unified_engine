@@ -74,7 +74,7 @@ export function BrokerHealthCard({
   return (
     <Card
       className={cn(
-        'transition-all duration-300',
+        'glass glass-hover transition-all duration-300',
         recentlyChanged && 'ring-2 ring-primary animate-pulse'
       )}
     >

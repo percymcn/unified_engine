@@ -59,7 +59,7 @@ export function OpenPositionsWidget() {
 
   if (loading) {
     return (
-      <Card>
+      <Card className="glass glass-hover">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Briefcase className="h-5 w-5 text-chart-2" />
@@ -85,7 +85,7 @@ export function OpenPositionsWidget() {
 
   if (!data || data.positions.length === 0) {
     return (
-      <Card>
+      <Card className="glass glass-hover">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Briefcase className="h-5 w-5 text-chart-2" />
@@ -108,7 +108,7 @@ export function OpenPositionsWidget() {
   const totalPnLPositive = data.total_pnl >= 0;
 
   return (
-    <Card>
+    <Card className="glass glass-hover">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-lg">

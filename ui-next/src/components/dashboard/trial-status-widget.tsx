@@ -76,7 +76,7 @@ export function TrialStatusWidget() {
 
   if (loading) {
     return (
-      <Card>
+      <Card className="glass glass-hover">
         <CardHeader className="pb-2">
           <CardTitle className="text-lg">Subscription Status</CardTitle>
         </CardHeader>
@@ -109,7 +109,7 @@ export function TrialStatusWidget() {
   // If paid user, show current tier info
   if (isPaidUser && tierInfo) {
     return (
-      <Card>
+      <Card className="glass glass-hover">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg">Subscription Status</CardTitle>
@@ -208,7 +208,7 @@ export function TrialStatusWidget() {
   const isLowDays = daysRemaining <= 1 && !isTrialExpired;
 
   return (
-    <Card>
+    <Card className="glass glass-hover">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg">Trial Status</CardTitle>

@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Activity, Users, Signal, TrendingUp, CalendarClock } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Activity, Users, Signal, TrendingUp, CalendarClock, KeyRound, Loader2 } from 'lucide-react';
 import { BrokerHealthGrid } from '@/components/brokers/broker-health-grid';
 import {
   ExpirationAlerts,
@@ -27,6 +28,9 @@ import { StreakBadge } from '@/components/dashboard/streak-badge';
 import { OnboardingTooltip } from '@/components/dashboard/onboarding-tooltip';
 import { useWebSocketContext } from '@/providers/websocket-provider';
 import { cn } from '@/lib/utils';
+import { CopyButton } from '@/components/ui/copy-button';
+import { useToast } from '@/hooks/use-toast';
+import { useUser } from '@/providers/user-provider';
 
 interface PendingSignal {
   signal_id: string;
@@ -58,6 +62,8 @@ export default function DashboardPage() {
   const [expiringContracts, setExpiringContracts] = useState<FuturesInfo[]>([]);
   const [contractsLoading, setContractsLoading] = useState(true);
   const [recentlyUpdated, setRecentlyUpdated] = useState<string | null>(null);
+  const [primaryWebhookKey, setPrimaryWebhookKey] = useState<string | null>(null);
+  const [generatingKey, setGeneratingKey] = useState(false);
 
   // Guard modal state for pending webhook confirmations
   const [guardModalOpen, setGuardModalOpen] = useState(false);
@@ -65,6 +71,8 @@ export default function DashboardPage() {
 
   // WebSocket for real-time updates
   const { subscribeToSignals, subscribeToOrders, status: wsStatus } = useWebSocketContext();
+  const { user, refetch: refetchUser } = useUser();
+  const { toast } = useToast();
 
   // Handle signal updates (increment active signals)
   const handleSignalUpdate = useCallback(() => {
@@ -181,6 +189,37 @@ export default function DashboardPage() {
     fetchStats();
     fetchExpiringContracts();
   }, []);
+
+  useEffect(() => {
+    setPrimaryWebhookKey(user?.primary_webhook_key || null);
+  }, [user?.primary_webhook_key]);
+
+  const handleGenerateWebhookKey = async () => {
+    try {
+      setGeneratingKey(true);
+      const response = await fetch('/api/webhooks/generate-key', { method: 'POST' });
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: 'Failed to generate webhook key' }));
+        throw new Error(error.detail || 'Failed to generate webhook key');
+      }
+      const data = await response.json();
+      setPrimaryWebhookKey(data.webhook_key || null);
+      await refetchUser();
+      toast({
+        title: 'Webhook key updated',
+        description: 'Your new webhook key is ready to copy.',
+      });
+    } catch (err) {
+      console.error('Failed to generate webhook key:', err);
+      toast({
+        title: 'Webhook key update failed',
+        description: err instanceof Error ? err.message : 'Failed to generate webhook key',
+        variant: 'destructive',
+      });
+    } finally {
+      setGeneratingKey(false);
+    }
+  };
 
   const formatCurrency = (value: number): string => {
     return new Intl.NumberFormat('en-US', {
@@ -319,8 +358,46 @@ export default function DashboardPage() {
         <CardHeader className="pb-3">
           <CardTitle className="text-lg">Quick Actions</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-wrap gap-2">
-          <TestWebhookButton />
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap gap-2">
+            <TestWebhookButton />
+          </div>
+          <div className="rounded-lg border bg-muted/40 p-4 space-y-3">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <div className="flex items-center gap-2">
+                  <KeyRound className="h-4 w-4 text-primary" />
+                  <p className="text-sm font-medium">Webhook Key</p>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Use this in your TradingView or webhook settings.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleGenerateWebhookKey}
+                disabled={generatingKey}
+              >
+                {generatingKey ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  'Generate new key'
+                )}
+              </Button>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="flex-1 rounded-md bg-background px-3 py-2 font-mono text-xs break-all">
+                {primaryWebhookKey || 'No key yet. Click generate to create one.'}
+              </div>
+              {primaryWebhookKey && (
+                <CopyButton text={primaryWebhookKey} tooltip="Copy webhook key" />
+              )}
+            </div>
+          </div>
         </CardContent>
       </Card>
 
