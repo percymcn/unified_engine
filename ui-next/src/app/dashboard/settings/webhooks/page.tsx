@@ -11,6 +11,8 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CopyButton } from '@/components/ui/copy-button';
 import { useToast } from '@/hooks/use-toast';
+import { useUser } from '@/providers/user-provider';
+import { useQueryClient } from '@tanstack/react-query';
 
 const WEBHOOK_ENDPOINTS: WebhookEndpoint[] = [
   {
@@ -67,6 +69,10 @@ export default function WebhooksPage() {
   const [generatingKey, setGeneratingKey] = useState(false);
   const { toast } = useToast();
 
+  // Use same source as dashboard for consistent webhook key
+  const { user, refetch: refetchUser } = useUser();
+  const queryClient = useQueryClient();
+
   useEffect(() => {
     // Get base URL from environment - prefer WEBHOOK_BASE_URL for public-facing URLs
     const webhookBaseUrl = process.env.NEXT_PUBLIC_WEBHOOK_BASE_URL ||
@@ -115,12 +121,10 @@ export default function WebhooksPage() {
     }
   };
 
-  const getWebhookUrl = (endpoint: WebhookEndpoint, config?: WebhookConfig): string => {
-    if (!config) {
-      return `${baseUrl}${endpoint.url_template.replace('{webhook_key}', 'YOUR_WEBHOOK_KEY')}`;
-    }
-
-    let url = endpoint.url_template.replace('{webhook_key}', config.webhook_key);
+  const getWebhookUrl = (endpoint: WebhookEndpoint): string => {
+    // Use primaryKey (from user profile) for consistent URLs across pages
+    const keyToUse = primaryKey || 'YOUR_WEBHOOK_KEY';
+    let url = endpoint.url_template.replace('{webhook_key}', keyToUse);
 
     // For custom webhooks, replace {source} placeholder
     if (endpoint.source === 'custom') {
@@ -138,8 +142,8 @@ export default function WebhooksPage() {
     return configs.find((c) => c.source === source && c.is_active);
   };
 
-  const primaryConfig = configs.find((config) => config.is_active) || configs[0];
-  const primaryKey = primaryConfig?.webhook_key || '';
+  // Use webhook key from user profile (same source as dashboard) for consistency
+  const primaryKey = user?.primary_webhook_key || '';
 
   const handleGenerateKey = async () => {
     try {
@@ -149,7 +153,15 @@ export default function WebhooksPage() {
         const err = await response.json().catch(() => ({ detail: 'Failed to generate webhook key' }));
         throw new Error(err.detail || 'Failed to generate webhook key');
       }
-      await fetchConfigs(false);
+      // Refresh both data sources for consistency across pages
+      await Promise.all([
+        fetchConfigs(false),
+        refetchUser(),
+      ]);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['user-profile'] }),
+        queryClient.invalidateQueries({ queryKey: ['webhook-configs'] }),
+      ]);
       toast({
         title: 'Webhook key updated',
         description: 'Your new webhook key is ready to copy.',
@@ -262,9 +274,9 @@ export default function WebhooksPage() {
         <h2 className="text-2xl font-semibold mb-4">Available Endpoints</h2>
         <div className="grid gap-6 lg:grid-cols-2">
           {WEBHOOK_ENDPOINTS.map((endpoint) => {
-            const config = getConfigForSource(endpoint.source);
-            const webhookUrl = getWebhookUrl(endpoint, config);
-            const configured = isConfigured(endpoint.source);
+            const webhookUrl = getWebhookUrl(endpoint);
+            // Show as configured if we have a valid key
+            const configured = !!primaryKey;
 
             return (
               <WebhookEndpointCard

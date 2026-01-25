@@ -35,6 +35,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { useOAuthProviders } from "@/lib/useOAuthProviders";
+import { useToast } from "@/hooks/use-toast";
 
 // Animation variants for staggered entrance
 const containerVariants = {
@@ -67,6 +68,7 @@ function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isGoogleEnabled, googleAuthUrl, isLoading: oauthLoading } = useOAuthProviders();
+  const { toast } = useToast();
 
   // Form state
   const [username, setUsername] = useState("");
@@ -83,6 +85,51 @@ function LoginPageContent() {
       setSuccessMessage("Account created successfully! Please sign in.");
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    const oauthError = searchParams.get("error");
+    if (!oauthError) {
+      return;
+    }
+
+    const decodedError = decodeURIComponent(oauthError);
+    const normalized = decodedError.toLowerCase();
+
+    // Map specific errors to user-friendly messages
+    let toastTitle = "Login failed";
+    let toastDescription = "Please try again or use email/password.";
+    let displayError = decodedError;
+
+    if (normalized.includes("redirect_uri_mismatch") || normalized.includes("redirect uri mismatch")) {
+      toastTitle = "Configuration error";
+      toastDescription = "OAuth redirect mismatch - contact support.";
+      displayError = "OAuth configuration error. Please contact support.";
+    } else if (normalized.includes("invalid_grant") || normalized.includes("code expired") || normalized.includes("already used")) {
+      toastTitle = "Session expired";
+      toastDescription = "Please try logging in again.";
+      displayError = "Login session expired. Please try again.";
+    } else if (normalized.includes("invalid_client") || normalized.includes("client configuration")) {
+      toastTitle = "Configuration error";
+      toastDescription = "OAuth client error - contact support.";
+      displayError = "OAuth configuration error. Please contact support.";
+    } else if (
+      normalized.includes("token") ||
+      normalized.includes("exchange") ||
+      normalized.includes("invalid_request") ||
+      normalized.includes("unauthorized")
+    ) {
+      toastTitle = "Google login failed";
+      toastDescription = "Try again or use email/password.";
+      displayError = "Google login failed - try again or use email/password.";
+    }
+
+    setError(displayError);
+    toast({
+      title: toastTitle,
+      description: toastDescription,
+      variant: "destructive",
+    });
+  }, [searchParams, toast]);
 
   /**
    * Handle form submission

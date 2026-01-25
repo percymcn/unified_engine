@@ -66,7 +66,7 @@ async def google_oauth_callback(
             detail="Google OAuth not configured"
         )
     
-    redirect_uri = settings.GOOGLE_REDIRECT_URI or f"{settings.FRONTEND_URL}/api/auth/google/callback"
+    redirect_uri = settings.GOOGLE_REDIRECT_URI or "https://tradeflow.fluxeo.net/api/auth/google/callback"
     
     # Exchange authorization code for access token
     try:
@@ -84,11 +84,44 @@ async def google_oauth_callback(
             token_response.raise_for_status()
             token_data = token_response.json()
             access_token = token_data["access_token"]
-    except Exception as e:
-        logger.error(f"Google OAuth token exchange failed: {e}")
+    except httpx.HTTPStatusError as e:
+        response_text = e.response.text if e.response is not None else "no response"
+        status_code = e.response.status_code if e.response is not None else "unknown"
+        # Mask sensitive info in logs
+        client_id_masked = f"{settings.GOOGLE_CLIENT_ID[:8]}..." if settings.GOOGLE_CLIENT_ID else "NOT_SET"
+        logger.error(
+            "Google OAuth token exchange failed: status=%s response=%s client_id=%s code_len=%s redirect_uri=%s",
+            status_code,
+            response_text[:500],  # Truncate long responses
+            client_id_masked,
+            len(code) if code else 0,
+            redirect_uri,
+        )
+        # Return more helpful error message
+        error_detail = "Google OAuth token exchange failed"
+        if "redirect_uri_mismatch" in response_text.lower():
+            error_detail = "OAuth redirect URI mismatch - check Google Console configuration"
+        elif "invalid_grant" in response_text.lower():
+            error_detail = "OAuth code expired or already used - please try again"
+        elif "invalid_client" in response_text.lower():
+            error_detail = "OAuth client configuration error"
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Failed to exchange authorization code for token"
+            detail=error_detail
+        )
+    except Exception as e:
+        client_id_masked = f"{settings.GOOGLE_CLIENT_ID[:8]}..." if settings.GOOGLE_CLIENT_ID else "NOT_SET"
+        logger.error(
+            "Google OAuth token exchange failed: error=%s type=%s client_id=%s code_len=%s redirect_uri=%s",
+            str(e),
+            type(e).__name__,
+            client_id_masked,
+            len(code) if code else 0,
+            redirect_uri,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Google OAuth token exchange failed - please try again"
         )
     
     # Authenticate user with Google
@@ -115,6 +148,12 @@ async def google_oauth_callback(
         expires_delta=access_token_expires
     )
     
+    subscription_value = (
+        user.subscription_tier.value
+        if hasattr(user.subscription_tier, "value")
+        else (user.subscription_tier or "free")
+    )
+
     return {
         "access_token": token,
         "token_type": "bearer",
@@ -125,8 +164,8 @@ async def google_oauth_callback(
             "username": user.username,
             "full_name": user.full_name,
             "avatar_url": user.avatar_url,
-            "role": user.role,
-            "subscription_tier": user.subscription_tier.value if user.subscription_tier else "free"
+            "role": getattr(user, "role", None) or "free_user",
+            "subscription_tier": subscription_value
         }
     }
 
@@ -164,6 +203,12 @@ async def oauth_login(
         expires_delta=access_token_expires
     )
     
+    subscription_value = (
+        user.subscription_tier.value
+        if hasattr(user.subscription_tier, "value")
+        else (user.subscription_tier or "free")
+    )
+
     return {
         "access_token": token,
         "token_type": "bearer",
@@ -174,8 +219,8 @@ async def oauth_login(
             "username": user.username,
             "full_name": user.full_name,
             "avatar_url": user.avatar_url,
-            "role": user.role,
-            "subscription_tier": user.subscription_tier.value if user.subscription_tier else "free"
+            "role": getattr(user, "role", None) or "free_user",
+            "subscription_tier": subscription_value
         }
     }
 

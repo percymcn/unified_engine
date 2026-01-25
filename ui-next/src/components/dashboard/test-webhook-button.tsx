@@ -9,6 +9,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { useToast } from '@/hooks/use-toast';
 
 interface TestResult {
   success: boolean;
@@ -16,9 +17,14 @@ interface TestResult {
   signal_id?: string;
 }
 
-export function TestWebhookButton() {
+interface TestWebhookButtonProps {
+  onSuccess?: () => void;
+}
+
+export function TestWebhookButton({ onSuccess }: TestWebhookButtonProps) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<TestResult | null>(null);
+  const { toast } = useToast();
 
   const handleTest = async () => {
     setLoading(true);
@@ -34,18 +40,43 @@ export function TestWebhookButton() {
 
       const data = await response.json();
 
-      setResult({
+      const testResult: TestResult = {
         success: data.success,
         message: data.message || (data.success ? 'Test signal sent successfully' : 'Failed to send test signal'),
         signal_id: data.signal_id,
-      });
+      };
+
+      setResult(testResult);
+
+      // Show toast notification
+      if (testResult.success) {
+        toast({
+          title: 'Test sent!',
+          description: testResult.signal_id
+            ? `Signal ID: ${testResult.signal_id}`
+            : 'Your webhook is working correctly.',
+        });
+        onSuccess?.();
+      } else {
+        toast({
+          title: 'Invalid key or backend issue',
+          description: testResult.message || 'Invalid key or backend issue.',
+          variant: 'destructive',
+        });
+      }
 
       // Clear result after 5 seconds
       setTimeout(() => setResult(null), 5000);
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to send test signal';
       setResult({
         success: false,
-        message: error instanceof Error ? error.message : 'Failed to send test signal',
+        message: errorMessage,
+      });
+      toast({
+        title: 'Invalid key or backend issue',
+        description: errorMessage || 'Invalid key or backend issue.',
+        variant: 'destructive',
       });
       setTimeout(() => setResult(null), 5000);
     } finally {
