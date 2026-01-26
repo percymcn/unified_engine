@@ -298,21 +298,42 @@ class TradeLockerExecutor(BaseExecutor):
             positions = []
             account_number = str(self._sdk_wrapper.account_number or account_id or "")
 
+            # Convert DataFrame to list of dicts if needed (SDK returns DataFrame)
+            if positions_data is not None and hasattr(positions_data, 'to_dict'):
+                positions_list = positions_data.to_dict('records')
+            elif isinstance(positions_data, list):
+                positions_list = positions_data
+            else:
+                positions_list = []
+
+            logger.debug(f"Positions data: {len(positions_list)} positions")
+
             # Build instrument ID to symbol mapping if possible
             instrument_map = {}
             try:
                 instruments = await self._sdk_wrapper.get_all_instruments()
-                if instruments:
-                    for inst in instruments:
+                if instruments is not None:
+                    # Handle DataFrame or list
+                    if hasattr(instruments, 'to_dict'):
+                        # It's a DataFrame - convert to list of dicts
+                        inst_list = instruments.to_dict('records')
+                    elif isinstance(instruments, list):
+                        inst_list = instruments
+                    else:
+                        inst_list = []
+
+                    for inst in inst_list:
                         if isinstance(inst, dict):
                             inst_id = inst.get("tradableInstrumentId") or inst.get("id")
                             inst_symbol = inst.get("name") or inst.get("symbol", "")
-                            if inst_id:
+                            if inst_id and inst_symbol:
                                 instrument_map[int(inst_id)] = inst_symbol
+
+                    logger.debug(f"Built instrument map with {len(instrument_map)} symbols")
             except Exception as inst_err:
                 logger.debug(f"Could not build instrument map: {inst_err}")
 
-            for pos_data in positions_data:
+            for pos_data in positions_list:
                 # Convert dict or DataFrame row to dict
                 if hasattr(pos_data, 'to_dict'):
                     pos_dict = pos_data.to_dict()
@@ -321,8 +342,10 @@ class TradeLockerExecutor(BaseExecutor):
                 else:
                     continue
 
-                # Filter by account if specified
-                if account_id and str(pos_dict.get("accountId", pos_dict.get("account_id", ""))) != account_id:
+                # Filter by account if specified AND position has account field
+                # Note: TradeLocker SDK returns positions pre-filtered by account, so no accountId field
+                pos_account = pos_dict.get("accountId", pos_dict.get("account_id"))
+                if pos_account and account_id and str(pos_account) != account_id:
                     continue
 
                 # TradeLocker field mapping:
@@ -515,31 +538,47 @@ class TradeLockerExecutor(BaseExecutor):
         return await self._close_position_sdk(position_id, quantity)
 
     async def _close_position_sdk(self, position_id: str, quantity: Optional[float] = None) -> TradeResponse:
-        """Close position using official SDK."""
+        """Close position using opposite market order (SDK close_position expects orderId, not positionId)."""
         try:
-            result = await self._sdk_wrapper.close_position(
-                position_id=int(position_id),
-                quantity=quantity
+            # First, get the position details to know symbol, side, and quantity
+            positions = await self.get_positions()
+            position = next((p for p in positions if p.id == position_id), None)
+
+            if not position:
+                return TradeResponse(success=False, error=f"Position {position_id} not found")
+
+            # Determine opposite side for closing
+            close_side = "sell" if position.side.lower() in ("buy", "long") else "buy"
+            close_qty = quantity or position.size
+
+            # Place opposite market order to close
+            close_order = OrderRequest(
+                symbol=position.symbol,
+                side=close_side,
+                order_type="market",
+                quantity=close_qty,
+                account_id=position.account_id,
             )
 
-            if result and result.get("success"):
-                close_result = result.get("result", {})
+            order_result = await self._place_order_sdk(close_order)
+
+            if order_result.success:
                 return TradeResponse(
                     success=True,
-                    trade_id=str(close_result.get("id", position_id)),
+                    trade_id=order_result.order_id or position_id,
                     broker="tradelocker",
-                    symbol=close_result.get("symbol", ""),
-                    side=close_result.get("side", ""),
-                    quantity=close_result.get("quantity", quantity or 0),
-                    price=close_result.get("price", 0),
-                    pnl=close_result.get("pnl", 0),
-                    commission=close_result.get("commission", 0),
+                    symbol=position.symbol,
+                    side="close",
+                    quantity=close_qty,
+                    price=0,  # Market order, actual price determined at execution
+                    pnl=0,    # PnL will be calculated by broker
+                    commission=0,
                     timestamp=datetime.now()
                 )
             else:
                 return TradeResponse(
                     success=False,
-                    error=result.get("error", "SDK close failed") if result else "SDK close failed"
+                    error=f"Failed to close position: {order_result.error}"
                 )
 
         except Exception as e:

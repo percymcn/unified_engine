@@ -144,6 +144,76 @@ class TradeLockerSDKWrapper:
             return partial(func, *args)
         return func
 
+    async def get_all_broker_accounts(self) -> List[Dict[str, Any]]:
+        """
+        Get all broker accounts under this login.
+
+        Returns list of account dicts with:
+        - broker_account_id: unique account ID
+        - account_number: display account number
+        - display_name: account name
+        - status: 'active', 'inactive', 'blown', 'expired'
+        - account_type: 'DEMO' or 'LIVE'
+        - balance: account balance
+        - equity: account equity
+        - currency: account currency
+        """
+        if not self.is_initialized:
+            logger.error("SDK not initialized")
+            return []
+
+        try:
+            loop = asyncio.get_event_loop()
+
+            def fetch_all_accounts():
+                accounts_df = self._tl.get_all_accounts()
+                if accounts_df is None or len(accounts_df) == 0:
+                    return []
+
+                result = []
+                for _, row in accounts_df.iterrows():
+                    acc_id = row.get('id', row.get('accountId', ''))
+                    acc_num = row.get('accNum', row.get('accountNumber', acc_id))
+                    name = row.get('name', f'Account {acc_num}')
+                    balance = float(row.get('accountBalance', row.get('balance', 0)))
+                    status_raw = str(row.get('status', 'ACTIVE')).upper()
+
+                    # Determine status
+                    if status_raw == 'ACTIVE':
+                        # Check if account is "blown" (balance below threshold)
+                        if balance < 100:
+                            status = 'blown'
+                        else:
+                            status = 'active'
+                    elif status_raw in ('INACTIVE', 'DISABLED'):
+                        status = 'inactive'
+                    elif status_raw in ('EXPIRED', 'CLOSED'):
+                        status = 'expired'
+                    else:
+                        status = 'active'
+
+                    result.append({
+                        'broker_account_id': str(acc_id),
+                        'account_number': str(acc_num),
+                        'display_name': name,
+                        'status': status,
+                        'account_type': 'DEMO',  # TradeLocker demo
+                        'balance': balance,
+                        'equity': balance,  # Same as balance if not provided
+                        'currency': row.get('currency', 'USD'),
+                        'meta': {
+                            'balance': balance,
+                            'equity': balance,
+                            'currency': row.get('currency', 'USD'),
+                        }
+                    })
+                return result
+
+            return await loop.run_in_executor(self._executor, fetch_all_accounts)
+        except Exception as e:
+            logger.error(f"Failed to get all broker accounts: {e}")
+            return []
+
     async def get_all_instruments(self) -> Optional[Any]:
         """
         Get all available instruments.
@@ -321,8 +391,17 @@ class TradeLockerSDKWrapper:
                     lambda: self._tl.close_position(position_id)
                 )
 
-            logger.info(f"Position closed: {result}")
-            return {"success": True, "result": result}
+            logger.info(f"Position close result: {result}")
+
+            # SDK returns False if position not found, True or orderId on success
+            if result is False:
+                return {"success": False, "error": "Position not found or already closed"}
+            elif result is True or isinstance(result, (int, str)):
+                return {"success": True, "result": {"id": str(result) if result is not True else position_id}}
+            elif isinstance(result, dict):
+                return {"success": True, "result": result}
+            else:
+                return {"success": True, "result": {"id": str(position_id)}}
 
         except Exception as e:
             logger.error(f"Failed to close position: {e}")
