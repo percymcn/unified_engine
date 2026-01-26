@@ -538,39 +538,32 @@ class TradeLockerExecutor(BaseExecutor):
         return await self._close_position_sdk(position_id, quantity)
 
     async def _close_position_sdk(self, position_id: str, quantity: Optional[float] = None) -> TradeResponse:
-        """Close position using opposite market order (SDK close_position expects orderId, not positionId)."""
+        """Close position using SDK's _place_close_position_order (works in hedging mode)."""
         try:
-            # First, get the position details to know symbol, side, and quantity
+            # Get position details for response
             positions = await self.get_positions()
             position = next((p for p in positions if p.id == position_id), None)
 
             if not position:
                 return TradeResponse(success=False, error=f"Position {position_id} not found")
 
-            # Determine opposite side for closing
-            close_side = "sell" if position.side.lower() in ("buy", "long") else "buy"
             close_qty = quantity or position.size
 
-            # Place opposite market order to close
-            close_order = OrderRequest(
-                symbol=position.symbol,
-                side=close_side,
-                order_type="market",
-                quantity=close_qty,
-                account_id=position.account_id,
+            # Use SDK wrapper's close_position which uses _place_close_position_order internally
+            result = await self._sdk_wrapper.close_position(
+                position_id=int(position_id),
+                quantity=close_qty if quantity else None  # None = full close
             )
 
-            order_result = await self._place_order_sdk(close_order)
-
-            if order_result.success:
+            if result and result.get("success"):
                 return TradeResponse(
                     success=True,
-                    trade_id=order_result.order_id or position_id,
+                    trade_id=position_id,
                     broker="tradelocker",
                     symbol=position.symbol,
                     side="close",
                     quantity=close_qty,
-                    price=0,  # Market order, actual price determined at execution
+                    price=0,  # Actual price determined at execution
                     pnl=0,    # PnL will be calculated by broker
                     commission=0,
                     timestamp=datetime.now()
@@ -578,7 +571,7 @@ class TradeLockerExecutor(BaseExecutor):
             else:
                 return TradeResponse(
                     success=False,
-                    error=f"Failed to close position: {order_result.error}"
+                    error=result.get("error", "SDK close position failed") if result else "SDK close position failed"
                 )
 
         except Exception as e:

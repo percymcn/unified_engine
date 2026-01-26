@@ -364,11 +364,14 @@ class TradeLockerSDKWrapper:
         quantity: Optional[float] = None
     ) -> Optional[Dict[str, Any]]:
         """
-        Close a position.
+        Close a position using SDK's _place_close_position_order method.
+
+        This uses the SDK's internal close method that properly handles position IDs
+        (not order IDs) and works correctly in hedging mode.
 
         Args:
             position_id: Position ID to close
-            quantity: Quantity to close (None = full close)
+            quantity: Quantity to close (0 or None = full close)
 
         Returns close result dict or None on error.
         """
@@ -379,25 +382,24 @@ class TradeLockerSDKWrapper:
         try:
             loop = asyncio.get_event_loop()
 
-            # SDK close_position takes position_id and optionally quantity
-            if quantity:
-                result = await loop.run_in_executor(
-                    self._executor,
-                    lambda: self._tl.close_position(position_id, quantity)
-                )
-            else:
-                result = await loop.run_in_executor(
-                    self._executor,
-                    lambda: self._tl.close_position(position_id)
-                )
+            # Use SDK's _place_close_position_order which takes position_id directly
+            # quantity=0 means full close
+            close_qty = quantity if quantity else 0
+
+            result = await loop.run_in_executor(
+                self._executor,
+                lambda: self._tl._place_close_position_order(int(position_id), close_qty)
+            )
 
             logger.info(f"Position close result: {result}")
 
-            # SDK returns False if position not found, True or orderId on success
+            # SDK returns False if position not found, True on success
             if result is False:
                 return {"success": False, "error": "Position not found or already closed"}
-            elif result is True or isinstance(result, (int, str)):
-                return {"success": True, "result": {"id": str(result) if result is not True else position_id}}
+            elif result is True:
+                return {"success": True, "result": {"id": str(position_id)}}
+            elif isinstance(result, (int, str)):
+                return {"success": True, "result": {"id": str(result)}}
             elif isinstance(result, dict):
                 return {"success": True, "result": result}
             else:
