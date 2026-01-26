@@ -35,7 +35,7 @@ try:
     from project_x_py import (
         calculate_rsi, calculate_macd, calculate_bollinger_bands,
         calculate_atr, calculate_ema, calculate_sma, calculate_stochastic,
-        calculate_obv, calculate_vwap, calculate_adx, calculate_cci,
+        calculate_obv, calculate_vwap, calculate_adx, calculate_commodity_channel_index,
         calculate_williams_r, calculate_sharpe_ratio, calculate_max_drawdown
     )
     SDK_AVAILABLE = True
@@ -1007,7 +1007,7 @@ class ProjectXSDKService:
 
             # CCI
             if len(highs) >= 20 and len(lows) >= 20:
-                indicators["cci"] = calculate_cci(highs, lows, closes, period=20)
+                indicators["cci"] = calculate_commodity_channel_index(highs, lows, closes, period=20)
 
             # Williams %R
             if len(highs) >= 14 and len(lows) >= 14:
