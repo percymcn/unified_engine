@@ -148,7 +148,7 @@ export function useWebSocket(
           }, backoffMs);
         }
       };
-    } catch (error) {
+    } catch {
       // Only log first creation error
       if (reconnectAttempts === 0) {
         console.warn('Failed to create WebSocket connection');

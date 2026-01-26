@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { ExclamationTriangleIcon } from 'lucide-react';
+import { AlertTriangle } from "lucide-react";
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -42,7 +42,7 @@ export class ErrorBoundary extends React.Component<
         <div className="min-h-[400px] flex items-center justify-center">
           <div className="text-center p-8">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 dark:bg-red-900 mb-4">
-              <ExclamationTriangleIcon className="w-8 h-8 text-red-600 dark:text-red-400" />
+              <AlertTriangle className="w-8 h-8 text-red-600 dark:text-red-400" />
             </div>
             <h1 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">
               Something went wrong

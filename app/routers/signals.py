@@ -12,6 +12,35 @@ from app.services.signal_processor import SignalProcessor
 
 router = APIRouter()
 
+def _build_signal_payload(signal: Signal) -> dict:
+    """Normalize signal payload and expose guard metadata when present."""
+    guard_data = signal.signal_data or {}
+    return {
+        "id": signal.id,
+        "signal_id": signal.signal_id,
+        "user_id": signal.user_id,
+        "source": signal.source,
+        "symbol": signal.symbol,
+        "action": signal.action,
+        "volume": signal.volume,
+        "price": signal.price,
+        "stop_loss": signal.stop_loss,
+        "take_profit": signal.take_profit,
+        "comment": signal.comment,
+        "status": signal.status,
+        "target_accounts": signal.target_accounts,
+        "processed_at": signal.processed_at,
+        "error_message": signal.error_message,
+        "signal_data": signal.signal_data,
+        "guard_reason": guard_data.get("guard_reason") or guard_data.get("history_tag"),
+        "reason_detail": guard_data.get("reason_detail"),
+        "warning_type": guard_data.get("warning_type"),
+        "guard_rule": guard_data.get("guard_rule"),
+        "message": guard_data.get("message"),
+        "created_at": signal.created_at,
+        "updated_at": signal.updated_at,
+    }
+
 @router.get("/", response_model=List[SignalSchema])
 async def get_signals(
     skip: int = 0,
@@ -27,7 +56,7 @@ async def get_signals(
         query = query.filter(Signal.status == status)
         
     signals = query.offset(skip).limit(limit).all()
-    return signals
+    return [_build_signal_payload(signal) for signal in signals]
 
 @router.post("/", response_model=SignalSchema)
 async def create_signal(
@@ -65,7 +94,7 @@ async def get_signal(
             detail="Signal not found"
         )
     
-    return signal
+    return _build_signal_payload(signal)
 
 @router.post("/{signal_id}/cancel")
 async def cancel_signal(

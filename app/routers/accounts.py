@@ -29,10 +29,13 @@ from app.application.dto.account_settings_dto import (
 from app.domain.enums import BrokerType, AccountType
 from pydantic import BaseModel, Field
 from datetime import datetime
+import logging
 import secrets
 import hashlib
 from app.core.encryption import get_encryption_service
 from app.models.database_models import Credential
+
+logger = logging.getLogger(__name__)
 
 
 class TestConnectionBody(BaseModel):
@@ -332,7 +335,7 @@ async def discover_accounts(
                 config["username"] = body.credentials.get("username")
                 config["password"] = body.credentials.get("password")
                 config["server"] = body.credentials.get("server")
-                config["sdk_environment"] = body.credentials.get("environment", "https://demo.tradelocker.com")
+                config["sdk_environment"] = body.credentials.get("sdk_environment") or body.credentials.get("environment", "https://demo.tradelocker.com")
             elif body.credentials.get("api_key"):
                 config["api_key"] = body.credentials.get("api_key")
             executor = TradeLockerExecutor()
@@ -343,9 +346,10 @@ async def discover_accounts(
                 executor._sdk_password = body.credentials.get("password")
             if body.credentials.get("server"):
                 executor._sdk_server = body.credentials.get("server")
-            if body.credentials.get("environment"):
+            # Accept both sdk_environment (new) and environment (legacy)
+            if body.credentials.get("sdk_environment") or body.credentials.get("environment"):
                 # Normalize environment URL to ensure it has proper scheme
-                raw_env = body.credentials.get("environment")
+                raw_env = body.credentials.get("sdk_environment") or body.credentials.get("environment")
                 if raw_env:
                     raw_env = raw_env.strip()
                     if not raw_env.startswith("http://") and not raw_env.startswith("https://"):
@@ -383,10 +387,19 @@ async def discover_accounts(
                 access_token=body.credentials.get("access_token"),
                 environment=body.credentials.get("environment", "demo"),
             )
-            # For password mode
+            # For password mode, set all required fields
             if not executor._use_oauth and body.credentials.get("user_id"):
                 executor.user_id = body.credentials.get("user_id")
                 executor.password = body.credentials.get("password")
+                # Set optional OAuth app credentials for password auth
+                if body.credentials.get("app_id"):
+                    executor.app_id = body.credentials.get("app_id")
+                if body.credentials.get("app_version"):
+                    executor.app_version = body.credentials.get("app_version")
+                if body.credentials.get("cid"):
+                    executor.cid = body.credentials.get("cid")
+                if body.credentials.get("sec"):
+                    executor.sec = body.credentials.get("sec")
                 
         elif broker_type == BrokerType.MT4:
             from app.brokers.mt4_executor import MT4Executor
@@ -937,9 +950,34 @@ async def create_account(
             orm_account.is_signal_enabled = True
         if orm_account.signal_priority is None:
             orm_account.signal_priority = 0
-        
+
+        # Auto-connect when credentials are provided (safe, opt-in by input)
+        has_credentials = bool(credentials) or bool(account.oauth_tokens)
+        if has_credentials:
+            try:
+                connect_use_case = container.connect_account_use_case()
+                connect_response = await connect_use_case.execute(
+                    ConnectAccountRequest(
+                        account_id=str(orm_account.id),
+                        oauth_tokens=account.oauth_tokens,
+                    )
+                )
+                if connect_response.is_connected:
+                    orm_account.is_connected = True
+                    if connect_response.balance is not None:
+                        orm_account.balance = float(connect_response.balance)
+                    if connect_response.equity is not None:
+                        orm_account.equity = float(connect_response.equity)
+            except Exception as exc:
+                logger.warning(
+                    "Auto-connect failed for account %s (broker=%s): %s",
+                    orm_account.id,
+                    orm_account.broker.value if hasattr(orm_account.broker, "value") else orm_account.broker,
+                    exc,
+                )
+
         db.commit()
-        
+
         return {
             "id": orm_account.id,
             "account_id": orm_account.account_number,

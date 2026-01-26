@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { WebhookEndpointCard } from '@/components/webhooks/webhook-endpoint-card';
 import { IntegrationInstructions } from '@/components/webhooks/integration-instructions';
 import { WebhookEndpoint } from '@/types/webhook';
-import { WebhookConfig } from '@/types/routing';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CopyButton } from '@/components/ui/copy-button';
@@ -62,7 +61,6 @@ const WEBHOOK_ENDPOINTS: WebhookEndpoint[] = [
 ];
 
 export default function WebhooksPage() {
-  const [configs, setConfigs] = useState<WebhookConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [baseUrl, setBaseUrl] = useState('');
@@ -109,8 +107,7 @@ export default function WebhooksPage() {
         setError(data.error);
         return;
       }
-
-      setConfigs(Array.isArray(data) ? data : []);
+      // Data fetched successfully - used for error checking above
     } catch (err) {
       console.error('Failed to load webhook configs:', err);
       setError('Unable to connect to server. Please check your connection and try again.');
@@ -132,14 +129,6 @@ export default function WebhooksPage() {
     }
 
     return `${baseUrl}${url}`;
-  };
-
-  const isConfigured = (source: string): boolean => {
-    return configs.some((c) => c.source === source && c.is_active);
-  };
-
-  const getConfigForSource = (source: string): WebhookConfig | undefined => {
-    return configs.find((c) => c.source === source && c.is_active);
   };
 
   // Use webhook key from user profile (same source as dashboard) for consistency
@@ -214,7 +203,7 @@ export default function WebhooksPage() {
           <AlertTitle>Error Loading Data</AlertTitle>
           <AlertDescription className="flex items-center justify-between">
             <span>{error}</span>
-            <Button variant="outline" size="sm" onClick={fetchConfigs} className="ml-4">
+            <Button variant="outline" size="sm" onClick={() => fetchConfigs()} className="ml-4">
               <RefreshCw className="h-4 w-4 mr-2" />
               Retry
             </Button>

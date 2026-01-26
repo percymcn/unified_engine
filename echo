@@ -1,0 +1,16 @@
+Running pytest release suite...
+found
+
+  tip: to pass '-m' as a value, use '-- -m'
+
+Usage: tee [OPTION]... [FILE]...
+
+For more information, try '--help'.
+Running pytest release suite...
+error: unexpected argument '-m' found
+
+  tip: to pass '-m' as a value, use '-- -m'
+
+Usage: tee [OPTION]... [FILE]...
+
+For more information, try '--help'.

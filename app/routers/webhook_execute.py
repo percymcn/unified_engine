@@ -2,7 +2,7 @@
 Webhook Execute Endpoint - TradingView Alert Execution
 
 Standardized endpoint for immediate trade execution from TradingView alerts.
-Single JSON payload with webhook_key for account identification.
+Supports multi-account routing with configurable strategies.
 
 Payload format:
 {
@@ -13,24 +13,32 @@ Payload format:
     "sl": 1.0800,                             // Optional stop loss
     "tp": 1.0900,                             // Optional take profit
     "timestamp": "2026-01-25T10:00:00Z",      // Optional for staleness check
-    "strategy_id": "my_strategy",             // Optional
-    "comment": "TV alert"                     // Optional
+    "strategy_id": "my_strategy",             // Optional (used for rules_based routing)
+    "comment": "TV alert",                    // Optional
+    "target_account_ids": [1, 2, 3]           // Optional: override routing to specific accounts
 }
+
+Routing Strategies (configured in WebhookConfig):
+- direct_account_key: Webhook key matches a single account's webhook_key
+- all_accounts: Route to all signal-enabled accounts for the user
+- specific_accounts: Route to accounts in specific_account_ids list
+- rules_based: Apply routing_rules by symbol/strategy
+- default_only: Route only to default_account_id
 """
 import logging
 import uuid
 import json
-import hashlib
+import asyncio
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 
 from fastapi import APIRouter, Request, HTTPException, status, Depends
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 
 from app.db.database import get_db
-from app.models.models import WebhookLog, ExecutionLog, BrokerType as ModelsBrokerType
+from app.models.models import WebhookLog, ExecutionLog, BrokerType as ModelsBrokerType, Signal as SignalORM, SignalSource as ModelsSignalSource
 from app.models.database_models import TradingAccount, DiscardBin, WebhookConfig
 from app.models.schemas import WebhookLogCreate
 from app.dependencies import get_container
@@ -39,6 +47,7 @@ from app.domain.enums import SignalSource, SignalAction
 from app.services.signal_intelligence_guard import SignalIntelligenceGuard, GuardDecision
 from app.domain.entities.signal import Signal
 from app.domain.value_objects import SignalId, Symbol, Volume, Price, StopLoss, TakeProfit, AccountId
+from app.domain.services.account_routing_service import AccountRoutingService
 
 logger = logging.getLogger(__name__)
 
@@ -56,14 +65,32 @@ class TradingViewPayload(BaseModel):
     timestamp: Optional[str] = Field(None, description="Signal timestamp for staleness check")
     strategy_id: Optional[str] = Field(None, description="Strategy identifier")
     comment: Optional[str] = Field(None, description="Trade comment")
+    target_account_ids: Optional[List[int]] = Field(None, description="Override routing to specific accounts")
+
+
+class AccountExecutionResult(BaseModel):
+    """Result for a single account execution"""
+    account_id: int
+    broker: str
+    success: bool
+    status: str
+    error: Optional[str] = None
+    execution_id: Optional[str] = None
 
 
 class ExecuteResponse(BaseModel):
-    """Standard execution response"""
+    """Standard execution response with multi-account support"""
     success: bool
     signal_id: str
-    status: str  # executed, rejected, paused, failed
+    status: str  # executed, partial, rejected, paused, failed
     webhook_id: str
+    routing_strategy: str = "default_only"
+    routing_reason: Optional[str] = None
+    total_accounts: int = 0
+    successful_accounts: int = 0
+    failed_accounts: int = 0
+    account_results: List[AccountExecutionResult] = []
+    # Legacy single-account fields for backwards compatibility
     account_id: Optional[int] = None
     broker: Optional[str] = None
     errors: list = []
@@ -155,45 +182,44 @@ async def execute_tradingview_signal(
     except Exception as e:
         logger.error(f"Failed to create webhook log: {e}")
 
-    # Lookup account by webhook_key (account-level keys)
-    account = db.query(TradingAccount).filter(
-        TradingAccount.webhook_key == webhook_key
-    ).first()
+    # === MULTI-ACCOUNT ROUTING ===
+    routing_service = AccountRoutingService(db)
+    strategy_id = raw_payload.get("strategy_id")
+    target_account_ids_override = raw_payload.get("target_account_ids")
 
-    # Fall back to primary webhook config keys (user-level keys)
-    if not account:
-        webhook_config = db.query(WebhookConfig).filter(
-            WebhookConfig.webhook_key == webhook_key,
-            WebhookConfig.is_active == True
-        ).first()
-        logger.info(
-            "Webhook execute fallback: webhook_config_found=%s webhook_key_prefix=%s",
-            bool(webhook_config),
-            webhook_key[:12] + "..." if len(webhook_key) > 12 else webhook_key
+    # If payload specifies target_account_ids, use them directly
+    if target_account_ids_override:
+        accounts = db.query(TradingAccount).filter(
+            TradingAccount.id.in_(target_account_ids_override),
+            TradingAccount.is_active == True
+        ).all()
+        routing_strategy = "payload_override"
+        routing_reason = f"Target accounts specified in payload: {target_account_ids_override}"
+        user_id = accounts[0].user_id if accounts else 0
+    else:
+        # Use routing service to resolve accounts
+        routing_decision = routing_service.resolve_accounts(
+            webhook_key=webhook_key,
+            symbol=symbol,
+            strategy_id=strategy_id,
+            action=action_str
         )
+        accounts = routing_decision.accounts
+        routing_strategy = routing_decision.strategy_used
+        routing_reason = routing_decision.reason
+        user_id = routing_decision.user_id
 
-        if webhook_config:
-            candidate_account_id = webhook_config.default_account_id
-            if not candidate_account_id and webhook_config.specific_account_ids:
-                candidate_account_id = webhook_config.specific_account_ids[0]
+    # Log routing decision
+    log_event(
+        "routing_decision",
+        webhook_id=webhook_id,
+        strategy=routing_strategy,
+        reason=routing_reason,
+        account_count=len(accounts),
+        account_ids=[a.id for a in accounts] if accounts else []
+    )
 
-            if candidate_account_id:
-                account = db.query(TradingAccount).filter(
-                    TradingAccount.id == candidate_account_id,
-                    TradingAccount.user_id == webhook_config.user_id
-                ).first()
-            else:
-                account = db.query(TradingAccount).filter(
-                    TradingAccount.user_id == webhook_config.user_id
-                ).order_by(TradingAccount.updated_at.desc()).first()
-
-            logger.info(
-                "Webhook execute resolved account: account_id=%s user_id=%s",
-                account.id if account else None,
-                webhook_config.user_id
-            )
-
-    if not account:
+    if not accounts:
         log_event(
             "webhook_rejected_invalid_key",
             webhook_id=webhook_id,
@@ -230,13 +256,14 @@ async def execute_tradingview_signal(
             detail="Invalid webhook_key. Signal not executed."
         )
 
-    # Account found - log context
+    # Accounts found - log context
     log_event(
-        "webhook_account_resolved",
+        "webhook_accounts_resolved",
         webhook_id=webhook_id,
-        account_id=account.id,
-        user_id=account.user_id,
-        broker=account.broker.value if hasattr(account.broker, 'value') else str(account.broker)
+        account_ids=[a.id for a in accounts],
+        user_id=user_id,
+        brokers=[a.broker.value if hasattr(a.broker, 'value') else str(a.broker) for a in accounts],
+        routing_strategy=routing_strategy
     )
 
     # Map action
@@ -251,9 +278,10 @@ async def execute_tradingview_signal(
     quantity = float(raw_payload.get("quantity", 0.01) or 0.01)
     sl_price = raw_payload.get("sl")
     tp_price = raw_payload.get("tp")
+    signal_uuid = str(uuid.uuid4())
 
     signal_entity = Signal(
-        id=SignalId(str(uuid.uuid4())),
+        id=SignalId(signal_uuid),
         source=SignalSource.TRADINGVIEW,
         symbol=Symbol(symbol),
         action=action,
@@ -261,7 +289,7 @@ async def execute_tradingview_signal(
         price=None,  # Market order
         stop_loss=StopLoss(Price(Decimal(str(sl_price)))) if sl_price else None,
         take_profit=TakeProfit(Price(Decimal(str(tp_price)))) if tp_price else None,
-        target_accounts=[AccountId(str(account.id))],
+        target_accounts=[AccountId(str(a.id)) for a in accounts],
         comment=raw_payload.get("comment"),
         strategy_id=raw_payload.get("strategy_id"),
         strategy_name=None,
@@ -271,28 +299,31 @@ async def execute_tradingview_signal(
     # === SIGNAL INTELLIGENCE GUARD ===
     guard = SignalIntelligenceGuard(db)
 
-    # Get open positions summary for exposure check
+    # Get open positions summary for ALL target accounts
     open_positions_summary = {}
     try:
         from app.models.models import Position
-        positions = db.query(Position).filter(
-            Position.account_id == account.id,
-            Position.status == "open"
-        ).all()
-        total_margin = sum(p.margin or 0.0 for p in positions) if positions else (account.margin or 0.0)
-        open_positions_summary[account.id] = {
-            "total_margin": total_margin,
-            "positions_count": len(positions) if positions else 0
-        }
+        for account in accounts:
+            positions = db.query(Position).filter(
+                Position.account_id == account.id,
+                Position.status == "open"
+            ).all()
+            total_margin = sum(p.margin or 0.0 for p in positions) if positions else (account.margin or 0.0)
+            open_positions_summary[account.id] = {
+                "total_margin": total_margin,
+                "positions_count": len(positions) if positions else 0
+            }
     except Exception as e:
         logger.debug(f"Could not query positions: {e}")
-        open_positions_summary[account.id] = {"total_margin": account.margin or 0.0, "positions_count": 0}
+        for account in accounts:
+            open_positions_summary[account.id] = {"total_margin": account.margin or 0.0, "positions_count": 0}
 
-    # Evaluate guard
+    # Evaluate guard (using first account for user context)
+    first_account = accounts[0]
     guard_result = await guard.evaluate(
         signal=signal_entity,
-        user_id=account.user_id,
-        account_ids=[account.id],
+        user_id=first_account.user_id,
+        account_ids=[a.id for a in accounts],
         open_positions_summary=open_positions_summary
     )
 
@@ -301,7 +332,7 @@ async def execute_tradingview_signal(
         "guard_decision",
         webhook_id=webhook_id,
         signal_id=signal_entity.id.value,
-        account_id=account.id,
+        account_ids=[a.id for a in accounts],
         decision=guard_result.decision.value,
         annotations=guard_result.annotations
     )
@@ -324,8 +355,11 @@ async def execute_tradingview_signal(
             signal_id=signal_entity.id.value,
             status="rejected",
             webhook_id=webhook_id,
-            account_id=account.id,
-            broker=account.broker.value if hasattr(account.broker, 'value') else str(account.broker),
+            routing_strategy=routing_strategy,
+            routing_reason=routing_reason,
+            total_accounts=len(accounts),
+            account_id=first_account.id,
+            broker=first_account.broker.value if hasattr(first_account.broker, 'value') else str(first_account.broker),
             guard_decision="skip",
             guard_reason=guard_result.annotations.get("discard_reason", "guard_rejected"),
             processing_time_ms=processing_time_ms
@@ -336,19 +370,56 @@ async def execute_tradingview_signal(
         try:
             webhook_log.processed = False
             webhook_log.response_status = 202
-            webhook_log.response_body = json.dumps({"status": "awaiting_confirmation"})
+            webhook_log.response_body = json.dumps({"status": "pending_confirmation"})
             webhook_log.processing_time_ms = processing_time_ms
             db.commit()
         except:
             pass
 
+        # Persist signal for UI confirmation flow
+        try:
+            existing_signal = db.query(SignalORM).filter(
+                SignalORM.signal_id == signal_entity.id.value
+            ).first()
+            if not existing_signal:
+                db_signal = SignalORM(
+                    signal_id=signal_entity.id.value,
+                    user_id=first_account.user_id,
+                    source=ModelsSignalSource.TRADINGVIEW,
+                    symbol=symbol,
+                    action=action_str,
+                    volume=float(quantity),
+                    price=None,
+                    stop_loss=float(sl_price) if sl_price else None,
+                    take_profit=float(tp_price) if tp_price else None,
+                    comment=raw_payload.get("comment"),
+                    status="pending_confirmation",
+                    target_accounts=[a.id for a in accounts],
+                    raw_payload=raw_payload,
+                    signal_data={
+                        "guard_decision": "warn",
+                        "guard_reason": guard_result.annotations.get("history_tag", "momentum_warning"),
+                        "annotations": guard_result.annotations,
+                        "modal_data": guard_result.modal_data,
+                        "routing_strategy": routing_strategy,
+                    },
+                    strategy_id=raw_payload.get("strategy_id"),
+                )
+                db.add(db_signal)
+                db.commit()
+        except Exception as e:
+            logger.warning(f"Failed to persist pending confirmation signal: {e}")
+
         return ExecuteResponse(
             success=False,
             signal_id=signal_entity.id.value,
-            status="awaiting_confirmation",
+            status="pending_confirmation",
             webhook_id=webhook_id,
-            account_id=account.id,
-            broker=account.broker.value if hasattr(account.broker, 'value') else str(account.broker),
+            routing_strategy=routing_strategy,
+            routing_reason=routing_reason,
+            total_accounts=len(accounts),
+            account_id=first_account.id,
+            broker=first_account.broker.value if hasattr(first_account.broker, 'value') else str(first_account.broker),
             guard_decision="warn",
             guard_reason=guard_result.annotations.get("history_tag", "momentum_warning"),
             modal_data=guard_result.modal_data,
@@ -371,144 +442,197 @@ async def execute_tradingview_signal(
                 signal_id=signal_entity.id.value,
                 status="paused",
                 webhook_id=webhook_id,
-                account_id=account.id,
-                broker=account.broker.value if hasattr(account.broker, 'value') else str(account.broker),
+                routing_strategy=routing_strategy,
+                routing_reason=routing_reason,
+                total_accounts=len(accounts),
+                account_id=first_account.id,
+                broker=first_account.broker.value if hasattr(first_account.broker, 'value') else str(first_account.broker),
                 guard_decision="pause",
                 guard_reason=guard_result.annotations.get("history_tag", "paused_new_entries"),
                 modal_data=guard_result.modal_data,
                 processing_time_ms=processing_time_ms
             )
 
-    # === EXECUTE ===
-    # Guard passed - execute the signal
-    try:
-        # Build command for use case - pass same UUID as signal_entity for FK consistency
-        command = ProcessSignalRequest(
-            source=SignalSource.TRADINGVIEW,
-            symbol=symbol,
-            action=action,
-            volume=Decimal(str(quantity)),
-            price=None,
-            stop_loss=Decimal(str(sl_price)) if sl_price else None,
-            take_profit=Decimal(str(tp_price)) if tp_price else None,
-            target_account_ids=[str(account.id)],
-            comment=raw_payload.get("comment"),
-            strategy_id=raw_payload.get("strategy_id"),
-            strategy_name=None,
-            raw_payload=raw_payload,
-            signal_id=signal_entity.id.value,  # Use same UUID for FK consistency
-        )
+    # === EXECUTE ON ALL TARGET ACCOUNTS ===
+    # Guard passed - execute the signal on all routed accounts
+    account_results: List[AccountExecutionResult] = []
+    all_errors: List[str] = []
+    successful_count = 0
+    failed_count = 0
 
-        # Execute via container's use case
-        container = get_container(request)
-        use_case = container.process_signal_use_case()
-        use_case_result = await use_case.execute(command)
+    container = get_container(request)
+    use_case = container.process_signal_use_case()
 
-        execution_success = use_case_result.status.value not in ["failed", "rejected"]
+    for account in accounts:
+        account_start = datetime.utcnow()
+        broker_str = account.broker.value if hasattr(account.broker, 'value') else str(account.broker)
 
-        # Log execution result
-        log_event(
-            "execution_result",
-            webhook_id=webhook_id,
-            signal_id=use_case_result.signal_id,
-            account_id=account.id,
-            success=execution_success,
-            status=use_case_result.status.value,
-            executions=use_case_result.executions,
-            errors=use_case_result.errors
-        )
-
-        # Persist execution log
         try:
-            # Convert broker to the models.BrokerType enum (for ExecutionLog)
-            broker_str = account.broker.value if hasattr(account.broker, 'value') else str(account.broker).lower()
-            models_broker = ModelsBrokerType(broker_str)
-
-            exec_log = ExecutionLog(
-                signal_id=signal_entity.id.value,  # Use original UUID for FK to signals.signal_id
-                account_id=account.id,
-                broker=models_broker,
-                action=action_str.upper(),
+            # Build command for this account
+            command = ProcessSignalRequest(
+                source=SignalSource.TRADINGVIEW,
                 symbol=symbol,
-                volume=quantity,
+                action=action,
+                volume=Decimal(str(quantity)),
                 price=None,
-                status="success" if execution_success else "failed",
-                broker_response={"executions": use_case_result.executions} if execution_success else None,
-                error_message="; ".join(use_case_result.errors) if use_case_result.errors else None,
-                execution_time_ms=int((datetime.utcnow() - start_time).total_seconds() * 1000)
+                stop_loss=Decimal(str(sl_price)) if sl_price else None,
+                take_profit=Decimal(str(tp_price)) if tp_price else None,
+                target_account_ids=[str(account.id)],
+                comment=raw_payload.get("comment"),
+                strategy_id=raw_payload.get("strategy_id"),
+                strategy_name=None,
+                raw_payload=raw_payload,
+                signal_id=signal_uuid,  # Use same signal UUID for all accounts
             )
-            db.add(exec_log)
-            db.commit()
-        except Exception as e:
-            logger.error(f"Failed to persist execution log: {e}")
-            db.rollback()
 
-        processing_time_ms = int((datetime.utcnow() - start_time).total_seconds() * 1000)
+            # Execute
+            use_case_result = await use_case.execute(command)
+            execution_success = use_case_result.status.value not in ["failed", "rejected"]
 
-        # Update webhook log
-        try:
-            webhook_log.processed = execution_success
-            webhook_log.response_status = 200
-            webhook_log.processing_time_ms = processing_time_ms
-            db.commit()
-        except:
-            pass
-
-        return ExecuteResponse(
-            success=execution_success,
-            signal_id=use_case_result.signal_id or signal_entity.id.value,
-            status="executed" if execution_success else "failed",
-            webhook_id=webhook_id,
-            account_id=account.id,
-            broker=account.broker.value if hasattr(account.broker, 'value') else str(account.broker),
-            errors=use_case_result.errors,
-            guard_decision="execute",
-            processing_time_ms=processing_time_ms
-        )
-
-    except Exception as e:
-        logger.exception(f"Execution error: {e}")
-
-        log_event(
-            "execution_failed",
-            webhook_id=webhook_id,
-            signal_id=signal_entity.id.value,
-            account_id=account.id,
-            error=str(e)
-        )
-
-        # Persist failed execution log
-        try:
-            db.rollback()  # Clear any pending transaction
-            broker_str = account.broker.value if hasattr(account.broker, 'value') else str(account.broker).lower()
-            models_broker = ModelsBrokerType(broker_str)
-
-            exec_log = ExecutionLog(
-                signal_id=signal_entity.id.value,
+            # Log execution result
+            log_event(
+                "account_execution_result",
+                webhook_id=webhook_id,
+                signal_id=signal_uuid,
                 account_id=account.id,
-                broker=models_broker,
-                action=action_str.upper(),
-                symbol=symbol,
-                volume=quantity,
-                status="failed",
-                error_message=str(e),
-                execution_time_ms=int((datetime.utcnow() - start_time).total_seconds() * 1000)
+                broker=broker_str,
+                success=execution_success,
+                status=use_case_result.status.value,
+                executions=use_case_result.executions,
+                errors=use_case_result.errors
             )
-            db.add(exec_log)
-            db.commit()
-        except Exception as log_err:
-            logger.error(f"Failed to persist error log: {log_err}")
-            db.rollback()
 
-        processing_time_ms = int((datetime.utcnow() - start_time).total_seconds() * 1000)
+            # Persist execution log for this account
+            try:
+                models_broker = ModelsBrokerType(broker_str.lower())
+                exec_log = ExecutionLog(
+                    signal_id=signal_uuid,
+                    account_id=account.id,
+                    broker=models_broker,
+                    action=action_str.upper(),
+                    symbol=symbol,
+                    volume=quantity,
+                    price=None,
+                    status="success" if execution_success else "failed",
+                    broker_response={"executions": use_case_result.executions} if execution_success else None,
+                    error_message="; ".join(use_case_result.errors) if use_case_result.errors else None,
+                    execution_time_ms=int((datetime.utcnow() - account_start).total_seconds() * 1000)
+                )
+                db.add(exec_log)
+                db.commit()
+            except Exception as e:
+                logger.error(f"Failed to persist execution log for account {account.id}: {e}")
+                db.rollback()
 
-        return ExecuteResponse(
-            success=False,
-            signal_id=signal_entity.id.value,
-            status="failed",
-            webhook_id=webhook_id,
-            account_id=account.id,
-            broker=account.broker.value if hasattr(account.broker, 'value') else str(account.broker),
-            errors=[str(e)],
-            processing_time_ms=processing_time_ms
-        )
+            if execution_success:
+                successful_count += 1
+                account_results.append(AccountExecutionResult(
+                    account_id=account.id,
+                    broker=broker_str,
+                    success=True,
+                    status="executed",
+                    execution_id=use_case_result.signal_id
+                ))
+            else:
+                failed_count += 1
+                error_msg = "; ".join(use_case_result.errors) if use_case_result.errors else "Unknown error"
+                all_errors.append(f"Account {account.id}: {error_msg}")
+                account_results.append(AccountExecutionResult(
+                    account_id=account.id,
+                    broker=broker_str,
+                    success=False,
+                    status="failed",
+                    error=error_msg
+                ))
+
+        except Exception as e:
+            logger.exception(f"Execution error for account {account.id}: {e}")
+            failed_count += 1
+            error_msg = str(e)
+            all_errors.append(f"Account {account.id}: {error_msg}")
+
+            # Persist failed execution log
+            try:
+                db.rollback()
+                models_broker = ModelsBrokerType(broker_str.lower())
+                exec_log = ExecutionLog(
+                    signal_id=signal_uuid,
+                    account_id=account.id,
+                    broker=models_broker,
+                    action=action_str.upper(),
+                    symbol=symbol,
+                    volume=quantity,
+                    status="failed",
+                    error_message=error_msg,
+                    execution_time_ms=int((datetime.utcnow() - account_start).total_seconds() * 1000)
+                )
+                db.add(exec_log)
+                db.commit()
+            except Exception as log_err:
+                logger.error(f"Failed to persist error log: {log_err}")
+                db.rollback()
+
+            account_results.append(AccountExecutionResult(
+                account_id=account.id,
+                broker=broker_str,
+                success=False,
+                status="failed",
+                error=error_msg
+            ))
+
+    # Determine overall status
+    processing_time_ms = int((datetime.utcnow() - start_time).total_seconds() * 1000)
+
+    if successful_count == len(accounts):
+        overall_status = "executed"
+        overall_success = True
+    elif successful_count > 0:
+        overall_status = "partial"
+        overall_success = True  # At least one succeeded
+    else:
+        overall_status = "failed"
+        overall_success = False
+
+    # Update webhook log
+    try:
+        webhook_log.processed = overall_success
+        webhook_log.response_status = 200
+        webhook_log.processing_time_ms = processing_time_ms
+        webhook_log.response_body = json.dumps({
+            "total_accounts": len(accounts),
+            "successful": successful_count,
+            "failed": failed_count
+        })
+        db.commit()
+    except:
+        pass
+
+    # Log overall result
+    log_event(
+        "multi_account_execution_complete",
+        webhook_id=webhook_id,
+        signal_id=signal_uuid,
+        total_accounts=len(accounts),
+        successful=successful_count,
+        failed=failed_count,
+        routing_strategy=routing_strategy
+    )
+
+    return ExecuteResponse(
+        success=overall_success,
+        signal_id=signal_uuid,
+        status=overall_status,
+        webhook_id=webhook_id,
+        routing_strategy=routing_strategy,
+        routing_reason=routing_reason,
+        total_accounts=len(accounts),
+        successful_accounts=successful_count,
+        failed_accounts=failed_count,
+        account_results=account_results,
+        # Legacy single-account fields (first account)
+        account_id=first_account.id,
+        broker=first_account.broker.value if hasattr(first_account.broker, 'value') else str(first_account.broker),
+        errors=all_errors,
+        guard_decision="execute",
+        processing_time_ms=processing_time_ms
+    )

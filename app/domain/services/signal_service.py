@@ -78,13 +78,25 @@ class SignalService:
             for account in accounts:
                 try:
                     result = await self._execute_on_account(signal, account)
-                    execution_results.append(result)
+                    execution_results.append({
+                        "account_id": str(account.id.value),
+                        "broker": account.broker.value if hasattr(account.broker, 'value') else str(account.broker),
+                        "success": bool(result.get("success")),
+                        "error": result.get("error"),
+                        "order_id": result.get("order_id"),
+                    })
                 except Exception as e:
                     logger.error(f"Failed to execute signal on account {account.id.value}: {e}")
-                    execution_results.append({"success": False, "error": str(e)})
+                    execution_results.append({
+                        "account_id": str(account.id.value),
+                        "broker": account.broker.value if hasattr(account.broker, 'value') else str(account.broker),
+                        "success": False,
+                        "error": str(e),
+                    })
 
             # Update signal status based on results
             successes = [r for r in execution_results if r.get("success")]
+            signal.execution_details = execution_results
             if successes:
                 signal.mark_processed()
                 await self._events.publish(DomainEvent.create(

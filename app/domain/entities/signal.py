@@ -7,7 +7,7 @@ state transitions, and processing lifecycle.
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from decimal import Decimal
 
 from app.domain.enums import SignalSource, SignalAction, SignalStatus
@@ -40,6 +40,7 @@ class Signal:
     created_at: datetime = field(default_factory=datetime.utcnow)
     processed_at: Optional[datetime] = None
     error_message: Optional[str] = None
+    execution_details: List[Dict[str, Any]] = field(default_factory=list)
 
     def __post_init__(self):
         self.validate()

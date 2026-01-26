@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Activity, Clock, ArrowRight, RefreshCw, Sparkles } from "lucide-react";
@@ -59,7 +59,6 @@ export function RecentExecutionsWidget() {
   const [isPolling, setIsPolling] = useState(false);
   const [newIds, setNewIds] = useState<Set<number>>(new Set());
   const [showSparkle, setShowSparkle] = useState(false);
-  const lastSuccessCount = useRef(0);
 
   const fetchExecutions = useCallback(async (isInitial = false) => {
     try {

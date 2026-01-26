@@ -7,6 +7,7 @@ No real database or broker connections.
 from typing import Dict, List, Optional
 from datetime import datetime
 from decimal import Decimal
+from types import SimpleNamespace
 
 from app.domain.entities.signal import Signal
 from app.domain.entities.trade import Trade
@@ -30,6 +31,13 @@ from app.domain.ports.event_port import EventPort, DomainEvent
 
 
 # Reuse mock implementations from domain tests
+class BrokerAccountInfo(SimpleNamespace):
+    """Helper structure that mimics broker account info and supports .get() access."""
+
+    def get(self, key, default=None):
+        return getattr(self, key, default)
+
+
 class InMemorySignalRepository(SignalRepository):
     """In-memory signal repository for testing"""
 
@@ -188,20 +196,19 @@ class MockBrokerPort(BrokerPort):
     async def authenticate(self, credentials: Dict) -> bool:
         return True
 
-    async def get_account_info(self) -> Dict:
-        return {
-            "balance": 10000.0,
-            "equity": 10000.0,
-            "margin": 0.0,
-            "free_margin": 10000.0,
-            "leverage": 100,
-            "currency": "USD",
-        }
+    async def get_account_info(self, account_id: str = None) -> BrokerAccountInfo:
+        return BrokerAccountInfo(
+            balance=10000.0,
+            equity=10000.0,
+            margin=0.0,
+            leverage=100,
+            currency="USD",
+        )
 
-    async def get_positions(self) -> List[Position]:
+    async def get_positions(self, account_id: str = None) -> List[Position]:
         return self._positions
 
-    async def get_orders(self) -> List[Order]:
+    async def get_orders(self, account_id: str = None) -> List[Order]:
         return self._orders
 
     async def place_order(

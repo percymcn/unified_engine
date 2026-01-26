@@ -111,14 +111,14 @@ export const TRADELOCKER_SCHEMA: BrokerCredentialSchema = {
   optionalFields: [
     {
       name: 'environment',
-      backendName: 'environment',
+      backendName: 'sdk_environment',
       required: false,
       type: 'select',
       label: 'Environment',
-      description: 'Trading environment',
+      description: 'Trading environment (determines API URL)',
       options: [
-        { value: 'demo', label: 'Demo' },
-        { value: 'live', label: 'Live' },
+        { value: 'https://demo.tradelocker.com', label: 'Demo' },
+        { value: 'https://live.tradelocker.com', label: 'Live' },
       ],
       storageLocation: 'credentials',
       storageColumn: 'encrypted_data',
@@ -126,7 +126,7 @@ export const TRADELOCKER_SCHEMA: BrokerCredentialSchema = {
   ],
   testConnectionEndpoint: '/api/v1/accounts/test-connection',
   createAccountEndpoint: '/api/v1/accounts/',
-  notes: 'Provide username, password, and server for SDK authentication.',
+  notes: 'Provide username, password, and server for SDK authentication. Environment defaults to Demo if not specified.',
 };
 
 /**
@@ -223,7 +223,17 @@ export const TRADOVATE_SCHEMA: BrokerCredentialSchema = {
       required: false,
       type: 'string',
       label: 'App ID',
-      description: 'Tradovate application ID (optional)',
+      description: 'Tradovate application ID (for password auth)',
+      storageLocation: 'credentials',
+      storageColumn: 'encrypted_data',
+    },
+    {
+      name: 'appVersion',
+      backendName: 'app_version',
+      required: false,
+      type: 'string',
+      label: 'App Version',
+      description: 'Tradovate application version (for password auth)',
       storageLocation: 'credentials',
       storageColumn: 'encrypted_data',
     },

@@ -103,7 +103,9 @@ class MT4Adapter(BrokerPort):
         """Check if MT4 connection is active"""
         if self._executor is None:
             return False
-        return self._executor.is_connected()
+        # Handle both attribute (bool) and method cases for is_connected
+        ic = self._executor.is_connected
+        return ic() if callable(ic) else ic
 
     async def authenticate(self, credentials: Dict[str, Any]) -> bool:
         """

@@ -23,8 +23,8 @@ export async function GET() {
     // Transform backend response to match UI expectations
     const brokers: Record<string, boolean> = {};
     if (data.brokers) {
-      Object.entries(data.brokers).forEach(([broker, status]: [string, any]) => {
-        brokers[broker] = status.connected || false;
+      Object.entries(data.brokers).forEach(([broker, status]) => {
+        brokers[broker] = (status as { connected?: boolean })?.connected || false;
       });
     }
 

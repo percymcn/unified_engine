@@ -85,6 +85,12 @@ export function AccountList() {
   const [processingOAuth, setProcessingOAuth] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [accountToDelete, setAccountToDelete] = useState<Account | null>(null);
+  const [selectedGroup, setSelectedGroup] = useState<number | 'ungrouped' | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [editingAccount, setEditingAccount] = useState<Account | undefined>(undefined);
+  const [deletingAccount, setDeletingAccount] = useState<Account | undefined>(undefined);
+  const [deleting, setDeleting] = useState(false);
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -518,7 +524,7 @@ export function AccountList() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Account</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete the "{accountToDelete?.broker}" account "{accountToDelete?.account_id}"? 
+              Are you sure you want to delete the &quot;{accountToDelete?.broker}&quot; account &quot;{accountToDelete?.account_id}&quot;? 
               This action cannot be undone and will remove all associated data.
             </AlertDialogDescription>
           </AlertDialogHeader>

@@ -9,7 +9,7 @@ import json
 import logging
 
 from app.db.database import get_db
-from app.models.models import WebhookLog, User, Position
+from app.models.models import WebhookLog, User, Position, Signal as SignalORM, SignalSource as ModelsSignalSource
 from app.models.database_models import WebhookConfig, TradingAccount, RejectedSignal, RejectedSignalReason
 from app.models.schemas import WebhookLog as WebhookLogSchema, WebhookLogCreate
 from app.routers.auth import get_current_user
@@ -33,6 +33,66 @@ from app.infrastructure.adapters.position_counter_adapter import PositionCounter
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+def _persist_pending_guard_signal(
+    db: Session,
+    signal_id: str,
+    user_id: Optional[int],
+    symbol: str,
+    action: str,
+    volume,
+    stop_loss,
+    take_profit,
+    payload: Dict[str, Any],
+    guard_response: Dict[str, Any],
+    target_accounts: Optional[List[int]],
+    strategy_info: Dict[str, Any],
+) -> None:
+    """Persist guard warning signals for pending confirmation"""
+    if not signal_id or not user_id:
+        return
+
+    guard_data = {
+        "guard_decision": guard_response.get("guard_decision", "warn"),
+        "guard_reason": guard_response.get("guard_reason"),
+        "reason_detail": guard_response.get("reason_detail"),
+        "warning_type": guard_response.get("warning_type"),
+        "guard_rule": guard_response.get("guard_rule"),
+        "message": guard_response.get("message"),
+        "annotations": guard_response.get("annotations"),
+        "modal_data": guard_response.get("modal_data"),
+    }
+
+    try:
+        existing_signal = db.query(SignalORM).filter(SignalORM.signal_id == signal_id).first()
+        if existing_signal:
+            return
+
+        action_value = action.upper() if isinstance(action, str) else getattr(action, "value", str(action))
+        signal_record = SignalORM(
+            signal_id=signal_id,
+            user_id=user_id,
+            source=ModelsSignalSource.TRADINGVIEW,
+            symbol=symbol,
+            action=action_value,
+            volume=float(volume) if volume is not None else None,
+            price=None,
+            stop_loss=float(stop_loss) if stop_loss is not None else None,
+            take_profit=float(take_profit) if take_profit is not None else None,
+            comment=payload.get("comment"),
+            status="pending_confirmation",
+            target_accounts=target_accounts or [],
+            raw_payload=payload,
+            signal_data=guard_data,
+            strategy_id=strategy_info.get("strategy_id"),
+            strategy_version=strategy_info.get("strategy_version"),
+            strategy_name=strategy_info.get("strategy_name"),
+        )
+        db.add(signal_record)
+        db.commit()
+    except Exception as exc:
+        logger.warning(f"Failed to persist pending guard signal {signal_id}: {exc}")
 
 
 # Helper function for guard layer evaluation (shared across all webhook endpoints)
@@ -142,14 +202,22 @@ async def evaluate_guard_layer(
             }
 
         elif guard_result.decision == GuardDecision.WARN_MODAL_REQUIRED:
+            guard_reason = guard_result.annotations.get("history_tag", "momentum_warning")
             return {
                 "success": False,
                 "webhook_id": webhook_id,
-                "status": "warning_required",
+                "status": "pending_confirmation",
                 "modal_required": True,
                 "modal_data": guard_result.modal_data,
                 "annotations": guard_result.annotations,
+                "guard_decision": "warn",
+                "guard_reason": guard_reason,
+                "reason_detail": guard_result.annotations.get("reason_detail"),
+                "warning_type": guard_result.annotations.get("warning_type"),
+                "guard_rule": guard_result.annotations.get("guard_rule"),
+                "message": guard_result.annotations.get("message"),
                 "processing_time_ms": processing_time_ms,
+                "signal_id": signal_entity.id.value,
             }
 
         # Guard passed - return None to continue execution
@@ -248,11 +316,20 @@ async def tradingview_webhook(request: Request, db: Session = Depends(get_db)):
         strategy_info = {}
         if "strategy" in payload:
             strategy_obj = payload["strategy"]
-            strategy_info = {
-                "strategy_id": strategy_obj.get("id", payload.get("strategy_id", "unknown")),
-                "strategy_version": strategy_obj.get("version", payload.get("strategy_version", "1.0.0")),
-                "strategy_name": strategy_obj.get("name", payload.get("strategy_name", "Unknown Strategy"))
-            }
+            # Handle both string and object formats for strategy
+            if isinstance(strategy_obj, dict):
+                strategy_info = {
+                    "strategy_id": strategy_obj.get("id", payload.get("strategy_id", "unknown")),
+                    "strategy_version": strategy_obj.get("version", payload.get("strategy_version", "1.0.0")),
+                    "strategy_name": strategy_obj.get("name", payload.get("strategy_name", "Unknown Strategy"))
+                }
+            else:
+                # strategy is a string (simple strategy name)
+                strategy_info = {
+                    "strategy_id": str(strategy_obj),
+                    "strategy_version": payload.get("strategy_version", "1.0.0"),
+                    "strategy_name": str(strategy_obj)
+                }
         elif "strategy_id" in payload:
             strategy_info = {
                 "strategy_id": payload.get("strategy_id", "unknown"),
@@ -329,6 +406,23 @@ async def tradingview_webhook(request: Request, db: Session = Depends(get_db)):
         )
         
         if guard_response:
+            if guard_response.get("status") == "pending_confirmation":
+                signal_id = guard_response.get("signal_id") or str(uuid.uuid4())
+                guard_response["signal_id"] = signal_id
+                _persist_pending_guard_signal(
+                    db=db,
+                    signal_id=signal_id,
+                    user_id=user_id,
+                    symbol=symbol,
+                    action=action_str,
+                    volume=command.volume,
+                    stop_loss=command.stop_loss,
+                    take_profit=command.take_profit,
+                    payload=payload,
+                    guard_response=guard_response,
+                    target_accounts=account_ids,
+                    strategy_info=strategy_info,
+                )
             # Guard blocked/paused/warned - return early
             db_webhook.processed = False
             db_webhook.response_status = 200

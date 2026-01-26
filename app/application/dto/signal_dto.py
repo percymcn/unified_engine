@@ -2,7 +2,7 @@
 Signal DTOs - Input/Output contracts for signal use cases.
 """
 from dataclasses import dataclass, field
-from typing import Optional, List
+from typing import Optional, List, Dict
 from decimal import Decimal
 from datetime import datetime
 
@@ -43,6 +43,7 @@ class ProcessSignalResponse:
     executions: int = 0
     errors: List[str] = field(default_factory=list)
     processed_at: Optional[datetime] = None
+    execution_details: List[Dict] = field(default_factory=list)
 
 
 @dataclass(frozen=True)

@@ -203,8 +203,9 @@ async def _test_broker_connection(broker_type: DBBrokerType, account: TradingAcc
                     executor._sdk_password = credentials.get("password")
                     executor._sdk_server = credentials.get("server")
                     # Normalize environment URL if provided, otherwise use executor's default
-                    if credentials.get("environment"):
-                        raw_env = credentials.get("environment").strip()
+                    # Accept both sdk_environment (new) and environment (legacy)
+                    if credentials.get("sdk_environment") or credentials.get("environment"):
+                        raw_env = (credentials.get("sdk_environment") or credentials.get("environment")).strip()
                         if not raw_env.startswith("http://") and not raw_env.startswith("https://"):
                             if raw_env.lower() in ("demo", "live"):
                                 raw_env = f"https://{raw_env.lower()}.tradelocker.com"

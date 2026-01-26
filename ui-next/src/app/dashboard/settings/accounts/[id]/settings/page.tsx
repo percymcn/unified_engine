@@ -89,7 +89,7 @@ export default function AccountSettingsPage() {
     }
 
     if (accountResponse.discovered_accounts_cache) {
-      setDiscoveredAccounts(accountResponse.discovered_accounts_cache as DiscoveredAccount[]);
+      setDiscoveredAccounts((accountResponse.discovered_accounts_cache as unknown) as DiscoveredAccount[]);
     } else {
       setDiscoveredAccounts([]);
     }
@@ -192,7 +192,7 @@ export default function AccountSettingsPage() {
       await updateAccount(account.id, {
         enabled_broker_account_ids: Array.from(selectedAccountIds),
         default_broker_account_id: defaultAccountId || undefined,
-        discovered_accounts_cache: discoveredAccounts,
+        discovered_accounts_cache: (discoveredAccounts as unknown) as Array<Record<string, unknown>>,
       });
       
       toast({
@@ -434,9 +434,9 @@ export default function AccountSettingsPage() {
                           )}
                         </div>
                         <div className="text-xs text-muted-foreground mt-1">
-                          {acc.meta?.currency || acc.currency || 'USD'} • 
-                          Balance: {(acc.meta?.balance || acc.balance || 0).toFixed(2)} • 
-                          Equity: {(acc.meta?.equity || acc.equity || 0).toFixed(2)}
+                          {String((acc.meta as Record<string, unknown>)?.currency ?? acc.currency ?? 'USD')} • 
+                          Balance: {Number(acc.meta?.balance || acc.balance || 0).toFixed(2)} • 
+                          Equity: {Number(acc.meta?.equity || acc.equity || 0).toFixed(2)}
                         </div>
                         {acc.account_number && acc.account_number !== accId && (
                           <div className="text-xs text-muted-foreground mt-1">
@@ -494,7 +494,7 @@ export default function AccountSettingsPage() {
           {discoveredAccounts.length === 0 && (
             <Alert>
               <AlertDescription>
-                No accounts discovered. Click "Refresh Accounts" to discover accounts from the broker.
+                No accounts discovered. Click &quot;Refresh Accounts&quot; to discover accounts from the broker.
               </AlertDescription>
             </Alert>
           )}

@@ -85,7 +85,9 @@ class TradeLockerAdapter(BrokerPort):
         """Check if TradeLocker connection is active"""
         if not self._executor:
             return False
-        return self._executor.is_connected()
+        # Handle both attribute (bool) and method cases for is_connected
+        ic = self._executor.is_connected
+        return ic() if callable(ic) else ic
 
     async def authenticate(self, credentials: Dict[str, Any]) -> bool:
         """

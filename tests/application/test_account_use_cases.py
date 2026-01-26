@@ -6,14 +6,21 @@ using mock port implementations.
 """
 import pytest
 from decimal import Decimal
+from unittest.mock import AsyncMock
 
-from app.domain.enums import BrokerType
+from app.domain.enums import BrokerType, AccountType
 from app.application.dto.account_dto import (
-    GetAccountsRequest, ConnectAccountRequest, SyncAccountRequest,
+    GetAccountsRequest,
+    ConnectAccountRequest,
+    SyncAccountRequest,
+    CreateAccountRequest,
 )
 from app.application.use_cases.manage_accounts import (
-    GetAccountsUseCase, GetAccountUseCase,
-    ConnectAccountUseCase, SyncAccountUseCase,
+    GetAccountsUseCase,
+    GetAccountUseCase,
+    ConnectAccountUseCase,
+    SyncAccountUseCase,
+    CreateAccountUseCase,
 )
 
 from tests.application import (
@@ -159,3 +166,40 @@ class TestSyncAccountUseCase:
         assert response.account_id == "test-account"
         assert response.balance is not None
         assert response.synced_at is not None
+
+
+class TestCreateAccountUseCase:
+    """Tests for CreateAccountUseCase ensuring persistence commits."""
+
+    @pytest.mark.asyncio
+    async def test_creating_account_commits_session(self):
+        saved_account = create_test_account(account_id="test-account", user_id=1)
+
+        mock_account_repo = AsyncMock()
+        mock_account_repo.save = AsyncMock(return_value=saved_account)
+        mock_account_repo._session = AsyncMock()
+        mock_account_repo._session.commit = AsyncMock()
+
+        mock_credential_repo = AsyncMock()
+        mock_credential_repo.create = AsyncMock()
+
+        use_case = CreateAccountUseCase(
+            account_repository=mock_account_repo,
+            credential_repository=mock_credential_repo,
+        )
+
+        request = CreateAccountRequest(
+            user_id=1,
+            broker=BrokerType.MT4,
+            account_type=AccountType.DEMO,
+            credentials={},
+            account_id="test-account",
+            currency="USD",
+            leverage=100,
+            server="test-account-server",
+        )
+
+        response = await use_case.execute(request)
+
+        mock_account_repo._session.commit.assert_awaited_once()
+        assert response.account_id == saved_account.id.value

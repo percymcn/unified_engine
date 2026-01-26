@@ -591,9 +591,9 @@ export function AccountForm({
                                     </span>
                                   </div>
                                   <div className="text-xs text-muted-foreground mt-1">
-                                    {acc.meta?.currency || acc.currency || 'USD'} • 
-                                    Balance: {(acc.meta?.balance || acc.balance || 0).toFixed(2)} • 
-                                    Equity: {(acc.meta?.equity || acc.equity || 0).toFixed(2)}
+                                    {String((acc.meta as Record<string, unknown>)?.currency ?? acc.currency ?? 'USD')} • 
+                                    Balance: {Number(acc.meta?.balance || acc.balance || 0).toFixed(2)} • 
+                                    Equity: {Number(acc.meta?.equity || acc.equity || 0).toFixed(2)}
                                   </div>
                                   {acc.account_number && acc.account_number !== accId && (
                                     <div className="text-xs text-muted-foreground mt-1">
@@ -757,9 +757,9 @@ export function AccountForm({
                                     </span>
                                   </div>
                                   <div className="text-xs text-muted-foreground mt-1">
-                                    {acc.meta?.currency || acc.currency || 'USD'} • 
-                                    Balance: {(acc.meta?.balance || acc.balance || 0).toFixed(2)} • 
-                                    Equity: {(acc.meta?.equity || acc.equity || 0).toFixed(2)}
+                                    {String((acc.meta as Record<string, unknown>)?.currency ?? acc.currency ?? 'USD')} • 
+                                    Balance: {Number(acc.meta?.balance || acc.balance || 0).toFixed(2)} • 
+                                    Equity: {Number(acc.meta?.equity || acc.equity || 0).toFixed(2)}
                                   </div>
                                   {acc.account_number && acc.account_number !== accId && (
                                     <div className="text-xs text-muted-foreground mt-1">

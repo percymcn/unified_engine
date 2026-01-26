@@ -105,8 +105,8 @@ async def _create_account_executor(account: TradingAccount, db: Session):
             executor._sdk_password = credentials.get("password")
             executor._sdk_server = credentials.get("server")
 
-            # Normalize environment URL
-            raw_env = credentials.get("environment", "https://demo.tradelocker.com")
+            # Normalize environment URL - accept both sdk_environment (new) and environment (legacy)
+            raw_env = credentials.get("sdk_environment") or credentials.get("environment", "https://demo.tradelocker.com")
             if raw_env and not raw_env.startswith("http"):
                 if raw_env.lower() in ("demo", "live"):
                     raw_env = f"https://{raw_env.lower()}.tradelocker.com"
@@ -185,7 +185,11 @@ class SignalProcessor:
                 if hasattr(broker, "is_available") and not broker.is_available:
                     logger.info(f"Skipping global init for {broker_name}: platform credentials not configured")
                     continue
-                success = await broker.initialize()
+                try:
+                    success = await asyncio.wait_for(broker.initialize(), timeout=5.0)
+                except asyncio.TimeoutError:
+                    logger.warning(f"Broker init timed out for {broker_name}, continuing without connection")
+                    continue
                 if success:
                     logger.info(f"Initialized {broker_name} broker")
                 else:

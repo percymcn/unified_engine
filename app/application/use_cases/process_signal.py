@@ -132,11 +132,13 @@ class ProcessSignalUseCase:
     def _to_response_dto(self, signal: Signal) -> ProcessSignalResponse:
         """Convert domain entity to response DTO"""
         errors = [signal.error_message] if signal.error_message else []
+        successes = [r for r in signal.execution_details if r.get("success")]
 
         return ProcessSignalResponse(
             signal_id=signal.id.value,
             status=signal.status,
-            executions=1 if signal.is_processed else 0,
+            executions=len(successes),
             errors=errors,
             processed_at=signal.processed_at,
+            execution_details=signal.execution_details,
         )

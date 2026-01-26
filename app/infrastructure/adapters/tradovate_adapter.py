@@ -100,7 +100,9 @@ class TradovateAdapter(BrokerPort):
 
     async def is_connected(self) -> bool:
         """Check if connected to Tradovate"""
-        return self._executor.is_connected()
+        # Handle both attribute (bool) and method cases for is_connected
+        ic = self._executor.is_connected
+        return ic() if callable(ic) else ic
 
     async def authenticate(self, credentials: Dict[str, Any]) -> bool:
         """

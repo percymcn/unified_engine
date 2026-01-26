@@ -8,7 +8,69 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, CheckCircle2, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
+import { Loader2, RefreshCw } from 'lucide-react';
+
+// Types for broker API responses
+interface BrokerBalance {
+  balance: number;
+  equity: number;
+  free_margin: number;
+  leverage: number;
+}
+
+interface BrokerPosition {
+  position_id: string;
+  symbol: string;
+  side: string;
+  size: number;
+  entry_price: number;
+  unrealized_pnl: number;
+  stop_loss?: number;
+  take_profit?: number;
+}
+
+interface BrokerOrder {
+  order_id: string;
+  symbol: string;
+  side: string;
+  order_type: string;
+  quantity: number;
+  price?: number;
+  status: string;
+}
+
+interface BrokerAccount {
+  account_id: string;
+  account_type: string;
+  balance: number;
+  equity: number;
+  currency: string;
+}
+
+interface BrokerHistoryItem {
+  position_id: string;
+  symbol: string;
+  side: string;
+  size: number;
+  entry_price: number;
+  realized_pnl?: number;
+  unrealized_pnl?: number;
+  closed_at?: string;
+}
+
+interface BrokerQuote {
+  bid: number;
+  ask: number;
+  last?: number;
+  volume?: number;
+}
+
+interface ApiResult {
+  success: boolean;
+  data?: unknown;
+  error?: string;
+  status?: number;
+}
 import { useToast } from '@/hooks/use-toast';
 import { Account } from '@/types/account';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -27,13 +89,13 @@ export default function BrokerToolsPage() {
   const [selectedBroker, setSelectedBroker] = useState<string>('');
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
   const [loading, setLoading] = useState<string | null>(null);
-  const [results, setResults] = useState<Record<string, any>>({});
+  const [results, setResults] = useState<Record<string, ApiResult>>({});
   const [symbol, setSymbol] = useState('MNQ');
-  const [balance, setBalance] = useState<any | null>(null);
-  const [positions, setPositions] = useState<any[]>([]);
-  const [orders, setOrders] = useState<any[]>([]);
-  const [history, setHistory] = useState<any[]>([]);
-  const [quote, setQuote] = useState<any | null>(null);
+  const [balance, setBalance] = useState<BrokerBalance | null>(null);
+  const [positions, setPositions] = useState<BrokerPosition[]>([]);
+  const [orders, setOrders] = useState<BrokerOrder[]>([]);
+  const [history, setHistory] = useState<BrokerHistoryItem[]>([]);
+  const [quote, setQuote] = useState<BrokerQuote | null>(null);
   const [symbols, setSymbols] = useState<string[]>([]);
   const [orderSide, setOrderSide] = useState<'buy' | 'sell'>('buy');
   const [orderType, setOrderType] = useState<'market' | 'limit' | 'stop'>('market');
@@ -65,7 +127,7 @@ export default function BrokerToolsPage() {
     }
   };
   
-  const callApi = async (endpoint: string, method: string = 'GET', body?: any) => {
+  const callApi = async (endpoint: string, method: string = 'GET', body?: Record<string, unknown>) => {
     if (!selectedBroker || !selectedAccountId) {
       toast({
         title: 'Error',
@@ -189,7 +251,7 @@ export default function BrokerToolsPage() {
       return;
     }
 
-    const payload: Record<string, any> = {
+    const payload: Record<string, unknown> = {
       account_id: selectedAccountId,
       symbol,
       side: orderSide,
@@ -218,7 +280,7 @@ export default function BrokerToolsPage() {
     if (!canUseTools) {
       return;
     }
-    const payload: Record<string, any> = { account_id: selectedAccountId };
+    const payload: Record<string, unknown> = { account_id: selectedAccountId };
     if (closeQuantity) {
       payload.quantity = parseFloat(closeQuantity);
     }
@@ -241,7 +303,7 @@ export default function BrokerToolsPage() {
       return;
     }
 
-    const payload: Record<string, any> = { account_id: selectedAccountId };
+    const payload: Record<string, unknown> = { account_id: selectedAccountId };
     if (modifyStopLoss) {
       payload.stop_loss = parseFloat(modifyStopLoss);
     }
@@ -448,7 +510,7 @@ export default function BrokerToolsPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {results['accounts'].data.map((acc: any) => (
+                        {(results['accounts'].data as BrokerAccount[]).map((acc) => (
                           <TableRow key={acc.account_id}>
                             <TableCell className="font-mono text-xs">{acc.account_id}</TableCell>
                             <TableCell>{acc.account_type}</TableCell>
@@ -510,7 +572,7 @@ export default function BrokerToolsPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {positions.map((pos: any) => (
+                        {positions.map((pos) => (
                           <TableRow key={pos.position_id}>
                             <TableCell className="font-medium">{pos.symbol}</TableCell>
                             <TableCell className="uppercase">{pos.side}</TableCell>
@@ -558,7 +620,7 @@ export default function BrokerToolsPage() {
                         <SelectValue placeholder="Select position" />
                       </SelectTrigger>
                       <SelectContent>
-                        {positions.map((pos: any) => (
+                        {positions.map((pos) => (
                           <SelectItem key={pos.position_id} value={pos.position_id}>
                             {pos.symbol} ({pos.position_id})
                           </SelectItem>
@@ -682,7 +744,7 @@ export default function BrokerToolsPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {orders.map((order: any) => (
+                        {orders.map((order) => (
                           <TableRow key={order.order_id}>
                             <TableCell className="font-medium">{order.symbol}</TableCell>
                             <TableCell className="uppercase">{order.side}</TableCell>
@@ -824,7 +886,7 @@ export default function BrokerToolsPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {history.map((item: any, index: number) => (
+                        {history.map((item, index) => (
                           <TableRow key={`${item.position_id}-${index}`}>
                             <TableCell>{item.symbol}</TableCell>
                             <TableCell className="uppercase">{item.side}</TableCell>

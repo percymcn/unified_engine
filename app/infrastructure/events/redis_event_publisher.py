@@ -6,6 +6,7 @@ Used when NATS is unavailable.
 """
 
 import os
+import asyncio
 import json
 import logging
 from typing import Optional, List
@@ -43,10 +44,12 @@ class RedisEventPublisher(EventPort):
             self._client = await Redis.from_url(
                 self._redis_url,
                 encoding="utf-8",
-                decode_responses=True
+                decode_responses=True,
+                socket_connect_timeout=1,
+                socket_timeout=1,
             )
-            # Test connection
-            await self._client.ping()
+            # Test connection with timeout
+            await asyncio.wait_for(self._client.ping(), timeout=1.5)
             self._connected = True
             logger.info(f"Connected to Redis at {self._redis_url}")
         except Exception as e:

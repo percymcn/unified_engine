@@ -439,6 +439,11 @@ class CreateAccountUseCase:
             except Exception as e:
                 logger.warning(f"Failed to create default account settings (non-critical): {e}")
 
+            try:
+                await self._account_repo._session.commit()
+            except Exception as commit_error:
+                logger.warning(f"Failed to commit account creation transaction: {commit_error}")
+
             # Create auto-detected aliases if symbol_map provided
             auto_aliases_created = 0
             if request.symbol_map and self._alias_repo:

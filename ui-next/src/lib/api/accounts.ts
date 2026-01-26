@@ -8,6 +8,7 @@ import {
   AccountGroup,
   CreateAccountGroupRequest,
   UpdateAccountGroupRequest,
+  PositionSizingMode,
 } from '@/types/account';
 
 export class ApiError extends Error {
@@ -72,14 +73,46 @@ const buildApiError = async (response: Response, fallback: string) => {
   return new ApiError(message, response.status, payload as Record<string, unknown>);
 };
 
-const mapAccountSettingsResponse = (data: any): AccountSettingsResponse => ({
+interface ApiAccountSettingsData {
+  account_id: number;
+  position_sizing: {
+    mode: string;
+    fixed_lot_size: number | null;
+    percent_of_balance: number | null;
+    percent_of_equity: number | null;
+    risk_percent_per_trade: number | null;
+  };
+  risk_limits: {
+    max_position_size: number | null;
+    max_daily_loss: number | null;
+    max_daily_loss_pct: number | null;
+    max_drawdown_pct: number | null;
+    max_open_positions: number | null;
+    max_daily_trades: number | null;
+    trade_cooldown_seconds: number | null;
+    default_stop_loss?: number | null;
+    default_take_profit?: number | null;
+  };
+  grouping: {
+    group_id: number | null;
+    group_name: string | null;
+    group_color: string | null;
+  };
+  routing: {
+    is_signal_enabled: boolean;
+    signal_priority: number;
+  };
+  account?: Account;
+}
+
+const mapAccountSettingsResponse = (data: ApiAccountSettingsData): AccountSettingsResponse => ({
   accountId: data.account_id,
   positionSizing: {
-    mode: data.position_sizing.mode,
-    fixedLotSize: data.position_sizing.fixed_lot_size,
-    percentOfBalance: data.position_sizing.percent_of_balance,
-    percentOfEquity: data.position_sizing.percent_of_equity,
-    riskPercentPerTrade: data.position_sizing.risk_percent_per_trade,
+    mode: data.position_sizing.mode as PositionSizingMode,
+    fixedLotSize: data.position_sizing.fixed_lot_size ?? 0,
+    percentOfBalance: data.position_sizing.percent_of_balance ?? 0,
+    percentOfEquity: data.position_sizing.percent_of_equity ?? 0,
+    riskPercentPerTrade: data.position_sizing.risk_percent_per_trade ?? 0,
   },
   riskLimits: {
     maxPositionSize: data.risk_limits.max_position_size,

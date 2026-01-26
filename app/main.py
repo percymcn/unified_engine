@@ -18,13 +18,11 @@ from app.core.config import settings
 from app.core.websocket_manager import ws_manager as websocket_manager
 from app.services.signal_processor import signal_processor
 from app.cache.redis_client import redis_client
-from app.db.database import engine, Base
+from app.db.database import engine
 from app.infrastructure.container import Container
 
-# Import models so SQLAlchemy can create tables
-# This must be imported before Base.metadata.create_all()
+# Import models for ORM registrations
 from app.models import models  # noqa: F401
-# Note: enhanced_models not imported - contains extended features not yet in database schema
 
 # Router imports
 from app.routers.auth import router as auth_router
@@ -88,19 +86,12 @@ async def lifespan(app: FastAPI):
     global container
 
     try:
-        # Create database tables (ignore if already exist)
-        # Run sync operation in thread pool to avoid MissingGreenlet error with asyncpg
-        import concurrent.futures
-        try:
-            loop = asyncio.get_event_loop()
-            with concurrent.futures.ThreadPoolExecutor() as pool:
-                await loop.run_in_executor(pool, Base.metadata.create_all, engine)
-            logger.info("✅ Database tables created")
-        except Exception as e:
-            if "already exists" in str(e):
-                logger.info("✅ Database tables already exist")
-            else:
-                raise
+        # Verify database connectivity (fail fast on misconfiguration)
+        await _verify_database_connection()
+
+        # Optionally run migrations (disabled by default, never implicit in prod)
+        if settings.RUN_MIGRATIONS_ON_STARTUP:
+            await _run_migrations()
 
         # Initialize Redis connection
         redis_client._connect()
@@ -183,6 +174,69 @@ app = FastAPI(
     docs_url="/docs" if settings.is_development else None,
     redoc_url="/redoc" if settings.is_development else None
 )
+
+
+async def _verify_database_connection() -> None:
+    """Verify database connectivity with a short timeout to avoid startup hangs."""
+    from sqlalchemy import text
+    from sqlalchemy.engine.url import make_url
+
+    def _connect() -> None:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+
+    # Redact password from logs
+    try:
+        db_url = make_url(settings.DATABASE_URL)
+        safe_url = db_url.render_as_string(hide_password=True)
+    except Exception:
+        safe_url = "<invalid DATABASE_URL>"
+
+    try:
+        backend = engine.url.get_backend_name()
+    except Exception:
+        backend = "unknown"
+
+    try:
+        if backend.startswith("sqlite"):
+            _connect()
+        else:
+            loop = asyncio.get_event_loop()
+            await asyncio.wait_for(
+                loop.run_in_executor(None, _connect),
+                timeout=settings.DATABASE_CONNECT_TIMEOUT_SECONDS,
+            )
+        logger.info("✅ Database connectivity verified")
+    except asyncio.TimeoutError as exc:
+        logger.error(
+            "❌ Database connection timed out after %ss (DATABASE_URL=%s)",
+            settings.DATABASE_CONNECT_TIMEOUT_SECONDS,
+            safe_url,
+        )
+        raise RuntimeError("Database connection timed out") from exc
+    except Exception as exc:
+        logger.error(
+            "❌ Database connection failed (DATABASE_URL=%s): %s",
+            safe_url,
+            exc,
+        )
+        raise RuntimeError("Database connection failed") from exc
+
+
+async def _run_migrations() -> None:
+    """Run Alembic migrations when explicitly enabled."""
+    import concurrent.futures
+    from alembic import command
+    from alembic.config import Config
+
+    def _upgrade() -> None:
+        alembic_cfg = Config("alembic.ini")
+        command.upgrade(alembic_cfg, "head")
+
+    loop = asyncio.get_event_loop()
+    with concurrent.futures.ThreadPoolExecutor() as pool:
+        await loop.run_in_executor(pool, _upgrade)
+    logger.info("✅ Alembic migrations applied")
 
 # Add CORS middleware
 app.add_middleware(

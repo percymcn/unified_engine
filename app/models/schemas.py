@@ -217,6 +217,12 @@ class Signal(SignalBase):
     status: str  # pending, processed, failed
     processed_at: Optional[datetime] = None
     error_message: Optional[str] = None
+    signal_data: Optional[Dict[str, Any]] = None
+    guard_reason: Optional[str] = None
+    reason_detail: Optional[str] = None
+    warning_type: Optional[str] = None
+    guard_rule: Optional[str] = None
+    message: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
     

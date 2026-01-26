@@ -1,0 +1,26 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.7, pytest-9.0.2, pluggy-1.6.0
+rootdir: /home/pharma5/unified_engine
+configfile: pytest.ini
+plugins: rerunfailures-16.1, anyio-4.12.0, asyncio-1.3.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collected 137 items
+
+tests/infrastructure/test_adapters.py .FFF.F.F.FF.FF............         [ 18%]
+tests/infrastructure/test_container.py .F..F.....s..                     [ 28%]
+tests/infrastructure/test_credential_repository.py ......                [ 32%]
+tests/infrastructure/test_repositories.py ...FF.F.FF..F.                 [ 43%]
+tests/infrastructure/test_unit_of_work.py ....F.....                     [ 50%]
+tests/routers/test_webhook_execute.py ............                       [ 59%]
+tests/routers/test_webhooks_guard.py .                                   [ 59%]
+tests/routers/test_accounts_auto_connect.py .                            [ 60%]
+tests/test_broker_errors.py ssssssss                                     [ 66%]
+tests/test_projectx_sdk.py ..F...F.......                                [ 76%]
+tests/test_tradelocker_sdk.py F........FFF..                             [ 86%]
+tests/test_ui_integration.py Ferror: unexpected argument '-m' found
+
+  tip: to pass '-m' as a value, use '-- -m'
+
+Usage: tee [OPTION]... [FILE]...
+
+For more information, try '--help'.

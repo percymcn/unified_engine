@@ -14,10 +14,48 @@ interface ProjectXFeaturesPanelProps {
   accountId: number;
 }
 
+interface ApiResult {
+  success: boolean;
+  data?: unknown;
+  error?: string;
+  status?: number;
+}
+
+type ActionForm = {
+  symbol: string;
+  side: string;
+  quantity: number;
+  entry_price: number | null;
+  stop_loss: number | null;
+  take_profit: number | null;
+};
+
+type Action = {
+  label: string;
+  endpoint: string;
+  method: string;
+  form?: ActionForm;
+};
+
+type Section = {
+  id: string;
+  title: string;
+  actions: Action[];
+};
+
+function toStringRecord(input?: Record<string, unknown>): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (!input) return out;
+  for (const [key, value] of Object.entries(input)) {
+    out[key] = value == null ? '' : String(value);
+  }
+  return out;
+}
+
 export function ProjectXFeaturesPanel({ accountId }: ProjectXFeaturesPanelProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState<string | null>(null);
-  const [results, setResults] = useState<Record<string, any>>({});
+  const [results, setResults] = useState<Record<string, ApiResult>>({});
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
   
   const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:8765';
@@ -26,7 +64,7 @@ export function ProjectXFeaturesPanel({ accountId }: ProjectXFeaturesPanelProps)
     setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
   };
   
-  const callApi = async (endpoint: string, method: string = 'GET', body?: any) => {
+  const callApi = async (endpoint: string, method: string = 'GET', body?: Record<string, unknown>) => {
     const key = endpoint.split('?')[0].split('/').pop() || endpoint;
     setLoading(key);
     
@@ -49,7 +87,7 @@ export function ProjectXFeaturesPanel({ accountId }: ProjectXFeaturesPanelProps)
       }
       
       const url = method === 'GET' && body
-        ? `${baseUrl}${endpoint}?${new URLSearchParams(body).toString()}`
+        ? `${baseUrl}${endpoint}?${new URLSearchParams(toStringRecord(body)).toString()}`
         : `${baseUrl}${endpoint}`;
       
       const response = await fetch(url, options);
@@ -69,11 +107,12 @@ export function ProjectXFeaturesPanel({ accountId }: ProjectXFeaturesPanelProps)
           variant: 'destructive',
         });
       }
-    } catch (error: any) {
-      setResults(prev => ({ ...prev, [key]: { success: false, error: error.message } }));
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'API call failed';
+      setResults(prev => ({ ...prev, [key]: { success: false, error: errorMessage } }));
       toast({
         title: 'Error',
-        description: error.message || 'API call failed',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {
@@ -81,7 +120,7 @@ export function ProjectXFeaturesPanel({ accountId }: ProjectXFeaturesPanelProps)
     }
   };
   
-  const sections = [
+  const sections: Section[] = [
     {
       id: 'orders',
       title: 'Orders',

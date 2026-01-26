@@ -5,7 +5,7 @@ Publishes domain events to NATS message broker with graceful degradation.
 Primary event publishing mechanism for distributed observability.
 """
 
-import os
+import asyncio
 import json
 import logging
 from typing import Optional, List
@@ -13,6 +13,7 @@ from typing import Optional, List
 import nats
 from nats.aio.client import Client
 
+from app.core.config import settings
 from app.domain.ports.event_port import EventPort, DomainEvent
 
 
@@ -27,21 +28,34 @@ class NatsEventPublisher(EventPort):
     Degrades gracefully when NATS is unavailable.
     """
 
-    def __init__(self, nats_url: str = None):
+    def __init__(self, nats_url: Optional[str] = None):
         """
         Initialize NATS event publisher.
 
         Args:
             nats_url: NATS server URL (defaults to NATS_URL env var or localhost)
         """
-        self._nats_url = nats_url or os.getenv("NATS_URL", "nats://localhost:4222")
+        self._nats_url = nats_url or settings.NATS_URL
         self._client: Optional[Client] = None
         self._connected = False
 
     async def connect(self) -> None:
         """Connect to NATS server."""
+        if not self._nats_url:
+            logger.info("NATS_URL not configured, skipping NATS connection")
+            self._connected = False
+            return
+
         try:
-            self._client = await nats.connect(self._nats_url)
+            self._client = await asyncio.wait_for(
+                nats.connect(
+                    self._nats_url,
+                    max_reconnect_attempts=0,
+                    connect_timeout=1,
+                    allow_reconnect=False,
+                ),
+                timeout=1.5,
+            )
             self._connected = True
             logger.info(f"Connected to NATS at {self._nats_url}")
         except Exception as e:

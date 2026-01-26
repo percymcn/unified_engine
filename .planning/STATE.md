@@ -99,5 +99,61 @@ Key decisions from v1.1 that carry forward:
 3. **Plan phases** via `/gsd:plan-phase 25`
 4. **Execute phases** via `/gsd:execute-phase 25`
 
+## 2026-01-27 Multi-account Verification
+
+- Added `tests/domain/test_account_routing_service.py` to cover `specific_accounts`, `rules_based`, and fallback routing strategies.
+- `scripts/smoke_routing_multi_account.sh` now writes logs to `.gsd/reports/logs` so verification artifacts are tracked with other reports.
+- Targeted pytest run: `python -m pytest tests/domain/test_account_routing_service.py -q` (log at `.gsd/reports/logs/pytest_account_routing.log`).
+
+## 2026-01-27 DB Availability Recheck
+
+- Re-ran `alembic current` with `DATABASE_URL=postgresql://trading_user:trading_password@localhost:5432/trading_db`; still fails with `psycopg2.OperationalError` while opening a TCP connection (log at `.gsd/reports/logs/alembic_current.log`).
+- Tried the smoke scripts (`scripts/smoke_backend.sh`, `scripts/smoke_webhooks.sh`, `scripts/smoke_user_flow.sh`, `scripts/smoke_signal_intelligence.sh`, `scripts/smoke_routing_multi_account.sh`); each fails because the backend never starts (`scripts/smoke_backend.sh` ends with “Database connection timed out”) or because the frontend requests return HTTP 000 when the service is unreachable (logs under `.gsd/reports/logs/`).
+- `python -m pytest` was re-run (log at `.gsd/reports/logs/pytest.log`) but the command timed out at 600 s while dozens of tests failed immediately; the suite cannot make progress until the database connection is healthy.
+
+## 2026-01-27 Verification Retry (third attempt)
+
+- `alembic current` rerun (log: `.gsd/reports/logs/alembic_current_retry.log`) still fails with `psycopg2.OperationalError` on the DB connection handshake.
+- Smoke scripts rerun with recorded logs (`.gsd/reports/logs/smoke_backend_retry.log`, `.gsd/reports/logs/smoke_webhooks_retry.log`, `.gsd/reports/logs/smoke_user_flow_retry.log`, `.gsd/reports/logs/smoke_signal_intelligence_retry.log`, `.gsd/reports/logs/smoke_routing_multi_account_retry.log`) and continue to trip over backend startup failure and HTTP 000 responses because `_verify_database_connection()` cannot reach Postgres.
+- `python -m pytest` rerun (log: `.gsd/reports/logs/pytest_retry.log`) again timed out at 600 s while numerous signal/service/adapter tests failed immediately; the DB must be reachable before rerunning the suite could succeed.
+
+## 2026-01-27 Final Verification Attempt
+
+- `test_pg_connection.py` (log: `.gsd/reports/logs/postgres_final_test.log`) reports PostgreSQL is responsive on `127.0.0.1:5432`, but the rest of the stack still cannot establish a connection.
+- `psql` against `127.0.0.1:5432` (log: `.gsd/reports/logs/psql_final.log`) still fails with `psql: error:` (no additional text), reinforcing that the CLI and SQLAlchemy clients cannot reach the socket.
+- `alembic current` (log: `.gsd/reports/logs/alembic_current_final.log`) still raises `psycopg2.OperationalError` while attempting to connect.
+- Smoke scripts rerun and log to `.gsd/reports/logs/smoke_*_final.log`; each script terminates because the backend cannot start (`RuntimeError("Database connection timed out")`) and HTTP requests receive code `000`.
+- `python -m pytest` + `python -m pytest -x -v` (logs: `.gsd/reports/logs/pytest_final.log`, `.gsd/reports/logs/pytest_final_rerun.log`) both fail; rerun stops at `tests/application/test_signal_use_cases.py::TestProcessSignalUseCase::test_process_buy_signal_success` with an `invalid literal for int()` error, proving the signal processing pipeline still breaks when accounts are labeled with strings.
+
+## 2026-01-26 Production Hardening Assessment
+
+**Backend Status:** HEALTHY
+- Health endpoint: `{"status":"healthy","redis":"connected"}`
+- Brokers: MT4=true, MT5=true, TradeLocker=false (no creds), Tradovate=false, ProjectX=false
+- Database: 40 tables, Alembic at revision 024 (single head)
+- All smoke tests passing
+
+**Fixes Applied:**
+1. TradeLocker: Updated `environment` → `sdk_environment` with full URLs in contracts JSON
+2. Tradovate: Added `app_version` field to contracts JSON
+3. Backend routers updated to accept both old and new field names for backwards compatibility
+
+**Verified Working:**
+- ✅ Webhook ingestion pipeline (`POST /api/v1/webhook/execute`)
+- ✅ Signal Intelligence Guard (staleness, momentum, pause)
+- ✅ Risk Management (limits, rejections logged)
+- ✅ Credential encryption (Fernet)
+- ✅ Broker contracts API (`GET /api/v1/brokers/contracts`)
+- ✅ All smoke tests pass
+
+**Gaps Identified:**
+- Multi-account simultaneous routing not implemented (routes to ONE account only)
+- Symbol-based routing rules not implemented
+- Strategy-based routing rules not implemented
+- Account discovery needs real-credential testing
+- Execution trace UI view missing
+
+**Report:** `.gsd/reports/TRADEFLOW_PROD_HARDENING_20260126.md`
+
 ---
-*Last updated: 2026-01-23 after Phase 1 verification completion*
+*Last updated: 2026-01-26 after production hardening Phase 0*

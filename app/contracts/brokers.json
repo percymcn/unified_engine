@@ -48,22 +48,22 @@
         },
         {
           "name": "environment",
-          "backend_name": "environment",
+          "backend_name": "sdk_environment",
           "type": "select",
           "label": "Environment",
-          "description": "Trading environment",
+          "description": "Trading environment (determines API URL)",
           "options": [
-            {"value": "demo", "label": "Demo"},
-            {"value": "live", "label": "Live"}
+            {"value": "https://demo.tradelocker.com", "label": "Demo"},
+            {"value": "https://live.tradelocker.com", "label": "Live"}
           ],
-          "default": "demo",
+          "default": "https://demo.tradelocker.com",
           "required_for": [],
           "order": 5
         }
       ],
       "test_connection_endpoint": "/api/v1/accounts/test-connection",
       "discover_accounts_endpoint": "/api/v1/accounts/available/{broker}",
-      "notes": "Some brokers (e.g., GATESFX) require Brand API mode. Backend will detect and report this."
+      "notes": "Some brokers (e.g., GATESFX) require Brand API mode. Backend will detect and report this. Environment defaults to Demo if not specified."
     },
     "projectx": {
       "id": "projectx",
@@ -174,9 +174,18 @@
           "backend_name": "app_id",
           "type": "string",
           "label": "App ID",
-          "description": "Tradovate Application ID (optional)",
+          "description": "Tradovate Application ID (for password auth)",
           "required_for": [],
           "order": 4
+        },
+        {
+          "name": "app_version",
+          "backend_name": "app_version",
+          "type": "string",
+          "label": "App Version",
+          "description": "Tradovate Application Version (for password auth)",
+          "required_for": [],
+          "order": 5
         },
         {
           "name": "cid",
@@ -185,7 +194,7 @@
           "label": "Client ID",
           "description": "Tradovate Client ID (from API key)",
           "required_for": [],
-          "order": 5
+          "order": 6
         },
         {
           "name": "sec",
@@ -194,7 +203,7 @@
           "label": "Secret",
           "description": "Tradovate Secret (from API key)",
           "required_for": [],
-          "order": 6
+          "order": 7
         }
       ],
       "test_connection_endpoint": "/api/v1/accounts/test-connection",

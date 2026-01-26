@@ -34,10 +34,12 @@ class Settings(BaseSettings):
     CREDENTIAL_ENCRYPTION_KEY: str = ""  # Required, fail fast if missing
 
     # Database
-    DATABASE_URL: str = "postgresql://user:password@localhost/trading_db"
+    DATABASE_URL: str = ""
     DATABASE_PASSWORD: str = ""  # Loaded from secret for URL construction
     DATABASE_POOL_SIZE: int = 10
     DATABASE_MAX_OVERFLOW: int = 20
+    DATABASE_CONNECT_TIMEOUT_SECONDS: int = 3
+    RUN_MIGRATIONS_ON_STARTUP: bool = False
     
     # Redis
     REDIS_URL: str = "redis://localhost:6379"

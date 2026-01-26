@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Zap, Loader2, CheckCircle, XCircle } from 'lucide-react';
 import {

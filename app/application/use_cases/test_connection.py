@@ -162,7 +162,8 @@ class TestConnectionUseCase:
             password = credentials.get("password")
             server = credentials.get("server")
             api_key = credentials.get("api_key")
-            environment_url = credentials.get("environment_url") or credentials.get("environment")
+            # Accept sdk_environment (new) or environment_url or environment (legacy)
+            environment_url = credentials.get("sdk_environment") or credentials.get("environment_url") or credentials.get("environment")
 
             # Check if broker requires Brand API (e.g., GATESFX)
             requires_brand_api = self._requires_brand_api(server)
@@ -278,7 +279,8 @@ class TestConnectionUseCase:
                     from app.brokers.tradelocker_sdk_wrapper import TradeLockerSDKWrapper
 
                     # Normalize environment URL to ensure it has proper scheme
-                    raw_environment = credentials.get("environment", "https://demo.tradelocker.com")
+                    # Accept sdk_environment (new) or environment (legacy)
+                    raw_environment = credentials.get("sdk_environment") or credentials.get("environment", "https://demo.tradelocker.com")
                     environment = self._normalize_tradelocker_environment(raw_environment)
                     wrapper = TradeLockerSDKWrapper(
                         environment=environment,
@@ -477,6 +479,7 @@ class TestConnectionUseCase:
             user_id = credentials.get("user_id") or credentials.get("username")
             password = credentials.get("password")
             app_id = credentials.get("app_id")
+            app_version = credentials.get("app_version")
             cid = credentials.get("cid")
             sec = credentials.get("sec")
             environment = credentials.get("environment", "demo")
@@ -506,6 +509,8 @@ class TestConnectionUseCase:
                     }
                     if app_id:
                         auth_data["appId"] = app_id
+                    if app_version:
+                        auth_data["appVersion"] = app_version
                     if cid:
                         auth_data["cid"] = cid
                     if sec:

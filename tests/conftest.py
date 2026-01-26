@@ -1,6 +1,7 @@
 """
 Test fixtures for unified trading engine tests.
 """
+import os
 import pytest
 from unittest.mock import MagicMock, AsyncMock
 from typing import Generator, AsyncGenerator
@@ -12,6 +13,9 @@ try:
     FASTAPI_AVAILABLE = True
 except ImportError:
     FASTAPI_AVAILABLE = False
+
+# Ensure DATABASE_URL is set for tests that import app.main
+os.environ.setdefault("DATABASE_URL", "sqlite:///./test_trading.db")
 
 # Don't import app at module level to avoid SQLAlchemy model conflicts
 # Infrastructure tests import database_models.py, but app.main imports routes

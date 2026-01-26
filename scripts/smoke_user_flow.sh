@@ -18,9 +18,9 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 # Configuration
-API_BASE_URL="${API_BASE_URL:-http://localhost:8765}"
+API_BASE_URL="${API_BASE_URL:-${BACKEND_URL:-http://localhost:8765}}"
 TEST_USERNAME="smoke_test_$(date +%s)"
-TEST_EMAIL="${TEST_USERNAME}@smoketest.local"
+TEST_EMAIL="${TEST_USERNAME}@smoketest.com"
 TEST_PASSWORD="SmokeTest123!"
 
 # Create logs directory
@@ -164,7 +164,7 @@ test_create_api_key() {
     fi
     
     local data='{"name": "Smoke Test API Key", "expires_days": 30}'
-    local response=$(test_endpoint "POST" "/api/v1/api-keys?name=Smoke%20Test%20API%20Key&expires_days=30" "" "$token")
+    local response=$(test_endpoint "POST" "/api/v1/api-keys/?name=Smoke%20Test%20API%20Key&expires_days=30" "" "$token")
     local body=$(echo "$response" | head -n -1)
     local status_code=$(echo "$response" | tail -n 1)
     
@@ -193,7 +193,7 @@ test_list_api_keys() {
         return 1
     fi
     
-    local response=$(test_endpoint "GET" "/api/v1/api-keys" "" "$token")
+    local response=$(test_endpoint "GET" "/api/v1/api-keys/" "" "$token")
     local body=$(echo "$response" | head -n -1)
     local status_code=$(echo "$response" | tail -n 1)
     
@@ -219,7 +219,7 @@ test_create_account() {
     fi
     
     local data='{"account_id": "smoke_test_account", "broker": "mt4", "account_type": "demo", "currency": "USD"}'
-    local response=$(test_endpoint "POST" "/api/v1/accounts" "$data" "$token")
+    local response=$(test_endpoint "POST" "/api/v1/accounts/" "$data" "$token")
     local body=$(echo "$response" | head -n -1)
     local status_code=$(echo "$response" | tail -n 1)
     
@@ -244,7 +244,7 @@ test_list_accounts() {
         return 1
     fi
     
-    local response=$(test_endpoint "GET" "/api/v1/accounts" "" "$token")
+    local response=$(test_endpoint "GET" "/api/v1/accounts/" "" "$token")
     local body=$(echo "$response" | head -n -1)
     local status_code=$(echo "$response" | tail -n 1)
     
