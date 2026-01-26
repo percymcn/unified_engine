@@ -348,6 +348,28 @@ class ExecutorTradeResponse(BaseModel):
     timestamp: Optional[datetime] = None
 
 
+class ExecutorPosition(BaseModel):
+    """Position model for broker executor operations - flexible typing for SDK data"""
+    id: str  # Position ID from broker
+    broker: Optional[str] = None
+    account_id: str
+    symbol: str
+    side: str  # "buy", "sell", "long", "short"
+    size: float
+    entry_price: float
+    current_price: Optional[float] = None
+    unrealized_pnl: float = 0.0
+    realized_pnl: float = 0.0
+    margin: float = 0.0
+    stop_loss: Optional[float] = None
+    take_profit: Optional[float] = None
+    magic_number: Optional[int] = None
+    comment: Optional[str] = None
+    open_time: Optional[datetime] = None
+    close_time: Optional[datetime] = None
+    is_active: bool = True
+
+
 class WebhookRequest(BaseModel):
     """Webhook request"""
     source: str
@@ -395,11 +417,15 @@ class Account(BaseModel):
     equity: float = 0.0
     margin: float = 0.0
     free_margin: float = 0.0
+    margin_level: float = 0.0
     leverage: int = 100
+    is_active: bool = True
+    is_live: bool = False
     is_connected: bool = False
     last_sync: Optional[datetime] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
+    extra_data: Optional[Dict[str, Any]] = None  # For UI: status, display_name, etc.
 
 
 class HealthResponse(BaseModel):

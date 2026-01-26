@@ -16,8 +16,8 @@ from datetime import datetime
 from app.brokers.base_executor import BaseExecutor
 from app.core.config import settings
 from app.models.pydantic_schemas import (
-    OrderRequest, OrderResponse, Position, Account,
-    TradeRequest, TradeResponse
+    OrderRequest, ExecutorOrderResponse as OrderResponse, ExecutorPosition as Position, Account,
+    TradeRequest, ExecutorTradeResponse as TradeResponse
 )
 
 logger = logging.getLogger(__name__)

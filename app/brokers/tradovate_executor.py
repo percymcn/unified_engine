@@ -12,7 +12,7 @@ import websockets
 from app.brokers.base_executor import BaseExecutor
 from app.core.config import settings
 from app.models.pydantic_schemas import (
-    OrderRequest, Position, Account, TradeRequest,
+    OrderRequest, ExecutorPosition as Position, Account, TradeRequest,
     ExecutorOrderResponse as OrderResponse,
     ExecutorTradeResponse as TradeResponse,
 )

@@ -13,8 +13,8 @@ from app.brokers.base_executor import BaseExecutor
 from app.brokers.tradelocker_sdk_wrapper import TradeLockerSDKWrapper
 from app.core.config import settings
 from app.models.pydantic_schemas import (
-    OrderRequest, OrderResponse, Position, Account,
-    TradeRequest, TradeResponse
+    OrderRequest, ExecutorOrderResponse as OrderResponse, ExecutorPosition as Position, Account,
+    TradeRequest, ExecutorTradeResponse as TradeResponse
 )
 
 logger = logging.getLogger(__name__)
@@ -223,30 +223,63 @@ class TradeLockerExecutor(BaseExecutor):
         return await self._get_accounts_sdk()
 
     async def _get_accounts_sdk(self) -> List[Account]:
-        """Get accounts via SDK."""
+        """Get ALL accounts via SDK with status (active, blown, expired)."""
         try:
-            account_state = await self._sdk_wrapper.get_account_state()
-            if account_state:
-                account_number = self._sdk_wrapper.account_number
-                account_id = self._sdk_wrapper.account_id
-                
-                return [Account(
-                    id=str(account_number or account_id or ""),
+            # Get all broker accounts with status
+            broker_accounts = await self._sdk_wrapper.get_all_broker_accounts()
+            if not broker_accounts:
+                # Fallback to single account if get_all fails
+                account_state = await self._sdk_wrapper.get_account_state()
+                if account_state:
+                    account_number = self._sdk_wrapper.account_number
+                    account_id = self._sdk_wrapper.account_id
+                    return [Account(
+                        id=str(account_number or account_id or ""),
+                        broker="tradelocker",
+                        account_type="demo",
+                        currency=account_state.get("currency", "USD"),
+                        balance=float(account_state.get("balance", 0)),
+                        equity=float(account_state.get("equity", 0)),
+                        margin=float(account_state.get("margin", 0)),
+                        free_margin=float(account_state.get("freeMargin", account_state.get("free_margin", 0))),
+                        margin_level=float(account_state.get("marginLevel", account_state.get("margin_level", 0))),
+                        leverage=account_state.get("leverage", 100),
+                        is_active=True,
+                        is_live=False,
+                        created_at=datetime.now(),
+                        updated_at=datetime.now()
+                    )]
+                return []
+
+            # Convert broker accounts to Account objects
+            accounts = []
+            for acc in broker_accounts:
+                status = acc.get('status', 'active')
+                is_active = status in ('active', 'blown')  # blown accounts still exist
+
+                accounts.append(Account(
+                    id=str(acc.get('broker_account_id', '')),
                     broker="tradelocker",
-                    account_type="live",
-                    currency=account_state.get("currency", "USD"),
-                    balance=float(account_state.get("balance", 0)),
-                    equity=float(account_state.get("equity", 0)),
-                    margin=float(account_state.get("margin", 0)),
-                    free_margin=float(account_state.get("freeMargin", account_state.get("free_margin", 0))),
-                    margin_level=float(account_state.get("marginLevel", account_state.get("margin_level", 0))),
-                    leverage=account_state.get("leverage", 100),
-                    is_active=True,
-                    is_live=True,
+                    account_type=acc.get('account_type', 'DEMO').lower(),
+                    currency=acc.get('currency', 'USD'),
+                    balance=float(acc.get('balance', 0)),
+                    equity=float(acc.get('equity', 0)),
+                    margin=0.0,
+                    free_margin=float(acc.get('balance', 0)),
+                    margin_level=0.0,
+                    leverage=100,
+                    is_active=is_active,
+                    is_live=acc.get('account_type', 'DEMO').upper() == 'LIVE',
                     created_at=datetime.now(),
-                    updated_at=datetime.now()
-                )]
-            return []
+                    updated_at=datetime.now(),
+                    # Store extra info for UI
+                    extra_data={
+                        'display_name': acc.get('display_name', ''),
+                        'account_number': acc.get('account_number', ''),
+                        'status': status,  # active, inactive, blown, expired
+                    }
+                ))
+            return accounts
         except Exception as e:
             logger.error(f"SDK get_accounts failed: {e}")
             return []
@@ -264,7 +297,21 @@ class TradeLockerExecutor(BaseExecutor):
             positions_data = await self._sdk_wrapper.get_positions()
             positions = []
             account_number = str(self._sdk_wrapper.account_number or account_id or "")
-            
+
+            # Build instrument ID to symbol mapping if possible
+            instrument_map = {}
+            try:
+                instruments = await self._sdk_wrapper.get_all_instruments()
+                if instruments:
+                    for inst in instruments:
+                        if isinstance(inst, dict):
+                            inst_id = inst.get("tradableInstrumentId") or inst.get("id")
+                            inst_symbol = inst.get("name") or inst.get("symbol", "")
+                            if inst_id:
+                                instrument_map[int(inst_id)] = inst_symbol
+            except Exception as inst_err:
+                logger.debug(f"Could not build instrument map: {inst_err}")
+
             for pos_data in positions_data:
                 # Convert dict or DataFrame row to dict
                 if hasattr(pos_data, 'to_dict'):
@@ -273,31 +320,48 @@ class TradeLockerExecutor(BaseExecutor):
                     pos_dict = pos_data
                 else:
                     continue
-                
+
                 # Filter by account if specified
                 if account_id and str(pos_dict.get("accountId", pos_dict.get("account_id", ""))) != account_id:
                     continue
-                
+
+                # TradeLocker field mapping:
+                # - qty: position quantity
+                # - avgPrice: average entry price
+                # - unrealizedPl: unrealized P/L
+                # - tradableInstrumentId: instrument ID (need to look up symbol)
+                # - side: buy/sell
+                instrument_id = pos_dict.get("tradableInstrumentId")
+                symbol = instrument_map.get(int(instrument_id), "") if instrument_id else ""
+                if not symbol:
+                    symbol = pos_dict.get("symbol", pos_dict.get("name", f"INST_{instrument_id}"))
+
+                # Handle side - TradeLocker uses "buy"/"sell"
+                side_raw = pos_dict.get("side", "buy")
+                side = str(side_raw).lower() if side_raw else "buy"
+
                 position = Position(
                     id=str(pos_dict.get("id", pos_dict.get("positionId", ""))),
                     broker="tradelocker",
                     account_id=account_number,
-                    symbol=pos_dict.get("symbol", pos_dict.get("name", "")),
-                    side=pos_dict.get("side", "buy").lower(),
-                    size=float(pos_dict.get("quantity", pos_dict.get("size", 0))),
-                    entry_price=float(pos_dict.get("entryPrice", pos_dict.get("entry_price", 0))),
-                    current_price=float(pos_dict.get("currentPrice", pos_dict.get("current_price", pos_dict.get("entryPrice", 0)))),
-                    unrealized_pnl=float(pos_dict.get("unrealizedPnl", pos_dict.get("unrealized_pnl", 0))),
-                    realized_pnl=float(pos_dict.get("realizedPnl", pos_dict.get("realized_pnl", 0))),
-                    margin=float(pos_dict.get("margin", 0)),
+                    symbol=symbol,
+                    side=side,
+                    size=float(pos_dict.get("qty", pos_dict.get("quantity", pos_dict.get("size", 0))) or 0),
+                    entry_price=float(pos_dict.get("avgPrice", pos_dict.get("entryPrice", pos_dict.get("entry_price", 0))) or 0),
+                    current_price=float(pos_dict.get("currentPrice", pos_dict.get("current_price", 0)) or 0) or None,
+                    unrealized_pnl=float(pos_dict.get("unrealizedPl", pos_dict.get("unrealizedPnl", 0)) or 0),
+                    realized_pnl=float(pos_dict.get("realizedPl", pos_dict.get("realizedPnl", 0)) or 0),
+                    margin=float(pos_dict.get("margin", 0) or 0),
+                    stop_loss=float(pos_dict.get("stopLoss", 0) or 0) or None,
+                    take_profit=float(pos_dict.get("takeProfit", 0) or 0) or None,
                     magic_number=pos_dict.get("magic", pos_dict.get("magic_number", 0)),
-                    comment=pos_dict.get("comment", ""),
+                    comment=pos_dict.get("comment", pos_dict.get("strategyId", "")),
                     open_time=datetime.now(),  # SDK may not provide parsed datetime
                     close_time=None,
                     is_active=True
                 )
                 positions.append(position)
-            
+
             return positions
         except Exception as e:
             logger.error(f"SDK get_positions failed: {e}")
@@ -335,6 +399,9 @@ class TradeLockerExecutor(BaseExecutor):
             # Determine side
             side = "buy" if "buy" in order_type else "sell"
 
+            # TradeLocker requires IOC validity for market orders
+            validity = "IOC" if sdk_type == "market" else "GTC"
+
             result = await self._sdk_wrapper.create_order(
                 instrument_id=instrument_id,
                 quantity=order.quantity,
@@ -342,14 +409,22 @@ class TradeLockerExecutor(BaseExecutor):
                 order_type=sdk_type,
                 price=order.price,
                 stop_loss=order.stop_loss,
-                take_profit=order.take_profit
+                take_profit=order.take_profit,
+                validity=validity
             )
 
             if result and result.get("success"):
                 order_result = result.get("result", {})
+                # SDK may return order ID as int directly, or as dict with orderId/id
+                if isinstance(order_result, int):
+                    order_id = str(order_result)
+                elif isinstance(order_result, dict):
+                    order_id = str(order_result.get("orderId", order_result.get("id", "")))
+                else:
+                    order_id = str(order_result) if order_result else ""
                 return OrderResponse(
                     success=True,
-                    order_id=str(order_result.get("orderId", order_result.get("id", ""))),
+                    order_id=order_id,
                     broker="tradelocker",
                     status="filled" if sdk_type == "market" else "pending",
                     filled_quantity=order.quantity if sdk_type == "market" else 0,

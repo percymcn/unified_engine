@@ -296,6 +296,33 @@ async def execute_tradingview_signal(
         raw_payload=raw_payload,
     )
 
+    # === PERSIST SIGNAL TO DATABASE ===
+    # This must happen before any ExecutionLog entries (foreign key constraint)
+    try:
+        signal_orm = SignalORM(
+            signal_id=signal_uuid,
+            user_id=accounts[0].user_id if accounts else None,
+            source=ModelsSignalSource.TRADINGVIEW,
+            symbol=symbol,
+            action=action_str.upper(),
+            volume=quantity,
+            price=None,  # Market order
+            stop_loss=float(sl_price) if sl_price else None,
+            take_profit=float(tp_price) if tp_price else None,
+            comment=raw_payload.get("comment"),
+            status="pending"
+        )
+        db.add(signal_orm)
+        db.commit()
+        logger.debug(f"Persisted signal {signal_uuid} to database")
+    except Exception as e:
+        logger.error(f"Failed to persist signal: {e}")
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to persist signal: {e}"
+        )
+
     # === SIGNAL INTELLIGENCE GUARD ===
     guard = SignalIntelligenceGuard(db)
 
@@ -454,40 +481,66 @@ async def execute_tradingview_signal(
             )
 
     # === EXECUTE ON ALL TARGET ACCOUNTS ===
-    # Guard passed - execute the signal on all routed accounts
+    # Guard passed - execute the signal on all routed accounts using account-specific executors
     account_results: List[AccountExecutionResult] = []
     all_errors: List[str] = []
     successful_count = 0
     failed_count = 0
 
-    container = get_container(request)
-    use_case = container.process_signal_use_case()
+    # Import the account-specific executor creation
+    from app.services.signal_processor import _create_account_executor
+    from app.models.pydantic_schemas import OrderRequest
 
     for account in accounts:
         account_start = datetime.utcnow()
         broker_str = account.broker.value if hasattr(account.broker, 'value') else str(account.broker)
 
         try:
-            # Build command for this account
-            command = ProcessSignalRequest(
-                source=SignalSource.TRADINGVIEW,
+            # Create account-specific executor with credentials
+            executor, needs_cleanup = await _create_account_executor(account, db)
+
+            if not executor:
+                raise Exception(f"Could not create executor for {broker_str}")
+
+            # Ensure executor is initialized
+            if not getattr(executor, 'is_connected', False):
+                try:
+                    await executor.initialize()
+                except Exception as init_err:
+                    logger.warning(f"Executor init warning for account {account.id}: {init_err}")
+
+            # Build order request
+            order_request = OrderRequest(
+                account_id=account.id,
                 symbol=symbol,
-                action=action,
-                volume=Decimal(str(quantity)),
-                price=None,
-                stop_loss=Decimal(str(sl_price)) if sl_price else None,
-                take_profit=Decimal(str(tp_price)) if tp_price else None,
-                target_account_ids=[str(account.id)],
-                comment=raw_payload.get("comment"),
-                strategy_id=raw_payload.get("strategy_id"),
-                strategy_name=None,
-                raw_payload=raw_payload,
-                signal_id=signal_uuid,  # Use same signal UUID for all accounts
+                order_type=f"market_{action_str}",  # e.g., "market_buy"
+                quantity=quantity,
+                stop_loss=sl_price,
+                take_profit=tp_price,
             )
 
-            # Execute
-            use_case_result = await use_case.execute(command)
-            execution_success = use_case_result.status.value not in ["failed", "rejected"]
+            # Execute the order directly
+            order_result = await executor.place_order(order_request)
+            execution_success = order_result.success if hasattr(order_result, 'success') else order_result.get('success', False)
+            execution_error = order_result.error if hasattr(order_result, 'error') else order_result.get('error')
+            order_id = order_result.order_id if hasattr(order_result, 'order_id') else order_result.get('order_id')
+
+            # Cleanup executor if needed
+            if needs_cleanup and hasattr(executor, 'disconnect'):
+                try:
+                    await executor.disconnect()
+                except:
+                    pass
+
+            # Build result similar to use_case response
+            class UseCaseResult:
+                def __init__(self, success, error=None, order_id=None):
+                    self.status = type('Status', (), {'value': 'executed' if success else 'failed'})()
+                    self.executions = 1 if success else 0
+                    self.errors = [error] if error and not success else []
+                    self.signal_id = order_id
+
+            use_case_result = UseCaseResult(execution_success, execution_error, order_id)
 
             # Log execution result
             log_event(
