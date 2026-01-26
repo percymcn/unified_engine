@@ -1,10 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from typing import Optional
 from datetime import datetime, date
 
 from app.db.database import get_db
-from app.models.models import Signal as SignalORM, Trade, Account, Position
+from app.models.models import Signal as SignalORM, Trade, Position, ExecutionLog
+from app.models.database_models import TradingAccount
 from app.routers.auth import get_current_user
 from app.models.schemas import User
 
@@ -27,56 +29,52 @@ async def get_dashboard_stats(
         
         # Base query filters
         signals_query = db.query(SignalORM)
-        trades_query = db.query(Trade)
-        accounts_query = db.query(Account)
-        positions_query = db.query(Position)
-        
+        accounts_query = db.query(TradingAccount)
+        executions_query = db.query(ExecutionLog)
+
         # Filter by user if authenticated
         if user_id:
             signals_query = signals_query.filter(SignalORM.user_id == user_id)
-            trades_query = trades_query.filter(Trade.user_id == user_id)
-            accounts_query = accounts_query.filter(Account.user_id == user_id)
-            positions_query = positions_query.filter(Position.account.has(Account.id == Account.user_id))
-        
+            accounts_query = accounts_query.filter(TradingAccount.user_id == user_id)
+            # Get account IDs for execution log filtering
+            account_ids = [a.id for a in accounts_query.all()]
+            executions_query = executions_query.filter(ExecutionLog.account_id.in_(account_ids)) if account_ids else executions_query.filter(False)
+
         # Filter by status if provided
         if status:
             signals_query = signals_query.filter(SignalORM.status == status)
-        
+
         # Get signals stats
         total_signals = signals_query.count()
-        pending_signals = signals_query.filter(SignalORM.status == "pending").count()
-        executed_signals = signals_query.filter(SignalORM.status == "executed").count()
-        failed_signals = signals_query.filter(SignalORM.status == "failed").count()
-        skipped_signals = signals_query.filter(SignalORM.status == "skipped").count()
-        
-        # Get trades stats
-        total_trades = trades_query.count()
-        
-        # Today's trades
+        pending_signals = db.query(SignalORM).filter(SignalORM.user_id == user_id, SignalORM.status == "pending").count() if user_id else 0
+        executed_signals = db.query(SignalORM).filter(SignalORM.user_id == user_id, SignalORM.status == "executed").count() if user_id else 0
+        failed_signals = db.query(SignalORM).filter(SignalORM.user_id == user_id, SignalORM.status == "failed").count() if user_id else 0
+        skipped_signals = db.query(SignalORM).filter(SignalORM.user_id == user_id, SignalORM.status == "skipped").count() if user_id else 0
+
+        # Get execution stats (today's trades)
         today = date.today()
-        today_trades = trades_query.filter(
-            Trade.created_at >= today
-        ).count()
-        
+        today_trades = executions_query.filter(
+            ExecutionLog.created_at >= today
+        ).count() if user_id else 0
+
         # Get accounts stats
         total_accounts = accounts_query.count()
-        active_accounts = accounts_query.filter(Account.is_active == True).count()
-        connected_accounts = accounts_query.filter(Account.is_connected == True).count()
-        
-        # Get positions stats
-        total_positions = positions_query.count()
-        open_positions = positions_query.filter(Position.status == "open").count()
-        
+        active_accounts = accounts_query.filter(TradingAccount.is_active == True).count()
+        connected_accounts = active_accounts  # For TradingAccount, active = connected
+
+        # Get positions count from accounts (sum from synced data)
+        total_positions = accounts_query.with_entities(func.sum(TradingAccount.positions_count)).scalar() or 0
+        open_positions = total_positions  # Synced positions are open positions
+
         # Calculate total balance across accounts
-        total_balance = db.query(Account).filter(
-            Account.user_id == user_id
-        ).with_entities(
-            db.query(Account).filter(
-                Account.user_id == user_id
-            ).subquery().model.total_balance if user_id else 0
-        ).scalar_subquery()
-        ).scalar() or 0
+        total_balance_result = db.query(func.sum(TradingAccount.balance)).filter(
+            TradingAccount.user_id == user_id
+        ).scalar() if user_id else 0
+        total_balance = float(total_balance_result or 0)
         
+        # Total executions (all time)
+        total_executions = executions_query.count() if user_id else 0
+
         return {
             # Signal statistics
             "signals": {
@@ -86,31 +84,31 @@ async def get_dashboard_stats(
                 "failed": failed_signals,
                 "skipped": skipped_signals,
             },
-            
-            # Trade statistics
+
+            # Trade/Execution statistics
             "trades": {
-                "total": total_trades,
+                "total": total_executions,
                 "today": today_trades,
             },
-            
+
             # Account statistics
             "accounts": {
                 "total": total_accounts,
                 "active": active_accounts,
                 "connected": connected_accounts,
             },
-            
+
             # Position statistics
             "positions": {
-                "total": total_positions,
-                "open": open_positions,
+                "total": int(total_positions),
+                "open": int(open_positions),
             },
-            
+
             # Financial statistics
             "financial": {
                 "total_balance": float(total_balance),
             },
-            
+
             # Metadata
             "last_updated": datetime.utcnow().isoformat(),
             "filters_applied": {

@@ -480,16 +480,28 @@ async def discover_accounts(
             else:
                 account_type = 'unknown'
             
-            # Determine status
+            # Get flags for determining status and for backward compat fields
             is_live = getattr(acc, 'is_live', False)
             is_active = getattr(acc, 'is_active', True)
-            # If test-connection succeeded, treat as active unless broker says otherwise
-            if is_active and is_live:
-                status = 'active'
-            elif not is_active:
-                status = 'inactive'
+
+            # Determine status - check extra_data first (set by SDK wrappers with blow/expired detection)
+            extra_data = getattr(acc, 'extra_data', {}) or {}
+            if extra_data.get('status'):
+                # SDK already determined status (active, blown, expired, inactive)
+                status = extra_data['status']
             else:
-                status = 'unknown'
+                # Fallback to is_live/is_active flags
+                balance = float(getattr(acc, 'balance', 0))
+
+                if not is_active:
+                    status = 'inactive'
+                elif balance < 100:
+                    # Blown account detection
+                    status = 'blown'
+                elif is_live:
+                    status = 'active'
+                else:
+                    status = 'active'  # Default to active for demo accounts
             
             currency = getattr(acc, 'currency', 'USD')
             balance = float(getattr(acc, 'balance', 0))
@@ -1196,46 +1208,47 @@ async def refresh_broker_accounts(
     broker = orm_account.broker.value
     
     try:
-        if broker == "tradelocker":
-            if orm_account.api_key:
-                credentials["api_key"] = decrypt(orm_account.api_key)
-            # Check metadata for SDK credentials
-            if orm_account.extra_metadata:
-                import json
-                meta = json.loads(orm_account.extra_metadata) if isinstance(orm_account.extra_metadata, str) else orm_account.extra_metadata
-                if meta.get("username"):
-                    credentials["username"] = meta["username"]
-                if meta.get("password"):
-                    credentials["password"] = meta["password"]
-                if meta.get("server"):
-                    credentials["server"] = meta["server"]
-        elif broker in ("projectx", "topstep"):
-            if orm_account.api_key:
-                credentials["username"] = decrypt(orm_account.api_key)
-            if orm_account.api_secret:
-                credentials["api_key"] = decrypt(orm_account.api_secret)
-        elif broker == "tradovate":
-            if orm_account.access_token:
-                credentials["access_token"] = decrypt(orm_account.access_token)
-            credentials["environment"] = orm_account.oauth_environment or "demo"
-        elif broker in ("mt4", "mt5"):
-            if orm_account.api_key:
-                credentials["metaapi_token"] = decrypt(orm_account.api_key)
-            if orm_account.extra_metadata:
-                import json
-                meta = json.loads(orm_account.extra_metadata) if isinstance(orm_account.extra_metadata, str) else orm_account.extra_metadata
-                if meta.get("metaapi_account_id"):
-                    credentials["metaapi_account_id"] = meta["metaapi_account_id"]
-
-        # Fall back to credential store if TradingAccount fields are incomplete
+        # PRIORITY: Load from Credential table first (this is where account creation stores them)
         fallback = _load_credential_fallback(
             db=db,
             user_id=current_user.id,
             broker=broker,
             account_number=orm_account.account_number
         )
-        for key, value in fallback.items():
-            credentials.setdefault(key, value)
+        credentials.update(fallback)
+
+        # Then check TradingAccount fields as backup
+        if broker == "tradelocker":
+            if orm_account.api_key and "api_key" not in credentials:
+                credentials["api_key"] = decrypt(orm_account.api_key)
+            # Check metadata for SDK credentials (backup only)
+            if orm_account.extra_metadata:
+                import json
+                meta = json.loads(orm_account.extra_metadata) if isinstance(orm_account.extra_metadata, str) else orm_account.extra_metadata
+                if meta.get("username") and "username" not in credentials:
+                    credentials["username"] = meta["username"]
+                if meta.get("password") and "password" not in credentials:
+                    credentials["password"] = meta["password"]
+                if meta.get("server") and "server" not in credentials:
+                    credentials["server"] = meta["server"]
+        elif broker in ("projectx", "topstep"):
+            if orm_account.api_key and "username" not in credentials:
+                credentials["username"] = decrypt(orm_account.api_key)
+            if orm_account.api_secret and "api_key" not in credentials:
+                credentials["api_key"] = decrypt(orm_account.api_secret)
+        elif broker == "tradovate":
+            if orm_account.access_token and "access_token" not in credentials:
+                credentials["access_token"] = decrypt(orm_account.access_token)
+            if "environment" not in credentials:
+                credentials["environment"] = orm_account.oauth_environment or "demo"
+        elif broker in ("mt4", "mt5"):
+            if orm_account.api_key and "metaapi_token" not in credentials:
+                credentials["metaapi_token"] = decrypt(orm_account.api_key)
+            if orm_account.extra_metadata:
+                import json
+                meta = json.loads(orm_account.extra_metadata) if isinstance(orm_account.extra_metadata, str) else orm_account.extra_metadata
+                if meta.get("metaapi_account_id") and "metaapi_account_id" not in credentials:
+                    credentials["metaapi_account_id"] = meta["metaapi_account_id"]
         
         # Call discover endpoint logic
         discover_body = DiscoverAccountsBody(

@@ -53,6 +53,7 @@ cd /home/pharma5/unified_engine
 
 # Set environment
 export DATABASE_URL="postgresql://trading_user:trading_password@localhost:5432/trading_db"
+export PYTHONPATH="/home/pharma5/unified_engine:$PYTHONPATH"
 
 echo "Environment Setup" | tee -a "$LOG_FILE"
 echo "DATABASE_URL: $DATABASE_URL" | tee -a "$LOG_FILE"

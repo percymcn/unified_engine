@@ -424,6 +424,16 @@ export default function AccountSettingsPage() {
                               Inactive
                             </span>
                           )}
+                          {acc.status === 'blown' && (
+                            <span className="text-xs px-1.5 py-0.5 bg-red-100 text-red-700 rounded font-medium">
+                              Blown
+                            </span>
+                          )}
+                          {acc.status === 'expired' && (
+                            <span className="text-xs px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded font-medium">
+                              Expired
+                            </span>
+                          )}
                           <span className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">
                             {acc.account_type}
                           </span>

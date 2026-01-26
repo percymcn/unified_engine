@@ -18,18 +18,20 @@ class TestProjectXSDKService:
         with patch('app.services.projectx_sdk_service.ProjectX') as mock:
             client = MagicMock()
             client.authenticate = AsyncMock()
-            client.account_info = MagicMock(
-                id="test-123",
-                name="Test Account",
-                balance=50000.0,
-                equity=50000.0,
-                margin=0.0,
-                free_margin=50000.0,
-                currency="USD",
-            )
-            client.search_instruments = AsyncMock(return_value=[
-                MagicMock(id="1", name="MNQ", description="Micro NASDAQ")
-            ])
+            account_info = MagicMock()
+            account_info.id = "test-123"
+            account_info.name = "Test Account"
+            account_info.balance = 50000.0
+            account_info.equity = 50000.0
+            account_info.margin = 0.0
+            account_info.free_margin = 50000.0
+            account_info.currency = "USD"
+            client.account_info = account_info
+            instrument1 = MagicMock()
+            instrument1.id = "1"
+            instrument1.name = "MNQ"
+            instrument1.description = "Micro NASDAQ"
+            client.search_instruments = AsyncMock(return_value=[instrument1])
             client.get_bars = AsyncMock(return_value=[])
             mock.return_value = client
             yield mock, client

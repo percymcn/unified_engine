@@ -11,7 +11,7 @@ interface PositionAccountInfo {
 }
 
 interface Position {
-  id: number;
+  id: string;  // String to preserve large TradeLocker position IDs
   symbol: string;
   side: string;
   volume: number;

@@ -1,73 +1,121 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Copy, Bot } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Copy, Bot, AlertCircle, CheckCircle2, Info } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useUser } from "@/providers/user-provider";
+
+// Common symbol patterns for different markets
+const SYMBOL_PATTERNS = {
+  forex: /\b(EUR|GBP|USD|JPY|AUD|NZD|CAD|CHF)(EUR|GBP|USD|JPY|AUD|NZD|CAD|CHF)\b/i,
+  crypto: /\b(BTC|ETH|XRP|SOL|ADA|DOGE|LTC)(USD|USDT|BTC|EUR)?\b/i,
+  futures: /\b(NQ|ES|YM|RTY|CL|GC|SI|ZB|ZN|MNQ|MES|MCL|MGC)\b/i,
+  indices: /\b(SPX|NDX|DJI|VIX|US500|US100|US30|NAS100|SPX500)\b/i,
+  metals: /\b(XAU|XAG)(USD|EUR)?\b/i,
+};
+
+// Normalize symbol for different brokers
+function normalizeSymbol(input: string): string {
+  const upper = input.toUpperCase().trim();
+
+  // Handle crypto with implicit USD
+  if (/^(BTC|ETH|XRP|SOL|ADA|DOGE|LTC)$/i.test(upper)) {
+    return upper + "USD";
+  }
+
+  // Handle metals with implicit USD
+  if (/^(XAU|XAG)$/i.test(upper)) {
+    return upper + "USD";
+  }
+
+  return upper;
+}
 
 export function FlowGuardBot() {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
+  const [webhookKey, setWebhookKey] = useState("");
+  const [quantity, setQuantity] = useState("0.01");
   const [output, setOutput] = useState("");
   const [processing, setProcessing] = useState(false);
   const { toast } = useToast();
+  const { user } = useUser();
 
-  // Default risk settings (would come from user settings in production)
-  const defaultSettings = {
-    lot: 0.01,
-    sl: 50, // pips
-    tp: 100, // pips
-    riskPercent: 1.0,
-  };
+  // Auto-fill webhook key from user profile
+  useEffect(() => {
+    if (user?.primary_webhook_key && !webhookKey) {
+      setWebhookKey(user.primary_webhook_key);
+    }
+  }, [user?.primary_webhook_key, webhookKey]);
 
-  function generateAlertJSON(userInput: string): string {
-    // Simple parser for PineScript or plain words
+  function parseSignalInput(userInput: string): { symbol: string; action: string; comment: string } {
     const lowerInput = userInput.toLowerCase().trim();
-    
-    // Detect direction
+    const originalInput = userInput.trim();
+
+    // Detect action
     let action = "buy";
-    if (lowerInput.includes("short") || lowerInput.includes("sell") || lowerInput.includes("short")) {
+    if (lowerInput.includes("short") || lowerInput.includes("sell") ||
+        lowerInput.includes("close short") || lowerInput.startsWith("s ")) {
       action = "sell";
-    } else if (lowerInput.includes("long") || lowerInput.includes("buy")) {
+    } else if (lowerInput.includes("close") || lowerInput.includes("exit") ||
+               lowerInput.includes("flatten")) {
+      action = "close";
+    } else if (lowerInput.includes("long") || lowerInput.includes("buy") ||
+               lowerInput.startsWith("l ") || lowerInput.startsWith("b ")) {
       action = "buy";
     }
 
-    // Extract symbol if present (e.g., "EURUSD long" or "long EURUSD")
-    let symbol = "EURUSD"; // default
-    const symbolMatch = userInput.match(/\b[A-Z]{6,}\b/);
-    if (symbolMatch) {
-      symbol = symbolMatch[0];
+    // Extract symbol from input
+    let symbol = "";
+
+    // Try each pattern
+    for (const [, pattern] of Object.entries(SYMBOL_PATTERNS)) {
+      const match = originalInput.match(pattern);
+      if (match) {
+        symbol = normalizeSymbol(match[0]);
+        break;
+      }
     }
 
-    // Generate TradingView alert JSON
-    const alertJSON = {
-      ticker: symbol,
+    // Fallback: look for any 3-8 letter uppercase word that could be a symbol
+    if (!symbol) {
+      const genericMatch = originalInput.match(/\b[A-Z]{3,8}\b/);
+      if (genericMatch) {
+        symbol = normalizeSymbol(genericMatch[0]);
+      }
+    }
+
+    // Default symbol
+    if (!symbol) {
+      symbol = "EURUSD";
+    }
+
+    return { symbol, action, comment: originalInput };
+  }
+
+  function generateAlertJSON(userInput: string): string {
+    const { symbol, action, comment } = parseSignalInput(userInput);
+
+    // Build the webhook payload that matches our system exactly
+    const alertJSON: Record<string, unknown> = {
+      webhook_key: webhookKey || "YOUR_WEBHOOK_KEY_HERE",
       action: action,
-      quantity: defaultSettings.lot,
-      price: 0, // Market order
-      stop_loss: defaultSettings.sl,
-      take_profit: defaultSettings.tp,
-      comment: `FlowGuard: ${userInput}`,
-      strategy_id: "flowguard",
-      strategy_name: "FlowGuard AI",
-      // Momentum Guard metadata
-      momentum_guard: {
-        warn_at: 6,
-        auto_breakeven: false,
-        pause_on_chop: true,
-        staleness_enabled: true,
-        staleness_seconds: 5,
-      },
-      risk_defaults: {
-        lot: defaultSettings.lot,
-        sl: defaultSettings.sl,
-        tp: defaultSettings.tp,
-        risk_percent: defaultSettings.riskPercent,
-      },
+      symbol: symbol,
+      quantity: parseFloat(quantity) || 0.01,
     };
+
+    // Only add comment if meaningful
+    if (comment && comment !== symbol) {
+      alertJSON.comment = comment;
+    }
+
+    // Add timestamp for staleness protection
+    alertJSON.timestamp = "{{timenow}}";
 
     return JSON.stringify(alertJSON, null, 2);
   }
@@ -86,6 +134,10 @@ export function FlowGuardBot() {
     try {
       const json = generateAlertJSON(input);
       setOutput(json);
+      toast({
+        title: "JSON Generated",
+        description: "Copy and paste into TradingView alert message",
+      });
     } catch {
       toast({
         title: "Error",
@@ -101,11 +153,13 @@ export function FlowGuardBot() {
     if (output) {
       navigator.clipboard.writeText(output);
       toast({
-        title: "Copied",
-        description: "Alert JSON copied to clipboard",
+        title: "Copied!",
+        description: "Paste this into your TradingView alert message field",
       });
     }
   }
+
+  const hasWebhookKey = webhookKey && webhookKey !== "YOUR_WEBHOOK_KEY_HERE";
 
   return (
     <>
@@ -121,40 +175,114 @@ export function FlowGuardBot() {
               <Bot className="h-6 w-6" />
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Bot className="h-5 w-5" />
                 FlowGuard AI Signal Generator
               </DialogTitle>
               <DialogDescription>
-                Enter PineScript or plain words to generate TradingView alert JSON
+                Generate TradingView-compatible webhook JSON in seconds
               </DialogDescription>
             </DialogHeader>
+
             <div className="space-y-4">
-              <div>
-                <Label>Signal Input</Label>
+              {/* Webhook Key */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  Webhook Key
+                  {hasWebhookKey ? (
+                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <AlertCircle className="h-4 w-4 text-amber-500" />
+                  )}
+                </Label>
                 <Input
-                  placeholder='e.g., "EURUSD long" or "short NQ"'
+                  placeholder="Your webhook key (from dashboard)"
+                  value={webhookKey}
+                  onChange={(e) => setWebhookKey(e.target.value)}
+                  className="font-mono text-sm"
+                />
+                {!hasWebhookKey && (
+                  <p className="text-xs text-muted-foreground">
+                    Get your webhook key from the dashboard Quick Actions section
+                  </p>
+                )}
+              </div>
+
+              {/* Signal Input */}
+              <div className="space-y-2">
+                <Label>Signal Description</Label>
+                <Textarea
+                  placeholder='Examples:
+• "EURUSD long"
+• "short NQ"
+• "buy BTC 0.1"
+• "close XAUUSD"
+• "ES short at market"'
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  className="font-mono"
+                  className="font-mono text-sm min-h-[100px]"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleGenerate();
+                    }
+                  }}
                 />
               </div>
-              <Button onClick={handleGenerate} disabled={processing || !input.trim()}>
+
+              {/* Quantity */}
+              <div className="space-y-2">
+                <Label>Quantity (lots/contracts)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  placeholder="0.01"
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
+                  className="font-mono w-32"
+                />
+              </div>
+
+              <Button
+                onClick={handleGenerate}
+                disabled={processing || !input.trim()}
+                className="w-full"
+              >
                 {processing ? "Generating..." : "Generate Alert JSON"}
               </Button>
+
               {output && (
-                <div className="space-y-2">
+                <div className="space-y-3 border-t pt-4">
                   <div className="flex items-center justify-between">
-                    <Label>Generated Alert JSON</Label>
-                    <Button variant="outline" size="sm" onClick={handleCopy}>
+                    <Label className="text-base font-semibold">Generated Webhook JSON</Label>
+                    <Button variant="default" size="sm" onClick={handleCopy}>
                       <Copy className="h-4 w-4 mr-2" />
-                      Copy to TradingView
+                      Copy
                     </Button>
                   </div>
-                  <div className="p-3 bg-muted rounded-md font-mono text-xs whitespace-pre-wrap max-h-64 overflow-y-auto">
+                  <div className="p-4 bg-slate-900 dark:bg-slate-950 rounded-lg font-mono text-sm text-green-400 whitespace-pre-wrap overflow-x-auto">
                     {output}
+                  </div>
+
+                  {/* Instructions */}
+                  <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4 space-y-2">
+                    <div className="flex items-start gap-2">
+                      <Info className="h-5 w-5 text-blue-500 mt-0.5" />
+                      <div className="space-y-2 text-sm">
+                        <p className="font-medium text-blue-700 dark:text-blue-300">How to use in TradingView:</p>
+                        <ol className="list-decimal list-inside space-y-1 text-blue-600 dark:text-blue-400">
+                          <li>Open your TradingView chart and create/edit an alert</li>
+                          <li>Set your alert conditions (price cross, indicator signal, etc.)</li>
+                          <li>In &quot;Notifications&quot;, enable &quot;Webhook URL&quot;</li>
+                          <li>Enter: <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">https://tradeflow.fluxeo.net/api/webhook/execute</code></li>
+                          <li>Paste this JSON in the &quot;Message&quot; field</li>
+                          <li>Click &quot;Create&quot; to save your alert</li>
+                        </ol>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}

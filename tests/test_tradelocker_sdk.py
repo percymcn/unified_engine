@@ -29,14 +29,15 @@ class TestTradeLockerSDKWrapper:
     def mock_tlapi(self):
         """Create mock TLAPI instance."""
         mock = MagicMock()
-        mock.get_acc_nums.return_value = [12345]
-        mock.get_acc_ids.return_value = [67890]
-        mock.get_all_instruments.return_value = MagicMock(
-            to_dict=lambda x: [
-                {"tradableInstrumentId": 1, "name": "EURUSD"},
-                {"tradableInstrumentId": 2, "name": "BTCUSD"},
-            ]
-        )
+        import pandas as pd
+        # Mock get_all_accounts() - this is what the wrapper uses to get account info
+        mock.get_all_accounts.return_value = pd.DataFrame([
+            {"id": 67890, "accNum": 12345, "name": "Demo Account"},
+        ])
+        mock.get_all_instruments.return_value = pd.DataFrame([
+            {"tradableInstrumentId": 1, "name": "EURUSD"},
+            {"tradableInstrumentId": 2, "name": "BTCUSD"},
+        ])
         mock.get_latest_asking_price.return_value = 1.0850
         mock.create_order.return_value = {"orderId": "ord123", "status": "filled"}
         mock.close_position.return_value = {"id": "pos123", "status": "closed"}
@@ -311,7 +312,6 @@ class TestTradeLockerExecutorSDKMode:
             executor = TradeLockerExecutor()
 
             assert executor._sdk_available is True
-            assert executor._brand_api_available is False
             assert executor.is_available is True
 
     @pytest.mark.asyncio
@@ -323,8 +323,7 @@ class TestTradeLockerExecutorSDKMode:
             executor = TradeLockerExecutor()
 
             assert executor._sdk_available is False
-            assert executor._brand_api_available is True
-            assert executor.is_available is True
+            assert executor.is_available is False
 
     @pytest.mark.asyncio
     async def test_executor_disabled_without_any_credentials(self):
@@ -347,7 +346,7 @@ class TestTradeLockerExecutorSDKMode:
             executor = TradeLockerExecutor()
 
             assert executor._sdk_available is False
-            assert executor._brand_api_available is False
+            assert executor._sdk_available is False
             assert executor.is_available is False
 
 
