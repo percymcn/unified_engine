@@ -26,6 +26,7 @@ import { SignalHeatMap } from '@/components/signal-intelligence/signal-heat-map'
 import { GuardModal } from '@/components/signal-intelligence/guard-modal';
 import { StreakBadge } from '@/components/dashboard/streak-badge';
 import { OnboardingTooltip } from '@/components/dashboard/onboarding-tooltip';
+import { LiveMarketChart } from '@/components/dashboard/live-market-chart';
 import { useWebSocketContext } from '@/providers/websocket-provider';
 import { cn } from '@/lib/utils';
 import { CopyButton } from '@/components/ui/copy-button';
@@ -375,6 +376,9 @@ export default function DashboardPage() {
           </>
         )}
       </div>
+
+      {/* Row 2.5: Live Market Chart */}
+      {!loading && <LiveMarketChart />}
 
       {/* Quick Actions Section */}
       <Card>

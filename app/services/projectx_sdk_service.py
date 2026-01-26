@@ -23,6 +23,8 @@ import logging
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
+from app.services.contract_resolver import ContractResolver, get_contract_resolver
+
 logger = logging.getLogger(__name__)
 
 # Try to import SDK - graceful fallback if not installed
@@ -78,6 +80,7 @@ class ProjectXSDKService:
         self.account_name = account_name
         self._client: Optional[Any] = None  # ProjectX client
         self._suite: Optional[Any] = None  # TradingSuite
+        self._contract_resolver: ContractResolver = get_contract_resolver()
         self._is_connected = False
 
     async def connect(self) -> bool:
@@ -133,6 +136,120 @@ class ProjectXSDKService:
     def is_connected(self) -> bool:
         """Check if SDK is connected."""
         return self._is_connected and self._client is not None
+
+    # =========================================================================
+    # Contract Resolution (Auto-Rollover)
+    # =========================================================================
+
+    async def resolve_contract(self, base_symbol: str) -> Optional[str]:
+        """
+        Resolve a base symbol to its active contract ID.
+
+        Handles automatic rollover - always returns the current front-month contract.
+
+        Args:
+            base_symbol: Base symbol like MNQ, ES, CL
+
+        Returns:
+            Active contract ID (e.g., CON.F.US.MNQ.H26) or None
+        """
+        if not self._client:
+            raise RuntimeError("Not connected")
+
+        # Initialize resolver if needed
+        if not self._contract_resolver._initialized:
+            await self._contract_resolver.initialize(self._client)
+
+        contract = await self._contract_resolver.get_active_contract(base_symbol)
+        return contract.contract_id if contract else None
+
+    async def get_contract_info(self, base_symbol: str) -> Optional[Dict[str, Any]]:
+        """
+        Get detailed contract info including tick size and value.
+
+        Args:
+            base_symbol: Base symbol
+
+        Returns:
+            Dict with contract details or None
+        """
+        if not self._client:
+            raise RuntimeError("Not connected")
+
+        if not self._contract_resolver._initialized:
+            await self._contract_resolver.initialize(self._client)
+
+        contract = await self._contract_resolver.get_active_contract(base_symbol)
+        if not contract:
+            return None
+
+        return {
+            "contract_id": contract.contract_id,
+            "symbol": contract.symbol,
+            "base_symbol": contract.base_symbol,
+            "description": contract.description,
+            "tick_size": contract.tick_size,
+            "tick_value": contract.tick_value,
+            "is_active": contract.is_active,
+            "expiry_month": contract.expiry_month,
+            "expiry_year": contract.expiry_year,
+        }
+
+    def get_all_tradeable_symbols(self) -> List[Dict[str, Any]]:
+        """
+        Get list of all tradeable symbols with their info.
+
+        Returns:
+            List of symbol info dicts
+        """
+        symbols = []
+        for symbol, info in self._contract_resolver.TRADEABLE_SYMBOLS.items():
+            symbols.append({
+                "symbol": symbol,
+                "name": info['name'],
+                "tick_size": info['tick_size'],
+                "tick_value": info['tick_value'],
+            })
+        return symbols
+
+    async def check_and_refresh_contracts(self) -> int:
+        """
+        Check all cached contracts and refresh if needed (rollover).
+
+        Should be called periodically (e.g., daily) to handle rollovers.
+
+        Returns:
+            Number of contracts refreshed
+        """
+        if not self._contract_resolver._initialized:
+            if self._client:
+                await self._contract_resolver.initialize(self._client)
+
+        return await self._contract_resolver.refresh_all()
+
+    def calculate_pnl(
+        self,
+        symbol: str,
+        contracts: int,
+        entry_price: float,
+        exit_price: float
+    ) -> float:
+        """
+        Calculate P&L for a trade.
+
+        Args:
+            symbol: Base symbol
+            contracts: Number of contracts
+            entry_price: Entry price
+            exit_price: Exit price
+
+        Returns:
+            Dollar P&L value
+        """
+        price_change = exit_price - entry_price
+        return self._contract_resolver.calculate_position_value(
+            symbol, contracts, price_change
+        )
 
     async def get_account_info(self) -> Dict[str, Any]:
         """

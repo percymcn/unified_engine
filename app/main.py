@@ -46,6 +46,7 @@ from app.routers.webhook_config import router as webhook_config_router
 from app.routers.stripe_webhooks import router as stripe_webhooks_router
 from app.routers.billing import router as billing_router
 from app.routers.tradovate_oauth import router as tradovate_oauth_router
+from app.routers.market_data import router as market_data_router
 from app.routers.symbol_aliases import router as symbol_aliases_router
 from app.routers.contracts import router as contracts_router
 from app.routers.account_groups import router as account_groups_router
@@ -277,6 +278,7 @@ app.include_router(oauth_router, tags=["oauth"])
 app.include_router(analytics_router, tags=["analytics"])
 app.include_router(notifications_router, tags=["notifications"])
 app.include_router(webhook_config_router, prefix="/api/v1", tags=["webhook-configs"])
+app.include_router(market_data_router, tags=["market-data"])
 app.include_router(stripe_webhooks_router)
 app.include_router(billing_router, tags=["billing"])
 app.include_router(tradovate_oauth_router, tags=["tradovate-oauth"])
