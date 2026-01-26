@@ -59,6 +59,9 @@ class AccountBase(BaseModel):
 class AccountCreate(AccountBase):
     api_key: Optional[str] = None
     api_secret: Optional[str] = None
+    access_token: Optional[str] = None
+    oauth_environment: Optional[str] = None
+    oauth_tokens: Optional[Dict[str, Any]] = Field(None, description="OAuth tokens for brokers like Tradovate")
     server: Optional[str] = None
     login: Optional[int] = None
     password: Optional[str] = None

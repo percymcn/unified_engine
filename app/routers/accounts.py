@@ -1406,12 +1406,14 @@ async def get_account_settings(
     container = get_container(request)
     use_case = container.get_account_settings_use_case()
 
+    # Handle both sync and async sessions
     if hasattr(db, "query"):
         orm_account = db.query(TradingAccountORM).filter(
             TradingAccountORM.id == account_id,
             TradingAccountORM.user_id == current_user.id
         ).first()
     else:
+        # Async session - use select/execute
         stmt = select(TradingAccountORM).where(
             TradingAccountORM.id == account_id,
             TradingAccountORM.user_id == current_user.id

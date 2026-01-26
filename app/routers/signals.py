@@ -16,13 +16,17 @@ router = APIRouter()
 async def get_signals(
     skip: int = 0,
     limit: int = 100,
+    status: str = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get all signals for current user"""
-    signals = db.query(Signal).filter(
-        Signal.user_id == current_user.id
-    ).offset(skip).limit(limit).all()
+    """Get all signals for current user, optionally filtered by status"""
+    query = db.query(Signal).filter(Signal.user_id == current_user.id)
+    
+    if status:
+        query = query.filter(Signal.status == status)
+        
+    signals = query.offset(skip).limit(limit).all()
     return signals
 
 @router.post("/", response_model=SignalSchema)

@@ -376,18 +376,68 @@ class CreateAccountUseCase:
 
             # Store credentials encrypted in separate table
             credential_id = str(uuid.uuid4())
+            credential_data = {
+                "account_id": request.account_id,
+                **request.credentials,
+            }
+            
+            # Include OAuth tokens if provided
+            if hasattr(request, 'oauth_tokens') and request.oauth_tokens:
+                credential_data.update(request.oauth_tokens)
+            
             await self._credential_repo.create(
                 credential_id=credential_id,
                 user_id=request.user_id,
                 name=f"{request.broker.value} - {request.account_id}",
                 credential_type="broker",
                 service=request.broker.value,
-                credential_data={
-                    "account_id": request.account_id,
-                    **request.credentials,
-                },
+                credential_data=credential_data,
                 description=f"Credentials for {request.broker.value} account {request.account_id}",
             )
+            
+            # Auto-create default account settings
+            try:
+                from app.models.database_models import AccountSettings, TradingAccount
+                from sqlalchemy import select
+                
+                # Get the newly created ORM account
+                session = self._account_repo._session
+                stmt = select(TradingAccount).where(
+                    TradingAccount.account_number == request.account_id,
+                    TradingAccount.user_id == request.user_id
+                ).order_by(TradingAccount.created_at.desc()).limit(1)
+                result = await session.execute(stmt)
+                orm_account = result.scalar_one_or_none()
+                
+                if orm_account:
+                    # Check if settings already exist
+                    settings_stmt = select(AccountSettings).where(
+                        AccountSettings.account_id == orm_account.id
+                    )
+                    settings_result = await session.execute(settings_stmt)
+                    existing_settings = settings_result.scalar_one_or_none()
+                    
+                    if not existing_settings:
+                        # Create default settings
+                        default_settings = AccountSettings(
+                            account_id=orm_account.id,
+                            position_sizing_mode="fixed",
+                            fixed_lot_size=0.01,
+                            percent_of_balance=1.0,
+                            percent_of_equity=1.0,
+                            risk_percent_per_trade=1.0,
+                            max_open_positions=10,
+                            max_daily_trades=50,
+                            max_risk_per_day=10.0,
+                            is_trading_enabled=True,
+                            created_at=datetime.utcnow(),
+                            updated_at=datetime.utcnow(),
+                        )
+                        session.add(default_settings)
+                        await session.commit()
+                        logger.info(f"Created default account settings for account {orm_account.id}")
+            except Exception as e:
+                logger.warning(f"Failed to create default account settings (non-critical): {e}")
 
             # Create auto-detected aliases if symbol_map provided
             auto_aliases_created = 0

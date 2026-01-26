@@ -82,20 +82,26 @@ class SQLAlchemyAccountRepository(AccountRepository):
 
         return self._mapper.to_entity(orm_model)
 
-    async def delete(self, account: Account) -> None:
+    async def delete(self, account) -> None:
         """
         Delete account entity.
 
         Args:
-            account: Domain Account entity to delete
+            account: Domain Account entity or AccountId value object to delete
         """
         account_value = None
         user_id = None
+        
+        # Handle Account entity
         if hasattr(account, "id"):
             account_value = account.id.value
             user_id = getattr(account, "user_id", None)
+        # Handle AccountId value object
         elif hasattr(account, "value"):
             account_value = account.value
+        # Handle raw string/int (account_id)
+        elif isinstance(account, (str, int)):
+            account_value = str(account)
 
         if account_value is None:
             return

@@ -112,6 +112,7 @@ class Container:
         # Broker adapters (lazy - connected on demand)
         self._broker_adapters = {
             BrokerType.TRADELOCKER: TradeLockerAdapter(),
+            BrokerType.PROJECTX: TopstepAdapter(),  # Use TopstepAdapter for both ProjectX and TopStep
             BrokerType.TOPSTEP: TopstepAdapter(),
             BrokerType.TRADOVATE: TradovateAdapter(),
             BrokerType.MT4: MT4Adapter(),
