@@ -319,13 +319,16 @@ class TradeLockerSDKWrapper:
             side: 'buy' or 'sell'
             order_type: 'market', 'limit', 'stop'
             price: Limit/stop price (required for limit/stop orders)
-            stop_loss: Stop loss price
-            take_profit: Take profit price
-            stop_loss_type: 'absolute' or 'offset'
+            stop_loss: Stop loss price/distance
+            take_profit: Take profit price/distance
+            stop_loss_type: 'absolute', 'offset', or 'trailingOffset' (trailing stop)
             take_profit_type: 'absolute' or 'offset'
             validity: Order validity (GTC, DAY, IOC, FOK)
 
         Returns order result dict or None on error.
+
+        Note: For trailing stop, use stop_loss_type='trailingOffset' with
+        stop_loss as the trailing distance in price units.
         """
         if not self.is_initialized:
             logger.error("SDK not initialized")
@@ -563,8 +566,12 @@ class TradeLockerSDKWrapper:
         """
         Look up instrument ID by symbol name.
 
+        Supports symbol normalization for cross-broker compatibility:
+        - Removes common prefixes/suffixes (m, .pro, #, etc.)
+        - Handles slash format (EUR/USD -> EURUSD)
+
         Args:
-            symbol: Symbol name (e.g., "EURUSD", "BTCUSD")
+            symbol: Symbol name (e.g., "EURUSD", "BTCUSD", "EUR/USD")
 
         Returns instrument ID or None if not found.
         """
@@ -572,24 +579,281 @@ class TradeLockerSDKWrapper:
         if instruments is None:
             return None
 
-        try:
-            # Filter by symbol name
-            if hasattr(instruments, 'loc'):
-                # DataFrame
-                matches = instruments[instruments['name'] == symbol]
-                if not matches.empty:
-                    return int(matches.iloc[0]['tradableInstrumentId'])
-            else:
-                # List of dicts
-                for inst in instruments:
-                    if inst.get('name') == symbol:
-                        return inst.get('tradableInstrumentId')
+        # Normalize the input symbol
+        normalized = self.normalize_symbol(symbol)
 
-            logger.warning(f"Instrument not found: {symbol}")
+        try:
+            # Convert to list if DataFrame
+            if hasattr(instruments, 'to_dict'):
+                inst_list = instruments.to_dict('records')
+            else:
+                inst_list = instruments
+
+            # Try exact match first
+            for inst in inst_list:
+                if inst.get('name') == symbol:
+                    return int(inst.get('tradableInstrumentId'))
+
+            # Try normalized match
+            for inst in inst_list:
+                inst_name = inst.get('name', '')
+                if self.normalize_symbol(inst_name) == normalized:
+                    return int(inst.get('tradableInstrumentId'))
+
+            logger.warning(f"Instrument not found: {symbol} (normalized: {normalized})")
             return None
 
         except Exception as e:
             logger.error(f"Failed to lookup instrument: {e}")
+            return None
+
+    @staticmethod
+    def normalize_symbol(symbol: str) -> str:
+        """
+        Normalize symbol for cross-broker compatibility.
+
+        Handles common variations:
+        - EUR/USD -> EURUSD (slash format)
+        - EURUSDm -> EURUSD (micro suffix)
+        - .EURUSD -> EURUSD (dot prefix)
+        - EURUSD.pro -> EURUSD (pro suffix)
+        - EURUSD# -> EURUSD (hash suffix)
+        - eurusd -> EURUSD (lowercase)
+
+        Args:
+            symbol: Raw symbol string
+
+        Returns:
+            Normalized uppercase symbol
+        """
+        if not symbol:
+            return ""
+
+        s = symbol.strip().upper()
+
+        # Remove slash (EUR/USD -> EURUSD)
+        s = s.replace("/", "")
+
+        # Remove common prefixes
+        prefixes = [".", "#", "_"]
+        for prefix in prefixes:
+            if s.startswith(prefix):
+                s = s[len(prefix):]
+
+        # Remove common suffixes
+        suffixes = [".PRO", ".ECN", ".STD", ".RAW", "M", "#", "_SB", "C"]
+        for suffix in suffixes:
+            if s.endswith(suffix) and len(s) > len(suffix):
+                s = s[:-len(suffix)]
+
+        return s
+
+    async def modify_position(
+        self,
+        position_id: int,
+        stop_loss: Optional[float] = None,
+        take_profit: Optional[float] = None,
+        stop_loss_type: str = "absolute",
+        take_profit_type: str = "absolute"
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Modify an existing position's SL/TP.
+
+        Args:
+            position_id: Position ID to modify
+            stop_loss: New stop loss price/distance (None to remove)
+            take_profit: New take profit price/distance (None to remove)
+            stop_loss_type: 'absolute', 'offset', or 'trailingOffset'
+            take_profit_type: 'absolute' or 'offset'
+
+        Returns modification result or None on error.
+        """
+        if not self.is_initialized:
+            logger.error("SDK not initialized")
+            return None
+
+        try:
+            loop = asyncio.get_event_loop()
+
+            # Build modification params
+            params = {}
+            if stop_loss is not None:
+                params['stopLoss'] = stop_loss
+                params['stopLossType'] = stop_loss_type
+            if take_profit is not None:
+                params['takeProfit'] = take_profit
+                params['takeProfitType'] = take_profit_type
+
+            result = await loop.run_in_executor(
+                self._executor,
+                lambda: self._tl.modify_position(int(position_id), params)
+            )
+
+            logger.info(f"Position modified: {result}")
+            return {"success": bool(result), "result": result}
+
+        except Exception as e:
+            logger.error(f"Failed to modify position: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def close_all_positions(
+        self,
+        instrument_id: Optional[int] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Close all positions, optionally filtered by instrument.
+
+        Args:
+            instrument_id: If provided, only close positions for this instrument
+
+        Returns result with count of closed positions.
+        """
+        if not self.is_initialized:
+            logger.error("SDK not initialized")
+            return None
+
+        try:
+            loop = asyncio.get_event_loop()
+
+            result = await loop.run_in_executor(
+                self._executor,
+                lambda: self._tl.close_all_positions(
+                    instrument_id_filter=instrument_id or 0
+                )
+            )
+
+            logger.info(f"Close all positions result: {result}")
+            return {"success": True, "result": result}
+
+        except Exception as e:
+            logger.error(f"Failed to close all positions: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def get_executions(self) -> List[Dict[str, Any]]:
+        """
+        Get trade execution history.
+
+        Returns list of execution dicts with:
+        - id: Execution ID
+        - orderId: Related order ID
+        - positionId: Related position ID
+        - price: Execution price
+        - qty: Executed quantity
+        - side: 'buy' or 'sell'
+        - tradableInstrumentId: Instrument ID
+        - createdDate: Timestamp
+        """
+        if not self.is_initialized:
+            logger.error("SDK not initialized")
+            return []
+
+        try:
+            loop = asyncio.get_event_loop()
+
+            result = await loop.run_in_executor(
+                self._executor,
+                lambda: self._tl.get_all_executions()
+            )
+
+            if hasattr(result, 'to_dict'):
+                return result.to_dict('records')
+            return result if result else []
+
+        except Exception as e:
+            logger.error(f"Failed to get executions: {e}")
+            return []
+
+    async def get_instrument_details(
+        self,
+        instrument_id: int
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get detailed instrument information.
+
+        Returns dict with:
+        - name, description, type
+        - minLot, maxLot, lotStep, lotSize
+        - tickSize, tickCost
+        - baseCurrency, quotingCurrency
+        - leverage
+        - tradingExchange, marketDataExchange
+        """
+        if not self.is_initialized:
+            logger.error("SDK not initialized")
+            return None
+
+        try:
+            loop = asyncio.get_event_loop()
+
+            result = await loop.run_in_executor(
+                self._executor,
+                lambda: self._tl.get_instrument_details(instrument_id)
+            )
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Failed to get instrument details: {e}")
+            return None
+
+    async def get_market_depth(
+        self,
+        instrument_id: int
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get market depth (order book) for an instrument.
+
+        Returns dict with:
+        - asks: List of [price, size] pairs
+        - bids: List of [price, size] pairs
+        """
+        if not self.is_initialized:
+            logger.error("SDK not initialized")
+            return None
+
+        try:
+            loop = asyncio.get_event_loop()
+
+            result = await loop.run_in_executor(
+                self._executor,
+                lambda: self._tl.get_market_depth(instrument_id)
+            )
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Failed to get market depth: {e}")
+            return None
+
+    async def get_quotes(
+        self,
+        instrument_id: int
+    ) -> Optional[Dict[str, float]]:
+        """
+        Get current bid/ask quotes for an instrument.
+
+        Returns dict with:
+        - ap: Ask price
+        - bp: Bid price
+        - as: Ask size
+        - bs: Bid size
+        """
+        if not self.is_initialized:
+            logger.error("SDK not initialized")
+            return None
+
+        try:
+            loop = asyncio.get_event_loop()
+
+            result = await loop.run_in_executor(
+                self._executor,
+                lambda: self._tl.get_quotes(instrument_id)
+            )
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Failed to get quotes: {e}")
             return None
 
     def shutdown(self):
