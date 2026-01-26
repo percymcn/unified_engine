@@ -78,6 +78,16 @@ export default function BrokerToolsPage() {
       toast({
         title: 'Missing credentials',
         description: 'Update broker credentials in Accounts settings to use Broker Tools.',
+        action: (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => window.location.href = '/dashboard/settings/accounts'}
+            className="ml-2 mt-2"
+          >
+            Go to Accounts Settings
+          </Button>
+        ),
         variant: 'destructive',
       });
       return;

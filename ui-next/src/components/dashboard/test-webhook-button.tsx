@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Zap, Loader2, CheckCircle, XCircle } from 'lucide-react';
 import {
@@ -10,6 +10,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
+import { useUser } from '@/providers/user-provider';
 
 interface TestResult {
   success: boolean;
@@ -25,10 +26,33 @@ export function TestWebhookButton({ onSuccess }: TestWebhookButtonProps) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<TestResult | null>(null);
   const { toast } = useToast();
+  const { user } = useUser();
 
   const handleTest = async () => {
     setLoading(true);
     setResult(null);
+
+    // Safety check: Ensure user has webhook key
+    if (!user?.primary_webhook_key) {
+      toast({
+        title: 'No webhook key',
+        description: 'Generate a webhook key first in the Webhook settings.',
+        action: (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => window.location.href = '/dashboard/settings/webhooks'}
+            className="ml-2 mt-2"
+          >
+            Generate Webhook Key
+          </Button>
+        ),
+        variant: 'destructive',
+      });
+      setTimeout(() => setResult(null), 5000);
+      setLoading(false);
+      return;
+    }
 
     try {
       const response = await fetch('/api/webhooks/test', {

@@ -18,6 +18,16 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   getAccounts,
   createAccount,
   updateAccount,
@@ -72,14 +82,9 @@ export function AccountList() {
   const [accounts, setAccounts] = useState<AccountWithSettings[]>([]);
   const [groups, setGroups] = useState<AccountGroup[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [editingAccount, setEditingAccount] = useState<Account | undefined>();
-  const [deletingAccount, setDeletingAccount] = useState<Account | undefined>();
-  const [deleting, setDeleting] = useState(false);
   const [processingOAuth, setProcessingOAuth] = useState(false);
-  const [selectedGroup, setSelectedGroup] = useState<number | 'ungrouped' | null>(null);
-
-  const searchParams = useSearchParams();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [accountToDelete, setAccountToDelete] = useState<Account | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -278,10 +283,20 @@ export function AccountList() {
   const handleDelete = async () => {
     if (!deletingAccount) return;
 
+    // Show confirmation dialog
+    setAccountToDelete(deletingAccount);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!accountToDelete) return;
+
     try {
       setDeleting(true);
-      await deleteAccount(deletingAccount.id);
-      setAccounts((prev) => prev.filter((acc) => acc.id !== deletingAccount.id));
+      await deleteAccount(accountToDelete.id);
+      setAccounts((prev) => prev.filter((acc) => acc.id !== accountToDelete.id));
+      setDeleteDialogOpen(false);
+      setAccountToDelete(null);
       setDeletingAccount(undefined);
       toast({
         title: 'Account Deleted',
@@ -293,7 +308,16 @@ export function AccountList() {
       toast(formatErrorForToast(userError));
     } finally {
       setDeleting(false);
+      setDeleteDialogOpen(false);
+      setAccountToDelete(null);
+      setDeletingAccount(undefined);
     }
+  };
+
+  const cancelDelete = () => {
+    setDeleteDialogOpen(false);
+    setAccountToDelete(null);
+    setDeletingAccount(undefined);
   };
 
   const handleSyncComplete = async (updatedAccount: Account) => {
@@ -471,6 +495,13 @@ export function AccountList() {
               Cancel
             </Button>
             <Button
+              variant="outline"
+              onClick={() => setDeletingAccount(undefined)}
+              disabled={deleting}
+            >
+              Cancel
+            </Button>
+            <Button
               variant="destructive"
               onClick={handleDelete}
               disabled={deleting}
@@ -480,6 +511,27 @@ export function AccountList() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Account</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete the "{accountToDelete?.broker}" account "{accountToDelete?.account_id}"? 
+              This action cannot be undone and will remove all associated data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={cancelDelete} disabled={deleting}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} disabled={deleting}>
+              {deleting ? 'Deleting...' : 'Delete Account'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

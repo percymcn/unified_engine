@@ -1,8 +1,18 @@
-# Unified Trading Engine
+# 🎯 TradeFlow - Production Ready Trading Platform
 
-A comprehensive, production-ready trading system that integrates multiple trading platforms and brokers into a single, unified API.
+[![TradeFlow Logo](https://img.shields.io/badge/production-ready-brightgreen.svg)](https://img.shields.io/badge/production-ready-brightgreen.svg) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://img.shields.io/badge/License-MIT-blue.svg) [![FastAPI](https://img.shields.io/badge/FastAPI-0.104.1-green.svg)](https://img.shields.io/badge/FastAPI-0.104.1-green.svg) [![Next.js](https://img.shields.io/badge/Next.js-14.2.0-black.svg)](https://img.shields.io/badge/Next.js-14.2.0-black.svg)
 
-## 🚀 Features
+A comprehensive trading signal processing platform with real-time broker integration, advanced signal intelligence, and modern UI.
+
+## 🚀 **Key Features**
+
+- **🔄 End-to-End Signal Flow**: Add broker → sync → routing → webhook test → execution with confetti
+- **🎯 Real-Time Trading**: Live signal processing with WebSocket updates  
+- **📊 Signal Intelligence**: FlowGuard bot, heat map, momentum meter
+- **🌟 Modern UI**: Glassmorphism, dark theme, responsive design
+- **🔒 Security**: JWT auth, encryption, rate limiting, OAuth integration
+- **📈 Multi-Broker**: MT4/MT5 (MetaAPI), TradeLocker, Tradovate, ProjectX/TopStep
+- **🚀 Production Ready**: Docker deployment, CI/CD, environment validation
 
 ### Core Functionality
 - **Multi-Broker Support**: MT4, MT5, and custom broker integrations
