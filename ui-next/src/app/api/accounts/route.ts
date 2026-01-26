@@ -85,6 +85,10 @@ export async function POST(request: NextRequest) {
       ...(body.oauth_tokens && { oauth_tokens: body.oauth_tokens }),
       // Additional broker config
       ...(body.broker_config && { broker_config: body.broker_config }),
+      // Multi-account selection fields (for ProjectX/TopStep and other multi-account brokers)
+      ...(body.enabled_broker_account_ids && { enabled_broker_account_ids: body.enabled_broker_account_ids }),
+      ...(body.default_broker_account_id && { default_broker_account_id: body.default_broker_account_id }),
+      ...(body.discovered_accounts_cache && { discovered_accounts_cache: body.discovered_accounts_cache }),
     };
 
     // Create account in backend

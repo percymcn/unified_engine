@@ -178,27 +178,33 @@ class ProjectXExecutor(BaseExecutor):
         self._is_connected = False
         logger.info("ProjectX executor disconnected")
 
-    async def get_accounts(self) -> List[Account]:
-        """Get all ProjectX accounts."""
+    async def get_accounts(self, limit: int = 5) -> List[Account]:
+        """Get all ProjectX accounts (most recent first, limited)."""
         if self.is_using_sdk:
             try:
-                info = await self._sdk_service.get_account_info()
-                return [Account(
-                    id=info.get("id", ""),
-                    broker="projectx",
-                    account_type="live",
-                    currency=info.get("currency", "USD"),
-                    balance=float(info.get("balance", 0)),
-                    equity=float(info.get("equity", 0)),
-                    margin=float(info.get("margin", 0)),
-                    free_margin=float(info.get("free_margin", 0)),
-                    margin_level=0.0,
-                    leverage=100,
-                    is_active=True,
-                    is_live=True,
-                    created_at=datetime.now(),
-                    updated_at=datetime.now()
-                )]
+                # Use list_accounts to get all accounts with status
+                accounts_data = await self._sdk_service.list_accounts(limit=limit)
+                return [
+                    Account(
+                        id=acc.get("id", ""),
+                        broker="projectx",
+                        account_type="live" if acc.get("is_live") else "demo",
+                        currency=acc.get("currency", "USD"),
+                        balance=float(acc.get("balance", 0)),
+                        equity=float(acc.get("equity", 0)),
+                        margin=float(acc.get("margin", 0)),
+                        free_margin=float(acc.get("free_margin", 0)),
+                        margin_level=0.0,
+                        leverage=100,
+                        is_active=acc.get("is_active", True),
+                        is_live=acc.get("is_live", False),
+                        created_at=datetime.now(),
+                        updated_at=datetime.now(),
+                        # Pass status in extra_data for discover endpoint
+                        extra_data={"status": acc.get("status", "active")}
+                    )
+                    for acc in accounts_data
+                ]
             except Exception as e:
                 logger.error(f"SDK get_accounts failed: {e}")
                 return []

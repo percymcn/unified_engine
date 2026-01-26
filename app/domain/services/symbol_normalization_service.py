@@ -47,6 +47,8 @@ class SymbolNormalizationService:
     # Ordered from most specific to least specific for greedy matching
     # IMPORTANT: These patterns are designed to NOT strip valid symbol parts like "30" in "US30"
     SUFFIX_PATTERNS = [
+        r'1!$',         # TradingView continuous contract (MNQ1!, ES1!, NQ1!)
+        r'\d!$',        # TradingView contract variants (MNQ2!, ES3!)
         r'\.pro$',      # TradeLocker professional
         r'\.raw$',      # Raw spread accounts
         r'\.std$',      # Standard accounts
@@ -66,28 +68,95 @@ class SymbolNormalizationService:
         # CME month codes: only strip single-letter month codes followed by year
         # H=March, M=June, U=Sept, Z=Dec are front months
         r'(?<=[A-Z])[HMUZ]\d{2}$',  # Front month futures (NQH25, ESM25)
+        r'(?<=[A-Z])[HMUZ]\d{4}$',  # Front month with 4-digit year (NQH2026)
     ]
 
     # Known symbol mappings for common instruments across brokers
+    # TradingView symbols -> Broker symbols
     KNOWN_MAPPINGS = {
-        # Dow Jones
-        'US30': {'tradovate': 'YM', 'projectx': 'YM'},
-        'DJ30': {'tradovate': 'YM', 'projectx': 'YM'},
-        'DOW': {'tradovate': 'YM', 'projectx': 'YM'},
-        # S&P 500
-        'US500': {'tradovate': 'ES', 'projectx': 'ES'},
-        'SPX500': {'tradovate': 'ES', 'projectx': 'ES'},
-        'SPX': {'tradovate': 'ES', 'projectx': 'ES'},
-        # NASDAQ
-        'NAS100': {'tradovate': 'NQ', 'projectx': 'NQ'},
-        'USTEC': {'tradovate': 'NQ', 'projectx': 'NQ'},
-        'NDX': {'tradovate': 'NQ', 'projectx': 'NQ'},
-        # Gold
-        'XAUUSD': {'tradovate': 'GC', 'projectx': 'GC'},
-        'GOLD': {'tradovate': 'GC', 'projectx': 'GC'},
-        # Oil
+        # =====================================================================
+        # Micro Futures (TradingView continuous contracts)
+        # =====================================================================
+        # Micro E-mini NASDAQ-100
+        'MNQ1!': {'tradovate': 'MNQ', 'projectx': 'MNQ'},
+        'MNQ': {'tradovate': 'MNQ', 'projectx': 'MNQ'},
+        'MNQH2026': {'tradovate': 'MNQ', 'projectx': 'MNQ'},
+        # Micro E-mini S&P 500
+        'MES1!': {'tradovate': 'MES', 'projectx': 'MES'},
+        'MES': {'tradovate': 'MES', 'projectx': 'MES'},
+        'MESH2026': {'tradovate': 'MES', 'projectx': 'MES'},
+        # Micro E-mini Dow
+        'MYM1!': {'tradovate': 'MYM', 'projectx': 'MYM'},
+        'MYM': {'tradovate': 'MYM', 'projectx': 'MYM'},
+        'MYMH2026': {'tradovate': 'MYM', 'projectx': 'MYM'},
+        # Micro Crude Oil
+        'MCL1!': {'tradovate': 'MCL', 'projectx': 'MCL'},
+        'MCL': {'tradovate': 'MCL', 'projectx': 'MCL'},
+        # Micro Gold
+        'MGC1!': {'tradovate': 'MGC', 'projectx': 'MGC'},
+        'MGC': {'tradovate': 'MGC', 'projectx': 'MGC'},
+        # Micro Bitcoin (CME)
+        'MBT1!': {'tradovate': 'MBT', 'projectx': 'MBT'},
+        'MBT': {'tradovate': 'MBT', 'projectx': 'MBT'},
+        # Micro Russell 2000
+        'M2K1!': {'tradovate': 'M2K', 'projectx': 'M2K'},
+        'M2K': {'tradovate': 'M2K', 'projectx': 'M2K'},
+
+        # =====================================================================
+        # E-mini Futures (TradingView continuous contracts)
+        # =====================================================================
+        # E-mini NASDAQ-100
+        'NQ1!': {'tradovate': 'NQ', 'projectx': 'NQ'},
+        'NQ': {'tradovate': 'NQ', 'projectx': 'NQ'},
+        'NQH2026': {'tradovate': 'NQ', 'projectx': 'NQ'},
+        # E-mini S&P 500
+        'ES1!': {'tradovate': 'ES', 'projectx': 'ES'},
+        'ES': {'tradovate': 'ES', 'projectx': 'ES'},
+        'ESH2026': {'tradovate': 'ES', 'projectx': 'ES'},
+        # E-mini Dow
+        'YM1!': {'tradovate': 'YM', 'projectx': 'YM'},
+        'YM': {'tradovate': 'YM', 'projectx': 'YM'},
+        # E-mini Russell 2000
+        'RTY1!': {'tradovate': 'RTY', 'projectx': 'RTY'},
+        'RTY': {'tradovate': 'RTY', 'projectx': 'RTY'},
+
+        # =====================================================================
+        # Commodities
+        # =====================================================================
+        # Crude Oil
+        'CL1!': {'tradovate': 'CL', 'projectx': 'CL'},
+        'CL': {'tradovate': 'CL', 'projectx': 'CL'},
         'USOIL': {'tradovate': 'CL', 'projectx': 'CL'},
         'WTIUSD': {'tradovate': 'CL', 'projectx': 'CL'},
+        # Gold
+        'GC1!': {'tradovate': 'GC', 'projectx': 'GC'},
+        'GC': {'tradovate': 'GC', 'projectx': 'GC'},
+        'XAUUSD': {'tradovate': 'GC', 'projectx': 'GC'},
+        'GOLD': {'tradovate': 'GC', 'projectx': 'GC'},
+        # Silver
+        'SI1!': {'tradovate': 'SI', 'projectx': 'SI'},
+        'SI': {'tradovate': 'SI', 'projectx': 'SI'},
+        'XAGUSD': {'tradovate': 'SI', 'projectx': 'SI'},
+        # Natural Gas
+        'NG1!': {'tradovate': 'NG', 'projectx': 'NG'},
+        'NG': {'tradovate': 'NG', 'projectx': 'NG'},
+        'NATGAS': {'tradovate': 'NG', 'projectx': 'NG'},
+
+        # =====================================================================
+        # CFD/Index mappings (for TradeLocker/other brokers)
+        # =====================================================================
+        # Dow Jones
+        'US30': {'tradovate': 'YM', 'projectx': 'YM', 'tradelocker': 'US30'},
+        'DJ30': {'tradovate': 'YM', 'projectx': 'YM', 'tradelocker': 'US30'},
+        'DOW': {'tradovate': 'YM', 'projectx': 'YM', 'tradelocker': 'US30'},
+        # S&P 500
+        'US500': {'tradovate': 'ES', 'projectx': 'ES', 'tradelocker': 'US500'},
+        'SPX500': {'tradovate': 'ES', 'projectx': 'ES', 'tradelocker': 'US500'},
+        'SPX': {'tradovate': 'ES', 'projectx': 'ES', 'tradelocker': 'US500'},
+        # NASDAQ
+        'NAS100': {'tradovate': 'NQ', 'projectx': 'NQ', 'tradelocker': 'NAS100'},
+        'USTEC': {'tradovate': 'NQ', 'projectx': 'NQ', 'tradelocker': 'NAS100'},
+        'NDX': {'tradovate': 'NQ', 'projectx': 'NQ', 'tradelocker': 'NAS100'},
     }
 
     def __init__(self, fuzzy_threshold: float = 0.8):

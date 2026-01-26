@@ -188,7 +188,7 @@ export function AccountForm({
           const discoverResult = await discoverAccounts(broker, stringCredentials);
           setDiscoveredAccounts(discoverResult.accounts || []);
           
-          // Auto-select accounts: if exactly one, auto-select it; otherwise select all
+          // Auto-select accounts based on count
           if (discoverResult.accounts && discoverResult.accounts.length > 0) {
             if (discoverResult.accounts.length === 1) {
               // Exactly one account - auto-select it
@@ -196,12 +196,21 @@ export function AccountForm({
               const accId = acc.broker_account_id || acc.id || '';
               setSelectedAccountIds(new Set([accId]));
               setDefaultAccountId(accId);
-            } else {
-              // Multiple accounts - select all, set first as default
+            } else if (discoverResult.accounts.length <= 5) {
+              // Few accounts (2-5) - auto-select all
               const allIds = new Set(discoverResult.accounts.map(acc => acc.broker_account_id || acc.id || '').filter(Boolean));
               setSelectedAccountIds(allIds);
               if (allIds.size > 0) {
                 setDefaultAccountId(Array.from(allIds)[0]);
+              }
+            } else {
+              // Many accounts (6+) - don't auto-select, let user choose
+              // Just set first active account as default for convenience
+              const activeAccounts = discoverResult.accounts.filter(acc => acc.status === 'active');
+              if (activeAccounts.length > 0) {
+                const firstActiveId = activeAccounts[0].broker_account_id || activeAccounts[0].id || '';
+                setSelectedAccountIds(new Set([firstActiveId]));
+                setDefaultAccountId(firstActiveId);
               }
             }
           }
@@ -547,14 +556,45 @@ export function AccountForm({
                     
                     {discoveredAccounts.length > 0 && (
                       <div className="space-y-3 pt-2 border-t border-border">
-                        <div>
-                          <Label className="text-sm font-semibold">Available Accounts</Label>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Select accounts to connect. One will be set as default.
-                          </p>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <Label className="text-sm font-semibold">Available Accounts ({discoveredAccounts.length})</Label>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Select accounts to connect. One will be set as default.
+                            </p>
+                          </div>
+                          {discoveredAccounts.length > 3 && (
+                            <div className="flex gap-2">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  const allIds = new Set(discoveredAccounts.map(acc => acc.broker_account_id || acc.id || '').filter(Boolean));
+                                  setSelectedAccountIds(allIds);
+                                  if (!defaultAccountId && allIds.size > 0) {
+                                    setDefaultAccountId(Array.from(allIds)[0]);
+                                  }
+                                }}
+                              >
+                                Select All
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedAccountIds(new Set());
+                                  setDefaultAccountId('');
+                                }}
+                              >
+                                Deselect All
+                              </Button>
+                            </div>
+                          )}
                         </div>
-                        
-                        <div className="space-y-2 max-h-48 overflow-y-auto">
+
+                        <div className="space-y-2 max-h-64 overflow-y-auto">
                           {discoveredAccounts.map((acc) => {
                             const accId = acc.broker_account_id || acc.id || '';
                             const displayName = acc.display_name || acc.name || accId;
@@ -586,14 +626,18 @@ export function AccountForm({
                                         Inactive
                                       </span>
                                     )}
+                                    {acc.status === 'blown' && (
+                                      <span className="text-xs px-1.5 py-0.5 bg-red-100 text-red-700 rounded">
+                                        Blown
+                                      </span>
+                                    )}
                                     <span className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">
                                       {acc.account_type}
                                     </span>
                                   </div>
                                   <div className="text-xs text-muted-foreground mt-1">
-                                    {String((acc.meta as Record<string, unknown>)?.currency ?? acc.currency ?? 'USD')} • 
-                                    Balance: {Number(acc.meta?.balance || acc.balance || 0).toFixed(2)} • 
-                                    Equity: {Number(acc.meta?.equity || acc.equity || 0).toFixed(2)}
+                                    {String((acc.meta as Record<string, unknown>)?.currency ?? acc.currency ?? 'USD')} •
+                                    Balance: ${Number(acc.meta?.balance || acc.balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                   </div>
                                   {acc.account_number && acc.account_number !== accId && (
                                     <div className="text-xs text-muted-foreground mt-1">
@@ -713,14 +757,45 @@ export function AccountForm({
                     
                     {discoveredAccounts.length > 0 && (
                       <div className="space-y-3 pt-2 border-t border-border">
-                        <div>
-                          <Label className="text-sm font-semibold">Available Accounts</Label>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Select accounts to connect. One will be set as default.
-                          </p>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <Label className="text-sm font-semibold">Available Accounts ({discoveredAccounts.length})</Label>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Select accounts to connect. One will be set as default.
+                            </p>
+                          </div>
+                          {discoveredAccounts.length > 3 && (
+                            <div className="flex gap-2">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  const allIds = new Set(discoveredAccounts.map(acc => acc.broker_account_id || acc.id || '').filter(Boolean));
+                                  setSelectedAccountIds(allIds);
+                                  if (!defaultAccountId && allIds.size > 0) {
+                                    setDefaultAccountId(Array.from(allIds)[0]);
+                                  }
+                                }}
+                              >
+                                Select All
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedAccountIds(new Set());
+                                  setDefaultAccountId('');
+                                }}
+                              >
+                                Deselect All
+                              </Button>
+                            </div>
+                          )}
                         </div>
-                        
-                        <div className="space-y-2 max-h-48 overflow-y-auto">
+
+                        <div className="space-y-2 max-h-64 overflow-y-auto">
                           {discoveredAccounts.map((acc) => {
                             const accId = acc.broker_account_id || acc.id || '';
                             const displayName = acc.display_name || acc.name || accId;
@@ -752,14 +827,18 @@ export function AccountForm({
                                         Inactive
                                       </span>
                                     )}
+                                    {acc.status === 'blown' && (
+                                      <span className="text-xs px-1.5 py-0.5 bg-red-100 text-red-700 rounded">
+                                        Blown
+                                      </span>
+                                    )}
                                     <span className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">
                                       {acc.account_type}
                                     </span>
                                   </div>
                                   <div className="text-xs text-muted-foreground mt-1">
-                                    {String((acc.meta as Record<string, unknown>)?.currency ?? acc.currency ?? 'USD')} • 
-                                    Balance: {Number(acc.meta?.balance || acc.balance || 0).toFixed(2)} • 
-                                    Equity: {Number(acc.meta?.equity || acc.equity || 0).toFixed(2)}
+                                    {String((acc.meta as Record<string, unknown>)?.currency ?? acc.currency ?? 'USD')} •
+                                    Balance: ${Number(acc.meta?.balance || acc.balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                   </div>
                                   {acc.account_number && acc.account_number !== accId && (
                                     <div className="text-xs text-muted-foreground mt-1">

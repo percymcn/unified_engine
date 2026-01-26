@@ -39,7 +39,7 @@ export interface DiscoveredAccount {
   broker_account_id: string;
   account_number: string | null;
   display_name: string;
-  status: 'active' | 'inactive' | 'unknown';
+  status: 'active' | 'inactive' | 'blown' | 'unknown';
   account_type: 'eval' | 'funded' | 'demo' | 'unknown';
   broker: string;
   meta: Record<string, unknown>;

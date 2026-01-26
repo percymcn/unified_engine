@@ -158,6 +158,72 @@ class ProjectXSDKService:
             "currency": getattr(account, 'currency', 'USD') if account else 'USD',
         }
 
+    async def list_accounts(self, limit: int = 5) -> List[Dict[str, Any]]:
+        """
+        List all accounts with status information.
+
+        Uses SDK's list_accounts() to get all accounts and determine status
+        based on canTrade, isVisible, and balance fields.
+
+        Args:
+            limit: Max accounts to return (sorted by ID desc, most recent first)
+
+        Returns:
+            List of account dicts with id, name, balance, status, etc.
+            Status values: 'active', 'inactive', 'blown'
+
+        Raises:
+            RuntimeError: If not connected
+        """
+        if not self._client:
+            raise RuntimeError("Not connected")
+
+        try:
+            accounts = await self._client.list_accounts()
+        except Exception as e:
+            logger.warning(f"list_accounts failed, falling back to account_info: {e}")
+            # Fallback to single account
+            info = await self.get_account_info()
+            return [info] if info.get("id") else []
+
+        # Sort by ID descending (most recent first) and limit
+        sorted_accounts = sorted(accounts, key=lambda a: getattr(a, 'id', 0), reverse=True)
+        limited_accounts = sorted_accounts[:limit] if limit > 0 else sorted_accounts
+
+        result = []
+        for acc in limited_accounts:
+            acc_id = str(getattr(acc, 'id', ''))
+            name = getattr(acc, 'name', '')
+            balance = float(getattr(acc, 'balance', 0))
+            can_trade = getattr(acc, 'canTrade', True)
+            is_visible = getattr(acc, 'isVisible', True)
+            simulated = getattr(acc, 'simulated', True)
+
+            # Determine status based on canTrade and balance
+            if not can_trade:
+                status = 'blown' if balance < 100 else 'inactive'
+            elif balance < 100:
+                status = 'blown'
+            else:
+                status = 'active'
+
+            result.append({
+                "id": acc_id,
+                "name": name,
+                "balance": balance,
+                "equity": balance,  # SDK doesn't provide separate equity
+                "margin": 0.0,
+                "free_margin": balance,
+                "currency": "USD",
+                "status": status,
+                "can_trade": can_trade,
+                "is_visible": is_visible,
+                "is_live": not simulated,
+                "is_active": can_trade,
+            })
+
+        return result
+
     async def get_trading_suite(self, instrument: str) -> Any:
         """
         Get or create TradingSuite for instrument.
@@ -303,25 +369,20 @@ class ProjectXSDKService:
         if not self._client:
             raise RuntimeError("Not connected")
 
-        if not SDK_AVAILABLE or TradingSuite is None:
-            return []
-
         try:
-            # Use a common instrument to initialize suite for position access
-            suite = await TradingSuite.create("MNQ")
-            positions = await suite.positions.get_all_positions()
-            await suite.disconnect()
+            # Use client's search_open_positions directly (SDK v3.0+)
+            positions = await self._client.search_open_positions()
 
             return [
                 {
                     "id": str(getattr(pos, 'id', '')) if pos else "",
-                    "contract_id": str(getattr(pos, 'contract_id', '')) if pos else "",
-                    "symbol": getattr(pos, 'symbol', '') if pos else '',
+                    "contract_id": str(getattr(pos, 'contractId', getattr(pos, 'contract_id', ''))) if pos else "",
+                    "symbol": getattr(pos, 'contractName', getattr(pos, 'symbol', '')) if pos else '',
                     "side": "buy" if getattr(pos, 'side', 0) == 0 else "sell",
-                    "size": float(getattr(pos, 'size', 0)) if pos else 0,
-                    "entry_price": float(getattr(pos, 'entry_price', 0)) if pos else 0.0,
-                    "current_price": float(getattr(pos, 'current_price', 0)) if pos else 0.0,
-                    "unrealized_pnl": float(getattr(pos, 'unrealized_pnl', 0)) if pos else 0.0,
+                    "size": abs(float(getattr(pos, 'qty', getattr(pos, 'size', 0)))) if pos else 0,
+                    "entry_price": float(getattr(pos, 'avgPrice', getattr(pos, 'entry_price', 0))) if pos else 0.0,
+                    "current_price": float(getattr(pos, 'currentPrice', getattr(pos, 'current_price', 0))) if pos else 0.0,
+                    "unrealized_pnl": float(getattr(pos, 'pnl', getattr(pos, 'unrealized_pnl', 0))) if pos else 0.0,
                 }
                 for pos in positions
             ]
@@ -400,8 +461,12 @@ class ProjectXSDKService:
             data = await self._client.get_bars(instrument, days=days, interval=interval)
 
             # Convert DataFrame to list of dicts
-            if hasattr(data, 'to_dict'):
-                return data.to_dict('records')
+            # SDK uses Polars DataFrame, use to_dicts() method
+            if hasattr(data, 'to_dicts'):
+                return data.to_dicts()
+            # Fallback for pandas DataFrame
+            elif hasattr(data, 'to_dict'):
+                return data.to_dict(orient='records')
             return []
         except Exception as e:
             logger.error(f"Error getting market data: {e}")
@@ -925,93 +990,155 @@ class ProjectXSDKService:
         """
         Calculate technical indicators for instrument.
 
+        SDK indicator functions expect Polars DataFrames and return DataFrames
+        with new columns added.
+
         Args:
             instrument: Instrument symbol
             days: Number of days of data
             interval: Candle interval in minutes
 
         Returns:
-            Dict with calculated indicators
+            Dict with calculated indicators (latest values)
         """
         if not self._client:
             raise RuntimeError("Not connected")
 
         try:
-            # Get market data
+            # Get market data (returns Polars DataFrame)
             data = await self._client.get_bars(instrument, days=days, interval=interval)
 
-            if not hasattr(data, 'to_dict'):
+            if data is None or len(data) == 0:
                 return {}
 
-            # Convert to list for calculations
-            closes = data['close'].tolist() if 'close' in data.columns else []
-            highs = data['high'].tolist() if 'high' in data.columns else []
-            lows = data['low'].tolist() if 'low' in data.columns else []
-            volumes = data['volume'].tolist() if 'volume' in data.columns else []
-
-            if not closes:
-                return {}
-
-            # Calculate indicators
             indicators = {}
+            num_rows = len(data)
 
-            # RSI
-            if len(closes) >= 14:
-                indicators["rsi"] = calculate_rsi(closes, period=14)
+            # RSI - column name includes period: 'rsi_14'
+            if num_rows >= 14:
+                try:
+                    rsi_df = calculate_rsi(data, column='close', period=14)
+                    if 'rsi_14' in rsi_df.columns:
+                        rsi_values = rsi_df['rsi_14'].to_list()
+                        indicators["rsi"] = rsi_values[-1] if rsi_values else None
+                        indicators["rsi_history"] = rsi_values[-20:]  # Last 20 values
+                except Exception as e:
+                    logger.warning(f"RSI calculation failed: {e}")
 
-            # MACD
-            if len(closes) >= 26:
-                macd_result = calculate_macd(closes)
-                indicators["macd"] = macd_result.get("macd", []) if isinstance(macd_result, dict) else []
-                indicators["macd_signal"] = macd_result.get("signal", []) if isinstance(macd_result, dict) else []
-                indicators["macd_histogram"] = macd_result.get("histogram", []) if isinstance(macd_result, dict) else []
+            # MACD - columns: 'macd', 'macd_signal', 'macd_histogram'
+            if num_rows >= 26:
+                try:
+                    macd_df = calculate_macd(data, column='close')
+                    if 'macd' in macd_df.columns:
+                        indicators["macd"] = macd_df['macd'].to_list()[-1]
+                    if 'macd_signal' in macd_df.columns:
+                        indicators["macd_signal"] = macd_df['macd_signal'].to_list()[-1]
+                    if 'macd_histogram' in macd_df.columns:
+                        indicators["macd_histogram"] = macd_df['macd_histogram'].to_list()[-1]
+                except Exception as e:
+                    logger.warning(f"MACD calculation failed: {e}")
 
-            # Bollinger Bands
-            if len(closes) >= 20:
-                bb_result = calculate_bollinger_bands(closes, period=20)
-                indicators["bb_upper"] = bb_result.get("upper", []) if isinstance(bb_result, dict) else []
-                indicators["bb_middle"] = bb_result.get("middle", []) if isinstance(bb_result, dict) else []
-                indicators["bb_lower"] = bb_result.get("lower", []) if isinstance(bb_result, dict) else []
+            # Bollinger Bands - columns: 'bb_middle_20', 'bb_upper_20', 'bb_lower_20'
+            if num_rows >= 20:
+                try:
+                    bb_df = calculate_bollinger_bands(data, column='close', period=20)
+                    if 'bb_upper_20' in bb_df.columns:
+                        indicators["bb_upper"] = bb_df['bb_upper_20'].to_list()[-1]
+                    if 'bb_middle_20' in bb_df.columns:
+                        indicators["bb_middle"] = bb_df['bb_middle_20'].to_list()[-1]
+                    if 'bb_lower_20' in bb_df.columns:
+                        indicators["bb_lower"] = bb_df['bb_lower_20'].to_list()[-1]
+                except Exception as e:
+                    logger.warning(f"Bollinger Bands calculation failed: {e}")
 
-            # ATR
-            if len(highs) >= 14 and len(lows) >= 14:
-                indicators["atr"] = calculate_atr(highs, lows, closes, period=14)
+            # ATR - column: 'atr_14'
+            if num_rows >= 14:
+                try:
+                    atr_df = calculate_atr(data, period=14)
+                    if 'atr_14' in atr_df.columns:
+                        indicators["atr"] = atr_df['atr_14'].to_list()[-1]
+                except Exception as e:
+                    logger.warning(f"ATR calculation failed: {e}")
 
-            # EMA
-            if len(closes) >= 20:
-                indicators["ema_20"] = calculate_ema(closes, period=20)
-                indicators["ema_50"] = calculate_ema(closes, period=50) if len(closes) >= 50 else []
+            # EMA - columns: 'ema_20', 'ema_50'
+            if num_rows >= 20:
+                try:
+                    ema20_df = calculate_ema(data, column='close', period=20)
+                    if 'ema_20' in ema20_df.columns:
+                        indicators["ema_20"] = ema20_df['ema_20'].to_list()[-1]
+                except Exception as e:
+                    logger.warning(f"EMA 20 calculation failed: {e}")
 
-            # SMA
-            if len(closes) >= 20:
-                indicators["sma_20"] = calculate_sma(closes, period=20)
-                indicators["sma_50"] = calculate_sma(closes, period=50) if len(closes) >= 50 else []
+            if num_rows >= 50:
+                try:
+                    ema50_df = calculate_ema(data, column='close', period=50)
+                    if 'ema_50' in ema50_df.columns:
+                        indicators["ema_50"] = ema50_df['ema_50'].to_list()[-1]
+                except Exception as e:
+                    logger.warning(f"EMA 50 calculation failed: {e}")
 
-            # Stochastic
-            if len(highs) >= 14 and len(lows) >= 14:
-                stoch_result = calculate_stochastic(highs, lows, closes, period=14)
-                indicators["stoch_k"] = stoch_result.get("k", []) if isinstance(stoch_result, dict) else []
-                indicators["stoch_d"] = stoch_result.get("d", []) if isinstance(stoch_result, dict) else []
+            # SMA - columns: 'sma_20', 'sma_50'
+            if num_rows >= 20:
+                try:
+                    sma20_df = calculate_sma(data, column='close', period=20)
+                    if 'sma_20' in sma20_df.columns:
+                        indicators["sma_20"] = sma20_df['sma_20'].to_list()[-1]
+                except Exception as e:
+                    logger.warning(f"SMA 20 calculation failed: {e}")
 
-            # OBV
-            if volumes and len(closes) == len(volumes):
-                indicators["obv"] = calculate_obv(closes, volumes)
+            if num_rows >= 50:
+                try:
+                    sma50_df = calculate_sma(data, column='close', period=50)
+                    if 'sma_50' in sma50_df.columns:
+                        indicators["sma_50"] = sma50_df['sma_50'].to_list()[-1]
+                except Exception as e:
+                    logger.warning(f"SMA 50 calculation failed: {e}")
 
-            # VWAP
-            if volumes and len(closes) == len(volumes):
-                indicators["vwap"] = calculate_vwap(highs, lows, closes, volumes)
+            # Stochastic - columns: 'stoch_k_14', 'stoch_d_3'
+            if num_rows >= 14:
+                try:
+                    stoch_df = calculate_stochastic(data, k_period=14, d_period=3)
+                    if 'stoch_k_14' in stoch_df.columns:
+                        indicators["stoch_k"] = stoch_df['stoch_k_14'].to_list()[-1]
+                    if 'stoch_d_3' in stoch_df.columns:
+                        indicators["stoch_d"] = stoch_df['stoch_d_3'].to_list()[-1]
+                except Exception as e:
+                    logger.warning(f"Stochastic calculation failed: {e}")
 
-            # ADX
-            if len(highs) >= 14 and len(lows) >= 14:
-                indicators["adx"] = calculate_adx(highs, lows, closes, period=14)
+            # ADX - columns: 'plus_di_14', 'minus_di_14', 'adx_14'
+            if num_rows >= 14:
+                try:
+                    adx_df = calculate_adx(data, period=14)
+                    if 'adx_14' in adx_df.columns:
+                        indicators["adx"] = adx_df['adx_14'].to_list()[-1]
+                    if 'plus_di_14' in adx_df.columns:
+                        indicators["plus_di"] = adx_df['plus_di_14'].to_list()[-1]
+                    if 'minus_di_14' in adx_df.columns:
+                        indicators["minus_di"] = adx_df['minus_di_14'].to_list()[-1]
+                except Exception as e:
+                    logger.warning(f"ADX calculation failed: {e}")
 
-            # CCI
-            if len(highs) >= 20 and len(lows) >= 20:
-                indicators["cci"] = calculate_commodity_channel_index(highs, lows, closes, period=20)
+            # CCI - column: 'cci_20'
+            if num_rows >= 20:
+                try:
+                    cci_df = calculate_commodity_channel_index(data, period=20)
+                    if 'cci_20' in cci_df.columns:
+                        indicators["cci"] = cci_df['cci_20'].to_list()[-1]
+                except Exception as e:
+                    logger.warning(f"CCI calculation failed: {e}")
 
-            # Williams %R
-            if len(highs) >= 14 and len(lows) >= 14:
-                indicators["williams_r"] = calculate_williams_r(highs, lows, closes, period=14)
+            # Williams %R - column: 'williams_r_14'
+            if num_rows >= 14:
+                try:
+                    wr_df = calculate_williams_r(data, period=14)
+                    if 'williams_r_14' in wr_df.columns:
+                        indicators["williams_r"] = wr_df['williams_r_14'].to_list()[-1]
+                except Exception as e:
+                    logger.warning(f"Williams %R calculation failed: {e}")
+
+            # Add current price for reference
+            indicators["current_price"] = data['close'].to_list()[-1]
+            indicators["data_points"] = num_rows
 
             return indicators
 

@@ -65,7 +65,7 @@ class DiscoveredAccount(BaseModel):
     broker_account_id: str = Field(..., description="Broker's account ID")
     account_number: Optional[str] = Field(None, description="Account number (if different from broker_account_id)")
     display_name: str = Field(..., description="Display name for the account")
-    status: str = Field(default="unknown", description="Account status: active|inactive|unknown")
+    status: str = Field(default="unknown", description="Account status: active|inactive|blown|unknown")
     account_type: str = Field(default="unknown", description="Account type: eval|funded|demo|unknown")
     broker: str = Field(..., description="Broker identifier")
     meta: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
