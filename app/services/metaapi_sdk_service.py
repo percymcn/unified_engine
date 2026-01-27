@@ -68,8 +68,8 @@ class MetaAPISDKService:
             return False
 
         try:
-            # Create MetaApi instance
-            self._api = MetaApi(token=self.token, application=self.application)
+            # Create MetaApi instance (v29+ no longer accepts application param)
+            self._api = MetaApi(token=self.token)
 
             # Get account
             self._account = await self._api.metatrader_account_api.get_account(self.account_id)

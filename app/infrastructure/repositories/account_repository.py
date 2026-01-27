@@ -154,12 +154,8 @@ class SQLAlchemyAccountRepository(AccountRepository):
                 if changed:
                     self._session.add(config)
 
-            orm_model.is_active = False
-            orm_model.is_connected = False
-            orm_model.is_signal_enabled = False
-            orm_model.webhook_key = None
-            orm_model.enabled_broker_account_ids = None
-            orm_model.default_broker_account_id = None
+            # Actually delete the record from the database
+            await self._session.delete(orm_model)
             await self._session.flush()
 
     async def get_by_id(self, account_id: AccountId) -> Optional[Account]:

@@ -8,8 +8,9 @@ const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:8765";
 
 export async function PATCH(
   _request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const cookieStore = await cookies();
   const token = cookieStore.get("token")?.value;
 
@@ -19,7 +20,7 @@ export async function PATCH(
 
   try {
     const response = await fetch(
-      `${BACKEND_URL}/api/v1/admin/users/${params.id}/toggle-active`,
+      `${BACKEND_URL}/api/v1/admin/users/${id}/toggle-active`,
       {
         method: "PATCH",
         headers: {

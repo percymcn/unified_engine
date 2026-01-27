@@ -9,9 +9,10 @@ const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8765';
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const token = await getTokenFromCookies();
 
     if (!token) {
@@ -22,7 +23,7 @@ export async function POST(
     }
 
     const response = await fetch(
-      `${BACKEND_URL}/api/v1/accounts/${params.id}/refresh-accounts`,
+      `${BACKEND_URL}/api/v1/accounts/${id}/refresh-accounts`,
       {
         method: 'POST',
         headers: {

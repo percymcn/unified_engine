@@ -10,9 +10,10 @@ const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8765';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const token = await getTokenFromCookies();
 
     if (!token) {
@@ -23,7 +24,7 @@ export async function GET(
     }
 
     const response = await fetch(
-      `${BACKEND_URL}/api/v1/accounts/${params.id}/balance`,
+      `${BACKEND_URL}/api/v1/accounts/${id}/balance`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,

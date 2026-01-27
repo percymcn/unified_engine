@@ -51,7 +51,8 @@ class MetaAPIProvisioningService:
             raise RuntimeError("metaapi-cloud-sdk not installed")
 
         if self._api is None:
-            self._api = MetaApi(token=self.master_token, application=self.application)
+            # MetaAPI SDK v29+ uses token only - application is set per-account
+            self._api = MetaApi(token=self.master_token)
         return self._api
 
     async def provision_account(
