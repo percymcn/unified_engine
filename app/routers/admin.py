@@ -397,7 +397,7 @@ async def get_pipeline_status(
     import aiohttp
     from datetime import datetime, timedelta
     from app.models.models import Signal, Trade, WebhookConfig
-    from app.models.enhanced_models import TradingAccount
+    from app.models.database_models import TradingAccount
 
     # Pipeline components status
     components = {}
@@ -477,11 +477,11 @@ async def get_pipeline_status(
     try:
         accounts = db.query(TradingAccount).filter(TradingAccount.is_active == True).all()
         for account in accounts:
-            broker = account.broker_type.value if account.broker_type else "unknown"
+            broker = account.broker.value if account.broker else "unknown"
             if broker not in broker_stats:
                 broker_stats[broker] = {"count": 0, "accounts": []}
             broker_stats[broker]["count"] += 1
-            broker_stats[broker]["accounts"].append(account.account_number or account.account_alias)
+            broker_stats[broker]["accounts"].append(account.account_number or account.account_name or str(account.id))
 
         components["broker_connections"] = {
             "status": "healthy" if len(accounts) > 0 else "idle",
