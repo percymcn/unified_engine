@@ -17,14 +17,19 @@ export async function GET() {
     }
 
     // Fetch stats from multiple backend endpoints in parallel
-    const [signalsRes, accountsRes, tradesRes] = await Promise.all([
+    const [signalsRes, accountsRes, liveAccountsRes, executionsRes] = await Promise.all([
       fetch(`${BACKEND_URL}/api/v1/signals/?limit=100&status=pending`, {
         headers: { 'Authorization': `Bearer ${token}` },
       }),
       fetch(`${BACKEND_URL}/api/v1/accounts/`, {
         headers: { 'Authorization': `Bearer ${token}` },
       }),
-      fetch(`${BACKEND_URL}/api/v1/trades/?limit=100`, {
+      // Fetch live account data for real-time balances
+      fetch(`${BACKEND_URL}/api/v1/dashboard/accounts/live`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      }),
+      // Fetch executions for today's trades count
+      fetch(`${BACKEND_URL}/api/v1/dashboard/executions?limit=100`, {
         headers: { 'Authorization': `Bearer ${token}` },
       }),
     ]);
@@ -32,24 +37,31 @@ export async function GET() {
     // Parse responses (handle failures gracefully)
     const signals = signalsRes.ok ? await signalsRes.json() : [];
     const accountsData = accountsRes.ok ? await accountsRes.json() : [];
-    const trades = tradesRes.ok ? await tradesRes.json() : [];
+    const liveAccountsData = liveAccountsRes.ok ? await liveAccountsRes.json() : null;
+    const executionsData = executionsRes.ok ? await executionsRes.json() : { executions: [] };
 
     // Normalize accounts response - backend returns {accounts: [], total} or just []
     const accounts = Array.isArray(accountsData)
       ? accountsData
       : (accountsData?.accounts || []);
 
-    // Calculate today's trades
+    // Calculate today's trades from executions
     const today = new Date().toISOString().split('T')[0];
-    const todaysTrades = Array.isArray(trades)
-      ? trades.filter((t: { created_at?: string }) => t.created_at?.startsWith(today)).length
-      : 0;
+    const executions = executionsData?.executions || [];
+    const todaysTrades = executions.filter(
+      (e: { created_at?: string }) => e.created_at?.startsWith(today)
+    ).length;
 
-    // Calculate total balance across accounts
-    const totalBalance = accounts.reduce(
-      (sum: number, acc: { balance?: number }) => sum + (acc.balance || 0),
-      0
-    );
+    // Use live account data for balance if available, otherwise fallback to DB cached
+    let totalBalance = 0;
+    if (liveAccountsData?.total_balance !== undefined) {
+      totalBalance = liveAccountsData.total_balance;
+    } else {
+      totalBalance = accounts.reduce(
+        (sum: number, acc: { balance?: number }) => sum + (acc.balance || 0),
+        0
+      );
+    }
 
     // Count connected brokers (accounts with active status)
     const connectedBrokers = accounts.filter(

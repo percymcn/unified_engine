@@ -366,8 +366,16 @@ async def get_live_accounts_summary(
             executor, needs_cleanup = await _create_account_executor(account, db)
             if executor:
                 try:
-                    # Get account info
-                    account_info = await executor.get_account_info()
+                    # Get broker account ID (required for most executors)
+                    broker_account_id = account.default_broker_account_id or account.account_number or str(account.id)
+
+                    # Get account info - pass account_id if required
+                    try:
+                        account_info = await executor.get_account_info(broker_account_id)
+                    except TypeError:
+                        # Fallback for executors that don't require account_id
+                        account_info = await executor.get_account_info()
+
                     positions = await executor.get_positions()
 
                     balance = 0
