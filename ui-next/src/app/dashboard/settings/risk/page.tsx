@@ -8,8 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Shield, AlertTriangle, DollarSign, TrendingDown, Zap, Clock } from "lucide-react";
+import { Shield, AlertTriangle, DollarSign, TrendingDown, Zap, Clock, Info } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface GlobalRiskSettings {
   default_max_daily_trades: number | null;
@@ -170,6 +171,20 @@ export default function RiskSettingsPage() {
         </p>
       </div>
 
+      {/* Broker Compatibility Note */}
+      <Alert>
+        <Info className="h-4 w-4" />
+        <AlertTitle>Multi-Broker Compatible</AlertTitle>
+        <AlertDescription>
+          These settings adapt automatically to each broker:
+          <ul className="mt-2 text-sm space-y-1">
+            <li><strong>TradeLocker/MT4/MT5:</strong> Lot sizes (0.01 = micro lot), pips for SL/TP</li>
+            <li><strong>ProjectX/TopStep:</strong> Contracts (1 = 1 contract), points for SL/TP</li>
+            <li><strong>Tradovate:</strong> Contracts, percentage-based risk</li>
+          </ul>
+        </AlertDescription>
+      </Alert>
+
       {/* Master toggle */}
       <Card>
         <CardHeader>
@@ -315,7 +330,9 @@ export default function RiskSettingsPage() {
             <DollarSign className="h-5 w-5" />
             Position Sizing Defaults
           </CardTitle>
-          <CardDescription>Default position sizing for new accounts</CardDescription>
+          <CardDescription>
+            Default position sizing for new accounts. Units adapt per broker (lots for forex, contracts for futures).
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
@@ -328,7 +345,7 @@ export default function RiskSettingsPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="fixed">Fixed Lot Size</SelectItem>
+                <SelectItem value="fixed">Fixed Size (Lots/Contracts)</SelectItem>
                 <SelectItem value="percent_balance">% of Balance</SelectItem>
                 <SelectItem value="percent_equity">% of Equity</SelectItem>
                 <SelectItem value="risk_based">Risk-Based (% per trade)</SelectItem>
@@ -337,7 +354,7 @@ export default function RiskSettingsPage() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>Default Lot Size</Label>
+              <Label>Default Size (Lots / Contracts)</Label>
               <Input
                 type="number"
                 step="0.01"
@@ -346,8 +363,11 @@ export default function RiskSettingsPage() {
                   ...settings,
                   default_fixed_lot_size: e.target.value ? parseFloat(e.target.value) : null
                 })}
-                placeholder="0.01"
+                placeholder="0.01 for forex, 1 for futures"
               />
+              <p className="text-xs text-muted-foreground mt-1">
+                Forex: 0.01 = micro lot | Futures: 1 = 1 contract
+              </p>
             </div>
             <div>
               <Label>Risk % per Trade</Label>

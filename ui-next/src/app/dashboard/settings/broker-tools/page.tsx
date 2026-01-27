@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +8,82 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, RefreshCw } from 'lucide-react';
+import { Loader2, RefreshCw, CheckCircle2, XCircle, Info } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+
+// Broker capability definitions - mirrors backend capabilities.py
+type Capability =
+  | 'accounts.list' | 'accounts.info'
+  | 'positions.open' | 'positions.history'
+  | 'orders.list' | 'orders.place' | 'orders.modify' | 'orders.cancel' | 'orders.cancel_all' | 'orders.bracket' | 'orders.chain'
+  | 'market.quote' | 'market.history' | 'market.orderbook' | 'market.symbols'
+  | 'streaming.subscribe' | 'streaming.unsubscribe'
+  | 'analytics.performance' | 'analytics.session' | 'analytics.portfolio'
+  | 'indicators';
+
+const BROKER_CAPABILITIES: Record<string, Set<Capability>> = {
+  tradelocker: new Set([
+    'accounts.list', 'accounts.info',
+    'positions.open',
+    'orders.list', 'orders.place', 'orders.modify', 'orders.cancel',
+    'market.quote', 'market.history', 'market.symbols',
+  ]),
+  tradovate: new Set([
+    'accounts.list', 'accounts.info',
+    'positions.open',
+    'orders.list', 'orders.place', 'orders.modify', 'orders.cancel', 'orders.bracket',
+    'market.quote', 'market.symbols',
+    'streaming.subscribe', 'streaming.unsubscribe',
+  ]),
+  projectx: new Set([
+    'accounts.list', 'accounts.info',
+    'positions.open', 'positions.history',
+    'orders.list', 'orders.place', 'orders.modify', 'orders.cancel', 'orders.cancel_all', 'orders.bracket', 'orders.chain',
+    'market.quote', 'market.history', 'market.orderbook', 'market.symbols',
+    'streaming.subscribe', 'streaming.unsubscribe',
+    'analytics.performance', 'analytics.session', 'analytics.portfolio',
+    'indicators',
+  ]),
+  topstep: new Set([
+    'accounts.list', 'accounts.info',
+    'positions.open', 'positions.history',
+    'orders.list', 'orders.place', 'orders.modify', 'orders.cancel', 'orders.cancel_all', 'orders.bracket', 'orders.chain',
+    'market.quote', 'market.history', 'market.orderbook', 'market.symbols',
+    'streaming.subscribe', 'streaming.unsubscribe',
+    'analytics.performance', 'analytics.session', 'analytics.portfolio',
+    'indicators',
+  ]),
+  mt4: new Set([
+    'accounts.list', 'accounts.info',
+    'positions.open', 'positions.history',
+    'orders.list', 'orders.place', 'orders.modify', 'orders.cancel',
+    'market.quote', 'market.symbols',
+  ]),
+  mt5: new Set([
+    'accounts.list', 'accounts.info',
+    'positions.open', 'positions.history',
+    'orders.list', 'orders.place', 'orders.modify', 'orders.cancel',
+    'market.quote', 'market.symbols',
+  ]),
+};
+
+const BROKER_DISPLAY_NAMES: Record<string, string> = {
+  tradelocker: 'TradeLocker',
+  tradovate: 'Tradovate',
+  projectx: 'ProjectX',
+  topstep: 'TopStep',
+  mt4: 'MetaTrader 4',
+  mt5: 'MetaTrader 5',
+};
+
+const BROKER_DEFAULT_SYMBOLS: Record<string, string> = {
+  tradelocker: 'EURUSD',
+  tradovate: 'ESZ4',
+  projectx: 'MNQ',
+  topstep: 'MNQ',
+  mt4: 'EURUSD',
+  mt5: 'EURUSD',
+};
 
 // Types for broker API responses
 interface BrokerBalance {
@@ -335,6 +410,18 @@ export default function BrokerToolsPage() {
   const selectedAccount = accounts.find((acc) => acc.id === selectedAccountId);
   const hasCredentials = selectedAccount ? selectedAccount.is_connected : false;
   const canUseTools = Boolean(selectedAccountId && hasCredentials);
+
+  // Helper to check if the selected broker has a specific capability
+  const hasCapability = useMemo(() => {
+    return (capability: Capability): boolean => {
+      if (!selectedBroker) return false;
+      const caps = BROKER_CAPABILITIES[selectedBroker];
+      return caps ? caps.has(capability) : false;
+    };
+  }, [selectedBroker]);
+
+  // Get broker display name
+  const brokerDisplayName = selectedBroker ? (BROKER_DISPLAY_NAMES[selectedBroker] || selectedBroker) : '';
   
   useEffect(() => {
     if (!selectedBroker && brokers.length > 0) {
@@ -357,6 +444,10 @@ export default function BrokerToolsPage() {
     setQuote(null);
     setSymbols([]);
     setSelectedPositionId('');
+    // Update default symbol based on broker
+    if (selectedBroker && BROKER_DEFAULT_SYMBOLS[selectedBroker]) {
+      setSymbol(BROKER_DEFAULT_SYMBOLS[selectedBroker]);
+    }
   }, [selectedBroker, selectedAccountId]);
 
   return (
@@ -427,6 +518,79 @@ export default function BrokerToolsPage() {
         </CardContent>
       </Card>
       
+      {/* Broker Capabilities Info */}
+      {selectedBroker && (
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Info className="h-5 w-5 text-muted-foreground" />
+                <CardTitle className="text-lg">{brokerDisplayName} Capabilities</CardTitle>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {hasCapability('orders.cancel_all') && (
+                <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30">
+                  <CheckCircle2 className="h-3 w-3 mr-1" />Cancel All Orders
+                </Badge>
+              )}
+              {hasCapability('orders.bracket') && (
+                <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30">
+                  <CheckCircle2 className="h-3 w-3 mr-1" />Bracket Orders
+                </Badge>
+              )}
+              {hasCapability('positions.history') && (
+                <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30">
+                  <CheckCircle2 className="h-3 w-3 mr-1" />Position History
+                </Badge>
+              )}
+              {hasCapability('market.orderbook') && (
+                <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30">
+                  <CheckCircle2 className="h-3 w-3 mr-1" />Orderbook
+                </Badge>
+              )}
+              {hasCapability('market.history') && (
+                <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30">
+                  <CheckCircle2 className="h-3 w-3 mr-1" />Price History
+                </Badge>
+              )}
+              {hasCapability('streaming.subscribe') && (
+                <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30">
+                  <CheckCircle2 className="h-3 w-3 mr-1" />Streaming
+                </Badge>
+              )}
+              {hasCapability('analytics.performance') && (
+                <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30">
+                  <CheckCircle2 className="h-3 w-3 mr-1" />Analytics
+                </Badge>
+              )}
+              {hasCapability('indicators') && (
+                <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30">
+                  <CheckCircle2 className="h-3 w-3 mr-1" />Indicators
+                </Badge>
+              )}
+              {!hasCapability('orders.cancel_all') && (
+                <Badge variant="outline" className="bg-muted text-muted-foreground">
+                  <XCircle className="h-3 w-3 mr-1" />No Cancel All
+                </Badge>
+              )}
+              {!hasCapability('market.orderbook') && (
+                <Badge variant="outline" className="bg-muted text-muted-foreground">
+                  <XCircle className="h-3 w-3 mr-1" />No Orderbook
+                </Badge>
+              )}
+              {!hasCapability('analytics.performance') && (
+                <Badge variant="outline" className="bg-muted text-muted-foreground">
+                  <XCircle className="h-3 w-3 mr-1" />No Analytics
+                </Badge>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {selectedBroker && selectedAccountId && (
         <Tabs defaultValue="accounts" className="space-y-4">
           <TabsList>
@@ -551,7 +715,8 @@ export default function BrokerToolsPage() {
                   </Button>
                   <Button
                     onClick={() => callApi(`/api/v1/brokers/${selectedBroker}/positions/history?account_id=${selectedAccountId}&symbol=${symbol}&days=30`)}
-                    disabled={!canUseTools || loading === 'positions/history'}
+                    disabled={!canUseTools || loading === 'positions/history' || !hasCapability('positions.history')}
+                    title={!hasCapability('positions.history') ? `${brokerDisplayName} does not support position history` : undefined}
                   >
                     {loading === 'positions/history' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                     Position History
@@ -723,8 +888,9 @@ export default function BrokerToolsPage() {
                   </Button>
                   <Button
                     onClick={() => callApi(`/api/v1/brokers/${selectedBroker}/orders?account_id=${selectedAccountId}`, 'DELETE')}
-                    disabled={!canUseTools || loading === 'orders'}
+                    disabled={!canUseTools || loading === 'orders' || !hasCapability('orders.cancel_all')}
                     variant="destructive"
+                    title={!hasCapability('orders.cancel_all') ? `${brokerDisplayName} does not support cancel all orders` : undefined}
                   >
                     Cancel All Orders
                   </Button>
@@ -787,14 +953,16 @@ export default function BrokerToolsPage() {
                   </Button>
                   <Button
                     onClick={() => callApi(`/api/v1/brokers/${selectedBroker}/market/history?account_id=${selectedAccountId}&symbol=${symbol}&days=1&interval=5`)}
-                    disabled={!canUseTools || loading === 'history'}
+                    disabled={!canUseTools || loading === 'history' || !hasCapability('market.history')}
+                    title={!hasCapability('market.history') ? `${brokerDisplayName} does not support price history` : undefined}
                   >
                     {loading === 'history' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                     Price History
                   </Button>
                   <Button
                     onClick={() => callApi(`/api/v1/brokers/${selectedBroker}/market/orderbook?account_id=${selectedAccountId}&symbol=${symbol}&depth=10`)}
-                    disabled={!canUseTools || loading === 'orderbook'}
+                    disabled={!canUseTools || loading === 'orderbook' || !hasCapability('market.orderbook')}
+                    title={!hasCapability('market.orderbook') ? `${brokerDisplayName} does not support orderbook` : undefined}
                   >
                     {loading === 'orderbook' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                     Orderbook
@@ -916,24 +1084,36 @@ export default function BrokerToolsPage() {
                 <CardTitle>Analytics</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
+                {!hasCapability('analytics.performance') && (
+                  <Alert className="mb-4">
+                    <Info className="h-4 w-4" />
+                    <AlertTitle>Limited Analytics</AlertTitle>
+                    <AlertDescription>
+                      {brokerDisplayName} does not support advanced analytics features.
+                    </AlertDescription>
+                  </Alert>
+                )}
                 <div className="flex gap-2 flex-wrap">
                   <Button
                     onClick={() => callApi(`/api/v1/brokers/${selectedBroker}/stats/session?account_id=${selectedAccountId}&symbol=${symbol}`)}
-                    disabled={loading === 'session'}
+                    disabled={loading === 'session' || !hasCapability('analytics.session')}
+                    title={!hasCapability('analytics.session') ? `${brokerDisplayName} does not support session stats` : undefined}
                   >
                     {loading === 'session' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                     Session Stats
                   </Button>
                   <Button
                     onClick={() => callApi(`/api/v1/brokers/${selectedBroker}/stats/performance?account_id=${selectedAccountId}&symbol=${symbol}`)}
-                    disabled={loading === 'performance'}
+                    disabled={loading === 'performance' || !hasCapability('analytics.performance')}
+                    title={!hasCapability('analytics.performance') ? `${brokerDisplayName} does not support performance stats` : undefined}
                   >
                     {loading === 'performance' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                     Performance Stats
                   </Button>
                   <Button
                     onClick={() => callApi(`/api/v1/brokers/${selectedBroker}/stats/portfolio?account_id=${selectedAccountId}`)}
-                    disabled={loading === 'portfolio'}
+                    disabled={loading === 'portfolio' || !hasCapability('analytics.portfolio')}
+                    title={!hasCapability('analytics.portfolio') ? `${brokerDisplayName} does not support portfolio metrics` : undefined}
                   >
                     {loading === 'portfolio' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                     Portfolio Metrics

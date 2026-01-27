@@ -188,6 +188,121 @@ async def get_tradeable_symbols():
     return symbols
 
 
+@router.post("/symbols/refresh")
+async def refresh_symbols_from_sdk(
+    account_id: str = Query(..., description="Account ID to use for SDK connection"),
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session)
+) -> Dict[str, Any]:
+    """
+    Refresh symbol cache by fetching all available instruments from ProjectX SDK.
+
+    Searches for all tradeable base symbols and caches their active contracts.
+    """
+    if not SDK_AVAILABLE:
+        raise HTTPException(status_code=503, detail="SDK not available")
+
+    from app.cache.redis_client import redis_client
+    import json
+
+    try:
+        svc = await get_sdk_service(account_id, current_user, session)
+        connected = await svc.connect()
+
+        if not connected:
+            raise HTTPException(status_code=503, detail="Failed to connect to ProjectX")
+
+        try:
+            resolver = get_contract_resolver()
+            all_instruments = []
+            base_symbols = list(resolver.TRADEABLE_SYMBOLS.keys())
+
+            # Search for each base symbol
+            for base_symbol in base_symbols:
+                try:
+                    instruments = await svc.search_instruments(base_symbol)
+                    for inst in instruments:
+                        inst['base_symbol'] = base_symbol
+                        inst['tick_size'] = resolver.TRADEABLE_SYMBOLS[base_symbol]['tick_size']
+                        inst['tick_value'] = resolver.TRADEABLE_SYMBOLS[base_symbol]['tick_value']
+                    all_instruments.extend(instruments)
+                except Exception as e:
+                    logger.warning(f"Failed to fetch instruments for {base_symbol}: {e}")
+
+            # Cache the results in Redis
+            await redis_client.set(
+                "projectx:instruments",
+                json.dumps(all_instruments),
+                expire=3600 * 6  # 6 hours cache
+            )
+
+            # Also cache by symbol for quick lookup
+            for inst in all_instruments:
+                symbol = inst.get('symbol', inst.get('base_symbol', ''))
+                if symbol:
+                    await redis_client.set(
+                        f"projectx:instrument:{symbol}",
+                        json.dumps(inst),
+                        expire=3600 * 6
+                    )
+
+            return {
+                "success": True,
+                "instruments_found": len(all_instruments),
+                "base_symbols_searched": len(base_symbols),
+                "cached_until": "6 hours",
+                "instruments": all_instruments[:20]  # Return first 20 as sample
+            }
+
+        finally:
+            await svc.disconnect()
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error refreshing symbols: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/symbols/cached")
+async def get_cached_symbols() -> Dict[str, Any]:
+    """
+    Get cached symbols from Redis (fetched via SDK).
+
+    Returns all instruments that were previously fetched from ProjectX.
+    """
+    from app.cache.redis_client import redis_client
+    import json
+
+    try:
+        cached = await redis_client.get("projectx:instruments")
+        if cached:
+            instruments = json.loads(cached)
+            return {
+                "success": True,
+                "cached": True,
+                "count": len(instruments),
+                "instruments": instruments
+            }
+        else:
+            # Return static symbols as fallback
+            resolver = get_contract_resolver()
+            symbols = [
+                {"symbol": sym, "name": info['name'], "tick_size": info['tick_size'], "tick_value": info['tick_value']}
+                for sym, info in resolver.TRADEABLE_SYMBOLS.items()
+            ]
+            return {
+                "success": True,
+                "cached": False,
+                "count": len(symbols),
+                "instruments": symbols,
+                "message": "No cached data - returning static symbols. Call POST /symbols/refresh to fetch from SDK."
+            }
+    except Exception as e:
+        logger.error(f"Error getting cached symbols: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/contract/{symbol}", response_model=ContractInfoResponse)
 async def get_contract_info(
     symbol: str,

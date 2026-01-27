@@ -12,7 +12,7 @@ from app.core.config import settings
 from app.cache.redis_client import redis_client
 from app.models.models import Signal, WebhookLog
 from app.models.pydantic_schemas import (
-    SignalRequest, SignalResponse, OrderRequest, OrderResponse,
+    SignalRequest, SignalProcessingResponse, OrderRequest, OrderResponse,
     TradeRequest, TradeResponse, WebhookRequest
 )
 from app.brokers.mt4_executor import MT4Executor
@@ -218,41 +218,44 @@ class SignalProcessor:
             except Exception as e:
                 logger.error(f"Error disconnecting {broker_name}: {e}")
     
-    async def process_signal(self, signal_request: SignalRequest) -> SignalResponse:
+    async def process_signal(self, signal_request: SignalRequest) -> SignalProcessingResponse:
         """Process trading signal and route to appropriate broker"""
         try:
             # Log signal
             signal_id = await self._log_signal(signal_request)
-            
+
             # Validate signal
             validation_result = await self._validate_signal(signal_request)
             if not validation_result["valid"]:
-                return SignalResponse(
+                return SignalProcessingResponse(
                     success=False,
                     signal_id=signal_id,
                     error=validation_result["error"],
                     timestamp=datetime.now()
                 )
-            
+
             # Route signal to broker
             execution_result = await self._execute_signal(signal_request, signal_id)
-            
+
             # Update signal status
             await self._update_signal_status(signal_id, execution_result)
-            
-            return SignalResponse(
+
+            return SignalProcessingResponse(
                 success=execution_result["success"],
                 signal_id=signal_id,
                 order_id=execution_result.get("order_id"),
                 broker=execution_result.get("broker"),
                 status=execution_result.get("status"),
                 error=execution_result.get("error"),
-                timestamp=datetime.now()
+                timestamp=datetime.now(),
+                executed_count=execution_result.get("executed_count"),
+                failed_count=execution_result.get("failed_count"),
+                execution_details=execution_result.get("execution_details")
             )
-            
+
         except Exception as e:
             logger.error(f"Error processing signal: {e}")
-            return SignalResponse(
+            return SignalProcessingResponse(
                 success=False,
                 error=str(e),
                 timestamp=datetime.now()
@@ -262,27 +265,46 @@ class SignalProcessor:
         """Log signal to database"""
         try:
             db = next(get_db())
-            
+
             # Extract strategy info if present
             strategy_info = {}
             if isinstance(signal_request, dict) and "strategy_info" in signal_request:
                 strategy_info = signal_request["strategy_info"]
             elif hasattr(signal_request, "strategy_info"):
                 strategy_info = signal_request.strategy_info or {}
-            
+
+            # Generate unique signal_id
+            import uuid
+            signal_id = str(uuid.uuid4())
+
+            # Determine source enum value
+            from app.models.models import SignalSource
+            source_str = signal_request.source if hasattr(signal_request, "source") else signal_request.get("source", "MANUAL")
+            try:
+                source_enum = SignalSource(source_str.upper()) if isinstance(source_str, str) else SignalSource.MANUAL
+            except ValueError:
+                source_enum = SignalSource.MANUAL
+
+            # Get user_id from signal request or default
+            user_id = None
+            if hasattr(signal_request, "user_id"):
+                user_id = signal_request.user_id
+            elif isinstance(signal_request, dict):
+                user_id = signal_request.get("user_id")
+
             signal = Signal(
-                broker=signal_request.broker if hasattr(signal_request, "broker") else signal_request.get("broker"),
-                account_id=signal_request.account_id if hasattr(signal_request, "account_id") else signal_request.get("account_id"),
+                signal_id=signal_id,
+                user_id=user_id,
                 symbol=signal_request.symbol if hasattr(signal_request, "symbol") else signal_request.get("symbol"),
-                action=signal_request.action if hasattr(signal_request, "action") else signal_request.get("action"),
-                quantity=signal_request.quantity if hasattr(signal_request, "quantity") else signal_request.get("quantity"),
+                action=(signal_request.action if hasattr(signal_request, "action") else signal_request.get("action", "")).upper(),
+                volume=signal_request.quantity if hasattr(signal_request, "quantity") else signal_request.get("quantity"),
                 price=signal_request.price if hasattr(signal_request, "price") else signal_request.get("price"),
                 stop_loss=signal_request.stop_loss if hasattr(signal_request, "stop_loss") else signal_request.get("stop_loss"),
                 take_profit=signal_request.take_profit if hasattr(signal_request, "take_profit") else signal_request.get("take_profit"),
-                magic_number=signal_request.magic_number if hasattr(signal_request, "magic_number") else signal_request.get("magic_number"),
                 comment=signal_request.comment if hasattr(signal_request, "comment") else signal_request.get("comment"),
-                source=signal_request.source if hasattr(signal_request, "source") else signal_request.get("source", "unknown"),
+                source=source_enum,
                 status="pending",
+                raw_payload=signal_request.dict() if hasattr(signal_request, "dict") else signal_request,
                 # Strategy tracking fields
                 strategy_id=strategy_info.get("strategy_id"),
                 strategy_version=strategy_info.get("strategy_version"),
@@ -290,13 +312,11 @@ class SignalProcessor:
                 strategy_source="tradingview" if strategy_info else "manual",
                 created_at=datetime.now()
             )
-            
+
             db.add(signal)
             db.commit()
             db.refresh(signal)
-            
-            signal_id = str(signal.id)
-            
+
             # Also cache to Redis
             await redis_client.set(
                 f"signal:{signal_id}",
@@ -305,18 +325,28 @@ class SignalProcessor:
                     "status": "pending",
                     "created_at": signal.created_at.isoformat()
                 }),
-                ex=3600
+                expire=3600
             )
-            
+
             return signal_id
-            
+
         except Exception as e:
             logger.error(f"Error logging signal: {e}")
             return f"signal_{datetime.now().timestamp()}"
     
     async def _validate_signal(self, signal_request: SignalRequest) -> Dict[str, Any]:
-        """Validate signal request"""
+        """Validate signal request.
+
+        If broker/account_id are None, validation is skipped as routing
+        will be handled by _get_target_accounts based on is_signal_enabled.
+        """
         try:
+            # If no broker specified, skip broker-specific validation
+            # Routing will be handled by _get_target_accounts
+            if not signal_request.broker:
+                logger.debug("No broker specified, skipping broker validation (will route to all selected accounts)")
+                return {"valid": True, "resolved_symbol": signal_request.symbol}
+
             # Check if broker is supported
             if signal_request.broker not in self.brokers:
                 return {
@@ -324,59 +354,19 @@ class SignalProcessor:
                     "error": f"Unsupported broker: {signal_request.broker}"
                 }
 
-            # Check if broker is connected
+            # Check if broker is connected (for global validation only)
             broker = self.brokers[signal_request.broker]
-            if not broker.is_connected:
-                return {
-                    "valid": False,
-                    "error": f"Broker {signal_request.broker} is not connected"
-                }
+            # Skip connection check for account-specific routing
+            # Account executors will be created on-demand during execution
 
-            # Validate account
-            account = await broker.get_account_info(signal_request.account_id)
-            if not account:
-                return {
-                    "valid": False,
-                    "error": f"Account {signal_request.account_id} not found"
-                }
+            # If specific account_id provided, validate it exists
+            if signal_request.account_id:
+                account = await broker.get_account_info(signal_request.account_id)
+                if not account:
+                    # Don't fail - let _get_target_accounts handle routing
+                    logger.debug(f"Account {signal_request.account_id} not found via broker, will use DB routing")
 
-            # Get available symbols and resolve the signal symbol
-            symbols = await broker.get_symbols()
-            original_symbol = signal_request.symbol
-
-            # Try to resolve symbol if not directly available
-            if signal_request.symbol not in symbols:
-                # Get user_id from signal_request if available, default to 0 for system
-                user_id = getattr(signal_request, 'user_id', 0) or 0
-
-                resolved_symbol = await self._resolve_symbol_for_broker(
-                    source_symbol=signal_request.symbol,
-                    user_id=user_id,
-                    broker_type=signal_request.broker,
-                    available_symbols=symbols
-                )
-
-                if resolved_symbol and resolved_symbol != signal_request.symbol:
-                    logger.info(
-                        f"Symbol resolved: {original_symbol} -> {resolved_symbol} "
-                        f"for broker {signal_request.broker}"
-                    )
-                    # Update signal request with resolved symbol
-                    signal_request.symbol = resolved_symbol
-                elif resolved_symbol is None:
-                    return {
-                        "valid": False,
-                        "error": f"Symbol {signal_request.symbol} not available on {signal_request.broker}"
-                    }
-
-            # Risk management checks
-            risk_check = await self._check_risk_limits(signal_request)
-            if not risk_check["passed"]:
-                return {
-                    "valid": False,
-                    "error": risk_check["error"]
-                }
-
+            # Basic validation passed
             return {"valid": True, "resolved_symbol": signal_request.symbol}
 
         except Exception as e:
@@ -451,28 +441,24 @@ class SignalProcessor:
             return source_symbol
     
     async def _check_risk_limits(self, signal_request: SignalRequest) -> Dict[str, Any]:
-        """Check risk management limits"""
+        """Check risk management limits.
+
+        Note: Per-account risk checks are done in _execute_on_account.
+        This method does basic quantity validation.
+        """
         try:
             if not settings.RISK_MANAGEMENT_ENABLED:
                 return {"passed": True}
 
-            # Get current positions
-            broker = self.brokers[signal_request.broker]
-            positions = await broker.get_positions(signal_request.account_id)
-
-            # Calculate total exposure
-            total_exposure = sum(pos.size for pos in positions if pos.symbol == signal_request.symbol)
-
-            # Check maximum position size
-            if signal_request.quantity > settings.MAX_POSITION_SIZE:
+            # Check maximum position size (global check)
+            max_size = getattr(settings, 'MAX_POSITION_SIZE', 100)
+            if signal_request.quantity > max_size:
                 return {
                     "passed": False,
-                    "error": f"Position size {signal_request.quantity} exceeds maximum {settings.MAX_POSITION_SIZE}"
+                    "error": f"Position size {signal_request.quantity} exceeds maximum {max_size}"
                 }
 
-            # Check daily loss limits (would need to implement daily P&L tracking)
-            # This is a placeholder for more sophisticated risk management
-
+            # Additional per-account risk checks are done in _execute_on_account
             return {"passed": True}
 
         except Exception as e:
@@ -1170,21 +1156,31 @@ class SignalProcessor:
                 broker_type=broker_type
             )
 
-            # Convert signal to order
-            order_request = OrderRequest(
-                account_id=account.account_number,
-                symbol=signal_request.symbol,
-                order_type=self._map_action_to_order_type(signal_request.action),
-                quantity=quantity,
-                price=signal_request.price,
-                stop_loss=stop_loss_price,
-                take_profit=take_profit_price,
-                magic_number=signal_request.magic_number,
-                comment=signal_request.comment or f"Signal {signal_id}"
-            )
+            # Handle close actions separately
+            if self._is_close_action(signal_request.action):
+                order_response = await self._execute_close_action(
+                    broker=broker,
+                    action=signal_request.action,
+                    symbol=signal_request.symbol,
+                    quantity=quantity,
+                    account=account
+                )
+            else:
+                # Convert signal to order
+                order_request = OrderRequest(
+                    account_id=account.account_number,
+                    symbol=signal_request.symbol,
+                    order_type=self._map_action_to_order_type(signal_request.action),
+                    quantity=quantity,
+                    price=signal_request.price,
+                    stop_loss=stop_loss_price,
+                    take_profit=take_profit_price,
+                    magic_number=signal_request.magic_number,
+                    comment=signal_request.comment or f"Signal {signal_id}"
+                )
 
-            # Execute order
-            order_response = await broker.place_order(order_request)
+                # Execute order
+                order_response = await broker.place_order(order_request)
 
             if order_response.success:
                 # Update account balance after successful trade
@@ -1234,10 +1230,169 @@ class SignalProcessor:
             "buy_limit": "buy_limit",
             "sell_limit": "sell_limit",
             "buy_stop": "buy_stop",
-            "sell_stop": "sell_stop"
+            "sell_stop": "sell_stop",
+            "close": "close",
+            "close_all": "close_all",
+            "close_long": "close_long",
+            "close_short": "close_short",
         }
         return action_map.get(action.lower(), "market_buy")
-    
+
+    def _is_close_action(self, action: str) -> bool:
+        """Check if action is a close/exit type."""
+        return action.lower() in ["close", "close_all", "close_long", "close_short"]
+
+    async def _execute_close_action(
+        self,
+        broker,
+        action: str,
+        symbol: str,
+        quantity: float,
+        account
+    ):
+        """Execute close action on broker.
+
+        Args:
+            broker: Broker executor instance
+            action: Close action type (close, close_all, close_long, close_short)
+            symbol: Symbol to close positions for
+            quantity: Quantity to close (0 = all)
+            account: Trading account
+
+        Returns:
+            ExecutorOrderResponse with result
+        """
+        from app.models.pydantic_schemas import ExecutorOrderResponse
+
+        action_lower = action.lower()
+
+        try:
+            # Get all positions first
+            positions = await broker.get_positions()
+
+            if action_lower == "close_all":
+                # Close all positions for the account
+                if not positions:
+                    return ExecutorOrderResponse(
+                        success=True,
+                        status="no_positions",
+                        error=None
+                    )
+
+                closed_count = 0
+                errors = []
+                for pos in positions:
+                    pos_id = self._get_position_id(pos)
+                    if pos_id:
+                        try:
+                            result = await broker.close_position(str(pos_id))
+                            if self._is_close_successful(result):
+                                closed_count += 1
+                            else:
+                                errors.append(self._get_error_from_result(result))
+                        except Exception as e:
+                            errors.append(str(e))
+
+                return ExecutorOrderResponse(
+                    success=closed_count > 0 or not positions,
+                    order_id=f"closed_all_{closed_count}",
+                    status=f"closed_{closed_count}_of_{len(positions)}_positions",
+                    error="; ".join(errors) if errors else None
+                )
+
+            elif action_lower in ["close", "close_long", "close_short"]:
+                # Filter by symbol and direction
+                target_positions = []
+                for pos in positions:
+                    pos_symbol = self._get_position_attr(pos, 'symbol', '')
+                    pos_side = self._get_position_attr(pos, 'side', '')
+
+                    # Match symbol (partial match for different formats)
+                    if symbol.upper() not in pos_symbol.upper():
+                        continue
+
+                    # Filter by direction for close_long/close_short
+                    if action_lower == "close_long" and pos_side.lower() not in ["buy", "long"]:
+                        continue
+                    if action_lower == "close_short" and pos_side.lower() not in ["sell", "short"]:
+                        continue
+
+                    target_positions.append(pos)
+
+                if not target_positions:
+                    return ExecutorOrderResponse(
+                        success=True,
+                        status="no_positions",
+                        error=None
+                    )
+
+                # Close each matching position
+                closed_count = 0
+                errors = []
+                for pos in target_positions:
+                    pos_id = self._get_position_id(pos)
+                    if pos_id:
+                        try:
+                            result = await broker.close_position(str(pos_id))
+                            if self._is_close_successful(result):
+                                closed_count += 1
+                            else:
+                                errors.append(self._get_error_from_result(result))
+                        except Exception as e:
+                            errors.append(str(e))
+
+                return ExecutorOrderResponse(
+                    success=closed_count > 0,
+                    order_id=f"closed_{closed_count}",
+                    status=f"closed_{closed_count}_positions",
+                    error="; ".join(errors) if errors else None
+                )
+
+            else:
+                return ExecutorOrderResponse(
+                    success=False,
+                    error=f"Unknown close action: {action}"
+                )
+
+        except Exception as e:
+            logger.error(f"Error executing close action: {e}")
+            return ExecutorOrderResponse(
+                success=False,
+                error=str(e)
+            )
+
+    def _get_position_id(self, pos) -> Optional[str]:
+        """Extract position ID from position object or dict."""
+        if hasattr(pos, 'id'):
+            return str(pos.id)
+        elif isinstance(pos, dict):
+            return str(pos.get('id', pos.get('position_id', '')))
+        return None
+
+    def _get_position_attr(self, pos, attr: str, default: str = '') -> str:
+        """Get attribute from position object or dict."""
+        if hasattr(pos, attr):
+            return str(getattr(pos, attr, default))
+        elif isinstance(pos, dict):
+            return str(pos.get(attr, default))
+        return default
+
+    def _is_close_successful(self, result) -> bool:
+        """Check if close result indicates success."""
+        if hasattr(result, 'success'):
+            return result.success
+        elif isinstance(result, dict):
+            return result.get('success', False)
+        return bool(result)
+
+    def _get_error_from_result(self, result) -> str:
+        """Extract error message from result."""
+        if hasattr(result, 'error'):
+            return str(result.error or 'Unknown error')
+        elif isinstance(result, dict):
+            return str(result.get('error', 'Unknown error'))
+        return 'Unknown error'
+
     async def _update_signal_status(self, signal_id: str, execution_result: Dict[str, Any]):
         """Update signal status in database and cache"""
         try:
@@ -1261,7 +1416,7 @@ class SignalProcessor:
                     "order_id": execution_result.get("order_id"),
                     "updated_at": datetime.now().isoformat()
                 }),
-                ex=3600
+                expire=3600
             )
 
         except Exception as e:
@@ -1335,83 +1490,109 @@ class SignalProcessor:
         """Log webhook to database"""
         try:
             db = next(get_db())
-            
+
+            # Generate unique webhook_id
+            import uuid
+            webhook_id = str(uuid.uuid4())
+
             webhook_log = WebhookLog(
+                webhook_id=webhook_id,
                 source=webhook_request.source,
                 payload=json.dumps(webhook_request.payload),
-                headers=json.dumps(webhook_request.headers),
-                ip_address=webhook_request.ip_address,
-                user_agent=webhook_request.user_agent,
-                status="received",
+                source_ip=getattr(webhook_request, 'ip_address', None),
+                user_agent=getattr(webhook_request, 'user_agent', None),
+                processed=False,
                 created_at=datetime.now()
             )
-            
+
             db.add(webhook_log)
             db.commit()
             db.refresh(webhook_log)
-            
-            return str(webhook_log.id)
-            
+
+            return webhook_id
+
         except Exception as e:
             logger.error(f"Error logging webhook: {e}")
             return f"webhook_{datetime.now().timestamp()}"
     
     async def _parse_webhook_payload(self, payload: Dict[str, Any]) -> Optional[SignalRequest]:
-        """Parse webhook payload into signal request"""
+        """Parse webhook payload into signal request.
+
+        If broker/account_id are not specified in payload, they remain None
+        and the signal will be routed to ALL accounts with is_signal_enabled=True.
+        """
         try:
+            # Extract optional broker and account_id from payload (None if not specified)
+            broker = self._detect_broker_from_payload(payload)  # Returns None if not specified
+            account_id = self._get_account_from_payload(payload)  # Returns None if not specified
+
             # Handle TradingView webhooks
             if "ticker" in payload and "action" in payload:
                 return SignalRequest(
-                    broker=self._detect_broker_from_payload(payload),
-                    account_id=self._get_account_from_payload(payload),
+                    broker=broker,
+                    account_id=account_id,
                     symbol=payload["ticker"],
                     action=payload["action"].lower(),
                     quantity=float(payload.get("quantity", 1)),
-                    price=float(payload.get("price", 0)),
-                    stop_loss=float(payload.get("stop_loss", 0)),
-                    take_profit=float(payload.get("take_profit", 0)),
+                    price=float(payload.get("price")) if payload.get("price") else None,
+                    stop_loss=float(payload.get("stop_loss")) if payload.get("stop_loss") else None,
+                    take_profit=float(payload.get("take_profit")) if payload.get("take_profit") else None,
                     source="tradingview"
                 )
-            
+
             # Handle TrailHacker webhooks
             elif "symbol" in payload and "signal" in payload:
                 return SignalRequest(
-                    broker=self._detect_broker_from_payload(payload),
-                    account_id=self._get_account_from_payload(payload),
+                    broker=broker,
+                    account_id=account_id,
                     symbol=payload["symbol"],
                     action=payload["signal"].lower(),
                     quantity=float(payload.get("size", 1)),
-                    price=float(payload.get("entry", 0)),
-                    stop_loss=float(payload.get("stop", 0)),
-                    take_profit=float(payload.get("target", 0)),
+                    price=float(payload.get("entry")) if payload.get("entry") else None,
+                    stop_loss=float(payload.get("stop")) if payload.get("stop") else None,
+                    take_profit=float(payload.get("target")) if payload.get("target") else None,
                     source="trailhacker"
                 )
-            
+
+            # Handle generic webhook with symbol and action
+            elif "symbol" in payload and "action" in payload:
+                return SignalRequest(
+                    broker=broker,
+                    account_id=account_id,
+                    symbol=payload["symbol"],
+                    action=payload["action"].lower(),
+                    quantity=float(payload.get("quantity", payload.get("size", 1))),
+                    price=float(payload.get("price")) if payload.get("price") else None,
+                    stop_loss=float(payload.get("stop_loss")) if payload.get("stop_loss") else None,
+                    take_profit=float(payload.get("take_profit")) if payload.get("take_profit") else None,
+                    source=payload.get("source", "webhook")
+                )
+
             return None
-            
+
         except Exception as e:
             logger.error(f"Error parsing webhook payload: {e}")
             return None
-    
-    def _detect_broker_from_payload(self, payload: Dict[str, Any]) -> str:
-        """Detect target broker from payload"""
-        # Check for explicit broker specification
-        if "broker" in payload:
+
+    def _detect_broker_from_payload(self, payload: Dict[str, Any]) -> Optional[str]:
+        """Detect target broker from payload. Returns None if not specified."""
+        if "broker" in payload and payload["broker"]:
             return payload["broker"].lower()
-        
-        # Default to first available broker
-        # In production, this would be more sophisticated
-        return "mt4"
-    
-    def _get_account_from_payload(self, payload: Dict[str, Any]) -> str:
-        """Get account ID from payload"""
-        if "account_id" in payload:
-            return str(payload["account_id"])
-        elif "account" in payload:
-            return str(payload["account"])
-        
-        # Default account (in production, this would be user-specific)
-        return "1"
+        return None  # Route to all selected accounts
+
+    def _get_account_from_payload(self, payload: Dict[str, Any]) -> Optional[int]:
+        """Get account ID from payload. Returns None if not specified."""
+        if "account_id" in payload and payload["account_id"]:
+            try:
+                return int(payload["account_id"])
+            except (ValueError, TypeError):
+                pass
+        elif "account" in payload and payload["account"]:
+            try:
+                return int(payload["account"])
+            except (ValueError, TypeError):
+                pass
+        return None  # Route based on is_signal_enabled
     
     async def get_signal_history(self, limit: int = 100) -> List[Dict[str, Any]]:
         """Get signal history"""

@@ -258,8 +258,8 @@ class WebhookSignalGeneric(BaseModel):
 
 class SignalRequest(BaseModel):
     """Signal request for trading"""
-    broker: str
-    account_id: int
+    broker: Optional[str] = None  # Optional - if not set, routes to all selected accounts
+    account_id: Optional[int] = None  # Optional - if not set, uses is_signal_enabled routing
     symbol: str
     action: str
     quantity: float
@@ -269,6 +269,7 @@ class SignalRequest(BaseModel):
     magic_number: Optional[int] = None
     comment: Optional[str] = None
     source: Optional[str] = None
+    user_id: Optional[int] = None  # For routing to user's accounts
     # Strategy tracking fields
     strategy_id: Optional[str] = None
     strategy_version: Optional[str] = None
@@ -277,7 +278,7 @@ class SignalRequest(BaseModel):
 
 class OrderRequest(BaseModel):
     """Order request"""
-    account_id: int
+    account_id: Any  # Can be int or str (UUID for some brokers like ProjectX)
     symbol: str
     order_type: str
     quantity: float
@@ -375,6 +376,9 @@ class WebhookRequest(BaseModel):
     """Webhook request"""
     source: str
     payload: Dict[str, Any]
+    headers: Optional[Dict[str, Any]] = None
+    ip_address: Optional[str] = None
+    user_agent: Optional[str] = None
 
 
 class WebhookResponse(BaseModel):
@@ -438,6 +442,7 @@ class HealthResponse(BaseModel):
 
 
 class SignalResponse(BaseModel):
+    """Response for reading signals from database (ORM model)"""
     id: int
     user_id: int
     source: str
@@ -454,6 +459,20 @@ class SignalResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class SignalProcessingResponse(BaseModel):
+    """Response for signal processing operations"""
+    success: bool
+    signal_id: Optional[str] = None
+    order_id: Optional[str] = None
+    broker: Optional[str] = None
+    status: Optional[str] = None
+    error: Optional[str] = None
+    timestamp: datetime
+    executed_count: Optional[int] = None
+    failed_count: Optional[int] = None
+    execution_details: Optional[List[Dict[str, Any]]] = None
 
 
 # Webhook Config Schemas
