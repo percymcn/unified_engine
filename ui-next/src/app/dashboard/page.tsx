@@ -299,10 +299,7 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="space-y-6 relative">
-      {/* Futuristic background grid */}
-      <div className="fixed inset-0 cyber-grid pointer-events-none opacity-30" />
-
+    <div className="space-y-6">
       {/* Welcome heading - Futuristic style */}
       <div className="flex items-center justify-between relative">
         <div>
