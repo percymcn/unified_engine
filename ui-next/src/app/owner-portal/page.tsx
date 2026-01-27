@@ -1110,6 +1110,39 @@ function ConfigTab({
   const [editValue, setEditValue] = useState("");
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
   const [saving, setSaving] = useState(false);
+  const [restarting, setRestarting] = useState(false);
+
+  const handleRestart = async () => {
+    if (!confirm("Are you sure you want to restart the backend? This will briefly interrupt service.")) {
+      return;
+    }
+
+    setRestarting(true);
+    try {
+      const response = await fetch("/api/admin/system/restart", {
+        method: "POST",
+        credentials: "include",
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Restarting...",
+          description: "Backend is restarting. Please wait 5-10 seconds and refresh.",
+        });
+        // Wait a bit then refresh
+        setTimeout(() => {
+          window.location.reload();
+        }, 6000);
+      } else {
+        const data = await response.json();
+        toast({ title: "Error", description: data.error || "Failed to restart", variant: "destructive" });
+        setRestarting(false);
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to restart backend", variant: "destructive" });
+      setRestarting(false);
+    }
+  };
 
   if (loading || !envVars) {
     return (
@@ -1229,10 +1262,22 @@ function ConfigTab({
               </p>
             </div>
           </div>
-          <Badge variant="outline" className="bg-amber-500/10 text-amber-500 border-amber-500/30">
-            <AlertTriangle className="h-3 w-3 mr-1" />
-            Restart required after changes
-          </Badge>
+          <div className="flex items-center gap-3">
+            <Badge variant="outline" className="bg-amber-500/10 text-amber-500 border-amber-500/30">
+              <AlertTriangle className="h-3 w-3 mr-1" />
+              Restart required after changes
+            </Badge>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRestart}
+              disabled={restarting}
+              className="gap-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${restarting ? "animate-spin" : ""}`} />
+              {restarting ? "Restarting..." : "Restart Backend"}
+            </Button>
+          </div>
         </div>
       </motion.div>
 

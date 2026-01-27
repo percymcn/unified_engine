@@ -2,7 +2,7 @@
 Admin Router for Owner-Only Admin Dashboard
 Protected by email allowlist and authentication
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
@@ -841,7 +841,7 @@ async def get_all_env_vars(
 
     result = {}
     for category_id, category_info in CONFIG_CATEGORIES.items():
-        vars_list = []
+        variables = {}
         for key in category_info["keys"]:
             # Check database first, then env, then settings
             db_value = db_overrides.get(key)
@@ -852,29 +852,61 @@ async def get_all_env_vars(
             source = "database" if db_value else ("env" if env_value else ("settings" if settings_value else "not_set"))
 
             is_secret = key in SECRET_KEYS
-            display_value = redact_secret(str(actual_value)) if (is_secret and actual_value) else (actual_value or "(not set)")
+            display_value = "[NOT SET]" if not actual_value else (
+                redact_secret(str(actual_value)) if is_secret else str(actual_value)
+            )
 
-            vars_list.append({
-                "key": key,
+            variables[key] = {
                 "value": display_value,
                 "source": source,
-                "is_set": bool(actual_value),
+                "configured": bool(actual_value),
                 "is_secret": is_secret,
-                "can_edit": True,  # All can be edited via database override
-            })
+            }
 
         result[category_id] = {
             "name": category_info["name"],
             "icon": category_info["icon"],
-            "vars": vars_list,
-            "configured_count": sum(1 for v in vars_list if v["is_set"]),
-            "total_count": len(vars_list),
+            "variables": variables,
         }
 
     return {
         "categories": result,
-        "total_configured": sum(c["configured_count"] for c in result.values()),
-        "total_vars": sum(c["total_count"] for c in result.values()),
+    }
+
+
+@router.post("/system/restart")
+async def restart_backend(
+    current_user: User = Depends(get_current_user),
+    background_tasks: BackgroundTasks = None
+) -> Dict[str, Any]:
+    """
+    Trigger a graceful backend restart.
+    The server will restart after responding to this request.
+    """
+    check_owner_access(current_user)
+
+    import subprocess
+    import sys
+
+    def do_restart():
+        import time
+        time.sleep(1)  # Give time for response to be sent
+        # Restart the uvicorn process
+        subprocess.Popen(
+            [sys.executable, "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8765"],
+            start_new_session=True
+        )
+        os._exit(0)  # Exit current process
+
+    if background_tasks:
+        background_tasks.add_task(do_restart)
+    else:
+        import threading
+        threading.Thread(target=do_restart, daemon=True).start()
+
+    return {
+        "message": "Backend restart initiated. Please wait a few seconds and refresh.",
+        "status": "restarting"
     }
 
 
