@@ -62,7 +62,7 @@ interface BarData {
 
 interface Indicators {
   rsi?: number;
-  macd?: number;
+  macd?: number | { macd?: number; signal?: number; histogram?: number };
   macd_signal?: number;
   macd_histogram?: number;
   ema_20?: number;
@@ -270,12 +270,12 @@ export function LiveMarketChart() {
               <Badge
                 variant="secondary"
                 className={
-                  indicators.macd > 0
+                  (typeof indicators.macd === 'number' ? indicators.macd : indicators.macd?.macd ?? 0) > 0
                     ? "bg-green-500/20 text-green-500"
                     : "bg-red-500/20 text-red-500"
                 }
               >
-                MACD: {indicators.macd.toFixed(2)}
+                MACD: {(typeof indicators.macd === 'number' ? indicators.macd : indicators.macd?.macd ?? 0).toFixed(2)}
               </Badge>
             )}
             {indicators.ema_20 !== undefined && (
