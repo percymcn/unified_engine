@@ -140,15 +140,23 @@ async def _create_account_executor(account: TradingAccount, db: Session):
 
     elif broker_type == "mt4":
         executor = MT4Executor()
-        if credentials.get("metaapi_token") and credentials.get("metaapi_account_id"):
-            executor._metaapi_token = credentials.get("metaapi_token")
-            executor._metaapi_account_id = credentials.get("metaapi_account_id")
+        # Use platform's master token + user's provisioned account_id
+        metaapi_account_id = credentials.get("metaapi_account_id")
+        if metaapi_account_id:
+            from app.core.config import settings
+            executor._metaapi_token = settings.METAAPI_TOKEN
+            executor._metaapi_account_id = metaapi_account_id
+            executor.is_available = bool(executor._metaapi_token and executor._metaapi_account_id)
 
     elif broker_type == "mt5":
         executor = MT5Executor()
-        if credentials.get("metaapi_token") and credentials.get("metaapi_account_id"):
-            executor._metaapi_token = credentials.get("metaapi_token")
-            executor._metaapi_account_id = credentials.get("metaapi_account_id")
+        # Use platform's master token + user's provisioned account_id
+        metaapi_account_id = credentials.get("metaapi_account_id")
+        if metaapi_account_id:
+            from app.core.config import settings
+            executor._metaapi_token = settings.METAAPI_TOKEN
+            executor._metaapi_account_id = metaapi_account_id
+            executor.is_available = bool(executor._metaapi_token and executor._metaapi_account_id)
 
     # Initialize the executor if created
     if executor:

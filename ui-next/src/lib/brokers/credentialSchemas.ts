@@ -265,124 +265,118 @@ export const TRADOVATE_SCHEMA: BrokerCredentialSchema = {
 
 /**
  * MT4 Credential Schema
- * 
- * Supports two authentication modes:
- * 1. MetaAPI SDK mode (preferred): Uses MetaAPI token and account ID
- * 2. Manager API mode (fallback): Uses manager login/password
+ *
+ * Users enter their broker credentials directly.
+ * Platform auto-provisions MetaAPI account in the background.
  */
 export const MT4_SCHEMA: BrokerCredentialSchema = {
   broker: 'mt4',
   displayName: 'MetaTrader 4',
   requiredFields: [
-    // MetaAPI mode fields
     {
-      name: 'metaapiToken',
-      backendName: 'metaapi_token',
+      name: 'login',
+      backendName: 'login',
       required: true,
-      type: 'password',
-      label: 'MetaAPI Token',
-      description: 'Your MetaAPI cloud token',
+      type: 'string',
+      label: 'MT4 Login',
+      description: 'Your MT4 account login number',
       storageLocation: 'credentials',
       storageColumn: 'encrypted_data',
     },
     {
-      name: 'metaapiAccountId',
-      backendName: 'metaapi_account_id',
+      name: 'password',
+      backendName: 'password',
+      required: true,
+      type: 'password',
+      label: 'MT4 Password',
+      description: 'Your MT4 account password (investor or master)',
+      storageLocation: 'credentials',
+      storageColumn: 'encrypted_data',
+    },
+    {
+      name: 'server',
+      backendName: 'server',
       required: true,
       type: 'string',
-      label: 'MetaAPI Account ID',
-      description: 'Your MetaAPI account ID',
+      label: 'Broker Server',
+      description: 'Your broker server name (e.g., ICMarkets-Demo)',
+      storageLocation: 'credentials',
+      storageColumn: 'encrypted_data',
+    },
+  ],
+  optionalFields: [
+    {
+      name: 'accountName',
+      backendName: 'account_name',
+      required: false,
+      type: 'string',
+      label: 'Account Name',
+      description: 'Friendly name for this account (optional)',
       storageLocation: 'trading_accounts',
       storageColumn: 'extra_metadata',
     },
   ],
-  optionalFields: [
-    // Manager API mode fields
-    {
-      name: 'managerLogin',
-      backendName: 'manager_login',
-      required: false,
-      type: 'string',
-      label: 'Manager Login (Manager API Mode)',
-      description: 'MT4 Manager API login (alternative to MetaAPI)',
-      storageLocation: 'credentials',
-      storageColumn: 'encrypted_data',
-    },
-    {
-      name: 'managerPassword',
-      backendName: 'manager_password',
-      required: false,
-      type: 'password',
-      label: 'Manager Password (Manager API Mode)',
-      description: 'MT4 Manager API password (alternative to MetaAPI)',
-      storageLocation: 'credentials',
-      storageColumn: 'encrypted_data',
-    },
-  ],
   testConnectionEndpoint: '/api/v1/accounts/test-connection',
   createAccountEndpoint: '/api/v1/accounts/',
-  notes: 'Provide either (metaapi_token, metaapi_account_id) for MetaAPI mode or (manager_login, manager_password) for Manager API mode.',
+  notes: 'Enter your MT4 broker credentials. We securely connect to your account via MetaAPI cloud service.',
 };
 
 /**
  * MT5 Credential Schema
- * 
- * Supports two authentication modes:
- * 1. MetaAPI SDK mode (preferred): Uses MetaAPI token and account ID
- * 2. Manager API mode (fallback): Uses manager login/password
+ *
+ * Users enter their broker credentials directly.
+ * Platform auto-provisions MetaAPI account in the background.
  */
 export const MT5_SCHEMA: BrokerCredentialSchema = {
   broker: 'mt5',
   displayName: 'MetaTrader 5',
   requiredFields: [
-    // MetaAPI mode fields
     {
-      name: 'metaapiToken',
-      backendName: 'metaapi_token',
+      name: 'login',
+      backendName: 'login',
       required: true,
-      type: 'password',
-      label: 'MetaAPI Token',
-      description: 'Your MetaAPI cloud token',
+      type: 'string',
+      label: 'MT5 Login',
+      description: 'Your MT5 account login number',
       storageLocation: 'credentials',
       storageColumn: 'encrypted_data',
     },
     {
-      name: 'metaapiAccountId',
-      backendName: 'metaapi_account_id',
+      name: 'password',
+      backendName: 'password',
+      required: true,
+      type: 'password',
+      label: 'MT5 Password',
+      description: 'Your MT5 account password (investor or master)',
+      storageLocation: 'credentials',
+      storageColumn: 'encrypted_data',
+    },
+    {
+      name: 'server',
+      backendName: 'server',
       required: true,
       type: 'string',
-      label: 'MetaAPI Account ID',
-      description: 'Your MetaAPI account ID',
+      label: 'Broker Server',
+      description: 'Your broker server name (e.g., ICMarkets-MT5)',
+      storageLocation: 'credentials',
+      storageColumn: 'encrypted_data',
+    },
+  ],
+  optionalFields: [
+    {
+      name: 'accountName',
+      backendName: 'account_name',
+      required: false,
+      type: 'string',
+      label: 'Account Name',
+      description: 'Friendly name for this account (optional)',
       storageLocation: 'trading_accounts',
       storageColumn: 'extra_metadata',
     },
   ],
-  optionalFields: [
-    // Manager API mode fields
-    {
-      name: 'managerLogin',
-      backendName: 'manager_login',
-      required: false,
-      type: 'string',
-      label: 'Manager Login (Manager API Mode)',
-      description: 'MT5 Manager API login (alternative to MetaAPI)',
-      storageLocation: 'credentials',
-      storageColumn: 'encrypted_data',
-    },
-    {
-      name: 'managerPassword',
-      backendName: 'manager_password',
-      required: false,
-      type: 'password',
-      label: 'Manager Password (Manager API Mode)',
-      description: 'MT5 Manager API password (alternative to MetaAPI)',
-      storageLocation: 'credentials',
-      storageColumn: 'encrypted_data',
-    },
-  ],
   testConnectionEndpoint: '/api/v1/accounts/test-connection',
   createAccountEndpoint: '/api/v1/accounts/',
-  notes: 'Provide either (metaapi_token, metaapi_account_id) for MetaAPI mode or (manager_login, manager_password) for Manager API mode.',
+  notes: 'Enter your MT5 broker credentials. We securely connect to your account via MetaAPI cloud service.',
 };
 
 /**

@@ -380,11 +380,22 @@ class CreateAccountUseCase:
                 "account_id": request.account_id,
                 **request.credentials,
             }
-            
+
             # Include OAuth tokens if provided
             if hasattr(request, 'oauth_tokens') and request.oauth_tokens:
                 credential_data.update(request.oauth_tokens)
-            
+
+            # Auto-provision MetaAPI account for MT4/MT5 brokers
+            if request.broker in (BrokerType.MT4, BrokerType.MT5):
+                metaapi_account_id = await self._provision_metaapi_account(
+                    credentials=request.credentials,
+                    platform=request.broker.value,  # "mt4" or "mt5"
+                    account_name=f"{request.broker.value.upper()}-{request.account_id}",
+                )
+                if metaapi_account_id:
+                    credential_data["metaapi_account_id"] = metaapi_account_id
+                    logger.info(f"MetaAPI account provisioned: {metaapi_account_id}")
+
             await self._credential_repo.create(
                 credential_id=credential_id,
                 user_id=request.user_id,
@@ -478,6 +489,55 @@ class CreateAccountUseCase:
                 is_active=False,
                 error=str(e),
             )
+
+    async def _provision_metaapi_account(
+        self,
+        credentials: Dict,
+        platform: str,
+        account_name: str,
+    ) -> Optional[str]:
+        """
+        Provision MetaAPI account from broker credentials.
+
+        Args:
+            credentials: Dict with login, password, server
+            platform: "mt4" or "mt5"
+            account_name: Friendly name for the account
+
+        Returns:
+            MetaAPI account_id if successful, None otherwise
+        """
+        try:
+            from app.services.metaapi_provisioning_service import get_provisioning_service
+
+            service = get_provisioning_service()
+            if not service:
+                logger.warning("MetaAPI provisioning service not configured - skipping auto-provision")
+                return None
+
+            login = credentials.get("login")
+            password = credentials.get("password")
+            server = credentials.get("server")
+
+            if not all([login, password, server]):
+                logger.warning("Missing MT4/MT5 credentials (login, password, server) - skipping auto-provision")
+                return None
+
+            result = await service.provision_account(
+                login=login,
+                password=password,
+                server=server,
+                platform=platform,
+                name=account_name,
+            )
+
+            return result.get("account_id")
+
+        except Exception as e:
+            logger.error(f"MetaAPI provisioning failed: {e}")
+            # Don't fail account creation if provisioning fails
+            # User can retry via account settings later
+            return None
 
 
 class UpdateAccountUseCase:

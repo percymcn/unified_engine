@@ -214,97 +214,79 @@
       "id": "mt4",
       "display_name": "MetaTrader 4",
       "enabled": true,
-      "auth_modes": ["metaapi", "manager"],
-      "default_auth_mode": "metaapi",
+      "auth_modes": ["broker"],
+      "default_auth_mode": "broker",
       "fields": [
         {
-          "name": "metaapi_token",
-          "backend_name": "metaapi_token",
-          "type": "password",
-          "label": "MetaAPI Token",
-          "description": "Your MetaAPI cloud token from app.metaapi.cloud",
-          "required_for": ["metaapi"],
+          "name": "login",
+          "backend_name": "login",
+          "type": "string",
+          "label": "MT4 Login",
+          "description": "Your MT4 account login number",
+          "required_for": ["broker"],
           "order": 1
         },
         {
-          "name": "metaapi_account_id",
-          "backend_name": "metaapi_account_id",
-          "type": "string",
-          "label": "MetaAPI Account ID",
-          "description": "Your MetaAPI account ID",
-          "required_for": ["metaapi"],
+          "name": "password",
+          "backend_name": "password",
+          "type": "password",
+          "label": "MT4 Password",
+          "description": "Your MT4 account password (investor or master)",
+          "required_for": ["broker"],
           "order": 2
         },
         {
-          "name": "manager_login",
-          "backend_name": "manager_login",
+          "name": "server",
+          "backend_name": "server",
           "type": "string",
-          "label": "Manager Login",
-          "description": "MT4 Manager API login (alternative to MetaAPI)",
-          "required_for": ["manager"],
+          "label": "Broker Server",
+          "description": "Your broker server name (e.g., ICMarkets-Demo)",
+          "required_for": ["broker"],
           "order": 3
-        },
-        {
-          "name": "manager_password",
-          "backend_name": "manager_password",
-          "type": "password",
-          "label": "Manager Password",
-          "description": "MT4 Manager API password",
-          "required_for": ["manager"],
-          "order": 4
         }
       ],
       "test_connection_endpoint": "/api/v1/accounts/test-connection",
       "discover_accounts_endpoint": "/api/v1/accounts/available/{broker}",
-      "notes": "MetaAPI mode is recommended. Free tier available at metaapi.cloud."
+      "notes": "Enter your MT4 broker credentials. We securely connect via MetaAPI cloud service."
     },
     "mt5": {
       "id": "mt5",
       "display_name": "MetaTrader 5",
       "enabled": true,
-      "auth_modes": ["metaapi", "manager"],
-      "default_auth_mode": "metaapi",
+      "auth_modes": ["broker"],
+      "default_auth_mode": "broker",
       "fields": [
         {
-          "name": "metaapi_token",
-          "backend_name": "metaapi_token",
-          "type": "password",
-          "label": "MetaAPI Token",
-          "description": "Your MetaAPI cloud token from app.metaapi.cloud",
-          "required_for": ["metaapi"],
+          "name": "login",
+          "backend_name": "login",
+          "type": "string",
+          "label": "MT5 Login",
+          "description": "Your MT5 account login number",
+          "required_for": ["broker"],
           "order": 1
         },
         {
-          "name": "metaapi_account_id",
-          "backend_name": "metaapi_account_id",
-          "type": "string",
-          "label": "MetaAPI Account ID",
-          "description": "Your MetaAPI account ID",
-          "required_for": ["metaapi"],
+          "name": "password",
+          "backend_name": "password",
+          "type": "password",
+          "label": "MT5 Password",
+          "description": "Your MT5 account password (investor or master)",
+          "required_for": ["broker"],
           "order": 2
         },
         {
-          "name": "manager_login",
-          "backend_name": "manager_login",
+          "name": "server",
+          "backend_name": "server",
           "type": "string",
-          "label": "Manager Login",
-          "description": "MT5 Manager API login (alternative to MetaAPI)",
-          "required_for": ["manager"],
+          "label": "Broker Server",
+          "description": "Your broker server name (e.g., ICMarkets-MT5)",
+          "required_for": ["broker"],
           "order": 3
-        },
-        {
-          "name": "manager_password",
-          "backend_name": "manager_password",
-          "type": "password",
-          "label": "Manager Password",
-          "description": "MT5 Manager API password",
-          "required_for": ["manager"],
-          "order": 4
         }
       ],
       "test_connection_endpoint": "/api/v1/accounts/test-connection",
       "discover_accounts_endpoint": "/api/v1/accounts/available/{broker}",
-      "notes": "MetaAPI mode is recommended. Free tier available at metaapi.cloud."
+      "notes": "Enter your MT5 broker credentials. We securely connect via MetaAPI cloud service."
     }
   }
 }
