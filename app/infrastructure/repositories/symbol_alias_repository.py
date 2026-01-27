@@ -124,7 +124,7 @@ class SQLAlchemySymbolAliasRepository(SymbolAliasRepository):
         self._session.add(orm)
 
         try:
-            await self._session.flush()
+            await self._session.commit()
             await self._session.refresh(orm)
         except IntegrityError:
             await self._session.rollback()
@@ -152,7 +152,7 @@ class SQLAlchemySymbolAliasRepository(SymbolAliasRepository):
             raise ValueError(f"Alias {alias.id} not found for user {alias.user_id}")
 
         orm = self._to_orm(alias, existing)
-        await self._session.flush()
+        await self._session.commit()
         await self._session.refresh(orm)
 
         return self._to_entity(orm)
@@ -170,7 +170,7 @@ class SQLAlchemySymbolAliasRepository(SymbolAliasRepository):
 
         if orm:
             await self._session.delete(orm)
-            await self._session.flush()
+            await self._session.commit()
             return True
 
         return False
@@ -188,7 +188,7 @@ class SQLAlchemySymbolAliasRepository(SymbolAliasRepository):
             )
         )
         result = await self._session.execute(stmt)
-        await self._session.flush()
+        await self._session.commit()
         return result.rowcount
 
     async def get_auto_detected(
@@ -284,10 +284,10 @@ class SQLAlchemySymbolAliasRepository(SymbolAliasRepository):
             self._session.add(orm)
             created += 1
 
-        # Flush all at once
+        # Commit all at once
         if created > 0:
             try:
-                await self._session.flush()
+                await self._session.commit()
             except IntegrityError:
                 # Some duplicates slipped through - that's ok
                 await self._session.rollback()
@@ -310,7 +310,7 @@ class SQLAlchemySymbolAliasRepository(SymbolAliasRepository):
                         )
                         orm = self._to_orm(alias)
                         self._session.add(orm)
-                        await self._session.flush()
+                        await self._session.commit()
                         created += 1
                     except IntegrityError:
                         await self._session.rollback()
@@ -340,5 +340,5 @@ class SQLAlchemySymbolAliasRepository(SymbolAliasRepository):
             )
         )
         result = await self._session.execute(stmt)
-        await self._session.flush()
+        await self._session.commit()
         return result.rowcount
