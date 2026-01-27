@@ -60,8 +60,10 @@ class TradingViewPayload(BaseModel):
     action: str = Field(..., description="Trade action: buy, sell, or close")
     symbol: str = Field(..., description="Trading symbol")
     quantity: Optional[float] = Field(0.01, description="Trade quantity/lots")
-    sl: Optional[float] = Field(None, description="Stop loss price")
-    tp: Optional[float] = Field(None, description="Take profit price")
+    sl: Optional[float] = Field(None, description="Stop loss price (alias: stop_loss)")
+    tp: Optional[float] = Field(None, description="Take profit price (alias: take_profit)")
+    stop_loss: Optional[float] = Field(None, description="Stop loss price (alias: sl)")
+    take_profit: Optional[float] = Field(None, description="Take profit price (alias: tp)")
     trailing_stop: Optional[float] = Field(None, description="Trailing stop distance (in ticks for ProjectX)")
     order_type: Optional[str] = Field("market", description="Order type: market or limit")
     limit_price: Optional[float] = Field(None, description="Limit price for limit orders")
@@ -279,8 +281,9 @@ async def execute_tradingview_signal(
 
     # Build signal entity for guard evaluation
     quantity = float(raw_payload.get("quantity", 0.01) or 0.01)
-    sl_price = raw_payload.get("sl")
-    tp_price = raw_payload.get("tp")
+    # Support both short (sl, tp) and long (stop_loss, take_profit) field names
+    sl_price = raw_payload.get("sl") or raw_payload.get("stop_loss")
+    tp_price = raw_payload.get("tp") or raw_payload.get("take_profit")
     trailing_stop = raw_payload.get("trailing_stop")  # Trailing stop distance
     order_type_payload = raw_payload.get("order_type", "market").lower()
     limit_price = raw_payload.get("limit_price")

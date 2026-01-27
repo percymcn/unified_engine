@@ -110,6 +110,114 @@ class ContractResolver:
         'BTC': {'name': 'Bitcoin', 'tick_size': 5.0, 'tick_value': 25.0},
     }
 
+    # TradingView symbol mappings to ProjectX base symbols
+    # TradingView uses formats like ES1!, MES1!, NQ1!, ESH2026, etc.
+    TRADINGVIEW_SYMBOL_MAP = {
+        # E-mini S&P 500
+        'ES1!': 'ES', 'ESZ1!': 'ES', 'ESH1!': 'ES', 'ESM1!': 'ES', 'ESU1!': 'ES',
+        # Micro E-mini S&P 500
+        'MES1!': 'MES', 'MESZ1!': 'MES', 'MESH1!': 'MES', 'MESM1!': 'MES', 'MESU1!': 'MES',
+        # E-mini Nasdaq
+        'NQ1!': 'NQ', 'NQZ1!': 'NQ', 'NQH1!': 'NQ', 'NQM1!': 'NQ', 'NQU1!': 'NQ',
+        # Micro E-mini Nasdaq
+        'MNQ1!': 'MNQ', 'MNQZ1!': 'MNQ', 'MNQH1!': 'MNQ', 'MNQM1!': 'MNQ', 'MNQU1!': 'MNQ',
+        # E-mini Dow
+        'YM1!': 'YM', 'YMZ1!': 'YM', 'YMH1!': 'YM', 'YMM1!': 'YM', 'YMU1!': 'YM',
+        # Micro E-mini Dow
+        'MYM1!': 'MYM', 'MYMZ1!': 'MYM', 'MYMH1!': 'MYM', 'MYMM1!': 'MYM', 'MYMU1!': 'MYM',
+        # E-mini Russell 2000
+        'RTY1!': 'RTY', 'RTYZ1!': 'RTY', 'RTYH1!': 'RTY', 'RTYM1!': 'RTY', 'RTYU1!': 'RTY',
+        # Micro E-mini Russell 2000
+        'M2K1!': 'M2K', 'M2KZ1!': 'M2K', 'M2KH1!': 'M2K', 'M2KM1!': 'M2K', 'M2KU1!': 'M2K',
+        # Crude Oil
+        'CL1!': 'CL', 'CLZ1!': 'CL', 'CLH1!': 'CL', 'CLM1!': 'CL', 'CLU1!': 'CL',
+        # Micro Crude Oil
+        'MCL1!': 'MCL',
+        # Gold
+        'GC1!': 'GC', 'GCZ1!': 'GC', 'GCH1!': 'GC', 'GCM1!': 'GC', 'GCU1!': 'GC',
+        # Micro Gold
+        'MGC1!': 'MGC',
+        # Natural Gas
+        'NG1!': 'NG',
+        # Micro Bitcoin
+        'MBT1!': 'MBT',
+        # Silver
+        'SI1!': 'SI',
+        # COMEX symbols (alternative TradingView format)
+        'COMEX:ES1!': 'ES', 'COMEX:MES1!': 'MES', 'COMEX:GC1!': 'GC', 'COMEX:MGC1!': 'MGC',
+        'CME_MINI:ES1!': 'ES', 'CME_MINI:NQ1!': 'NQ',
+        # Currency futures
+        '6E1!': '6E', 'M6E1!': 'M6E', '6J1!': '6J', '6B1!': '6B', '6A1!': '6A', '6C1!': '6C',
+    }
+
+    @classmethod
+    def normalize_symbol(cls, symbol: str) -> str:
+        """
+        Normalize a TradingView symbol to ProjectX base symbol.
+
+        Handles various TradingView formats:
+        - ES1! -> ES
+        - MES1! -> MES
+        - ESH2026 -> ES
+        - COMEX:GC1! -> GC
+        - Already valid symbols pass through
+
+        Args:
+            symbol: Input symbol from TradingView or other source
+
+        Returns:
+            Normalized base symbol for ProjectX
+        """
+        if not symbol:
+            return symbol
+
+        # Uppercase for consistency
+        symbol_upper = symbol.upper().strip()
+
+        # Direct mapping check
+        if symbol_upper in cls.TRADINGVIEW_SYMBOL_MAP:
+            return cls.TRADINGVIEW_SYMBOL_MAP[symbol_upper]
+
+        # Already a valid ProjectX base symbol?
+        if symbol_upper in cls.TRADEABLE_SYMBOLS:
+            return symbol_upper
+
+        # Strip exchange prefix (COMEX:, CME_MINI:, etc.)
+        if ':' in symbol_upper:
+            symbol_upper = symbol_upper.split(':')[-1]
+            # Check again after stripping prefix
+            if symbol_upper in cls.TRADINGVIEW_SYMBOL_MAP:
+                return cls.TRADINGVIEW_SYMBOL_MAP[symbol_upper]
+            if symbol_upper in cls.TRADEABLE_SYMBOLS:
+                return symbol_upper
+
+        # Handle continuous contracts (ES1!, MES1!, etc.)
+        if symbol_upper.endswith('1!'):
+            base = symbol_upper[:-2]
+            if base in cls.TRADEABLE_SYMBOLS:
+                return base
+
+        # Handle month codes (ESH2026, ESH26, ESH6)
+        # Pattern: BASE + MONTH_CODE + YEAR
+        import re
+        match = re.match(r'^([A-Z0-9]+)([FGHJKMNQUVXZ])(\d{1,4})$', symbol_upper)
+        if match:
+            base = match.group(1)
+            if base in cls.TRADEABLE_SYMBOLS:
+                return base
+
+        # Handle symbols with ! anywhere
+        if '!' in symbol_upper:
+            clean = symbol_upper.replace('!', '')
+            # Try stripping numbers from the end
+            base = re.sub(r'\d+$', '', clean)
+            if base in cls.TRADEABLE_SYMBOLS:
+                return base
+
+        # Fallback: return as-is
+        logger.warning(f"Could not normalize symbol: {symbol} -> returning as-is")
+        return symbol_upper
+
     def __init__(self, cache_ttl_minutes: int = 60):
         """
         Initialize the contract resolver.

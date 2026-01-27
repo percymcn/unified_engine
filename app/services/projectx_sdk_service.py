@@ -25,6 +25,10 @@ from datetime import datetime
 
 from app.services.contract_resolver import ContractResolver, get_contract_resolver
 
+def normalize_symbol(symbol: str) -> str:
+    """Normalize TradingView symbols to ProjectX base symbols."""
+    return ContractResolver.normalize_symbol(symbol)
+
 logger = logging.getLogger(__name__)
 
 # Try to import SDK - graceful fallback if not installed
@@ -399,13 +403,15 @@ class ProjectXSDKService:
         Place market order via SDK.
 
         Args:
-            instrument: Instrument symbol
+            instrument: Instrument symbol (TradingView format supported)
             side: "buy" or "sell"
             size: Number of contracts
 
         Returns:
             Dict with success, order_id, status
         """
+        # Normalize TradingView symbols to ProjectX symbols
+        instrument = normalize_symbol(instrument)
         suite = await self.get_trading_suite(instrument)
         try:
             side_int = 0 if side.lower() == "buy" else 1
@@ -437,7 +443,7 @@ class ProjectXSDKService:
         Place limit order via SDK.
 
         Args:
-            instrument: Instrument symbol
+            instrument: Instrument symbol (TradingView format supported)
             side: "buy" or "sell"
             size: Number of contracts
             limit_price: Limit price for the order
@@ -447,6 +453,7 @@ class ProjectXSDKService:
         Returns:
             Dict with success, order_id, status
         """
+        instrument = normalize_symbol(instrument)
         suite = await self.get_trading_suite(instrument)
         try:
             side_int = 0 if side.lower() == "buy" else 1
@@ -477,7 +484,7 @@ class ProjectXSDKService:
         Place trailing stop order via SDK.
 
         Args:
-            instrument: Instrument symbol
+            instrument: Instrument symbol (TradingView format supported)
             side: "buy" or "sell"
             size: Number of contracts
             trail_price: Trail distance in ticks (max 1000)
@@ -485,6 +492,7 @@ class ProjectXSDKService:
         Returns:
             Dict with success, order_id, status
         """
+        instrument = normalize_symbol(instrument)
         suite = await self.get_trading_suite(instrument)
         try:
             side_int = 0 if side.lower() == "buy" else 1
@@ -652,22 +660,60 @@ class ProjectXSDKService:
         """
         Place bracket order (OCO) with stop loss and take profit.
 
+        Uses SDK's native place_bracket_order which handles SL/TP atomically.
+        For market orders, this creates a bracket that triggers on position fill.
+
+        SDK signature:
+        place_bracket_order(contract_id, side, size, entry_price, stop_loss_price,
+                          take_profit_price, entry_type='limit', account_id=None)
+
         Args:
-            instrument: Instrument symbol
+            instrument: Instrument symbol (TradingView format supported)
             side: "buy" or "sell"
             size: Number of contracts
-            entry_price: Entry price (None for market)
+            entry_price: Entry price (None for market order)
             stop_loss: Stop loss price
             take_profit: Take profit price
 
         Returns:
             Dict with success, order_id, status
         """
+        instrument = normalize_symbol(instrument)
         suite = await self.get_trading_suite(instrument)
         try:
             side_int = 0 if side.lower() == "buy" else 1
+            logger.info(f"place_bracket_order called: instrument={instrument}, side={side}, size={size}, entry_price={entry_price}, stop_loss={stop_loss}, take_profit={take_profit}")
 
-            # Place main order
+            # If we have both SL and TP, use native bracket order
+            if stop_loss and take_profit:
+                # SDK's place_bracket_order handles this atomically
+                entry_type = 'market' if entry_price is None else 'limit'
+                logger.info(f"Using SDK place_bracket_order with entry_type={entry_type}, contract_id={suite.instrument_id}")
+                response = await suite.orders.place_bracket_order(
+                    contract_id=suite.instrument_id,
+                    side=side_int,
+                    size=size,
+                    entry_price=entry_price,  # None for market
+                    stop_loss_price=stop_loss,
+                    take_profit_price=take_profit,
+                    entry_type=entry_type,
+                )
+                logger.info(f"SDK place_bracket_order response: {response}")
+                order_id = getattr(response, 'orderId', getattr(response, 'order_id', '')) if response else ""
+                return {
+                    "success": getattr(response, 'success', True) if response else True,
+                    "order_id": str(order_id),
+                    "status": "submitted",
+                    "bracket": True,
+                    "stop_loss": stop_loss,
+                    "take_profit": take_profit,
+                }
+
+            # If only SL or only TP, place order first then add protection
+            # For market orders with partial protection, we need to:
+            # 1. Place market order
+            # 2. Wait for fill
+            # 3. Add SL/TP to the resulting position
             if entry_price:
                 main_order = await suite.orders.place_limit_order(
                     contract_id=suite.instrument_id,
@@ -682,21 +728,38 @@ class ProjectXSDKService:
                     size=size,
                 )
 
-            order_id = getattr(main_order, 'orderId', '') if main_order else ""
+            order_id = getattr(main_order, 'orderId', getattr(main_order, 'order_id', '')) if main_order else ""
+            execution_id = getattr(main_order, 'executionId', getattr(main_order, 'execution_id', '')) if main_order else ""
 
-            # Add stop loss if provided
-            if stop_loss and order_id:
-                await suite.orders.add_stop_loss(order_id, stop_loss)
-
-            # Add take profit if provided
-            if take_profit and order_id:
-                await suite.orders.add_take_profit(order_id, take_profit)
-
-            return {
-                "success": True,
-                "order_id": str(order_id),
+            result = {
+                "success": getattr(main_order, 'success', True) if main_order else True,
+                "order_id": str(order_id) if order_id else str(execution_id),
                 "status": "submitted",
             }
+
+            # For limit orders (pending), we can add SL/TP to the order
+            if entry_price and order_id:
+                if stop_loss:
+                    try:
+                        await suite.orders.add_stop_loss(order_id, stop_loss)
+                        result["stop_loss"] = stop_loss
+                    except Exception as e:
+                        logger.warning(f"Failed to add stop loss to order: {e}")
+
+                if take_profit:
+                    try:
+                        await suite.orders.add_take_profit(order_id, take_profit)
+                        result["take_profit"] = take_profit
+                    except Exception as e:
+                        logger.warning(f"Failed to add take profit to order: {e}")
+            else:
+                # Market order filled immediately - need to add protection to position
+                # The position_id should match the execution_id or we need to query positions
+                if stop_loss or take_profit:
+                    result["note"] = "Market order filled. Use add_stop_loss_to_position/add_take_profit_to_position for protection."
+                    result["execution_id"] = str(execution_id)
+
+            return result
         except Exception as e:
             logger.error(f"Bracket order failed: {e}")
             return {"success": False, "error": str(e)}
