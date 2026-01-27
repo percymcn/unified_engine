@@ -584,3 +584,135 @@ export async function removeAccountFromGroup(
     throw new Error(`Failed to remove account from group: ${response.statusText}`);
   }
 }
+
+// ============================================================================
+// MetaApi BYOA (Bring Your Own Account) API
+// ============================================================================
+
+/**
+ * Request to connect an existing MT4/MT5 account via MetaApi
+ */
+export interface ConnectMetaApiRequest {
+  platform: 'mt4' | 'mt5';
+  login: string;
+  password: string;
+  server: string;
+  nickname?: string;
+  account_type?: 'demo' | 'live' | 'funded' | 'evaluation';
+}
+
+/**
+ * Response from MetaApi account connection
+ */
+export interface ConnectMetaApiResponse {
+  account_id: number;
+  metaapi_account_id: string;
+  status: string;
+  platform: string;
+  login: string;
+  server: string;
+  webhook_key: string;
+  message: string;
+  account_info?: {
+    balance?: number;
+    equity?: number;
+    margin?: number;
+    free_margin?: number;
+    leverage?: number;
+    currency?: string;
+  };
+}
+
+/**
+ * Response from MetaApi status check
+ */
+export interface MetaApiStatusResponse {
+  account_id: number;
+  metaapi_account_id: string | null;
+  status: 'creating' | 'deploying' | 'connecting' | 'syncing' | 'ready' | 'disconnected' | 'failed' | 'not_provisioned' | 'service_unavailable';
+  state?: string;
+  connection_status?: string;
+  platform: string;
+  server?: string;
+  last_error?: string;
+  last_sync?: string;
+}
+
+/**
+ * Response from MetaApi reconnect
+ */
+export interface MetaApiReconnectResponse {
+  account_id: number;
+  metaapi_account_id: string;
+  status: string;
+  deployed: boolean;
+  message: string;
+}
+
+/**
+ * Connect an existing MT4/MT5 account via MetaApi Cloud (BYOA).
+ *
+ * Security: Password is sent to MetaApi only, NEVER stored in our database.
+ *
+ * @param data Connection request with platform, login, password, server
+ * @returns Connected account with metaapi_account_id and webhook_key
+ */
+export async function connectMetaApiAccount(
+  data: ConnectMetaApiRequest
+): Promise<ConnectMetaApiResponse> {
+  const response = await fetch('/api/accounts/connect/metaapi', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    throw await buildApiError(response, 'Failed to connect MetaApi account');
+  }
+
+  return response.json();
+}
+
+/**
+ * Get deployment and connection status for a MetaApi-connected account.
+ *
+ * @param accountId Our database account ID
+ * @returns Current status including state, connection_status, last_error
+ */
+export async function getMetaApiStatus(
+  accountId: number
+): Promise<MetaApiStatusResponse> {
+  const response = await fetch(`/api/accounts/${accountId}/metaapi/status`, {
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    throw await buildApiError(response, 'Failed to get MetaApi status');
+  }
+
+  return response.json();
+}
+
+/**
+ * Redeploy a MetaApi account that has disconnected.
+ *
+ * @param accountId Our database account ID
+ * @returns Reconnection result
+ */
+export async function reconnectMetaApiAccount(
+  accountId: number
+): Promise<MetaApiReconnectResponse> {
+  const response = await fetch(`/api/accounts/${accountId}/metaapi/reconnect`, {
+    method: 'POST',
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    throw await buildApiError(response, 'Failed to reconnect MetaApi account');
+  }
+
+  return response.json();
+}
