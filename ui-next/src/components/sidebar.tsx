@@ -38,6 +38,7 @@ const settingsNavigation = [
   { name: 'Preferences', href: '/settings/preferences', icon: Settings2 },
   { name: 'API Keys', href: '/settings/api-keys', icon: Key },
   { name: 'Webhooks', href: '/settings/webhooks', icon: Webhook },
+  { name: 'Webhook Logs', href: '/settings/webhook-logs', icon: History },
   { name: 'Billing', href: '/settings/billing', icon: CreditCard },
 ];
 

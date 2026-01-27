@@ -165,12 +165,13 @@ async def execute_tradingview_signal(
             detail=f"Invalid action: {action_str}. Must be 'buy', 'sell', or 'close'"
         )
 
-    symbol = raw_payload.get("symbol")
+    # Accept both 'symbol' and 'ticker' for compatibility with different brokers
+    symbol = raw_payload.get("symbol") or raw_payload.get("ticker")
     if not symbol:
         log_event("webhook_rejected_missing_symbol", webhook_id=webhook_id)
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Missing required field: symbol"
+            detail="Missing required field: symbol or ticker"
         )
 
     # Create webhook log
@@ -280,7 +281,13 @@ async def execute_tradingview_signal(
     action = action_map[action_str]
 
     # Build signal entity for guard evaluation
-    quantity = float(raw_payload.get("quantity", 0.01) or 0.01)
+    # Accept quantity, contracts, or volume for compatibility with different brokers
+    quantity = float(
+        raw_payload.get("quantity") or
+        raw_payload.get("contracts") or
+        raw_payload.get("volume") or
+        0.01
+    )
     # Support both short (sl, tp) and long (stop_loss, take_profit) field names
     sl_price = raw_payload.get("sl") or raw_payload.get("stop_loss")
     tp_price = raw_payload.get("tp") or raw_payload.get("take_profit")

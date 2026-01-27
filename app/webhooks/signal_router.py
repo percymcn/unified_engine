@@ -90,9 +90,10 @@ class WebhookSignalRouter:
         """Validate webhook payload based on source"""
         try:
             if source == "tradingview":
-                # TradingView webhook validation
-                required_fields = ["ticker", "action"]
-                return all(field in payload for field in required_fields)
+                # TradingView webhook validation - accept either ticker or symbol
+                has_symbol = "ticker" in payload or "symbol" in payload
+                has_action = "action" in payload
+                return has_symbol and has_action
             
             elif source == "trailhacker":
                 # TrailHacker webhook validation

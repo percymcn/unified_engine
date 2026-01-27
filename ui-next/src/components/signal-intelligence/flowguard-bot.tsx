@@ -6,9 +6,83 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Copy, Bot, AlertCircle, CheckCircle2, Info } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Copy, Bot, AlertCircle, CheckCircle2, Info, Shield } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useUser } from "@/providers/user-provider";
+
+// Broker-specific configurations
+type BrokerType = "projectx" | "tradelocker" | "mt4" | "mt5" | "tradovate";
+
+interface BrokerConfig {
+  name: string;
+  symbolField: "ticker" | "symbol";
+  quantityField: "contracts" | "quantity" | "volume";
+  supportsSL: boolean;
+  supportsTP: boolean;
+  supportsTrailingStop: boolean;
+  defaultQuantity: string;
+  quantityStep: string;
+  commonSymbols: string[];
+}
+
+const BROKER_CONFIGS: Record<BrokerType, BrokerConfig> = {
+  projectx: {
+    name: "ProjectX/TopStep",
+    symbolField: "ticker",
+    quantityField: "contracts",
+    supportsSL: true,
+    supportsTP: true,
+    supportsTrailingStop: true,
+    defaultQuantity: "1",
+    quantityStep: "1",
+    commonSymbols: ["MNQ", "MES", "MYM", "M2K", "MCL", "MGC", "ES", "NQ"],
+  },
+  tradelocker: {
+    name: "TradeLocker",
+    symbolField: "ticker",
+    quantityField: "quantity",
+    supportsSL: true,
+    supportsTP: true,
+    supportsTrailingStop: true,
+    defaultQuantity: "0.01",
+    quantityStep: "0.01",
+    commonSymbols: ["EURUSD", "GBPUSD", "USDJPY", "XAUUSD", "BTCUSD"],
+  },
+  mt4: {
+    name: "MetaTrader 4",
+    symbolField: "symbol",
+    quantityField: "volume",
+    supportsSL: true,
+    supportsTP: true,
+    supportsTrailingStop: false,
+    defaultQuantity: "0.01",
+    quantityStep: "0.01",
+    commonSymbols: ["EURUSD", "GBPUSD", "USDJPY", "XAUUSD"],
+  },
+  mt5: {
+    name: "MetaTrader 5",
+    symbolField: "symbol",
+    quantityField: "volume",
+    supportsSL: true,
+    supportsTP: true,
+    supportsTrailingStop: false,
+    defaultQuantity: "0.01",
+    quantityStep: "0.01",
+    commonSymbols: ["EURUSD", "GBPUSD", "USDJPY", "XAUUSD", "BTCUSD"],
+  },
+  tradovate: {
+    name: "Tradovate",
+    symbolField: "ticker",
+    quantityField: "contracts",
+    supportsSL: true,
+    supportsTP: true,
+    supportsTrailingStop: false,
+    defaultQuantity: "1",
+    quantityStep: "1",
+    commonSymbols: ["MNQ", "MES", "ES", "NQ", "CL", "GC"],
+  },
+};
 
 // Common symbol patterns for different markets
 const SYMBOL_PATTERNS = {
@@ -40,11 +114,17 @@ export function FlowGuardBot() {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [webhookKey, setWebhookKey] = useState("");
-  const [quantity, setQuantity] = useState("0.01");
+  const [broker, setBroker] = useState<BrokerType>("projectx");
+  const [quantity, setQuantity] = useState("1");
+  const [stopLoss, setStopLoss] = useState("");
+  const [takeProfit, setTakeProfit] = useState("");
+  const [trailingStop, setTrailingStop] = useState("");
   const [output, setOutput] = useState("");
   const [processing, setProcessing] = useState(false);
   const { toast } = useToast();
   const { user } = useUser();
+
+  const brokerConfig = BROKER_CONFIGS[broker];
 
   // Auto-fill webhook key from user profile
   useEffect(() => {
@@ -52,6 +132,15 @@ export function FlowGuardBot() {
       setWebhookKey(user.primary_webhook_key);
     }
   }, [user?.primary_webhook_key, webhookKey]);
+
+  // Update quantity default when broker changes
+  useEffect(() => {
+    setQuantity(brokerConfig.defaultQuantity);
+    // Clear SL/TP/trailing if not supported
+    if (!brokerConfig.supportsTrailingStop) {
+      setTrailingStop("");
+    }
+  }, [broker, brokerConfig.defaultQuantity, brokerConfig.supportsTrailingStop]);
 
   function parseSignalInput(userInput: string): { symbol: string; action: string; comment: string } {
     const lowerInput = userInput.toLowerCase().trim();
@@ -63,7 +152,7 @@ export function FlowGuardBot() {
         lowerInput.includes("close short") || lowerInput.startsWith("s ")) {
       action = "sell";
     } else if (lowerInput.includes("close") || lowerInput.includes("exit") ||
-               lowerInput.includes("flatten")) {
+               lowerInput.includes("flatten") || lowerInput.includes("close_all")) {
       action = "close";
     } else if (lowerInput.includes("long") || lowerInput.includes("buy") ||
                lowerInput.startsWith("l ") || lowerInput.startsWith("b ")) {
@@ -90,9 +179,9 @@ export function FlowGuardBot() {
       }
     }
 
-    // Default symbol
+    // Default symbol based on broker
     if (!symbol) {
-      symbol = "EURUSD";
+      symbol = brokerConfig.commonSymbols[0] || "EURUSD";
     }
 
     return { symbol, action, comment: originalInput };
@@ -101,13 +190,24 @@ export function FlowGuardBot() {
   function generateAlertJSON(userInput: string): string {
     const { symbol, action, comment } = parseSignalInput(userInput);
 
-    // Build the webhook payload that matches our system exactly
+    // Build the webhook payload based on broker configuration
     const alertJSON: Record<string, unknown> = {
-      webhook_key: webhookKey || "YOUR_WEBHOOK_KEY_HERE",
+      // Use broker-specific field names
+      [brokerConfig.symbolField]: symbol,
       action: action,
-      symbol: symbol,
-      quantity: parseFloat(quantity) || 0.01,
+      [brokerConfig.quantityField]: parseFloat(quantity) || parseFloat(brokerConfig.defaultQuantity),
     };
+
+    // Add SL/TP if provided and supported
+    if (stopLoss && brokerConfig.supportsSL) {
+      alertJSON.sl = parseFloat(stopLoss);
+    }
+    if (takeProfit && brokerConfig.supportsTP) {
+      alertJSON.tp = parseFloat(takeProfit);
+    }
+    if (trailingStop && brokerConfig.supportsTrailingStop) {
+      alertJSON.trailing_stop = parseFloat(trailingStop);
+    }
 
     // Only add comment if meaningful
     if (comment && comment !== symbol) {
@@ -187,6 +287,29 @@ export function FlowGuardBot() {
             </DialogHeader>
 
             <div className="space-y-4">
+              {/* Broker Selection */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Shield className="h-4 w-4" />
+                  Target Broker
+                </Label>
+                <Select value={broker} onValueChange={(v) => setBroker(v as BrokerType)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select broker" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(BROKER_CONFIGS).map(([key, config]) => (
+                      <SelectItem key={key} value={key}>
+                        {config.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  JSON format adapts to {brokerConfig.name} requirements
+                </p>
+              </div>
+
               {/* Webhook Key */}
               <div className="space-y-2">
                 <Label className="flex items-center gap-2">
@@ -214,12 +337,11 @@ export function FlowGuardBot() {
               <div className="space-y-2">
                 <Label>Signal Description</Label>
                 <Textarea
-                  placeholder='Examples:
-• "EURUSD long"
-• "short NQ"
-• "buy BTC 0.1"
-• "close XAUUSD"
-• "ES short at market"'
+                  placeholder={`Examples for ${brokerConfig.name}:
+• "${brokerConfig.commonSymbols[0]} long"
+• "short ${brokerConfig.commonSymbols[1] || brokerConfig.commonSymbols[0]}"
+• "close ${brokerConfig.commonSymbols[0]}"
+• "close_all" (emergency close all)`}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   className="font-mono text-sm min-h-[100px]"
@@ -232,18 +354,63 @@ export function FlowGuardBot() {
                 />
               </div>
 
-              {/* Quantity */}
-              <div className="space-y-2">
-                <Label>Quantity (lots/contracts)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  placeholder="0.01"
-                  value={quantity}
-                  onChange={(e) => setQuantity(e.target.value)}
-                  className="font-mono w-32"
-                />
+              {/* Quantity and Risk Management Row */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Quantity ({broker === 'projectx' || broker === 'tradovate' ? 'contracts' : 'lots'})</Label>
+                  <Input
+                    type="number"
+                    step={brokerConfig.quantityStep}
+                    min={brokerConfig.quantityStep}
+                    placeholder={brokerConfig.defaultQuantity}
+                    value={quantity}
+                    onChange={(e) => setQuantity(e.target.value)}
+                    className="font-mono"
+                  />
+                </div>
+                {brokerConfig.supportsSL && (
+                  <div className="space-y-2">
+                    <Label>Stop Loss (optional)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      placeholder="e.g., 21500"
+                      value={stopLoss}
+                      onChange={(e) => setStopLoss(e.target.value)}
+                      className="font-mono"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Take Profit and Trailing Stop Row */}
+              <div className="grid grid-cols-2 gap-4">
+                {brokerConfig.supportsTP && (
+                  <div className="space-y-2">
+                    <Label>Take Profit (optional)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      placeholder="e.g., 21600"
+                      value={takeProfit}
+                      onChange={(e) => setTakeProfit(e.target.value)}
+                      className="font-mono"
+                    />
+                  </div>
+                )}
+                {brokerConfig.supportsTrailingStop && (
+                  <div className="space-y-2">
+                    <Label>Trailing Stop (optional)</Label>
+                    <Input
+                      type="number"
+                      step="1"
+                      placeholder="e.g., 10 ticks"
+                      value={trailingStop}
+                      onChange={(e) => setTrailingStop(e.target.value)}
+                      className="font-mono"
+                    />
+                  </div>
+                )}
               </div>
 
               <Button
