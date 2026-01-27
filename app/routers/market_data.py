@@ -10,11 +10,16 @@ from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 from datetime import datetime
 import logging
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.projectx_sdk_service import ProjectXSDKService, SDK_AVAILABLE
 from app.services.contract_resolver import get_contract_resolver
 from app.routers.auth import get_current_user
 from app.models.schemas import User
+from app.db.database import get_async_session
+from app.infrastructure.repositories.account_repository import AccountRepository
+from app.infrastructure.repositories.credential_repository import CredentialRepository
+from app.domain.value_objects import AccountId
 
 logger = logging.getLogger(__name__)
 
@@ -82,39 +87,79 @@ class ContractInfoResponse(BaseModel):
 # Helper Functions
 # =============================================================================
 
-async def get_sdk_service(account_id: str, user: User) -> ProjectXSDKService:
-    """Get SDK service for a user's account."""
-    # In production, fetch credentials from database
-    # For now, we'll need the account to have stored credentials
-    from app.infrastructure.repositories.account_repository import AccountRepository
-    from app.core.database import get_db
+async def get_sdk_service(
+    account_id: str,
+    user: User,
+    session: AsyncSession
+) -> ProjectXSDKService:
+    """
+    Get SDK service for a user's account.
 
-    # Get database session
-    db = next(get_db())
-    try:
-        repo = AccountRepository(db)
-        account = await repo.get_by_id(account_id)
+    Fetches credentials from database - NOT from environment variables.
+    """
+    # Use async session for repository
+    account_repo = AccountRepository(session)
+    cred_repo = CredentialRepository(session)
 
-        if not account or account.user_id != user.id:
-            raise HTTPException(status_code=404, detail="Account not found")
+    # Get account from database
+    account = await account_repo.get_by_id(AccountId(account_id))
 
-        if account.broker != "projectx":
-            raise HTTPException(status_code=400, detail="Account is not a ProjectX account")
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
 
-        # Get credentials from account
-        username = account.login or account.api_key
-        api_key = account.password or account.api_secret
+    if account.user_id != user.id:
+        raise HTTPException(status_code=403, detail="Account does not belong to user")
 
-        if not username or not api_key:
-            raise HTTPException(status_code=400, detail="Account credentials not configured")
+    # Check broker type - support both projectx and topstep
+    broker_str = str(account.broker.value) if hasattr(account.broker, 'value') else str(account.broker)
+    if broker_str not in ("projectx", "topstep"):
+        raise HTTPException(status_code=400, detail="Account is not a ProjectX/TopStep account")
 
-        return ProjectXSDKService(
-            username=username,
-            api_key=api_key,
-            account_name=account.account_id
+    # Try to get credentials from credential repository first
+    username = None
+    api_key = None
+    account_name = None
+
+    # Check if account has credential_id reference
+    if hasattr(account, 'credential_id') and account.credential_id:
+        cred_data = await cred_repo.get_decrypted_data(account.credential_id)
+        if cred_data:
+            username = cred_data.get('username')
+            api_key = cred_data.get('api_key')
+            account_name = cred_data.get('account_name') or cred_data.get('account_id')
+
+    # Fallback to account fields if credentials not in credential repo
+    if not username or not api_key:
+        # Check broker_config for credentials
+        broker_config = getattr(account, 'broker_config', None) or {}
+        if isinstance(broker_config, dict):
+            username = username or broker_config.get('username')
+            api_key = api_key or broker_config.get('api_key') or broker_config.get('password')
+            account_name = account_name or broker_config.get('account_name') or broker_config.get('account_id')
+
+        # Last fallback to direct account fields
+        if not username:
+            username = getattr(account, 'login', None) or getattr(account, 'api_key', None)
+        if not api_key:
+            api_key = getattr(account, 'password', None) or getattr(account, 'api_secret', None)
+
+    # Get account name/ID for SDK
+    if not account_name:
+        account_name = getattr(account, 'account_number', None) or account_id
+
+    if not username or not api_key:
+        raise HTTPException(
+            status_code=400,
+            detail="Account credentials not configured. Please update your account with valid ProjectX credentials."
         )
-    finally:
-        db.close()
+
+    logger.info(f"Creating SDK service for account {account_name} (user: {user.id})")
+
+    return ProjectXSDKService(
+        username=username,
+        api_key=api_key,
+        account_name=account_name
+    )
 
 
 # =============================================================================
@@ -172,12 +217,14 @@ async def get_chart_data(
     interval: int = Query(5, description="Bar interval in minutes (1, 5, 15, 30, 60)"),
     days: int = Query(1, description="Days of historical data (1-30)"),
     include_indicators: bool = Query(True, description="Include technical indicators"),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session)
 ) -> ChartDataResponse:
     """
     Get chart data with OHLCV bars and optional technical indicators.
 
     Supports multiple timeframes and automatic contract resolution.
+    Credentials are fetched from database, not environment.
     """
     if not SDK_AVAILABLE:
         raise HTTPException(status_code=503, detail="SDK not available")
@@ -189,7 +236,7 @@ async def get_chart_data(
         raise HTTPException(status_code=400, detail="Days must be between 1 and 30")
 
     try:
-        svc = await get_sdk_service(account_id, current_user)
+        svc = await get_sdk_service(account_id, current_user, session)
         connected = await svc.connect()
 
         if not connected:
@@ -231,16 +278,18 @@ async def get_chart_data(
 async def get_quote(
     symbol: str,
     account_id: str = Query(..., description="Account ID to use"),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session)
 ) -> QuoteData:
     """
     Get real-time quote for a symbol.
+    Credentials are fetched from database, not environment.
     """
     if not SDK_AVAILABLE:
         raise HTTPException(status_code=503, detail="SDK not available")
 
     try:
-        svc = await get_sdk_service(account_id, current_user)
+        svc = await get_sdk_service(account_id, current_user, session)
         connected = await svc.connect()
 
         if not connected:
@@ -279,18 +328,20 @@ async def get_indicators(
     account_id: str = Query(..., description="Account ID to use"),
     days: int = Query(5, description="Days of data for calculation"),
     interval: int = Query(5, description="Bar interval in minutes"),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session)
 ) -> Dict[str, Any]:
     """
     Get technical indicators for a symbol.
 
     Returns: RSI, MACD, Bollinger Bands, ATR, EMA, SMA, Stochastic, ADX, CCI, Williams %R
+    Credentials are fetched from database, not environment.
     """
     if not SDK_AVAILABLE:
         raise HTTPException(status_code=503, detail="SDK not available")
 
     try:
-        svc = await get_sdk_service(account_id, current_user)
+        svc = await get_sdk_service(account_id, current_user, session)
         connected = await svc.connect()
 
         if not connected:
@@ -321,18 +372,20 @@ async def get_indicators(
 @router.post("/refresh-contracts")
 async def refresh_contracts(
     account_id: str = Query(..., description="Account ID to use"),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session)
 ) -> Dict[str, Any]:
     """
     Force refresh of contract mappings (for rollover).
 
     Call this when contracts roll to new month.
+    Credentials are fetched from database, not environment.
     """
     if not SDK_AVAILABLE:
         raise HTTPException(status_code=503, detail="SDK not available")
 
     try:
-        svc = await get_sdk_service(account_id, current_user)
+        svc = await get_sdk_service(account_id, current_user, session)
         connected = await svc.connect()
 
         if not connected:

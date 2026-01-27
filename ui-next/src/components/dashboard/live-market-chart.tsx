@@ -87,7 +87,7 @@ interface ChartData extends BarData {
 
 export function LiveMarketChart() {
   const [symbol, setSymbol] = useState("MNQ");
-  const [interval, setInterval] = useState("5");
+  const [selectedInterval, setSelectedInterval] = useState("5");
   const [bars, setBars] = useState<ChartData[]>([]);
   const [indicators, setIndicators] = useState<Indicators | null>(null);
   const [loading, setLoading] = useState(true);
@@ -102,7 +102,7 @@ export function LiveMarketChart() {
       // For demo, using mock data since we need account_id
       // In production, this would call /api/v1/market/chart/{symbol}
       const response = await fetch(
-        `/api/market/chart?symbol=${symbol}&interval=${interval}&days=1`
+        `/api/market/chart?symbol=${symbol}&interval=${selectedInterval}&days=1`
       );
 
       if (!response.ok) {
@@ -136,13 +136,13 @@ export function LiveMarketChart() {
     } finally {
       setLoading(false);
     }
-  }, [symbol, interval]);
+  }, [symbol, selectedInterval]);
 
   useEffect(() => {
     fetchChartData();
     // Refresh every 30 seconds
-    const refreshInterval = setInterval(fetchChartData, 30000);
-    return () => clearInterval(refreshInterval);
+    const timerId = window.setInterval(fetchChartData, 30000);
+    return () => window.clearInterval(timerId);
   }, [fetchChartData]);
 
   const formatTime = (timestamp: string) => {
@@ -194,7 +194,7 @@ export function LiveMarketChart() {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={interval} onValueChange={setInterval}>
+            <Select value={selectedInterval} onValueChange={setSelectedInterval}>
               <SelectTrigger className="w-[70px] h-8 text-xs">
                 <SelectValue placeholder="TF" />
               </SelectTrigger>
