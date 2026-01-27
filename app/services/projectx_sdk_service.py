@@ -351,8 +351,14 @@ class ProjectXSDKService:
         Returns:
             TradingSuite instance for the instrument
         """
+        import os
+
         if not SDK_AVAILABLE or TradingSuite is None:
             raise RuntimeError("SDK not available")
+
+        # TradingSuite.create() looks for env vars, so set them from our credentials
+        os.environ['PROJECT_X_USERNAME'] = self.username
+        os.environ['PROJECT_X_API_KEY'] = self.api_key
 
         suite = await TradingSuite.create(instrument)
         return suite
