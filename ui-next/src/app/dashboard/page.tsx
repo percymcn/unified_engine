@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Activity, Users, Signal, TrendingUp, CalendarClock, KeyRound, Loader2 } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Activity, Users, Signal, TrendingUp, CalendarClock, KeyRound, Loader2, BarChart3, LayoutDashboard } from 'lucide-react';
 import { BrokerHealthGrid } from '@/components/brokers/broker-health-grid';
 import {
   ExpirationAlerts,
@@ -327,7 +328,22 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Row 1: Stats grid */}
+      {/* Dashboard Tabs */}
+      <Tabs defaultValue="overview" className="w-full">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="overview" className="flex items-center gap-2">
+            <LayoutDashboard className="h-4 w-4" />
+            Overview
+          </TabsTrigger>
+          <TabsTrigger value="live-market" className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4" />
+            Live Market
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Overview Tab Content */}
+        <TabsContent value="overview" className="mt-6 space-y-6">
+          {/* Row 1: Stats grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {loading ? (
           <>
@@ -377,10 +393,7 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Row 2.5: Live Market Chart */}
-      {!loading && <LiveMarketChart />}
-
-      {/* Quick Actions Section */}
+          {/* Quick Actions Section */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-lg">Quick Actions</CardTitle>
@@ -485,12 +498,29 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Row 6: Signal Intelligence - Heat Map */}
-      <div className="grid gap-4">
-        <SignalHeatMap />
-      </div>
+          {/* Row 6: Signal Intelligence - Heat Map */}
+          <div className="grid gap-4">
+            <SignalHeatMap />
+          </div>
+        </TabsContent>
 
-      {/* FlowGuard Bot - Floating */}
+        {/* Live Market Tab Content */}
+        <TabsContent value="live-market" className="mt-6">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold">Live Market Data</h2>
+                <p className="text-sm text-muted-foreground">
+                  Real-time charts and technical indicators for ProjectX/TopStep instruments
+                </p>
+              </div>
+            </div>
+            <LiveMarketChart />
+          </div>
+        </TabsContent>
+      </Tabs>
+
+      {/* FlowGuard Bot - Floating (available on all tabs) */}
       <FlowGuardBot />
 
       {/* Onboarding Tooltip for First-Time Users */}

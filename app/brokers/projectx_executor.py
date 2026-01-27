@@ -329,8 +329,17 @@ class ProjectXExecutor(BaseExecutor):
             side = "buy" if "buy" in order_type_lower else "sell"
             is_market = "market" in order_type_lower
 
+            # Check for trailing stop (separate order type)
+            trailing_stop = getattr(order, 'trailing_stop', None)
+            if trailing_stop:
+                result = await self._sdk_service.place_trailing_stop_order(
+                    instrument=order.symbol,
+                    side=side,
+                    size=int(order.quantity),
+                    trail_price=float(trailing_stop),  # In ticks
+                )
             # Use bracket order if SL or TP provided (supports market entry)
-            if order.stop_loss or order.take_profit:
+            elif order.stop_loss or order.take_profit:
                 result = await self._sdk_service.place_bracket_order(
                     instrument=order.symbol,
                     side=side,
