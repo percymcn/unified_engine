@@ -624,3 +624,307 @@ async def get_pipeline_status(
             {"id": "redis", "name": "Redis Cache", "connects_to": "signal_processor"},
         ]
     }
+
+
+# =============================================================================
+# System Configuration Management (Database-backed settings)
+# =============================================================================
+
+class ConfigCreate(BaseModel):
+    key: str
+    value: str
+    description: Optional[str] = None
+    is_secret: bool = False
+
+
+class ConfigUpdate(BaseModel):
+    value: str
+    description: Optional[str] = None
+
+
+# Config categories for organization
+CONFIG_CATEGORIES = {
+    "stripe": {
+        "name": "Stripe Payment",
+        "icon": "credit-card",
+        "keys": ["STRIPE_SECRET_KEY", "STRIPE_PUBLISHABLE_KEY", "STRIPE_WEBHOOK_SECRET", "STRIPE_PRO_PRICE_ID"]
+    },
+    "database": {
+        "name": "Database",
+        "icon": "database",
+        "keys": ["DATABASE_URL", "DATABASE_POOL_SIZE"]
+    },
+    "redis": {
+        "name": "Redis Cache",
+        "icon": "zap",
+        "keys": ["REDIS_URL"]
+    },
+    "auth": {
+        "name": "Authentication",
+        "icon": "shield",
+        "keys": ["JWT_SECRET_KEY", "JWT_ALGORITHM", "ACCESS_TOKEN_EXPIRE_MINUTES"]
+    },
+    "oauth": {
+        "name": "OAuth Providers",
+        "icon": "key",
+        "keys": ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET"]
+    },
+    "email": {
+        "name": "Email Service",
+        "icon": "mail",
+        "keys": ["SENDGRID_API_KEY", "EMAIL_FROM_ADDRESS"]
+    },
+    "brokers": {
+        "name": "Broker APIs",
+        "icon": "server",
+        "keys": ["METAAPI_TOKEN", "TRADELOCKER_CLIENT_ID", "TRADELOCKER_CLIENT_SECRET", "TRADOVATE_APP_ID"]
+    },
+}
+
+# Keys that should never be fully revealed
+SECRET_KEYS = {
+    "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET",
+    "JWT_SECRET_KEY", "DATABASE_URL",
+    "GOOGLE_CLIENT_SECRET", "GITHUB_CLIENT_SECRET", "MICROSOFT_CLIENT_SECRET",
+    "SENDGRID_API_KEY", "METAAPI_TOKEN",
+    "TRADELOCKER_CLIENT_SECRET", "TRADOVATE_APP_SECRET",
+}
+
+
+@router.get("/system/configs")
+async def list_system_configs(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """List all system configurations from database"""
+    check_owner_access(current_user)
+
+    from app.models.models import SystemConfig
+
+    configs = db.query(SystemConfig).filter(SystemConfig.is_active == True).all()
+
+    return {
+        "configs": [
+            {
+                "id": c.id,
+                "key": c.key,
+                "value": redact_secret(c.value) if c.key in SECRET_KEYS else c.value,
+                "description": c.description,
+                "is_secret": c.key in SECRET_KEYS,
+                "created_at": c.created_at.isoformat() if c.created_at else None,
+                "updated_at": c.updated_at.isoformat() if c.updated_at else None,
+            }
+            for c in configs
+        ]
+    }
+
+
+@router.post("/system/configs")
+async def create_system_config(
+    config: ConfigCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """Create a new system configuration"""
+    check_owner_access(current_user)
+
+    from app.models.models import SystemConfig
+
+    # Check if key already exists
+    existing = db.query(SystemConfig).filter(SystemConfig.key == config.key).first()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Config key '{config.key}' already exists"
+        )
+
+    new_config = SystemConfig(
+        key=config.key,
+        value=config.value,
+        description=config.description,
+        is_active=True,
+    )
+    db.add(new_config)
+    db.commit()
+    db.refresh(new_config)
+
+    return {
+        "message": "Config created successfully",
+        "config": {
+            "id": new_config.id,
+            "key": new_config.key,
+            "value": redact_secret(new_config.value) if config.is_secret else new_config.value,
+        }
+    }
+
+
+@router.put("/system/configs/{key}")
+async def update_system_config(
+    key: str,
+    config: ConfigUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """Update a system configuration"""
+    check_owner_access(current_user)
+
+    from app.models.models import SystemConfig
+
+    existing = db.query(SystemConfig).filter(SystemConfig.key == key).first()
+
+    if existing:
+        existing.value = config.value
+        if config.description is not None:
+            existing.description = config.description
+        db.commit()
+        db.refresh(existing)
+    else:
+        # Create new if doesn't exist
+        new_config = SystemConfig(
+            key=key,
+            value=config.value,
+            description=config.description,
+            is_active=True,
+        )
+        db.add(new_config)
+        db.commit()
+        db.refresh(new_config)
+        existing = new_config
+
+    return {
+        "message": "Config updated successfully",
+        "config": {
+            "id": existing.id,
+            "key": existing.key,
+            "value": redact_secret(existing.value) if key in SECRET_KEYS else existing.value,
+        }
+    }
+
+
+@router.delete("/system/configs/{key}")
+async def delete_system_config(
+    key: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """Delete a system configuration"""
+    check_owner_access(current_user)
+
+    from app.models.models import SystemConfig
+
+    existing = db.query(SystemConfig).filter(SystemConfig.key == key).first()
+    if not existing:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Config key '{key}' not found"
+        )
+
+    db.delete(existing)
+    db.commit()
+
+    return {"message": f"Config '{key}' deleted successfully"}
+
+
+@router.get("/system/all-env-vars")
+async def get_all_env_vars(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """Get all environment variables organized by category"""
+    check_owner_access(current_user)
+
+    from app.models.models import SystemConfig
+
+    # Get database overrides
+    db_configs = db.query(SystemConfig).filter(SystemConfig.is_active == True).all()
+    db_overrides = {c.key: c.value for c in db_configs}
+
+    result = {}
+    for category_id, category_info in CONFIG_CATEGORIES.items():
+        vars_list = []
+        for key in category_info["keys"]:
+            # Check database first, then env, then settings
+            db_value = db_overrides.get(key)
+            env_value = os.getenv(key)
+            settings_value = getattr(settings, key, None)
+
+            actual_value = db_value or env_value or settings_value
+            source = "database" if db_value else ("env" if env_value else ("settings" if settings_value else "not_set"))
+
+            is_secret = key in SECRET_KEYS
+            display_value = redact_secret(str(actual_value)) if (is_secret and actual_value) else (actual_value or "(not set)")
+
+            vars_list.append({
+                "key": key,
+                "value": display_value,
+                "source": source,
+                "is_set": bool(actual_value),
+                "is_secret": is_secret,
+                "can_edit": True,  # All can be edited via database override
+            })
+
+        result[category_id] = {
+            "name": category_info["name"],
+            "icon": category_info["icon"],
+            "vars": vars_list,
+            "configured_count": sum(1 for v in vars_list if v["is_set"]),
+            "total_count": len(vars_list),
+        }
+
+    return {
+        "categories": result,
+        "total_configured": sum(c["configured_count"] for c in result.values()),
+        "total_vars": sum(c["total_count"] for c in result.values()),
+    }
+
+
+@router.put("/system/env-var/{key}")
+async def update_env_var(
+    key: str,
+    body: ConfigUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    Update an environment variable by storing in database.
+    Note: Some changes may require server restart to take effect.
+    """
+    check_owner_access(current_user)
+
+    from app.models.models import SystemConfig
+
+    # Store/update in database
+    existing = db.query(SystemConfig).filter(SystemConfig.key == key).first()
+
+    if existing:
+        existing.value = body.value
+        if body.description:
+            existing.description = body.description
+    else:
+        new_config = SystemConfig(
+            key=key,
+            value=body.value,
+            description=body.description or f"Config for {key}",
+            is_active=True,
+        )
+        db.add(new_config)
+
+    db.commit()
+
+    # Try to apply immediately for supported settings
+    runtime_applied = False
+    try:
+        # For some settings, we can update at runtime
+        if hasattr(settings, key):
+            setattr(settings, key, body.value)
+            runtime_applied = True
+    except Exception:
+        pass
+
+    return {
+        "message": f"Config '{key}' saved to database",
+        "runtime_applied": runtime_applied,
+        "requires_restart": not runtime_applied,
+        "key": key,
+        "value": redact_secret(body.value) if key in SECRET_KEYS else body.value,
+    }

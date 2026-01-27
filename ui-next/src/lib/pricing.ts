@@ -1,79 +1,110 @@
 /**
  * Pricing configuration for Tradeflow
- * 4-tier pricing structure matching backend PRICING_TIERS
+ * 4-tier pricing structure with feature-based differentiation
+ * Matches backend PRICING_TIERS in stripe_service.py
  */
 
 // Price in cents
 export interface PricingTier {
   tier_id: string;
   name: string;
-  price: number; // cents (1999 = $19.99)
+  price: number; // cents (2900 = $29)
   brokers: number;
   stripe_price_id: string | null;
+  tagline: string;
+  signalsPerDay: number; // -1 = unlimited
+  webhooks: number; // -1 = unlimited
   features: string[];
 }
 
-// 4-tier pricing structure (matches backend PRICING_TIERS)
+// 4-tier pricing structure with feature-based differentiation
 export const PRICING_TIERS: Record<string, PricingTier> = {
   tier_1: {
     tier_id: "tier_1",
     name: "Starter",
-    price: 1999, // $19.99/month
+    price: 2900, // $29/month
     brokers: 1,
     stripe_price_id: "price_tier1_monthly",
+    tagline: "Get started with automated trading",
+    signalsPerDay: 100,
+    webhooks: 2,
     features: [
       "1 broker connection",
-      "Basic signal routing",
-      "Email support",
-      "Dashboard analytics",
+      "100 signals per day",
+      "2 webhooks",
+      "Staleness guard protection",
+      "Daily trade limits",
+      "Fixed lot sizing",
+      "Basic dashboard analytics",
+      "Email support (48h)",
     ],
   },
   tier_2: {
     tier_id: "tier_2",
-    name: "Growth",
-    price: 3999, // $39.99/month
+    name: "Trader",
+    price: 5900, // $59/month
     brokers: 2,
     stripe_price_id: "price_tier2_monthly",
+    tagline: "For serious traders who want protection",
+    signalsPerDay: -1,
+    webhooks: 5,
     features: [
       "2 broker connections",
-      "Advanced signal routing",
-      "Priority email support",
-      "Dashboard analytics",
+      "Unlimited signals",
+      "5 webhooks",
+      "All 5 AI Signal Guards",
+      "Full risk management suite",
+      "Drawdown protection",
+      "% of balance sizing",
       "Symbol mapping",
+      "2 account groups",
+      "Email support (24h)",
     ],
   },
   tier_3: {
     tier_id: "tier_3",
     name: "Pro",
-    price: 6999, // $69.99/month
-    brokers: 3,
+    price: 9900, // $99/month
+    brokers: 4,
     stripe_price_id: "price_tier3_monthly",
+    tagline: "Scale your trading across multiple accounts",
+    signalsPerDay: -1,
+    webhooks: -1,
     features: [
-      "3 broker connections",
-      "Advanced signal routing",
-      "Priority support",
-      "Dashboard analytics",
-      "Symbol mapping",
-      "Risk management",
-      "Position sizing",
+      "4 broker connections",
+      "Unlimited signals & webhooks",
+      "AI Guards + custom thresholds",
+      "Risk-based position sizing",
+      "Advanced rule-based routing",
+      "Custom symbol aliases",
+      "Unlimited account groups",
+      "Full analytics suite",
+      "API access",
+      "30-day webhook logs",
+      "Priority support (12h)",
     ],
   },
   tier_4: {
     tier_id: "tier_4",
     name: "Enterprise",
-    price: 12999, // $129.99/month
-    brokers: 4,
+    price: 19900, // $199/month
+    brokers: 8,
     stripe_price_id: "price_tier4_monthly",
+    tagline: "Unlimited power for professional traders",
+    signalsPerDay: -1,
+    webhooks: -1,
     features: [
-      "4 broker connections",
-      "Advanced signal routing",
-      "Priority phone support",
-      "Dashboard analytics",
-      "Symbol mapping",
-      "Risk management",
-      "Position sizing",
-      "Multi-account routing",
-      "Custom integrations",
+      "8 broker connections",
+      "Everything in Pro",
+      "Custom risk profiles per account",
+      "Strategy-based routing",
+      "Bulk symbol import/export",
+      "Nested account groups",
+      "Analytics export (CSV/JSON)",
+      "Higher API rate limits",
+      "90-day webhook logs",
+      "SMS & push notifications",
+      "Priority support + live chat",
     ],
   },
 };
@@ -85,9 +116,16 @@ export const FREE_TIER: PricingTier = {
   price: 0,
   brokers: 1,
   stripe_price_id: null,
+  tagline: "Try automated trading risk-free",
+  signalsPerDay: 50,
+  webhooks: 1,
   features: [
     "1 broker connection",
+    "50 signals per day",
+    "1 webhook",
     "Basic signal routing",
+    "Fixed lot sizing",
+    "7-day webhook logs",
     "Community support",
   ],
 };

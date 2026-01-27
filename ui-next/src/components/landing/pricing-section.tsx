@@ -99,24 +99,27 @@ export function PricingSection() {
         </div>
 
         {/* Feature Comparison Table */}
-        <div className="mt-16 max-w-5xl mx-auto">
+        <div className="mt-16 max-w-6xl mx-auto">
           <h3 className="text-2xl font-bold text-center mb-8">
-            Compare Plans
+            Compare All Features
           </h3>
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
+            <table className="w-full border-collapse text-sm">
               <thead>
-                <tr className="border-b">
+                <tr className="border-b bg-muted/50">
                   <th className="text-left py-4 px-4 font-semibold">Feature</th>
                   {tiers.map((tier) => (
                     <th
                       key={tier.tier_id}
                       className={cn(
-                        "text-center py-4 px-2 font-semibold",
-                        tier.tier_id === "tier_3" && "bg-primary/5"
+                        "text-center py-4 px-3 font-semibold",
+                        tier.tier_id === "tier_3" && "bg-primary/10"
                       )}
                     >
-                      {tier.name}
+                      <div>{tier.name}</div>
+                      <div className="text-xs font-normal text-muted-foreground mt-1">
+                        {tier.price === 0 ? "Free" : `${getDisplayPrice(tier)}/mo`}
+                      </div>
                     </th>
                   ))}
                 </tr>
@@ -124,169 +127,272 @@ export function PricingSection() {
               <tbody>
                 {/* Broker Connections */}
                 <tr className="border-b">
-                  <td className="py-4 px-4 text-sm">Broker Connections</td>
+                  <td className="py-3 px-4 font-medium">Broker Connections</td>
                   {tiers.map((tier) => (
-                    <td
-                      key={tier.tier_id}
-                      className={cn(
-                        "text-center py-4 px-2",
-                        tier.tier_id === "tier_3" && "bg-primary/5"
-                      )}
-                    >
-                      <span className="font-semibold">{tier.brokers}</span>
+                    <td key={tier.tier_id} className={cn("text-center py-3 px-3", tier.tier_id === "tier_3" && "bg-primary/5")}>
+                      <span className="font-semibold text-primary">{tier.brokers}</span>
                     </td>
                   ))}
                 </tr>
 
-                {/* Monthly Price */}
+                {/* Signals per Day */}
                 <tr className="border-b">
-                  <td className="py-4 px-4 text-sm">Price</td>
+                  <td className="py-3 px-4 font-medium">Signals per Day</td>
                   {tiers.map((tier) => (
-                    <td
-                      key={tier.tier_id}
-                      className={cn(
-                        "text-center py-4 px-2",
-                        tier.tier_id === "tier_3" && "bg-primary/5"
-                      )}
-                    >
-                      <span className="font-semibold">{getDisplayPrice(tier)}</span>
-                      {tier.price > 0 && (
-                        <span className="text-muted-foreground text-xs">/mo</span>
-                      )}
+                    <td key={tier.tier_id} className={cn("text-center py-3 px-3", tier.tier_id === "tier_3" && "bg-primary/5")}>
+                      <span className="font-semibold">
+                        {tier.signalsPerDay === -1 ? "Unlimited" : tier.signalsPerDay}
+                      </span>
                     </td>
                   ))}
                 </tr>
 
-                {/* Unlimited Signals */}
+                {/* Webhooks */}
                 <tr className="border-b">
-                  <td className="py-4 px-4 text-sm">Unlimited Signals</td>
+                  <td className="py-3 px-4 font-medium">Webhooks</td>
                   {tiers.map((tier) => (
-                    <td
-                      key={tier.tier_id}
-                      className={cn(
-                        "text-center py-4 px-2",
-                        tier.tier_id === "tier_3" && "bg-primary/5"
-                      )}
-                    >
-                      <Check className="h-5 w-5 text-green-500 mx-auto" />
+                    <td key={tier.tier_id} className={cn("text-center py-3 px-3", tier.tier_id === "tier_3" && "bg-primary/5")}>
+                      <span className="font-semibold">
+                        {tier.webhooks === -1 ? "Unlimited" : tier.webhooks}
+                      </span>
                     </td>
                   ))}
                 </tr>
 
-                {/* Real-time Execution */}
-                <tr className="border-b">
-                  <td className="py-4 px-4 text-sm">Real-time Execution</td>
-                  {tiers.map((tier) => (
-                    <td
-                      key={tier.tier_id}
-                      className={cn(
-                        "text-center py-4 px-2",
-                        tier.tier_id === "tier_3" && "bg-primary/5"
-                      )}
-                    >
-                      <Check className="h-5 w-5 text-green-500 mx-auto" />
-                    </td>
-                  ))}
-                </tr>
-
-                {/* Symbol Mapping */}
-                <tr className="border-b">
-                  <td className="py-4 px-4 text-sm">Symbol Mapping</td>
-                  {tiers.map((tier) => (
-                    <td
-                      key={tier.tier_id}
-                      className={cn(
-                        "text-center py-4 px-2",
-                        tier.tier_id === "tier_3" && "bg-primary/5"
-                      )}
-                    >
-                      {tier.tier_id === "free" || tier.tier_id === "tier_1" ? (
-                        <span className="text-muted-foreground">-</span>
-                      ) : (
-                        <Check className="h-5 w-5 text-green-500 mx-auto" />
-                      )}
-                    </td>
-                  ))}
+                {/* AI Signal Guards */}
+                <tr className="border-b bg-muted/30">
+                  <td className="py-3 px-4 font-medium">AI Signal Guards</td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <span className="text-muted-foreground">-</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <span className="text-xs">Staleness only</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <Check className="h-4 w-4 text-green-500 mx-auto" />
+                    <span className="text-xs block">All 5 guards</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3 bg-primary/5")}>
+                    <Check className="h-4 w-4 text-green-500 mx-auto" />
+                    <span className="text-xs block">+ Custom</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <Check className="h-4 w-4 text-green-500 mx-auto" />
+                    <span className="text-xs block">+ Custom</span>
+                  </td>
                 </tr>
 
                 {/* Risk Management */}
                 <tr className="border-b">
-                  <td className="py-4 px-4 text-sm">Risk Management</td>
-                  {tiers.map((tier) => (
-                    <td
-                      key={tier.tier_id}
-                      className={cn(
-                        "text-center py-4 px-2",
-                        tier.tier_id === "tier_3" && "bg-primary/5"
-                      )}
-                    >
-                      {tier.tier_id === "tier_3" || tier.tier_id === "tier_4" ? (
-                        <Check className="h-5 w-5 text-green-500 mx-auto" />
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </td>
-                  ))}
+                  <td className="py-3 px-4 font-medium">Risk Management</td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <span className="text-muted-foreground">-</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <span className="text-xs">Daily limits</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <Check className="h-4 w-4 text-green-500 mx-auto" />
+                    <span className="text-xs block">Full suite</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3 bg-primary/5")}>
+                    <Check className="h-4 w-4 text-green-500 mx-auto" />
+                    <span className="text-xs block">+ Per-symbol</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <Check className="h-4 w-4 text-green-500 mx-auto" />
+                    <span className="text-xs block">+ Per-account</span>
+                  </td>
                 </tr>
 
                 {/* Position Sizing */}
-                <tr className="border-b">
-                  <td className="py-4 px-4 text-sm">Position Sizing</td>
-                  {tiers.map((tier) => (
-                    <td
-                      key={tier.tier_id}
-                      className={cn(
-                        "text-center py-4 px-2",
-                        tier.tier_id === "tier_3" && "bg-primary/5"
-                      )}
-                    >
-                      {tier.tier_id === "tier_3" || tier.tier_id === "tier_4" ? (
-                        <Check className="h-5 w-5 text-green-500 mx-auto" />
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </td>
-                  ))}
+                <tr className="border-b bg-muted/30">
+                  <td className="py-3 px-4 font-medium">Position Sizing</td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <span className="text-xs">Fixed lots</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <span className="text-xs">Fixed lots</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <span className="text-xs">% of balance</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3 bg-primary/5")}>
+                    <Check className="h-4 w-4 text-green-500 mx-auto" />
+                    <span className="text-xs block">Risk-based</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <Check className="h-4 w-4 text-green-500 mx-auto" />
+                    <span className="text-xs block">All methods</span>
+                  </td>
                 </tr>
 
-                {/* Multi-Account Routing */}
+                {/* Signal Routing */}
                 <tr className="border-b">
-                  <td className="py-4 px-4 text-sm">Multi-Account Routing</td>
-                  {tiers.map((tier) => (
-                    <td
-                      key={tier.tier_id}
-                      className={cn(
-                        "text-center py-4 px-2",
-                        tier.tier_id === "tier_3" && "bg-primary/5"
-                      )}
-                    >
-                      {tier.tier_id === "tier_4" ? (
-                        <Check className="h-5 w-5 text-green-500 mx-auto" />
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </td>
-                  ))}
+                  <td className="py-3 px-4 font-medium">Signal Routing</td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <span className="text-xs">Basic</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <span className="text-xs">Basic</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <span className="text-xs">All accounts</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3 bg-primary/5")}>
+                    <Check className="h-4 w-4 text-green-500 mx-auto" />
+                    <span className="text-xs block">Rule-based</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <Check className="h-4 w-4 text-green-500 mx-auto" />
+                    <span className="text-xs block">Strategy-based</span>
+                  </td>
                 </tr>
 
-                {/* Priority Support */}
+                {/* Symbol Mapping */}
+                <tr className="border-b bg-muted/30">
+                  <td className="py-3 px-4 font-medium">Symbol Mapping</td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <span className="text-muted-foreground">-</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <span className="text-muted-foreground">-</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <Check className="h-4 w-4 text-green-500 mx-auto" />
+                  </td>
+                  <td className={cn("text-center py-3 px-3 bg-primary/5")}>
+                    <Check className="h-4 w-4 text-green-500 mx-auto" />
+                    <span className="text-xs block">+ Aliases</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <Check className="h-4 w-4 text-green-500 mx-auto" />
+                    <span className="text-xs block">+ Bulk import</span>
+                  </td>
+                </tr>
+
+                {/* Account Groups */}
                 <tr className="border-b">
-                  <td className="py-4 px-4 text-sm">Priority Support</td>
-                  {tiers.map((tier) => (
-                    <td
-                      key={tier.tier_id}
-                      className={cn(
-                        "text-center py-4 px-2",
-                        tier.tier_id === "tier_3" && "bg-primary/5"
-                      )}
-                    >
-                      {tier.tier_id === "tier_3" || tier.tier_id === "tier_4" ? (
-                        <Check className="h-5 w-5 text-green-500 mx-auto" />
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </td>
-                  ))}
+                  <td className="py-3 px-4 font-medium">Account Groups</td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <span className="text-muted-foreground">-</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <span className="text-muted-foreground">-</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <span className="font-semibold">2</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3 bg-primary/5")}>
+                    <span className="font-semibold">Unlimited</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <span className="font-semibold">+ Nested</span>
+                  </td>
+                </tr>
+
+                {/* Analytics */}
+                <tr className="border-b bg-muted/30">
+                  <td className="py-3 px-4 font-medium">Analytics</td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <span className="text-xs">Basic</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <span className="text-xs">Basic</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <span className="text-xs">Basic</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3 bg-primary/5")}>
+                    <Check className="h-4 w-4 text-green-500 mx-auto" />
+                    <span className="text-xs block">Full suite</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <Check className="h-4 w-4 text-green-500 mx-auto" />
+                    <span className="text-xs block">+ Export</span>
+                  </td>
+                </tr>
+
+                {/* API Access */}
+                <tr className="border-b">
+                  <td className="py-3 px-4 font-medium">API Access</td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <span className="text-muted-foreground">-</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <span className="text-muted-foreground">-</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <span className="text-muted-foreground">-</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3 bg-primary/5")}>
+                    <Check className="h-4 w-4 text-green-500 mx-auto" />
+                  </td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <Check className="h-4 w-4 text-green-500 mx-auto" />
+                    <span className="text-xs block">Higher limits</span>
+                  </td>
+                </tr>
+
+                {/* Webhook Log Retention */}
+                <tr className="border-b bg-muted/30">
+                  <td className="py-3 px-4 font-medium">Webhook Log Retention</td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <span className="font-semibold">7 days</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <span className="font-semibold">7 days</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <span className="font-semibold">14 days</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3 bg-primary/5")}>
+                    <span className="font-semibold">30 days</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <span className="font-semibold">90 days</span>
+                  </td>
+                </tr>
+
+                {/* Notifications */}
+                <tr className="border-b">
+                  <td className="py-3 px-4 font-medium">Notifications</td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <span className="text-xs">In-app</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <span className="text-xs">In-app</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <span className="text-xs">+ Email</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3 bg-primary/5")}>
+                    <span className="text-xs">+ Email</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <Check className="h-4 w-4 text-green-500 mx-auto" />
+                    <span className="text-xs block">All channels</span>
+                  </td>
+                </tr>
+
+                {/* Support */}
+                <tr className="border-b bg-muted/30">
+                  <td className="py-3 px-4 font-medium">Support</td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <span className="text-xs">Community</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <span className="text-xs">Email (48h)</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <span className="text-xs">Email (24h)</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3 bg-primary/5")}>
+                    <span className="text-xs">Priority (12h)</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <span className="text-xs">+ Live chat</span>
+                  </td>
                 </tr>
               </tbody>
             </table>

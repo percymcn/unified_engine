@@ -135,10 +135,10 @@ export default function UpgradePage() {
   // Get recommended tier based on broker count
   const getRecommendedTier = (): string | null => {
     const brokerCount = billingStatus?.broker_count ?? 0;
-    if (brokerCount >= 4) return "tier_4";
-    if (brokerCount >= 3) return "tier_3";
-    if (brokerCount >= 2) return "tier_2";
-    return "tier_1";
+    if (brokerCount >= 5) return "tier_4";  // Enterprise: 8 brokers
+    if (brokerCount >= 3) return "tier_3";  // Pro: 4 brokers
+    if (brokerCount >= 2) return "tier_2";  // Trader: 2 brokers
+    return "tier_2";  // Recommend Trader for full AI guards
   };
 
   const recommendedTier = getRecommendedTier();
@@ -278,22 +278,13 @@ export default function UpgradePage() {
               </CardHeader>
 
               <CardContent className="flex-1">
-                <ul className="space-y-3">
+                <ul className="space-y-2.5">
                   {plan.features.map((feature) => (
                     <li key={feature} className="flex items-start gap-2 text-sm">
                       <Check className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />
                       <span>{feature}</span>
                     </li>
                   ))}
-                  {/* Standard features */}
-                  <li className="flex items-start gap-2 text-sm">
-                    <Zap className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
-                    <span>Unlimited signals</span>
-                  </li>
-                  <li className="flex items-start gap-2 text-sm">
-                    <Zap className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
-                    <span>Real-time execution</span>
-                  </li>
                 </ul>
               </CardContent>
 

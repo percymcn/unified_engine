@@ -119,6 +119,7 @@ const tabs = [
   { id: "users", label: "Users", icon: Users },
   { id: "plans", label: "Plans", icon: CreditCard },
   { id: "brokers", label: "Brokers", icon: Zap },
+  { id: "config", label: "Config", icon: Settings },
   { id: "env", label: "System", icon: Server },
 ] as const;
 
@@ -135,6 +136,7 @@ export default function OwnerPortal() {
   const [envDoctor, setEnvDoctor] = useState<EnvDoctor | null>(null);
   const [pipelineStatus, setPipelineStatus] = useState<any>(null);
   const [connectedAccounts, setConnectedAccounts] = useState<any>(null);
+  const [allEnvVars, setAllEnvVars] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<typeof tabs[number]["id"]>("overview");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -218,6 +220,12 @@ export default function OwnerPortal() {
         if (response.ok) {
           const data = await response.json();
           setConnectedAccounts(data);
+        }
+      } else if (activeTab === "config") {
+        const response = await fetch("/api/admin/system/all-env-vars", { credentials: "include" });
+        if (response.ok) {
+          const data = await response.json();
+          setAllEnvVars(data);
         }
       } else if (activeTab === "env") {
         const response = await fetch("/api/admin/system/env-doctor", { credentials: "include" });
@@ -388,6 +396,13 @@ export default function OwnerPortal() {
             )}
             {activeTab === "brokers" && (
               <BrokersTab connectedAccounts={connectedAccounts} loading={loading} />
+            )}
+            {activeTab === "config" && (
+              <ConfigTab
+                envVars={allEnvVars}
+                loading={loading}
+                onRefresh={fetchData}
+              />
             )}
             {activeTab === "env" && (
               <SystemTab envDoctor={envDoctor} loading={loading} />
@@ -1076,6 +1091,322 @@ function BrokersTab({ connectedAccounts, loading }: { connectedAccounts: any; lo
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// Config Tab - Environment Variables Management
+function ConfigTab({
+  envVars,
+  loading,
+  onRefresh,
+}: {
+  envVars: any;
+  loading: boolean;
+  onRefresh: () => void;
+}) {
+  const { toast } = useToast();
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
+  const [saving, setSaving] = useState(false);
+
+  if (loading || !envVars) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-32" />
+        <div className="grid gap-4 md:grid-cols-2">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-64" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  const categoryIcons: Record<string, any> = {
+    stripe: CreditCard,
+    database: Database,
+    redis: Zap,
+    auth: Lock,
+    oauth: Key,
+    email: Activity,
+    brokers: Server,
+  };
+
+  const categoryColors: Record<string, string> = {
+    stripe: "from-violet-500/20 to-purple-500/20 border-violet-500/30",
+    database: "from-blue-500/20 to-cyan-500/20 border-blue-500/30",
+    redis: "from-red-500/20 to-orange-500/20 border-red-500/30",
+    auth: "from-emerald-500/20 to-green-500/20 border-emerald-500/30",
+    oauth: "from-amber-500/20 to-yellow-500/20 border-amber-500/30",
+    email: "from-pink-500/20 to-rose-500/20 border-pink-500/30",
+    brokers: "from-indigo-500/20 to-blue-500/20 border-indigo-500/30",
+  };
+
+  const handleEdit = (key: string, currentValue: string) => {
+    setEditingKey(key);
+    setEditValue(currentValue === "[REDACTED]" ? "" : currentValue);
+  };
+
+  const handleSave = async (key: string) => {
+    if (!editValue.trim()) {
+      toast({ title: "Error", description: "Value cannot be empty", variant: "destructive" });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const response = await fetch(`/api/admin/system/env-var/${encodeURIComponent(key)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ value: editValue }),
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: "Configuration updated. Restart backend to apply changes.",
+        });
+        setEditingKey(null);
+        setEditValue("");
+        onRefresh();
+      } else {
+        const data = await response.json();
+        toast({ title: "Error", description: data.error || "Failed to update", variant: "destructive" });
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to save configuration", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setEditingKey(null);
+    setEditValue("");
+  };
+
+  const toggleShowSecret = (key: string) => {
+    setShowSecrets((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const copyToClipboard = (value: string) => {
+    if (value && value !== "[REDACTED]" && value !== "[NOT SET]") {
+      navigator.clipboard.writeText(value);
+      toast({ title: "Copied", description: "Value copied to clipboard" });
+    }
+  };
+
+  const categories = Object.entries(envVars.categories || {});
+
+  // Count configured and total variables
+  let totalVars = 0;
+  let configuredVars = 0;
+  categories.forEach(([_, category]: [string, any]) => {
+    Object.values(category.variables || {}).forEach((v: any) => {
+      totalVars++;
+      if (v.configured) configuredVars++;
+    });
+  });
+
+  return (
+    <div className="space-y-6">
+      {/* Summary Banner */}
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="p-4 rounded-xl border bg-gradient-to-r from-primary/10 to-primary/5 border-primary/30"
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Settings className="h-6 w-6 text-primary" />
+            <div>
+              <h3 className="font-semibold text-lg">System Configuration</h3>
+              <p className="text-sm text-muted-foreground">
+                {configuredVars} of {totalVars} variables configured
+              </p>
+            </div>
+          </div>
+          <Badge variant="outline" className="bg-amber-500/10 text-amber-500 border-amber-500/30">
+            <AlertTriangle className="h-3 w-3 mr-1" />
+            Restart required after changes
+          </Badge>
+        </div>
+      </motion.div>
+
+      {/* Category Cards */}
+      <div className="grid gap-6 md:grid-cols-2">
+        {categories.map(([categoryKey, category]: [string, any], i) => {
+          const Icon = categoryIcons[categoryKey] || Settings;
+          const variables = Object.entries(category.variables || {});
+          const configuredCount = variables.filter(([_, v]: [string, any]) => v.configured).length;
+
+          return (
+            <motion.div
+              key={categoryKey}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.05 }}
+            >
+              <Card className={`border bg-gradient-to-br ${categoryColors[categoryKey] || "from-gray-500/20 to-slate-500/20 border-gray-500/30"}`}>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-background/50 flex items-center justify-center">
+                        <Icon className="h-4 w-4" />
+                      </div>
+                      <CardTitle className="text-lg">{category.name}</CardTitle>
+                    </div>
+                    <Badge variant="outline" className="bg-background/50">
+                      {configuredCount}/{variables.length}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {variables.map(([varKey, varData]: [string, any]) => (
+                      <div
+                        key={varKey}
+                        className="p-3 rounded-lg bg-background/50 border border-border/50"
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-xs font-medium">{varKey}</span>
+                            {varData.is_secret && (
+                              <Lock className="h-3 w-3 text-amber-500" />
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            {varData.configured ? (
+                              <Badge variant="outline" className="text-xs text-emerald-500 border-emerald-500/50">
+                                <CheckCircle2 className="h-3 w-3 mr-1" />
+                                Set
+                              </Badge>
+                            ) : (
+                              <Badge variant="secondary" className="text-xs">
+                                <XCircle className="h-3 w-3 mr-1" />
+                                Not Set
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+
+                        {editingKey === varKey ? (
+                          <div className="flex items-center gap-2 mt-2">
+                            <Input
+                              type={varData.is_secret ? "password" : "text"}
+                              value={editValue}
+                              onChange={(e) => setEditValue(e.target.value)}
+                              placeholder={varData.is_secret ? "Enter new value..." : "Enter value..."}
+                              className="h-8 text-xs font-mono"
+                              autoFocus
+                            />
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleSave(varKey)}
+                              disabled={saving}
+                              className="h-8 px-2"
+                            >
+                              {saving ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Check className="h-3 w-3 text-emerald-500" />
+                              )}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={handleCancel}
+                              className="h-8 px-2"
+                            >
+                              <X className="h-3 w-3 text-destructive" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-between mt-2">
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                              <span className="text-xs text-muted-foreground font-mono truncate">
+                                {varData.is_secret && !showSecrets[varKey]
+                                  ? varData.value === "[NOT SET]"
+                                    ? "[NOT SET]"
+                                    : "••••••••"
+                                  : varData.value || "[NOT SET]"}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1 ml-2">
+                              {varData.is_secret && varData.configured && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => toggleShowSecret(varKey)}
+                                  className="h-6 w-6 p-0"
+                                >
+                                  {showSecrets[varKey] ? (
+                                    <EyeOff className="h-3 w-3" />
+                                  ) : (
+                                    <Eye className="h-3 w-3" />
+                                  )}
+                                </Button>
+                              )}
+                              {varData.configured && !varData.is_secret && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => copyToClipboard(varData.value)}
+                                  className="h-6 w-6 p-0"
+                                >
+                                  <Copy className="h-3 w-3" />
+                                </Button>
+                              )}
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleEdit(varKey, varData.value || "")}
+                                className="h-6 w-6 p-0"
+                              >
+                                <Settings className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+
+                        {varData.source === "database" && (
+                          <div className="mt-1">
+                            <Badge variant="outline" className="text-[10px] text-cyan-500 border-cyan-500/30">
+                              DB Override
+                            </Badge>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          );
+        })}
+      </div>
+
+      {/* Info Note */}
+      <Card className="border-border/50 bg-card/50">
+        <CardContent className="pt-6">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5" />
+            <div className="text-sm text-muted-foreground">
+              <p className="font-medium text-foreground mb-1">Configuration Notes:</p>
+              <ul className="list-disc list-inside space-y-1">
+                <li>Changes are stored in the database and override environment variables</li>
+                <li>Backend service must be restarted for changes to take effect</li>
+                <li>Secret values are always encrypted and redacted in the UI</li>
+                <li>Original .env file values remain unchanged</li>
+              </ul>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

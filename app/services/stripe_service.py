@@ -14,64 +14,91 @@ logger = logging.getLogger(__name__)
 # Initialize Stripe with API key
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
-# 4-tier pricing structure
-# Each tier has: name, price (cents), broker limit, stripe_price_id, and features
+# 4-tier pricing structure with feature-based differentiation
+# Each tier has: name, price (cents), broker limit, stripe_price_id, tagline, and features
 PRICING_TIERS = {
     "tier_1": {
         "name": "Starter",
-        "price": 1999,  # $19.99/month
+        "price": 2900,  # $29/month
         "brokers": 1,
         "stripe_price_id": "price_tier1_monthly",
+        "tagline": "Get started with automated trading",
+        "signals_per_day": 100,
+        "webhooks": 2,
         "features": [
             "1 broker connection",
-            "Basic signal routing",
-            "Email support",
-            "Dashboard analytics",
+            "100 signals per day",
+            "2 webhooks",
+            "Staleness guard protection",
+            "Daily trade limits",
+            "Fixed lot sizing",
+            "Basic dashboard analytics",
+            "Email support (48h)",
         ],
     },
     "tier_2": {
-        "name": "Growth",
-        "price": 3999,  # $39.99/month
+        "name": "Trader",
+        "price": 5900,  # $59/month
         "brokers": 2,
         "stripe_price_id": "price_tier2_monthly",
+        "tagline": "For serious traders who want protection",
+        "signals_per_day": -1,  # unlimited
+        "webhooks": 5,
         "features": [
             "2 broker connections",
-            "Advanced signal routing",
-            "Priority email support",
-            "Dashboard analytics",
+            "Unlimited signals",
+            "5 webhooks",
+            "All 5 AI Signal Guards",
+            "Full risk management suite",
+            "Drawdown protection",
+            "% of balance sizing",
             "Symbol mapping",
+            "2 account groups",
+            "Email support (24h)",
         ],
     },
     "tier_3": {
         "name": "Pro",
-        "price": 6999,  # $69.99/month
-        "brokers": 3,
+        "price": 9900,  # $99/month
+        "brokers": 4,
         "stripe_price_id": "price_tier3_monthly",
+        "tagline": "Scale your trading across multiple accounts",
+        "signals_per_day": -1,  # unlimited
+        "webhooks": -1,  # unlimited
         "features": [
-            "3 broker connections",
-            "Advanced signal routing",
-            "Priority support",
-            "Dashboard analytics",
-            "Symbol mapping",
-            "Risk management",
-            "Position sizing",
+            "4 broker connections",
+            "Unlimited signals & webhooks",
+            "AI Guards + custom thresholds",
+            "Risk-based position sizing",
+            "Advanced rule-based routing",
+            "Custom symbol aliases",
+            "Unlimited account groups",
+            "Full analytics suite",
+            "API access",
+            "30-day webhook logs",
+            "Priority support (12h)",
         ],
     },
     "tier_4": {
         "name": "Enterprise",
-        "price": 12999,  # $129.99/month
-        "brokers": 4,
+        "price": 19900,  # $199/month
+        "brokers": 8,
         "stripe_price_id": "price_tier4_monthly",
+        "tagline": "Unlimited power for professional traders",
+        "signals_per_day": -1,  # unlimited
+        "webhooks": -1,  # unlimited
         "features": [
-            "4 broker connections",
-            "Advanced signal routing",
-            "Priority phone support",
-            "Dashboard analytics",
-            "Symbol mapping",
-            "Risk management",
-            "Position sizing",
-            "Multi-account routing",
-            "Custom integrations",
+            "8 broker connections",
+            "Everything in Pro",
+            "Custom risk profiles per account",
+            "Strategy-based routing",
+            "Bulk symbol import/export",
+            "Nested account groups",
+            "Analytics export (CSV/JSON)",
+            "Higher API rate limits",
+            "90-day webhook logs",
+            "SMS & push notifications",
+            "Priority support + live chat",
         ],
     },
 }
@@ -82,9 +109,16 @@ FREE_TIER = {
     "price": 0,
     "brokers": 1,
     "stripe_price_id": None,
+    "tagline": "Try automated trading risk-free",
+    "signals_per_day": 50,
+    "webhooks": 1,
     "features": [
         "1 broker connection",
+        "50 signals per day",
+        "1 webhook",
         "Basic signal routing",
+        "Fixed lot sizing",
+        "7-day webhook logs",
         "Community support",
     ],
 }

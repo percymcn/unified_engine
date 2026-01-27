@@ -97,19 +97,20 @@ export function PricingCard({
     return "Upgrade";
   };
 
-  // Get description based on tier
+  // Get description based on tier - use tagline if available
   const getDescription = () => {
+    if (tier.tagline) return tier.tagline;
     switch (tier.tier_id) {
       case "free":
-        return "Start routing signals today";
+        return "Try automated trading risk-free";
       case "tier_1":
-        return "Perfect for individual traders";
+        return "Get started with automated trading";
       case "tier_2":
-        return "For traders with multiple accounts";
+        return "For serious traders who want protection";
       case "tier_3":
-        return "Professional trading features";
+        return "Scale your trading across multiple accounts";
       case "tier_4":
-        return "Maximum power and flexibility";
+        return "Unlimited power for professional traders";
       default:
         return "Trading automation";
     }
@@ -167,37 +168,13 @@ export function PricingCard({
       </CardHeader>
 
       <CardContent className="flex-1">
-        <ul className="space-y-3">
+        <ul className="space-y-2.5">
           {tier.features.map((feature) => (
-            <li key={feature} className="flex items-start gap-3">
-              <Check className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
+            <li key={feature} className="flex items-start gap-2.5">
+              <Check className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />
               <span className="text-sm">{feature}</span>
             </li>
           ))}
-
-          {/* Standard features for all tiers */}
-          <li className="flex items-start gap-3">
-            <Check className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
-            <span className="text-sm">Unlimited Signals</span>
-          </li>
-          <li className="flex items-start gap-3">
-            <Check className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
-            <span className="text-sm">Real-time Execution</span>
-          </li>
-
-          {/* Premium support indicators */}
-          {(tier.tier_id === "tier_3" || tier.tier_id === "tier_4") && (
-            <li className="flex items-start gap-3">
-              <Check className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
-              <span className="text-sm">24/7 Support</span>
-            </li>
-          )}
-          {tier.tier_id === "tier_4" && (
-            <li className="flex items-start gap-3">
-              <Check className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
-              <span className="text-sm">Priority Support</span>
-            </li>
-          )}
         </ul>
       </CardContent>
 
