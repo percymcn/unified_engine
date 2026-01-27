@@ -210,15 +210,34 @@ class ProjectXExecutor(BaseExecutor):
                 return []
 
         # Fallback to httpx
-        return await self._get_accounts_httpx()
+        return await self._get_accounts_httpx(limit=limit)
 
-    async def _get_accounts_httpx(self) -> List[Account]:
-        """Get accounts via httpx (fallback)."""
+    async def _get_accounts_httpx(self, limit: int = 5) -> List[Account]:
+        """Get accounts via httpx (fallback).
+
+        Returns accounts sorted by ID descending (most recent first),
+        filtered to only active accounts (positive balance), limited to `limit`.
+        """
         try:
             response = await self._session.post("/api/Account/search", json={})
             if response.status_code == 200:
                 data = response.json()
                 accounts_data = data if isinstance(data, list) else data.get("accounts", data.get("data", []))
+
+                # Filter to tradeable accounts (canTrade=True) first
+                tradeable_accounts = [
+                    acc for acc in accounts_data
+                    if acc.get("canTrade", False) is True
+                ]
+
+                # Sort by ID descending (most recent first) and limit
+                sorted_accounts = sorted(
+                    tradeable_accounts,
+                    key=lambda x: int(x.get("id", 0)),
+                    reverse=True  # Highest IDs (newest) first
+                )
+
+                active_accounts = sorted_accounts[:limit]
 
                 return [
                     Account(
@@ -237,7 +256,7 @@ class ProjectXExecutor(BaseExecutor):
                         created_at=datetime.now(),
                         updated_at=datetime.now()
                     )
-                    for acc in accounts_data
+                    for acc in active_accounts
                 ]
             return []
         except Exception as e:

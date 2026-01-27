@@ -550,8 +550,8 @@ async def discover_accounts(
             or acc.account_type in ('funded', 'demo', 'eval', 'sim')
         ]
 
-        # Sort by balance descending (most valuable accounts first) and limit to last 5
-        filtered.sort(key=lambda x: x.meta.get('balance', 0) if x.meta else 0, reverse=True)
+        # Keep SDK order (most recent first by ID) - only take first 5
+        # The SDK already sorts by account ID descending (newest accounts first)
         filtered = filtered[:5]
 
         return DiscoverAccountsResponse(
