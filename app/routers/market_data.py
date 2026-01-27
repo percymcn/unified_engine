@@ -14,7 +14,7 @@ import logging
 from app.services.projectx_sdk_service import ProjectXSDKService, SDK_AVAILABLE
 from app.services.contract_resolver import get_contract_resolver
 from app.routers.auth import get_current_user
-from app.models.pydantic_schemas import User
+from app.models.schemas import User
 
 logger = logging.getLogger(__name__)
 

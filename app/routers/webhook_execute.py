@@ -62,6 +62,9 @@ class TradingViewPayload(BaseModel):
     quantity: Optional[float] = Field(0.01, description="Trade quantity/lots")
     sl: Optional[float] = Field(None, description="Stop loss price")
     tp: Optional[float] = Field(None, description="Take profit price")
+    trailing_stop: Optional[float] = Field(None, description="Trailing stop distance (in ticks for ProjectX)")
+    order_type: Optional[str] = Field("market", description="Order type: market or limit")
+    limit_price: Optional[float] = Field(None, description="Limit price for limit orders")
     timestamp: Optional[str] = Field(None, description="Signal timestamp for staleness check")
     strategy_id: Optional[str] = Field(None, description="Strategy identifier")
     comment: Optional[str] = Field(None, description="Trade comment")
@@ -278,6 +281,9 @@ async def execute_tradingview_signal(
     quantity = float(raw_payload.get("quantity", 0.01) or 0.01)
     sl_price = raw_payload.get("sl")
     tp_price = raw_payload.get("tp")
+    trailing_stop = raw_payload.get("trailing_stop")  # Trailing stop distance
+    order_type_payload = raw_payload.get("order_type", "market").lower()
+    limit_price = raw_payload.get("limit_price")
     signal_uuid = str(uuid.uuid4())
 
     signal_entity = Signal(
@@ -509,14 +515,17 @@ async def execute_tradingview_signal(
                 except Exception as init_err:
                     logger.warning(f"Executor init warning for account {account.id}: {init_err}")
 
-            # Build order request
+            # Build order request - support market, limit, and trailing stop
+            effective_order_type = f"{order_type_payload}_{action_str}"  # e.g., "market_buy", "limit_sell"
             order_request = OrderRequest(
                 account_id=account.id,
                 symbol=symbol,
-                order_type=f"market_{action_str}",  # e.g., "market_buy"
+                order_type=effective_order_type,
                 quantity=quantity,
+                price=limit_price,  # For limit orders
                 stop_loss=sl_price,
                 take_profit=tp_price,
+                trailing_stop=trailing_stop,  # For trailing stop orders
             )
 
             # Execute the order directly

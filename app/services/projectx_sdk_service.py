@@ -460,6 +460,47 @@ class ProjectXSDKService:
         finally:
             await suite.disconnect()
 
+    async def place_trailing_stop_order(
+        self,
+        instrument: str,
+        side: str,
+        size: int,
+        trail_price: float,
+    ) -> Dict[str, Any]:
+        """
+        Place trailing stop order via SDK.
+
+        Args:
+            instrument: Instrument symbol
+            side: "buy" or "sell"
+            size: Number of contracts
+            trail_price: Trail distance in ticks (max 1000)
+
+        Returns:
+            Dict with success, order_id, status
+        """
+        suite = await self.get_trading_suite(instrument)
+        try:
+            side_int = 0 if side.lower() == "buy" else 1
+
+            response = await suite.orders.place_trailing_stop_order(
+                contract_id=suite.instrument_id,
+                side=side_int,
+                size=size,
+                trail_price=int(trail_price),  # In ticks
+            )
+
+            return {
+                "success": getattr(response, 'success', True) if response else True,
+                "order_id": str(getattr(response, 'orderId', '')) if response else "",
+                "status": "submitted",
+            }
+        except Exception as e:
+            logger.error(f"Trailing stop order failed: {e}")
+            return {"success": False, "error": str(e)}
+        finally:
+            await suite.disconnect()
+
     async def cancel_order(self, order_id: str) -> Dict[str, Any]:
         """
         Cancel order via SDK.

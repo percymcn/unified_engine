@@ -329,7 +329,17 @@ class ProjectXExecutor(BaseExecutor):
             side = "buy" if "buy" in order_type_lower else "sell"
             is_market = "market" in order_type_lower
 
-            if is_market:
+            # Use bracket order if SL or TP provided (supports market entry)
+            if order.stop_loss or order.take_profit:
+                result = await self._sdk_service.place_bracket_order(
+                    instrument=order.symbol,
+                    side=side,
+                    size=int(order.quantity),
+                    entry_price=None if is_market else order.price,
+                    stop_loss=order.stop_loss,
+                    take_profit=order.take_profit,
+                )
+            elif is_market:
                 result = await self._sdk_service.place_market_order(
                     instrument=order.symbol,
                     side=side,

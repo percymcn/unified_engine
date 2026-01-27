@@ -284,6 +284,7 @@ class OrderRequest(BaseModel):
     price: Optional[float] = None
     stop_loss: Optional[float] = None
     take_profit: Optional[float] = None
+    trailing_stop: Optional[float] = None  # Trailing stop distance (in ticks for ProjectX)
 
 
 class OrderResponse(BaseModel):
