@@ -156,7 +156,7 @@ class SQLAlchemyAccountRepository(AccountRepository):
 
             # Actually delete the record from the database
             await self._session.delete(orm_model)
-            await self._session.flush()
+            await self._session.commit()
 
     async def get_by_id(self, account_id: AccountId) -> Optional[Account]:
         """
