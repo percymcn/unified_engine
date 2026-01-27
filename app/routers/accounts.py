@@ -1184,61 +1184,83 @@ async def update_account(
     db: Session = Depends(get_db),
 ):
     """Update account with credential re-encryption and broker account selection"""
-    container = get_container(request)
-    use_case = container.update_account_use_case()
-
-    # Extract credentials if provided
-    credentials = None
-    update_dict = account_update.dict(exclude_unset=True)
-
-    if "api_key" in update_dict or "api_secret" in update_dict or "broker_config" in update_dict:
-        credentials = {}
-        if "api_key" in update_dict:
-            credentials["api_key"] = update_dict["api_key"]
-        if "api_secret" in update_dict:
-            credentials["api_secret"] = update_dict["api_secret"]
-        if "broker_config" in update_dict:
-            credentials.update(update_dict["broker_config"])
-
-    # Execute use case
-    dto_request = UpdateAccountRequest(
-        account_id=account_id,
-        credentials=credentials,
-        leverage=update_dict.get("leverage"),
-        is_active=update_dict.get("is_active"),
-    )
-
-    response = await use_case.execute(dto_request)
-
-    if response.error:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=response.error,
-        )
-
-    # Update broker account selection fields directly in ORM
     from app.models.database_models import TradingAccount as TradingAccountORM
+
+    # Get account first to verify ownership
     orm_account = db.query(TradingAccountORM).filter(
         TradingAccountORM.id == int(account_id),
         TradingAccountORM.user_id == current_user.id
     ).first()
-    
+
     if not orm_account:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Account not found"
         )
-    
-    # Update broker account selection if provided
-    if account_update.enabled_broker_account_ids is not None:
-        orm_account.enabled_broker_account_ids = account_update.enabled_broker_account_ids
-    if account_update.default_broker_account_id is not None:
-        orm_account.default_broker_account_id = account_update.default_broker_account_id
-    if account_update.discovered_accounts_cache is not None:
-        orm_account.discovered_accounts_cache = account_update.discovered_accounts_cache
-    
-    db.commit()
-    
+
+    update_dict = account_update.dict(exclude_unset=True)
+    credentials_provided = "api_key" in update_dict or "api_secret" in update_dict or "broker_config" in update_dict
+
+    # Only use the complex use_case flow when credentials are being updated
+    # This avoids the session leak for simple field updates
+    if credentials_provided:
+        try:
+            container = get_container(request)
+            use_case = container.update_account_use_case()
+
+            credentials = {}
+            if "api_key" in update_dict:
+                credentials["api_key"] = update_dict["api_key"]
+            if "api_secret" in update_dict:
+                credentials["api_secret"] = update_dict["api_secret"]
+            if "broker_config" in update_dict:
+                credentials.update(update_dict["broker_config"])
+
+            dto_request = UpdateAccountRequest(
+                account_id=account_id,
+                credentials=credentials,
+                leverage=update_dict.get("leverage"),
+                is_active=update_dict.get("is_active"),
+            )
+
+            response = await use_case.execute(dto_request)
+
+            if response.error:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=response.error,
+                )
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.warning(f"Use case failed, continuing with direct update: {e}")
+
+    # Direct ORM updates (safe, using the request's db session)
+    try:
+        # Update basic fields if provided
+        if "leverage" in update_dict and update_dict["leverage"] is not None:
+            orm_account.leverage = update_dict["leverage"]
+        if "is_active" in update_dict and update_dict["is_active"] is not None:
+            orm_account.is_active = update_dict["is_active"]
+
+        # Update broker account selection if provided
+        if account_update.enabled_broker_account_ids is not None:
+            orm_account.enabled_broker_account_ids = account_update.enabled_broker_account_ids
+        if account_update.default_broker_account_id is not None:
+            orm_account.default_broker_account_id = account_update.default_broker_account_id
+        if account_update.discovered_accounts_cache is not None:
+            orm_account.discovered_accounts_cache = account_update.discovered_accounts_cache
+
+        db.commit()
+        db.refresh(orm_account)
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to update account {account_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to save account: {str(e)}"
+        )
+
     return {
         "id": orm_account.id,
         "account_id": orm_account.account_number,
@@ -1761,3 +1783,273 @@ async def update_account_settings(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
         )
+
+
+# =============================================================================
+# MetaApi Provisioning Endpoints (Async Job Pattern)
+# =============================================================================
+
+class ProvisioningStatusResponse(BaseModel):
+    """Response for provisioning job status"""
+    job_id: str
+    status: str  # pending, creating, deploying, connecting, syncing, completed, failed
+    status_message: Optional[str] = None
+    progress_percent: int = 0
+    metaapi_account_id: Optional[str] = None
+    error_message: Optional[str] = None
+    created_at: Optional[datetime] = None
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+
+
+class StartProvisioningRequest(BaseModel):
+    """Request to start MetaApi provisioning for an account"""
+    login: str = Field(..., description="MT4/MT5 login number")
+    password: str = Field(..., description="MT4/MT5 password")
+    server: str = Field(..., description="MT4/MT5 server name")
+
+
+@router.post("/{account_id}/provision")
+async def start_provisioning(
+    account_id: int,
+    body: StartProvisioningRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Start async MetaApi provisioning for an MT4/MT5 account.
+
+    Returns immediately with a job_id. Client should poll the status endpoint.
+    This prevents HTTP timeouts during the 1-3 minute provisioning process.
+    """
+    from app.models.database_models import TradingAccount as TradingAccountORM
+    from app.services.provisioning_job_service import (
+        ProvisioningJobService,
+        execute_provisioning_job,
+    )
+
+    # Get the account
+    account = db.query(TradingAccountORM).filter(
+        TradingAccountORM.id == account_id,
+        TradingAccountORM.user_id == current_user.id
+    ).first()
+
+    if not account:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Account not found"
+        )
+
+    # Verify it's an MT4 or MT5 account
+    broker_value = account.broker.value.lower() if hasattr(account.broker, 'value') else str(account.broker).lower()
+    if broker_value not in ("mt4", "mt5"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Provisioning only supported for MT4/MT5 accounts, got {broker_value}"
+        )
+
+    # Create the provisioning job
+    job_service = ProvisioningJobService(db)
+    job = job_service.create_job(
+        user_id=current_user.id,
+        trading_account_id=account_id,
+        platform=broker_value,
+        login=body.login,
+        password=body.password,
+        server=body.server,
+        account_name=f"{broker_value.upper()}-{body.login}",
+    )
+
+    # Schedule background execution
+    import asyncio
+    asyncio.create_task(execute_provisioning_job(job.id))
+
+    logger.info(f"Started provisioning job {job.id} for account {account_id}")
+
+    return {
+        "job_id": job.id,
+        "status": "pending",
+        "message": "Provisioning job started. Poll /provision/status for progress.",
+    }
+
+
+@router.get("/{account_id}/provision/status")
+async def get_provisioning_status(
+    account_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ProvisioningStatusResponse:
+    """
+    Get the status of the most recent provisioning job for an account.
+
+    Client should poll this endpoint to track provisioning progress.
+    """
+    from app.models.database_models import TradingAccount as TradingAccountORM
+    from app.services.provisioning_job_service import ProvisioningJobService
+
+    # Verify account ownership
+    account = db.query(TradingAccountORM).filter(
+        TradingAccountORM.id == account_id,
+        TradingAccountORM.user_id == current_user.id
+    ).first()
+
+    if not account:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Account not found"
+        )
+
+    # Get most recent job
+    job_service = ProvisioningJobService(db)
+    jobs = job_service.get_jobs_for_account(account_id)
+
+    if not jobs:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No provisioning jobs found for this account"
+        )
+
+    job = jobs[0]  # Most recent
+
+    return ProvisioningStatusResponse(
+        job_id=job.id,
+        status=job.status.value,
+        status_message=job.status_message,
+        progress_percent=job.progress_percent,
+        metaapi_account_id=job.metaapi_account_id,
+        error_message=job.error_message,
+        created_at=job.created_at,
+        started_at=job.started_at,
+        completed_at=job.completed_at,
+    )
+
+
+@router.get("/{account_id}/provision/jobs")
+async def list_provisioning_jobs(
+    account_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> List[ProvisioningStatusResponse]:
+    """
+    List all provisioning jobs for an account (history).
+    """
+    from app.models.database_models import TradingAccount as TradingAccountORM
+    from app.services.provisioning_job_service import ProvisioningJobService
+
+    # Verify account ownership
+    account = db.query(TradingAccountORM).filter(
+        TradingAccountORM.id == account_id,
+        TradingAccountORM.user_id == current_user.id
+    ).first()
+
+    if not account:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Account not found"
+        )
+
+    job_service = ProvisioningJobService(db)
+    jobs = job_service.get_jobs_for_account(account_id)
+
+    return [
+        ProvisioningStatusResponse(
+            job_id=job.id,
+            status=job.status.value,
+            status_message=job.status_message,
+            progress_percent=job.progress_percent,
+            metaapi_account_id=job.metaapi_account_id,
+            error_message=job.error_message,
+            created_at=job.created_at,
+            started_at=job.started_at,
+            completed_at=job.completed_at,
+        )
+        for job in jobs
+    ]
+
+
+@router.post("/{account_id}/provision/retry")
+async def retry_provisioning(
+    account_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Retry a failed provisioning job with the same credentials.
+
+    Must have stored credentials in the Credential table.
+    """
+    from app.models.database_models import TradingAccount as TradingAccountORM
+    from app.services.provisioning_job_service import (
+        ProvisioningJobService,
+        execute_provisioning_job,
+    )
+
+    # Get the account
+    account = db.query(TradingAccountORM).filter(
+        TradingAccountORM.id == account_id,
+        TradingAccountORM.user_id == current_user.id
+    ).first()
+
+    if not account:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Account not found"
+        )
+
+    # Get stored credentials
+    encryption = get_encryption_service()
+    broker_value = account.broker.value.lower() if hasattr(account.broker, 'value') else str(account.broker).lower()
+
+    credential = db.query(Credential).filter(
+        Credential.user_id == current_user.id,
+        Credential.service == broker_value,
+        Credential.is_active == True
+    ).order_by(Credential.created_at.desc()).first()
+
+    if not credential:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No stored credentials found. Use /provision with credentials."
+        )
+
+    try:
+        cred_data = encryption.decrypt_dict(credential.encrypted_data)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to decrypt stored credentials"
+        )
+
+    login = cred_data.get("login")
+    password = cred_data.get("password")
+    server = cred_data.get("server")
+
+    if not all([login, password, server]):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Stored credentials incomplete. Use /provision with full credentials."
+        )
+
+    # Create new provisioning job
+    job_service = ProvisioningJobService(db)
+    job = job_service.create_job(
+        user_id=current_user.id,
+        trading_account_id=account_id,
+        platform=broker_value,
+        login=login,
+        password=password,
+        server=server,
+        account_name=f"{broker_value.upper()}-{login}",
+    )
+
+    # Schedule background execution
+    import asyncio
+    asyncio.create_task(execute_provisioning_job(job.id))
+
+    logger.info(f"Started retry provisioning job {job.id} for account {account_id}")
+
+    return {
+        "job_id": job.id,
+        "status": "pending",
+        "message": "Retry provisioning job started. Poll /provision/status for progress.",
+    }

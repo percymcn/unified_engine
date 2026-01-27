@@ -88,7 +88,7 @@ export default function WebhooksPage() {
         setLoading(true);
       }
       setError(null);
-      const response = await fetch('/api/webhook-configs');
+      const response = await fetch('/api/webhook-configs', { credentials: 'include' });
 
       // Handle 401 specifically
       if (response.status === 401) {
@@ -137,7 +137,7 @@ export default function WebhooksPage() {
   const handleGenerateKey = async () => {
     try {
       setGeneratingKey(true);
-      const response = await fetch('/api/webhooks/generate-key', { method: 'POST' });
+      const response = await fetch('/api/webhooks/generate-key', { method: 'POST', credentials: 'include' });
       if (!response.ok) {
         const err = await response.json().catch(() => ({ detail: 'Failed to generate webhook key' }));
         throw new Error(err.detail || 'Failed to generate webhook key');

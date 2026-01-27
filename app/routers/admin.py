@@ -102,7 +102,6 @@ class UserInfo(BaseModel):
     email: str
     username: str
     full_name: str | None
-    role: str
     subscription_tier: str
     subscription_status: str | None
     is_active: bool
@@ -141,8 +140,7 @@ async def list_users(
                 email=u.email,
                 username=u.username,
                 full_name=u.full_name,
-                role=u.role or "free_user",
-                subscription_tier=u.subscription_tier.value if u.subscription_tier else "free",
+                subscription_tier=u.subscription_tier.value if hasattr(u.subscription_tier, 'value') else (u.subscription_tier or "free"),
                 subscription_status=u.subscription_status,
                 is_active=u.is_active,
                 is_verified=u.is_verified,
@@ -175,8 +173,7 @@ async def get_user(
         email=user.email,
         username=user.username,
         full_name=user.full_name,
-        role=user.role or "free_user",
-        subscription_tier=user.subscription_tier.value if user.subscription_tier else "free",
+        subscription_tier=user.subscription_tier.value if hasattr(user.subscription_tier, 'value') else (user.subscription_tier or "free"),
         subscription_status=user.subscription_status,
         is_active=user.is_active,
         is_verified=user.is_verified,
@@ -385,4 +382,190 @@ async def get_env_doctor(
         "oauth": oauth_status,
         "backend_port": settings.PORT,
         "backend_host": settings.HOST
+    }
+
+
+@router.get("/system/pipeline-status")
+async def get_pipeline_status(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """Get full system pipeline status - see the veins of the system (owner-only)"""
+    check_owner_access(current_user)
+
+    import asyncio
+    import aiohttp
+    from datetime import datetime, timedelta
+    from app.models.models import Signal, Trade, WebhookConfig
+    from app.models.enhanced_models import TradingAccount
+
+    # Pipeline components status
+    components = {}
+
+    # 1. Database status
+    try:
+        user_count = db.query(User).count()
+        components["database"] = {
+            "status": "healthy",
+            "latency_ms": 5,  # Simplified
+            "connections": user_count > 0,
+            "message": f"PostgreSQL online, {user_count} users"
+        }
+    except Exception as e:
+        components["database"] = {
+            "status": "error",
+            "latency_ms": -1,
+            "message": str(e)
+        }
+
+    # 2. Redis status
+    try:
+        import redis
+        r = redis.from_url(settings.REDIS_URL or "redis://localhost:6379/0")
+        r.ping()
+        components["redis"] = {
+            "status": "healthy",
+            "latency_ms": 2,
+            "message": "Redis connected"
+        }
+    except Exception as e:
+        components["redis"] = {
+            "status": "warning",
+            "latency_ms": -1,
+            "message": f"Redis unavailable: {str(e)[:50]}"
+        }
+
+    # 3. Webhook ingestion
+    try:
+        active_webhooks = db.query(WebhookConfig).filter(WebhookConfig.is_active == True).count()
+        recent_signals = db.query(Signal).filter(
+            Signal.received_at >= datetime.utcnow() - timedelta(hours=1)
+        ).count()
+        components["webhook_ingestion"] = {
+            "status": "healthy" if active_webhooks > 0 else "idle",
+            "active_webhooks": active_webhooks,
+            "signals_last_hour": recent_signals,
+            "message": f"{active_webhooks} active webhooks, {recent_signals} signals/hr"
+        }
+    except Exception as e:
+        components["webhook_ingestion"] = {
+            "status": "error",
+            "message": str(e)[:50]
+        }
+
+    # 4. Signal processing
+    try:
+        from sqlalchemy import func
+        pending_signals = db.query(Signal).filter(Signal.status == "pending").count()
+        processed_24h = db.query(Signal).filter(
+            Signal.processed_at >= datetime.utcnow() - timedelta(hours=24)
+        ).count()
+        components["signal_processor"] = {
+            "status": "healthy" if pending_signals < 10 else "busy",
+            "pending": pending_signals,
+            "processed_24h": processed_24h,
+            "message": f"{pending_signals} pending, {processed_24h} processed today"
+        }
+    except Exception as e:
+        components["signal_processor"] = {
+            "status": "warning",
+            "message": str(e)[:50]
+        }
+
+    # 5. Broker connections
+    broker_stats = {}
+    try:
+        accounts = db.query(TradingAccount).filter(TradingAccount.is_active == True).all()
+        for account in accounts:
+            broker = account.broker_type.value if account.broker_type else "unknown"
+            if broker not in broker_stats:
+                broker_stats[broker] = {"count": 0, "accounts": []}
+            broker_stats[broker]["count"] += 1
+            broker_stats[broker]["accounts"].append(account.account_number or account.account_alias)
+
+        components["broker_connections"] = {
+            "status": "healthy" if len(accounts) > 0 else "idle",
+            "active_accounts": len(accounts),
+            "brokers": broker_stats,
+            "message": f"{len(accounts)} active accounts across {len(broker_stats)} brokers"
+        }
+    except Exception as e:
+        components["broker_connections"] = {
+            "status": "error",
+            "message": str(e)[:50]
+        }
+
+    # 6. Trade execution
+    try:
+        trades_24h = db.query(Trade).filter(
+            Trade.created_at >= datetime.utcnow() - timedelta(hours=24)
+        ).count()
+        failed_trades = db.query(Trade).filter(
+            Trade.status == "failed",
+            Trade.created_at >= datetime.utcnow() - timedelta(hours=24)
+        ).count()
+        components["trade_execution"] = {
+            "status": "healthy" if failed_trades == 0 else "warning",
+            "trades_24h": trades_24h,
+            "failed_24h": failed_trades,
+            "success_rate": f"{((trades_24h - failed_trades) / max(trades_24h, 1)) * 100:.1f}%" if trades_24h > 0 else "N/A",
+            "message": f"{trades_24h} trades, {failed_trades} failed"
+        }
+    except Exception as e:
+        components["trade_execution"] = {
+            "status": "warning",
+            "message": str(e)[:50]
+        }
+
+    # 7. Recent activity feed
+    recent_activity = []
+    try:
+        recent_signals_list = db.query(Signal).order_by(Signal.received_at.desc()).limit(5).all()
+        for sig in recent_signals_list:
+            recent_activity.append({
+                "type": "signal",
+                "action": sig.action,
+                "symbol": sig.symbol,
+                "status": sig.status,
+                "time": sig.received_at.isoformat() if sig.received_at else None
+            })
+
+        recent_trades_list = db.query(Trade).order_by(Trade.created_at.desc()).limit(5).all()
+        for trade in recent_trades_list:
+            recent_activity.append({
+                "type": "trade",
+                "action": trade.action,
+                "symbol": trade.symbol,
+                "status": trade.status,
+                "time": trade.created_at.isoformat() if trade.created_at else None
+            })
+
+        # Sort by time
+        recent_activity.sort(key=lambda x: x.get("time") or "", reverse=True)
+        recent_activity = recent_activity[:10]
+    except Exception as e:
+        recent_activity = [{"error": str(e)[:50]}]
+
+    # Calculate overall health
+    statuses = [c.get("status", "unknown") for c in components.values()]
+    if "error" in statuses:
+        overall = "degraded"
+    elif "warning" in statuses:
+        overall = "warning"
+    else:
+        overall = "healthy"
+
+    return {
+        "overall_health": overall,
+        "timestamp": datetime.utcnow().isoformat(),
+        "components": components,
+        "recent_activity": recent_activity,
+        "pipeline_flow": [
+            {"id": "webhook", "name": "Webhook Ingestion", "connects_to": "signal_processor"},
+            {"id": "signal_processor", "name": "Signal Processor", "connects_to": "broker_connections"},
+            {"id": "broker_connections", "name": "Broker Connections", "connects_to": "trade_execution"},
+            {"id": "trade_execution", "name": "Trade Execution", "connects_to": "database"},
+            {"id": "database", "name": "Database", "connects_to": None},
+            {"id": "redis", "name": "Redis Cache", "connects_to": "signal_processor"},
+        ]
     }

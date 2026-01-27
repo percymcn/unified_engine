@@ -501,6 +501,51 @@ class SignalCounter(Base):
     user = relationship("User")
 
 
+class ProvisioningJobStatus(enum.Enum):
+    """Status of MetaApi provisioning job"""
+    PENDING = "pending"
+    CREATING = "creating"
+    DEPLOYING = "deploying"
+    CONNECTING = "connecting"
+    SYNCING = "syncing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class ProvisioningJob(Base):
+    """Track async MetaApi account provisioning jobs"""
+    __tablename__ = "provisioning_jobs"
+    __table_args__ = {'extend_existing': True}
+
+    id = Column(String(36), primary_key=True, index=True)  # UUID
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    trading_account_id = Column(Integer, ForeignKey("trading_accounts.id"), nullable=True, index=True)
+
+    # Job metadata
+    platform = Column(String(10), nullable=False)  # "mt4" or "mt5"
+    login = Column(String(50), nullable=False)
+    server = Column(String(255), nullable=False)
+    account_name = Column(String(255), nullable=True)
+
+    # Status tracking
+    status = Column(Enum(ProvisioningJobStatus), default=ProvisioningJobStatus.PENDING, nullable=False, index=True)
+    status_message = Column(Text, nullable=True)
+    progress_percent = Column(Integer, default=0)
+
+    # Result
+    metaapi_account_id = Column(String(100), nullable=True)
+    error_message = Column(Text, nullable=True)
+
+    # Timing
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    user = relationship("User")
+    trading_account = relationship("TradingAccount")
+
+
 class DiscardBin(Base):
     """Audit trail for discarded signals"""
     __tablename__ = "discard_bin"

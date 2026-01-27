@@ -176,7 +176,7 @@ export function AccountSelector({
   const handleSync = async () => {
     setSyncing(true);
     try {
-      const response = await fetch('/api/accounts/sync-all', {
+      const response = await fetch('/api/accounts/sync-all', { credentials: 'include',
         method: 'POST',
       });
 

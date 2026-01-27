@@ -34,7 +34,7 @@ export function BrokerAccountSelection() {
   const fetchBrokerData = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/accounts');
+      const response = await fetch('/api/accounts', { credentials: 'include' });
 
       if (!response.ok) {
         throw new Error('Failed to fetch accounts');

@@ -61,8 +61,8 @@ function BillingPageContent() {
   const fetchBillingData = async () => {
     try {
       const [billingRes, plansRes] = await Promise.all([
-        fetch("/api/billing/status"),
-        fetch("/api/billing/plans"),
+        fetch("/api/billing/status", { credentials: 'include' }),
+        fetch("/api/billing/plans", { credentials: 'include' }),
       ]);
 
       if (billingRes.ok) {
@@ -84,7 +84,7 @@ function BillingPageContent() {
   const handleManageSubscription = async () => {
     setPortalLoading(true);
     try {
-      const response = await fetch("/api/billing/portal");
+      const response = await fetch("/api/billing/portal", { credentials: 'include' });
       const data = await response.json();
       if (data.portal_url) {
         window.location.href = data.portal_url;
@@ -117,6 +117,7 @@ function BillingPageContent() {
       const response = await fetch("/api/billing/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: 'include',
         body: JSON.stringify({ tier_id: tier1.id }),
       });
       const data = await response.json();

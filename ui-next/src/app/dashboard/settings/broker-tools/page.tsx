@@ -190,7 +190,7 @@ export default function BrokerToolsPage() {
   const loadAccounts = async () => {
     try {
       // Use BFF route which handles auth via httpOnly cookie
-      const response = await fetch('/api/accounts');
+      const response = await fetch('/api/accounts', { credentials: 'include' });
 
       if (response.ok) {
         const data = await response.json();
@@ -235,7 +235,7 @@ export default function BrokerToolsPage() {
 
     try {
       // Use BFF proxy which handles auth via httpOnly cookie
-      const response = await fetch('/api/broker-tools', {
+      const response = await fetch('/api/broker-tools', { credentials: 'include',
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

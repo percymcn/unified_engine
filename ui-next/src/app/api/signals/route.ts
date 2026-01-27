@@ -16,27 +16,57 @@ export async function GET(request: NextRequest) {
 
     if (!token) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Unauthorized - no auth token' },
         { status: 401 }
       );
     }
 
     // Forward query params to backend
+    // Use trailing slash to avoid 307 redirect which strips Authorization header
     const { searchParams } = new URL(request.url);
     const queryString = searchParams.toString();
     const url = queryString
-      ? `${BACKEND_URL}/api/v1/signals?${queryString}`
-      : `${BACKEND_URL}/api/v1/signals`;
+      ? `${BACKEND_URL}/api/v1/signals/?${queryString}`
+      : `${BACKEND_URL}/api/v1/signals/`;
 
     // Fetch signals from backend
     const response = await fetch(url, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },
+      // Important: don't follow redirects that might strip auth header
+      redirect: 'manual',
     });
 
+    // Handle redirect manually to preserve auth header
+    if (response.status === 307 || response.status === 308) {
+      const location = response.headers.get('location');
+      if (location) {
+        const redirectResponse = await fetch(location, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+        if (!redirectResponse.ok) {
+          const errorText = await redirectResponse.text();
+          console.error(`Backend redirect error (${redirectResponse.status}):`, errorText);
+          return NextResponse.json(
+            { error: `Backend error: ${redirectResponse.status}` },
+            { status: redirectResponse.status }
+          );
+        }
+        const signals = await redirectResponse.json();
+        return NextResponse.json(signals);
+      }
+    }
+
     if (!response.ok) {
-      throw new Error(`Backend returned ${response.status}`);
+      const errorText = await response.text();
+      console.error(`Backend error (${response.status}):`, errorText);
+      return NextResponse.json(
+        { error: `Backend error: ${response.status}` },
+        { status: response.status }
+      );
     }
 
     const signals = await response.json();

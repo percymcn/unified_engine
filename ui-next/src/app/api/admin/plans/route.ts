@@ -9,7 +9,7 @@ const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:8765";
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const cookieStore = await cookies();
-  const token = cookieStore.get("token")?.value;
+  const token = cookieStore.get("auth-token")?.value;
 
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

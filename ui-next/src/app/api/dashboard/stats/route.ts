@@ -16,9 +16,9 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Fetch stats from multiple backend endpoints in parallel
+    // Fetch stats from multiple backend endpoints in parallel (max limit=50 per backend validation)
     const [signalsRes, accountsRes, liveAccountsRes, executionsRes] = await Promise.all([
-      fetch(`${BACKEND_URL}/api/v1/signals/?limit=100&status=pending`, {
+      fetch(`${BACKEND_URL}/api/v1/signals/?limit=50&status=pending`, {
         headers: { 'Authorization': `Bearer ${token}` },
       }),
       fetch(`${BACKEND_URL}/api/v1/accounts/`, {
@@ -28,8 +28,8 @@ export async function GET() {
       fetch(`${BACKEND_URL}/api/v1/dashboard/accounts/live`, {
         headers: { 'Authorization': `Bearer ${token}` },
       }),
-      // Fetch executions for today's trades count
-      fetch(`${BACKEND_URL}/api/v1/dashboard/executions?limit=100`, {
+      // Fetch executions for today's trades count (max 50)
+      fetch(`${BACKEND_URL}/api/v1/dashboard/executions?limit=50`, {
         headers: { 'Authorization': `Bearer ${token}` },
       }),
     ]);

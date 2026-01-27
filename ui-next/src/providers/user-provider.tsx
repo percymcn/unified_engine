@@ -61,7 +61,7 @@ export function UserProvider({ children }: UserProviderProps) {
       setLoading(true);
       setError(null);
 
-      const response = await fetch('/api/users/me/profile');
+      const response = await fetch('/api/users/me/profile', { credentials: 'include' });
 
       if (!response.ok) {
         // Handle auth errors gracefully - user is not logged in

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTokenFromCookies } from '@/lib/auth';
+import { fetchWithTimeout, isTimeoutError } from '@/lib/fetch-utils';
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8765';
 
@@ -22,7 +23,7 @@ export async function GET(
       );
     }
 
-    const response = await fetch(`${BACKEND_URL}/api/v1/accounts/${id}`, {
+    const response = await fetchWithTimeout(`${BACKEND_URL}/api/v1/accounts/${id}`, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },
@@ -37,6 +38,12 @@ export async function GET(
     return NextResponse.json(account);
   } catch (error) {
     console.error('Error fetching account:', error);
+    if (isTimeoutError(error)) {
+      return NextResponse.json(
+        { error: 'Request timed out. Please try again.' },
+        { status: 504 }
+      );
+    }
     return NextResponse.json(
       { error: 'Failed to fetch account' },
       { status: 500 }
@@ -65,7 +72,7 @@ export async function PUT(
 
     const body = await request.json();
 
-    const response = await fetch(`${BACKEND_URL}/api/v1/accounts/${id}`, {
+    const response = await fetchWithTimeout(`${BACKEND_URL}/api/v1/accounts/${id}`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -87,6 +94,12 @@ export async function PUT(
     return NextResponse.json(account);
   } catch (error) {
     console.error('Error updating account:', error);
+    if (isTimeoutError(error)) {
+      return NextResponse.json(
+        { error: 'Request timed out. Your changes may not have been saved.' },
+        { status: 504 }
+      );
+    }
     return NextResponse.json(
       { error: 'Failed to update account' },
       { status: 500 }
@@ -113,7 +126,7 @@ export async function DELETE(
       );
     }
 
-    const response = await fetch(`${BACKEND_URL}/api/v1/accounts/${id}`, {
+    const response = await fetchWithTimeout(`${BACKEND_URL}/api/v1/accounts/${id}`, {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -131,6 +144,12 @@ export async function DELETE(
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error deleting account:', error);
+    if (isTimeoutError(error)) {
+      return NextResponse.json(
+        { error: 'Request timed out. Please try again.' },
+        { status: 504 }
+      );
+    }
     return NextResponse.json(
       { error: 'Failed to delete account' },
       { status: 500 }

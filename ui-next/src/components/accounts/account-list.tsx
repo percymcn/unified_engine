@@ -116,7 +116,7 @@ export function AccountList() {
   }) => {
     try {
       // Create account with OAuth tokens
-      const response = await fetch('/api/accounts', {
+      const response = await fetch('/api/accounts', { credentials: 'include',
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

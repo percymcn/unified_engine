@@ -40,7 +40,7 @@ export function UserNav({ user }: UserNavProps) {
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/auth/logout', {
+      await fetch('/api/auth/logout', { credentials: 'include',
         method: 'POST',
       });
       router.push('/login');

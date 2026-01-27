@@ -30,9 +30,12 @@ def _load_credential_fallback(
     credentials: Dict[str, Any] = {}
     encryption = get_encryption_service()
 
+    # Try both lowercase and original case for service name
+    service_names = [broker_type.value.lower(), broker_type.value]
+
     rows = db.query(Credential).filter(
         Credential.user_id == account.user_id,
-        Credential.service == broker_type.value,
+        Credential.service.in_(service_names),
         Credential.is_active == True
     ).all()
 
@@ -42,9 +45,17 @@ def _load_credential_fallback(
         except Exception:
             continue
 
+        # More flexible account matching:
+        # 1. If no account_id in credential data, accept it (single credential for broker)
+        # 2. If account_id matches account_number, accept it
+        # 3. If only one active credential exists for this user/broker, accept it
         data_account_id = data.get("account_id") or data.get("metaapi_account_id")
-        if account.account_number and data_account_id and str(data_account_id) != str(account.account_number):
-            continue
+        if data_account_id:
+            # Skip if there's an account_id but it doesn't match
+            # However, the account_number might be a UUID while credential has numeric ID
+            # So only skip if we have multiple credentials and this one doesn't match
+            if len(rows) > 1 and account.account_number and str(data_account_id) != str(account.account_number):
+                continue
 
         credentials.update(data)
 

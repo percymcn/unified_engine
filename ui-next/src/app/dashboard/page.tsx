@@ -128,7 +128,7 @@ export default function DashboardPage() {
   useEffect(() => {
     async function checkPendingSignals() {
       try {
-        const response = await fetch('/api/signals?status=pending_confirmation&limit=1');
+        const response = await fetch('/api/signals?status=pending_confirmation&limit=1', { credentials: 'include' });
         if (response.ok) {
           const data = await response.json();
           const signals = Array.isArray(data) ? data : (data?.signals || []);
@@ -163,7 +163,7 @@ export default function DashboardPage() {
   const handleGuardActionComplete = useCallback(() => {
     setPendingSignal(null);
     // Refresh stats after action
-    fetch('/api/dashboard/stats')
+    fetch('/api/dashboard/stats', { credentials: 'include' })
       .then((res) => res.json())
       .then((data) => setStats(data))
       .catch(() => {});
@@ -172,7 +172,7 @@ export default function DashboardPage() {
   useEffect(() => {
     async function fetchStats() {
       try {
-        const response = await fetch('/api/dashboard/stats');
+        const response = await fetch('/api/dashboard/stats', { credentials: 'include' });
         if (!response.ok) {
           throw new Error('Failed to fetch stats');
         }
@@ -189,7 +189,7 @@ export default function DashboardPage() {
 
     async function fetchExpiringContracts() {
       try {
-        const response = await fetch('/api/dashboard/contracts?days=7');
+        const response = await fetch('/api/dashboard/contracts?days=7', { credentials: 'include' });
         if (response.ok) {
           const data = await response.json();
           setExpiringContracts(data);
@@ -212,7 +212,7 @@ export default function DashboardPage() {
   const handleGenerateWebhookKey = async () => {
     try {
       setGeneratingKey(true);
-      const response = await fetch('/api/webhooks/generate-key', { method: 'POST' });
+      const response = await fetch('/api/webhooks/generate-key', { method: 'POST', credentials: 'include' });
       if (!response.ok) {
         const error = await response.json().catch(() => ({ detail: 'Failed to generate webhook key' }));
         throw new Error(error.detail || 'Failed to generate webhook key');

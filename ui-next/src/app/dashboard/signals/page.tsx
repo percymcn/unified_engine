@@ -15,7 +15,7 @@ export default function SignalsPage() {
   const fetchSignals = async () => {
     try {
       setError(null);
-      const response = await fetch('/api/signals');
+      const response = await fetch('/api/signals', { credentials: 'include' });
 
       if (!response.ok) {
         throw new Error('Failed to fetch signals');

@@ -30,7 +30,7 @@ export default function WebhookLogsPage() {
   const fetchLogs = useCallback(async () => {
     try {
       setError(null);
-      const response = await fetch('/api/webhooks/logs');
+      const response = await fetch('/api/webhooks/logs', { credentials: 'include' });
       if (!response.ok) {
         throw new Error('Failed to fetch webhook logs');
       }

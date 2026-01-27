@@ -39,7 +39,7 @@ interface PlansResponse {
 export async function GET() {
   try {
     const cookieStore = await cookies();
-    const token = cookieStore.get("token")?.value;
+    const token = cookieStore.get("auth-token")?.value;
 
     // Proxy to backend (single source of truth)
     const headers: HeadersInit = {

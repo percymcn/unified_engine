@@ -10,30 +10,68 @@ import { AccountUpdateData } from '@/types/websocket';
 // All 5 broker types we support
 const ALL_BROKERS: BrokerType[] = ['mt4', 'mt5', 'tradelocker', 'tradovate', 'projectx'];
 
+// Map broker names to lowercase for matching
+const BROKER_NAME_MAP: Record<string, BrokerType> = {
+  mt4: 'mt4',
+  mt5: 'mt5',
+  tradelocker: 'tradelocker',
+  tradovate: 'tradovate',
+  projectx: 'projectx',
+  topstep: 'projectx',
+};
+
 export function BrokerHealthGrid() {
   const { subscribeToAccounts } = useWebSocketContext();
   const [healthStatus, setHealthStatus] = useState<HealthStatus | null>(null);
+  const [accountBrokers, setAccountBrokers] = useState<Set<BrokerType>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [recentlyChanged, setRecentlyChanged] = useState<Set<string>>(new Set());
 
-  // Fetch initial health status
+  // Fetch accounts and health status
   useEffect(() => {
-    async function fetchHealth() {
+    async function fetchData() {
       try {
         setLoading(true);
-        const status = await getBrokerHealth();
-        setHealthStatus(status);
+
+        // Fetch both accounts and health in parallel
+        const [accountsRes, healthRes] = await Promise.all([
+          fetch('/api/accounts', { credentials: 'include' }).then(r => r.ok ? r.json() : []),
+          getBrokerHealth().catch(() => null),
+        ]);
+
+        // Extract brokers that have active accounts
+        const accounts = Array.isArray(accountsRes) ? accountsRes : (accountsRes?.accounts || []);
+        const brokersWithAccounts = new Set<BrokerType>();
+
+        for (const acc of accounts) {
+          if (acc.is_active !== false) {
+            const brokerKey = BROKER_NAME_MAP[acc.broker?.toLowerCase()] || acc.broker?.toLowerCase();
+            if (brokerKey && ALL_BROKERS.includes(brokerKey as BrokerType)) {
+              brokersWithAccounts.add(brokerKey as BrokerType);
+            }
+          }
+        }
+
+        setAccountBrokers(brokersWithAccounts);
+
+        if (healthRes) {
+          setHealthStatus(healthRes);
+        }
         setError(null);
       } catch (err) {
-        console.error('Failed to fetch broker health:', err);
-        setError(err instanceof Error ? err.message : 'Failed to fetch broker health');
+        console.error('Failed to fetch broker data:', err);
+        setError(err instanceof Error ? err.message : 'Failed to fetch broker data');
       } finally {
         setLoading(false);
       }
     }
 
-    fetchHealth();
+    fetchData();
+
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchData, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   // Handle WebSocket account updates
@@ -94,13 +132,23 @@ export function BrokerHealthGrid() {
     );
   }
 
+  // Determine if broker is connected: has active account OR health check says connected
+  const isBrokerConnected = (broker: BrokerType): boolean => {
+    // If we have an active account for this broker, consider it connected
+    if (accountBrokers.has(broker)) {
+      return true;
+    }
+    // Fall back to health status
+    return healthStatus?.brokers[broker] ?? false;
+  };
+
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
       {ALL_BROKERS.map((broker) => (
         <BrokerHealthCard
           key={broker}
           name={broker}
-          connected={healthStatus?.brokers[broker] ?? false}
+          connected={isBrokerConnected(broker)}
           loading={loading}
           recentlyChanged={recentlyChanged.has(broker)}
         />

@@ -42,7 +42,11 @@ export function WebhookConfigCard({
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
 
-  const webhookUrl = `${window.location.origin}/api/v1/webhooks/${config.webhook_key}`;
+  // Use the backend API URL for webhooks, not the frontend URL
+  const webhookBaseUrl = process.env.NEXT_PUBLIC_WEBHOOK_BASE_URL ||
+                         process.env.NEXT_PUBLIC_BACKEND_URL ||
+                         'https://api.tradeflow.fluxeo.net';
+  const webhookUrl = `${webhookBaseUrl}/webhooks/tradingview/${config.webhook_key}`;
 
   const handleCopyUrl = async () => {
     try {

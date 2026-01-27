@@ -408,17 +408,9 @@ class CreateAccountUseCase:
             if hasattr(request, 'oauth_tokens') and request.oauth_tokens:
                 credential_data.update(request.oauth_tokens)
 
-            # Auto-provision MetaAPI account for MT4/MT5 brokers
-            if request.broker in (BrokerType.MT4, BrokerType.MT5):
-                metaapi_account_id = await self._provision_metaapi_account(
-                    credentials=request.credentials,
-                    platform=request.broker.value,  # "mt4" or "mt5"
-                    account_name=f"{request.broker.value.upper()}-{request.account_id}",
-                )
-                if metaapi_account_id:
-                    credential_data["metaapi_account_id"] = metaapi_account_id
-                    logger.info(f"MetaAPI account provisioned: {metaapi_account_id}")
-
+            # Store credentials first (without metaapi_account_id)
+            # For MT4/MT5, provisioning happens async via background job
+            # to avoid HTTP timeouts during the 1-3 minute provisioning process
             await self._credential_repo.create(
                 credential_id=credential_id,
                 user_id=request.user_id,
