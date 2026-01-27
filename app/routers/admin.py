@@ -385,6 +385,61 @@ async def get_env_doctor(
     }
 
 
+@router.get("/system/connected-accounts")
+async def get_connected_accounts(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """Get all connected accounts grouped by broker type (owner-only)"""
+    check_owner_access(current_user)
+
+    from app.models.database_models import TradingAccount
+    from collections import defaultdict
+
+    accounts = db.query(TradingAccount).all()
+
+    # Group by broker type
+    broker_groups = defaultdict(list)
+    for account in accounts:
+        broker_name = account.broker.value if account.broker else "unknown"
+        user = db.query(User).filter(User.id == account.user_id).first()
+        broker_groups[broker_name].append({
+            "id": account.id,
+            "account_number": account.account_number,
+            "account_name": account.account_name,
+            "user_id": account.user_id,
+            "user_email": user.email if user else "Unknown",
+            "is_active": account.is_active,
+            "is_connected": account.is_connected,
+            "balance": float(account.balance) if account.balance else 0,
+            "equity": float(account.equity) if account.equity else 0,
+            "created_at": account.created_at.isoformat() if account.created_at else None,
+            "last_sync": account.last_sync.isoformat() if account.last_sync else None,
+        })
+
+    # Summary stats
+    total_accounts = len(accounts)
+    active_accounts = sum(1 for a in accounts if a.is_active)
+    connected_accounts = sum(1 for a in accounts if a.is_connected)
+
+    return {
+        "summary": {
+            "total": total_accounts,
+            "active": active_accounts,
+            "connected": connected_accounts,
+        },
+        "brokers": {
+            broker: {
+                "count": len(accts),
+                "active": sum(1 for a in accts if a["is_active"]),
+                "connected": sum(1 for a in accts if a["is_connected"]),
+                "accounts": accts,
+            }
+            for broker, accts in broker_groups.items()
+        }
+    }
+
+
 @router.get("/system/pipeline-status")
 async def get_pipeline_status(
     current_user: User = Depends(get_current_user),
@@ -461,7 +516,7 @@ async def get_pipeline_status(
             Signal.processed_at >= datetime.utcnow() - timedelta(hours=24)
         ).count()
         components["signal_processor"] = {
-            "status": "healthy" if pending_signals < 10 else "busy",
+            "status": "healthy" if pending_signals < 50 else "busy",
             "pending": pending_signals,
             "processed_24h": processed_24h,
             "message": f"{pending_signals} pending, {processed_24h} processed today"

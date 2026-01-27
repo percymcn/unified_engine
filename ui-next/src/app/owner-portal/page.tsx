@@ -134,6 +134,7 @@ export default function OwnerPortal() {
   } | null>(null);
   const [envDoctor, setEnvDoctor] = useState<EnvDoctor | null>(null);
   const [pipelineStatus, setPipelineStatus] = useState<any>(null);
+  const [connectedAccounts, setConnectedAccounts] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<typeof tabs[number]["id"]>("overview");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -212,7 +213,13 @@ export default function OwnerPortal() {
           const data = await response.json();
           setPlans(data.plans || []);
         }
-      } else if (activeTab === "brokers" || activeTab === "env") {
+      } else if (activeTab === "brokers") {
+        const response = await fetch("/api/admin/system/connected-accounts", { credentials: "include" });
+        if (response.ok) {
+          const data = await response.json();
+          setConnectedAccounts(data);
+        }
+      } else if (activeTab === "env") {
         const response = await fetch("/api/admin/system/env-doctor", { credentials: "include" });
         if (response.ok) {
           const data = await response.json();
@@ -380,7 +387,7 @@ export default function OwnerPortal() {
               <PlansTab plans={plans} loading={loading} />
             )}
             {activeTab === "brokers" && (
-              <BrokersTab envDoctor={envDoctor} loading={loading} />
+              <BrokersTab connectedAccounts={connectedAccounts} loading={loading} />
             )}
             {activeTab === "env" && (
               <SystemTab envDoctor={envDoctor} loading={loading} />
@@ -944,73 +951,131 @@ function PlansTab({ plans, loading }: { plans: PlanConfig[]; loading: boolean })
   );
 }
 
-// Brokers Tab
-function BrokersTab({ envDoctor, loading }: { envDoctor: EnvDoctor | null; loading: boolean }) {
-  if (loading || !envDoctor) {
+// Brokers Tab - Shows connected accounts from database
+function BrokersTab({ connectedAccounts, loading }: { connectedAccounts: any; loading: boolean }) {
+  if (loading || !connectedAccounts) {
     return <Skeleton className="h-96" />;
   }
 
-  const brokerGroups = [
-    { name: "MetaTrader 4", keys: ["mt4_sdk", "mt4_manager"] },
-    { name: "MetaTrader 5", keys: ["mt5_sdk", "mt5_manager"] },
-    { name: "TradeLocker", keys: ["tradelocker_sdk", "tradelocker_brand"] },
-    { name: "Tradovate", keys: ["tradovate_oauth", "tradovate_password"] },
-    { name: "ProjectX/TopStep", keys: ["projectx_sdk", "projectx_legacy"] },
-  ];
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "CONFIGURED":
-        return "text-emerald-500 bg-emerald-500/10 border-emerald-500/50";
-      case "PARTIAL":
-        return "text-amber-500 bg-amber-500/10 border-amber-500/50";
-      default:
-        return "text-muted-foreground bg-muted/50 border-border";
-    }
+  const brokerDisplayNames: Record<string, string> = {
+    mt4: "MetaTrader 4",
+    mt5: "MetaTrader 5",
+    tradelocker: "TradeLocker",
+    tradovate: "Tradovate",
+    projectx: "ProjectX",
+    topstep: "TopStep",
   };
 
+  const brokerColors: Record<string, string> = {
+    mt4: "from-blue-500/20 to-cyan-500/20 border-blue-500/30",
+    mt5: "from-purple-500/20 to-pink-500/20 border-purple-500/30",
+    tradelocker: "from-emerald-500/20 to-teal-500/20 border-emerald-500/30",
+    tradovate: "from-orange-500/20 to-amber-500/20 border-orange-500/30",
+    projectx: "from-rose-500/20 to-red-500/20 border-rose-500/30",
+    topstep: "from-indigo-500/20 to-violet-500/20 border-indigo-500/30",
+  };
+
+  const brokers = Object.entries(connectedAccounts.brokers || {});
+
   return (
-    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-      {brokerGroups.map((group, i) => (
-        <motion.div
-          key={group.name}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: i * 0.1 }}
-        >
-          <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg">{group.name}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {group.keys.map((key) => {
-                const broker = envDoctor.brokers[key];
-                if (!broker) return null;
-                return (
-                  <div
-                    key={key}
-                    className={`p-3 rounded-lg border ${getStatusColor(broker.status)}`}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium capitalize">
-                        {key.replace(/_/g, " ")}
-                      </span>
-                      <Badge variant="outline" className={getStatusColor(broker.status)}>
-                        {broker.status}
+    <div className="space-y-6">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-3 gap-4">
+        <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <div className="text-3xl font-bold text-primary">{connectedAccounts.summary?.total || 0}</div>
+              <p className="text-sm text-muted-foreground">Total Accounts</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <div className="text-3xl font-bold text-emerald-500">{connectedAccounts.summary?.active || 0}</div>
+              <p className="text-sm text-muted-foreground">Active</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <div className="text-3xl font-bold text-cyan-500">{connectedAccounts.summary?.connected || 0}</div>
+              <p className="text-sm text-muted-foreground">Connected</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Broker Groups */}
+      {brokers.length === 0 ? (
+        <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
+          <CardContent className="py-12 text-center">
+            <Server className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+            <h3 className="text-lg font-medium mb-2">No Connected Accounts</h3>
+            <p className="text-muted-foreground">Users haven't connected any broker accounts yet.</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-6 md:grid-cols-2">
+          {brokers.map(([brokerKey, brokerData]: [string, any], i) => (
+            <motion.div
+              key={brokerKey}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.1 }}
+            >
+              <Card className={`border bg-gradient-to-br ${brokerColors[brokerKey] || "from-gray-500/20 to-slate-500/20 border-gray-500/30"}`}>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg">
+                      {brokerDisplayNames[brokerKey] || brokerKey.toUpperCase()}
+                    </CardTitle>
+                    <div className="flex gap-2">
+                      <Badge variant="outline" className="bg-background/50">
+                        {brokerData.count} accounts
+                      </Badge>
+                      <Badge variant="outline" className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+                        {brokerData.active} active
                       </Badge>
                     </div>
-                    {broker.missing_vars.length > 0 && (
-                      <p className="text-xs text-muted-foreground">
-                        Missing: {broker.missing_vars.join(", ")}
-                      </p>
-                    )}
                   </div>
-                );
-              })}
-            </CardContent>
-          </Card>
-        </motion.div>
-      ))}
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                    {brokerData.accounts.map((account: any) => (
+                      <div
+                        key={account.id}
+                        className="flex items-center justify-between p-3 rounded-lg bg-background/50 border border-border/50"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium truncate">
+                              {account.account_name || account.account_number}
+                            </span>
+                            {account.is_connected && (
+                              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {account.user_email}
+                          </p>
+                        </div>
+                        <div className="text-right ml-4">
+                          <div className="text-sm font-medium">
+                            ${account.balance?.toLocaleString() || "0"}
+                          </div>
+                          <p className="text-xs text-muted-foreground">Balance</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
