@@ -51,7 +51,9 @@ export default function RiskSettingsPage() {
 
   async function fetchMomentumSettings() {
     try {
-      const res = await fetch("/api/signal-intelligence/settings");
+      const res = await fetch("/api/signal-intelligence/settings", {
+        credentials: 'include',
+      });
       if (res.ok) {
         setMomentumSettings(await res.json());
       } else {
@@ -88,7 +90,9 @@ export default function RiskSettingsPage() {
 
   async function fetchSettings() {
     try {
-      const res = await fetch("/api/risk/settings");
+      const res = await fetch("/api/risk/settings", {
+        credentials: 'include',
+      });
       if (res.ok) {
         setSettings(await res.json());
       } else {
@@ -132,11 +136,13 @@ export default function RiskSettingsPage() {
         fetch("/api/risk/settings", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
+          credentials: 'include',
           body: JSON.stringify(settings),
         }),
         momentumSettings ? fetch("/api/signal-intelligence/settings", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
+          credentials: 'include',
           body: JSON.stringify(momentumSettings),
         }) : Promise.resolve({ ok: true }),
       ]);

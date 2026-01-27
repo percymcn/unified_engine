@@ -31,9 +31,11 @@ export function RejectedSignalsWidget() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetch() {
+    async function fetchRejectedSignals() {
       try {
-        const res = await window.fetch("/api/v1/risk/rejected-signals?limit=5");
+        const res = await window.fetch("/api/risk/rejected-signals?limit=5", {
+          credentials: 'include',
+        });
         if (res.ok) {
           const data = await res.json();
           setSignals(data.signals || []);
@@ -42,7 +44,7 @@ export function RejectedSignalsWidget() {
         setLoading(false);
       }
     }
-    fetch();
+    fetchRejectedSignals();
   }, []);
 
   if (loading) {

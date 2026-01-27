@@ -141,7 +141,9 @@ const mapAccountSettingsResponse = (data: ApiAccountSettingsData): AccountSettin
  * Get all accounts for the authenticated user
  */
 export async function getAccounts(): Promise<Account[]> {
-  const response = await fetch('/api/accounts');
+  const response = await fetch('/api/accounts', {
+    credentials: 'include',
+  });
 
   if (!response.ok) {
     throw new Error(`Failed to fetch accounts: ${response.statusText}`);
@@ -163,6 +165,7 @@ export async function createAccount(data: AccountCreate): Promise<Account> {
     headers: {
       'Content-Type': 'application/json',
     },
+    credentials: 'include',
     body: JSON.stringify(data),
   });
 
@@ -185,6 +188,7 @@ export async function updateAccount(
     headers: {
       'Content-Type': 'application/json',
     },
+    credentials: 'include',
     body: JSON.stringify(data),
   });
 
@@ -201,6 +205,7 @@ export async function updateAccount(
 export async function deleteAccount(id: number): Promise<void> {
   const response = await fetch(`/api/accounts/${id}`, {
     method: 'DELETE',
+    credentials: 'include',
   });
 
   if (!response.ok) {
@@ -214,6 +219,7 @@ export async function deleteAccount(id: number): Promise<void> {
 export async function syncAccount(id: number): Promise<Account> {
   const response = await fetch(`/api/accounts/${id}/sync`, {
     method: 'POST',
+    credentials: 'include',
   });
 
   if (!response.ok) {
@@ -227,7 +233,9 @@ export async function syncAccount(id: number): Promise<Account> {
  * Get account balance from broker
  */
 export async function getAccountBalance(id: number): Promise<AccountBalance> {
-  const response = await fetch(`/api/accounts/${id}/balance`);
+  const response = await fetch(`/api/accounts/${id}/balance`, {
+    credentials: 'include',
+  });
 
   if (!response.ok) {
     throw new Error(`Failed to fetch account balance: ${response.statusText}`);
@@ -249,6 +257,7 @@ export async function testConnection(
     headers: {
       'Content-Type': 'application/json',
     },
+    credentials: 'include',
     body: JSON.stringify({ broker, credentials }),
   });
 
@@ -272,6 +281,7 @@ export async function discoverAccounts(
     headers: {
       'Content-Type': 'application/json',
     },
+    credentials: 'include',
     body: JSON.stringify({ broker, credentials }),
   });
 
@@ -289,6 +299,7 @@ export async function discoverAccounts(
 export async function refreshBrokerAccounts(accountId: number): Promise<DiscoverAccountsResult> {
   const response = await fetch(`/api/accounts/${accountId}/refresh-accounts`, {
     method: 'POST',
+    credentials: 'include',
   });
 
   if (!response.ok) {
@@ -303,7 +314,9 @@ export async function refreshBrokerAccounts(accountId: number): Promise<Discover
 // Account Settings API
 // ============================================================================
 export async function getAccountSettings(accountId: number): Promise<AccountSettingsResponse> {
-  const response = await fetch(`/api/accounts/${accountId}/settings`);
+  const response = await fetch(`/api/accounts/${accountId}/settings`, {
+    credentials: 'include',
+  });
 
   if (!response.ok) {
     throw await buildApiError(response, 'Failed to fetch account settings');
@@ -385,6 +398,7 @@ export async function updateAccountSettings(
     headers: {
       'Content-Type': 'application/json',
     },
+    credentials: 'include',
     body: JSON.stringify(payload),
   });
 
@@ -405,7 +419,9 @@ export async function updateAccountSettings(
  * Get all account groups for the authenticated user
  */
 export async function getAccountGroups(): Promise<AccountGroup[]> {
-  const response = await fetch('/api/account-groups');
+  const response = await fetch('/api/account-groups', {
+    credentials: 'include',
+  });
 
   if (!response.ok) {
     throw new Error(`Failed to fetch account groups: ${response.statusText}`);
@@ -438,6 +454,7 @@ export async function createAccountGroup(
     headers: {
       'Content-Type': 'application/json',
     },
+    credentials: 'include',
     body: JSON.stringify(data),
   });
 
@@ -447,7 +464,9 @@ export async function createAccountGroup(
 
   // Refetch the group to get full details
   const result = await response.json();
-  const groupResponse = await fetch(`/api/account-groups/${result.group_id}`);
+  const groupResponse = await fetch(`/api/account-groups/${result.group_id}`, {
+    credentials: 'include',
+  });
 
   if (!groupResponse.ok) {
     throw new Error(`Failed to fetch created group: ${groupResponse.statusText}`);
@@ -487,6 +506,7 @@ export async function updateAccountGroup(
     headers: {
       'Content-Type': 'application/json',
     },
+    credentials: 'include',
     body: JSON.stringify(payload),
   });
 
@@ -495,7 +515,9 @@ export async function updateAccountGroup(
   }
 
   // Refetch to get updated details
-  const groupResponse = await fetch(`/api/account-groups/${groupId}`);
+  const groupResponse = await fetch(`/api/account-groups/${groupId}`, {
+    credentials: 'include',
+  });
 
   if (!groupResponse.ok) {
     throw new Error(`Failed to fetch updated group: ${groupResponse.statusText}`);
@@ -521,6 +543,7 @@ export async function updateAccountGroup(
 export async function deleteAccountGroup(groupId: number): Promise<void> {
   const response = await fetch(`/api/account-groups/${groupId}`, {
     method: 'DELETE',
+    credentials: 'include',
   });
 
   if (!response.ok) {
@@ -537,6 +560,7 @@ export async function addAccountToGroup(
 ): Promise<void> {
   const response = await fetch(`/api/account-groups/${groupId}/accounts/${accountId}`, {
     method: 'POST',
+    credentials: 'include',
   });
 
   if (!response.ok) {
@@ -553,6 +577,7 @@ export async function removeAccountFromGroup(
 ): Promise<void> {
   const response = await fetch(`/api/account-groups/${groupId}/accounts/${accountId}`, {
     method: 'DELETE',
+    credentials: 'include',
   });
 
   if (!response.ok) {

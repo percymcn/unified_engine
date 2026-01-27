@@ -24,7 +24,9 @@ export async function GET() {
     const brokers: Record<string, boolean> = {};
     if (data.brokers) {
       Object.entries(data.brokers).forEach(([broker, status]) => {
-        brokers[broker] = (status as { connected?: boolean })?.connected || false;
+        const brokerStatus = status as { connected?: boolean; status?: string };
+        // Connected if connected=true or status is "connected"
+        brokers[broker] = brokerStatus?.connected === true || brokerStatus?.status === 'connected';
       });
     }
 

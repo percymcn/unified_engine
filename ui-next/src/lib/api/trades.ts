@@ -19,7 +19,9 @@ export async function getTrades(filters?: TradeFilters): Promise<Trade[]> {
   const queryString = params.toString();
   const url = `/api/trades${queryString ? `?${queryString}` : ''}`;
 
-  const response = await fetch(url);
+  const response = await fetch(url, {
+    credentials: 'include',
+  });
 
   if (!response.ok) {
     throw new Error(`Failed to fetch trades: ${response.statusText}`);

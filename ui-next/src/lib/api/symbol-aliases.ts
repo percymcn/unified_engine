@@ -26,7 +26,9 @@ interface ApiError {
  * @throws Error if request fails
  */
 export async function getSymbolAliases(): Promise<SymbolAliasGroup[]> {
-  const response = await fetch('/api/symbol-aliases');
+  const response = await fetch('/api/symbol-aliases', {
+    credentials: 'include',
+  });
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: 'Failed to fetch symbol aliases' }));
@@ -44,7 +46,9 @@ export async function getSymbolAliases(): Promise<SymbolAliasGroup[]> {
  * @throws Error if request fails
  */
 export async function getSymbolAliasesByBroker(brokerType: string): Promise<SymbolAlias[]> {
-  const response = await fetch(`/api/symbol-aliases/${brokerType}`);
+  const response = await fetch(`/api/symbol-aliases/${brokerType}`, {
+    credentials: 'include',
+  });
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: 'Failed to fetch symbol aliases' }));
@@ -67,6 +71,7 @@ export async function createSymbolAlias(data: CreateSymbolAliasRequest): Promise
     headers: {
       'Content-Type': 'application/json',
     },
+    credentials: 'include',
     body: JSON.stringify(data),
   });
 
@@ -92,6 +97,7 @@ export async function updateSymbolAlias(id: number, data: UpdateSymbolAliasReque
     headers: {
       'Content-Type': 'application/json',
     },
+    credentials: 'include',
     body: JSON.stringify(data),
   });
 
@@ -112,6 +118,7 @@ export async function updateSymbolAlias(id: number, data: UpdateSymbolAliasReque
 export async function deleteSymbolAlias(id: number): Promise<void> {
   const response = await fetch(`/api/symbol-aliases/${id}`, {
     method: 'DELETE',
+    credentials: 'include',
   });
 
   if (!response.ok) {

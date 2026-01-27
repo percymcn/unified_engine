@@ -72,9 +72,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Forward query params to backend
+    // Forward query params to backend (max 50 per backend limit)
     const { searchParams } = new URL(request.url);
-    const limit = searchParams.get('limit') || '100';
+    const limit = Math.min(Number(searchParams.get('limit')) || 50, 50).toString();
 
     // Fetch executions from dashboard endpoint
     const url = `${BACKEND_URL}/api/v1/dashboard/executions?limit=${limit}`;

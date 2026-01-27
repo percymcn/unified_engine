@@ -93,6 +93,34 @@
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
   }
+
+  .ocean {
+    /* Ocean Blue theme - modern, futuristic, easy on the eyes */
+    --background: 210 50% 10%;
+    --foreground: 200 20% 95%;
+    --card: 210 50% 13%;
+    --card-foreground: 200 20% 95%;
+    --popover: 210 50% 12%;
+    --popover-foreground: 200 20% 95%;
+    --primary: 200 90% 50%;
+    --primary-foreground: 210 50% 10%;
+    --secondary: 210 40% 20%;
+    --secondary-foreground: 200 20% 95%;
+    --muted: 210 40% 18%;
+    --muted-foreground: 200 20% 65%;
+    --accent: 190 80% 45%;
+    --accent-foreground: 210 50% 10%;
+    --destructive: 0 65% 50%;
+    --destructive-foreground: 200 20% 95%;
+    --border: 210 40% 22%;
+    --input: 210 40% 22%;
+    --ring: 200 90% 50%;
+    --chart-1: 200 90% 55%;
+    --chart-2: 170 70% 50%;
+    --chart-3: 220 80% 60%;
+    --chart-4: 180 60% 45%;
+    --chart-5: 240 70% 65%;
+  }
 }
 
 @layer base {

@@ -4,7 +4,9 @@ import { WebhookConfig, WebhookConfigCreate, WebhookConfigUpdate } from '@/types
  * Get all webhook configurations for the authenticated user
  */
 export async function getWebhookConfigs(): Promise<WebhookConfig[]> {
-  const response = await fetch('/api/webhook-configs');
+  const response = await fetch('/api/webhook-configs', {
+    credentials: 'include',
+  });
 
   if (!response.ok) {
     throw new Error(`Failed to fetch webhook configs: ${response.statusText}`);
@@ -22,6 +24,7 @@ export async function createWebhookConfig(data: WebhookConfigCreate): Promise<We
     headers: {
       'Content-Type': 'application/json',
     },
+    credentials: 'include',
     body: JSON.stringify(data),
   });
 
@@ -44,6 +47,7 @@ export async function updateWebhookConfig(
     headers: {
       'Content-Type': 'application/json',
     },
+    credentials: 'include',
     body: JSON.stringify(data),
   });
 
@@ -60,6 +64,7 @@ export async function updateWebhookConfig(
 export async function deleteWebhookConfig(id: number): Promise<void> {
   const response = await fetch(`/api/webhook-configs/${id}`, {
     method: 'DELETE',
+    credentials: 'include',
   });
 
   if (!response.ok) {
@@ -73,6 +78,7 @@ export async function deleteWebhookConfig(id: number): Promise<void> {
 export async function regenerateWebhookKey(id: number): Promise<WebhookConfig> {
   const response = await fetch(`/api/webhook-configs/${id}/generate-key`, {
     method: 'POST',
+    credentials: 'include',
   });
 
   if (!response.ok) {
