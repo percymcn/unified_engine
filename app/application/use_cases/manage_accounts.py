@@ -262,9 +262,22 @@ class SyncAccountUseCase:
         if broker is None:
             raise BrokerConnectionError(f"No adapter for broker: {account.broker}")
 
+        logger.info(f"Broker type: {type(broker).__name__}, account: {account.broker}")
+
         # Sync account info
         # get_account_info returns Account Pydantic model (not dict)
-        info = await broker.get_account_info(account.id.value)
+        # Some adapters require account_id, some don't - try without params first
+        try:
+            # Try without account_id first (most adapters)
+            logger.info("Calling get_account_info() without args")
+            info = await broker.get_account_info()
+            logger.info(f"Got info: {info}")
+        except TypeError as e:
+            logger.warning(f"TypeError: {e}, trying with account_id")
+            # Fallback for adapters that require account_id (use server field which often has broker account ID)
+            broker_account_id = account.server or str(account.id.value)
+            info = await broker.get_account_info(broker_account_id)
+
         if info:
             # Account is a Pydantic model with attributes, not dict
             account.update_balance(Money(Decimal(str(info.balance)), account.currency))
@@ -276,15 +289,25 @@ class SyncAccountUseCase:
         else:
             logger.warning(f"get_account_info returned None for account {account.id.value}")
 
-        # Get positions and orders count - pass account_id
+        # Get positions and orders count
         try:
-            positions = await broker.get_positions(account.id.value)
+            try:
+                positions = await broker.get_positions()
+            except TypeError:
+                # Fallback with account ID
+                broker_account_id = account.server or str(account.id.value)
+                positions = await broker.get_positions(broker_account_id)
         except Exception as e:
             logger.warning(f"Could not get positions: {e}")
             positions = []
-        
+
         try:
-            orders = await broker.get_orders(account.id.value)
+            try:
+                orders = await broker.get_orders()
+            except TypeError:
+                # Fallback with account ID
+                broker_account_id = account.server or str(account.id.value)
+                orders = await broker.get_orders(broker_account_id)
         except Exception as e:
             logger.warning(f"Could not get orders: {e}")
             orders = []

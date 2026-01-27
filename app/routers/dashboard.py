@@ -337,6 +337,34 @@ class AccountsSummaryResponse(BaseModel):
     total_unrealized_pnl: float
 
 
+def record_equity_snapshot(db: Session, account_id: int, equity: float, balance: float):
+    """Record equity snapshot to history table for charting."""
+    try:
+        # Get latest record to determine peak
+        latest = db.query(AccountEquityHistory).filter(
+            AccountEquityHistory.account_id == account_id
+        ).order_by(AccountEquityHistory.timestamp.desc()).first()
+
+        peak_equity = max(equity, latest.peak_equity if latest else equity)
+        drawdown = max(0, peak_equity - equity)
+        drawdown_pct = (drawdown / peak_equity * 100) if peak_equity > 0 else 0
+
+        record = AccountEquityHistory(
+            account_id=account_id,
+            equity=equity,
+            balance=balance,
+            peak_equity=peak_equity,
+            drawdown=drawdown,
+            drawdown_pct=drawdown_pct
+        )
+        db.add(record)
+        db.commit()
+        logger.debug(f"Recorded equity snapshot for account {account_id}: equity={equity}, balance={balance}")
+    except Exception as e:
+        logger.warning(f"Failed to record equity snapshot for account {account_id}: {e}")
+        db.rollback()
+
+
 @router.get("/accounts/live", response_model=AccountsSummaryResponse)
 async def get_live_accounts_summary(
     current_user: User = Depends(get_current_user),
@@ -345,6 +373,7 @@ async def get_live_accounts_summary(
     """
     Get live account summary with real-time balance and equity from brokers.
     Fetches directly from connected broker accounts.
+    Also records equity snapshots for history tracking.
     """
     # Get user's active accounts
     user_accounts = db.query(TradingAccount).filter(
@@ -453,6 +482,9 @@ async def get_live_accounts_summary(
             total_balance += result.balance
             total_equity += result.equity
             total_unrealized_pnl += result.unrealized_pnl
+            # Record equity snapshot for history tracking
+            if result.equity > 0 or result.balance > 0:
+                record_equity_snapshot(db, result.account_id, result.equity, result.balance)
 
     return AccountsSummaryResponse(
         accounts=accounts,

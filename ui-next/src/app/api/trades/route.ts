@@ -1,11 +1,57 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTokenFromCookies } from '@/lib/auth';
+import { Trade } from '@/types/trade';
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8765';
 
+interface ExecutionItem {
+  id: number;
+  signal_id?: string;
+  account: {
+    broker: string;
+    account_id?: number;
+  };
+  symbol: string;
+  action: string;
+  volume: number;
+  price?: number;
+  status: string;
+  execution_time_ms?: number;
+  created_at: string;
+}
+
+/**
+ * Transform execution log to Trade format for UI
+ */
+function executionToTrade(exec: ExecutionItem): Trade {
+  // Map action to side
+  const actionLower = exec.action.toLowerCase();
+  const side: 'buy' | 'sell' = actionLower.includes('sell') || actionLower === 'close_sell'
+    ? 'sell'
+    : 'buy';
+
+  // Map status
+  let status: Trade['status'] = 'closed';
+  if (exec.status === 'pending') status = 'pending';
+  else if (exec.status === 'failed' || exec.status === 'error') status = 'cancelled';
+  else if (exec.status === 'success') status = 'closed';
+
+  return {
+    id: exec.id,
+    symbol: exec.symbol,
+    side,
+    quantity: exec.volume,
+    entry_price: exec.price || 0,
+    status,
+    broker: exec.account.broker,
+    account_id: exec.account.account_id || 0,
+    opened_at: exec.created_at,
+  };
+}
+
 /**
  * GET /api/trades
- * BFF pattern: Proxy trades request to backend with optional filters
+ * BFF pattern: Fetch execution logs from backend and transform to Trade format
  * Uses auth_token cookie for authorization
  *
  * Query params:
@@ -28,23 +74,11 @@ export async function GET(request: NextRequest) {
 
     // Forward query params to backend
     const { searchParams } = new URL(request.url);
-    const backendParams = new URLSearchParams();
+    const limit = searchParams.get('limit') || '100';
 
-    // Map frontend params to backend params
-    const dateFrom = searchParams.get('date_from');
-    const dateTo = searchParams.get('date_to');
-    const broker = searchParams.get('broker');
-    const status = searchParams.get('status');
+    // Fetch executions from dashboard endpoint
+    const url = `${BACKEND_URL}/api/v1/dashboard/executions?limit=${limit}`;
 
-    if (dateFrom) backendParams.append('date_from', dateFrom);
-    if (dateTo) backendParams.append('date_to', dateTo);
-    if (broker) backendParams.append('broker', broker);
-    if (status) backendParams.append('status', status);
-
-    const queryString = backendParams.toString();
-    const url = `${BACKEND_URL}/api/v1/trades${queryString ? `?${queryString}` : ''}`;
-
-    // Fetch trades from backend
     const response = await fetch(url, {
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -55,7 +89,30 @@ export async function GET(request: NextRequest) {
       throw new Error(`Backend returned ${response.status}`);
     }
 
-    const trades = await response.json();
+    const data = await response.json();
+    const executions: ExecutionItem[] = data.executions || [];
+
+    // Transform to Trade format
+    let trades: Trade[] = executions.map(executionToTrade);
+
+    // Apply client-side filters
+    const dateFrom = searchParams.get('date_from');
+    const dateTo = searchParams.get('date_to');
+    const broker = searchParams.get('broker');
+    const status = searchParams.get('status');
+
+    if (dateFrom) {
+      trades = trades.filter(t => t.opened_at >= dateFrom);
+    }
+    if (dateTo) {
+      trades = trades.filter(t => t.opened_at <= dateTo + 'T23:59:59');
+    }
+    if (broker && broker !== 'all') {
+      trades = trades.filter(t => t.broker.toLowerCase() === broker.toLowerCase());
+    }
+    if (status && status !== 'all') {
+      trades = trades.filter(t => t.status === status);
+    }
 
     return NextResponse.json(trades);
   } catch (error) {

@@ -1402,55 +1402,106 @@ async def sync_account(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Sync account data from broker via hexagonal architecture"""
-    container = get_container(request)
-    use_case = container.sync_account_use_case()
+    """Sync account data from broker - fetches live balance/equity and updates DB"""
+    from app.services.signal_processor import _create_account_executor
+    from app.models.database_models import TradingAccount
+    from datetime import datetime
 
-    # Convert account_id to string if it's a number (from frontend)
-    account_id_str = str(account_id)
+    # Get account from DB
+    orm_account = db.query(TradingAccount).filter(
+        TradingAccount.id == int(account_id),
+        TradingAccount.user_id == current_user.id
+    ).first()
 
-    # Execute use case
-    dto_request = SyncAccountRequest(account_id=account_id_str)
+    if not orm_account:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Account not found"
+        )
 
     try:
-        response = await use_case.execute(dto_request)
-
-        # Get full account details from ORM to return complete Account object
-        from app.models.database_models import TradingAccount as TradingAccountORM
-        orm_account = db.query(TradingAccountORM).filter(
-            TradingAccountORM.id == int(account_id_str)
-        ).first()
-
-        if not orm_account:
+        # Create executor with proper credentials
+        executor, needs_cleanup = await _create_account_executor(orm_account, db)
+        if not executor:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Account not found"
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Failed to connect to broker"
             )
 
-        # Return full Account object that frontend expects
+        try:
+            # Get broker account ID
+            broker_account_id = orm_account.default_broker_account_id or orm_account.account_number or str(orm_account.id)
+
+            # Fetch live account info - try with account_id first, then without
+            try:
+                account_info = await executor.get_account_info(broker_account_id)
+            except TypeError:
+                account_info = await executor.get_account_info()
+
+            # Get positions count
+            try:
+                try:
+                    positions = await executor.get_positions(broker_account_id)
+                except TypeError:
+                    positions = await executor.get_positions()
+            except Exception:
+                positions = []
+
+            # Extract balance/equity from response
+            balance = 0.0
+            equity = 0.0
+            margin = 0.0
+            free_margin = 0.0
+
+            if account_info:
+                if isinstance(account_info, dict):
+                    balance = float(account_info.get('balance', 0) or 0)
+                    equity = float(account_info.get('equity', 0) or account_info.get('accountEquity', 0) or 0)
+                    margin = float(account_info.get('margin', 0) or account_info.get('usedMargin', 0) or 0)
+                    free_margin = float(account_info.get('free_margin', 0) or account_info.get('freeMargin', 0) or 0)
+                else:
+                    balance = float(getattr(account_info, 'balance', 0) or 0)
+                    equity = float(getattr(account_info, 'equity', 0) or getattr(account_info, 'accountEquity', 0) or 0)
+                    margin = float(getattr(account_info, 'margin', 0) or getattr(account_info, 'usedMargin', 0) or 0)
+                    free_margin = float(getattr(account_info, 'free_margin', 0) or getattr(account_info, 'freeMargin', 0) or 0)
+
+            # Update account in DB
+            orm_account.balance = balance
+            orm_account.equity = equity
+            orm_account.last_sync = datetime.utcnow()
+            db.commit()
+
+        finally:
+            if needs_cleanup and executor:
+                try:
+                    await executor.disconnect()
+                except Exception:
+                    pass
+
+        # Return updated account
         return {
-            "id": int(account_id_str),
-            "account_id": orm_account.account_number or account_id_str,
+            "id": orm_account.id,
+            "account_id": orm_account.account_number or str(orm_account.id),
             "user_id": current_user.id,
             "broker": orm_account.broker.value,
             "account_type": orm_account.account_type.value if orm_account.account_type else "demo",
-            "balance": float(response.balance),
-            "equity": float(response.equity),
-            "margin": float(response.margin),
-            "free_margin": float(response.free_margin),
+            "balance": balance,
+            "equity": equity,
+            "margin": margin,
+            "free_margin": free_margin,
             "leverage": int(orm_account.leverage) if orm_account.leverage else 100,
             "currency": orm_account.currency or "USD",
             "is_active": orm_account.is_active if hasattr(orm_account, 'is_active') else True,
-            "is_connected": True,  # Just synced, so connected
-            "server": orm_account.server,
-            "last_sync": response.synced_at.isoformat(),
+            "is_connected": True,
+            "server": None,
+            "last_sync": datetime.utcnow().isoformat(),
             "created_at": orm_account.created_at.isoformat() if orm_account.created_at else None,
             "webhook_key": orm_account.webhook_key,
             "enabled_broker_account_ids": orm_account.enabled_broker_account_ids or [],
             "default_broker_account_id": orm_account.default_broker_account_id,
             "discovered_accounts_cache": orm_account.discovered_accounts_cache,
-            "positions_count": response.positions_count,
-            "orders_count": response.orders_count,
+            "positions_count": len(positions) if positions else 0,
+            "orders_count": 0,
             "message": "Account synced successfully",
         }
     except HTTPException:
