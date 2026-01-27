@@ -473,6 +473,50 @@ class ProjectXSDKService:
         finally:
             await suite.disconnect()
 
+    async def place_stop_order(
+        self,
+        instrument: str,
+        side: str,
+        size: int,
+        stop_price: float,
+    ) -> Dict[str, Any]:
+        """
+        Place stop order via SDK.
+
+        A stop order becomes a market order when the stop price is reached.
+
+        Args:
+            instrument: Instrument symbol (TradingView format supported)
+            side: "buy" or "sell"
+            size: Number of contracts
+            stop_price: Stop trigger price
+
+        Returns:
+            Dict with success, order_id, status
+        """
+        instrument = normalize_symbol(instrument)
+        suite = await self.get_trading_suite(instrument)
+        try:
+            side_int = 0 if side.lower() == "buy" else 1
+
+            response = await suite.orders.place_stop_order(
+                contract_id=suite.instrument_id,
+                side=side_int,
+                size=size,
+                stop_price=stop_price,
+            )
+
+            return {
+                "success": getattr(response, 'success', True) if response else True,
+                "order_id": str(getattr(response, 'orderId', '')) if response else "",
+                "status": "submitted",
+            }
+        except Exception as e:
+            logger.error(f"Stop order failed: {e}")
+            return {"success": False, "error": str(e)}
+        finally:
+            await suite.disconnect()
+
     async def place_trailing_stop_order(
         self,
         instrument: str,
@@ -608,6 +652,77 @@ class ProjectXSDKService:
             return {"success": False, "error": "Position not found"}
         finally:
             await suite.disconnect()
+
+    async def close_all_positions(
+        self,
+        instrument: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Close all open positions (optionally filtered by instrument).
+
+        Args:
+            instrument: Optional instrument to filter positions
+
+        Returns:
+            Dict with success status, closed count, and results
+        """
+        if not self._client:
+            raise RuntimeError("Not connected")
+
+        try:
+            # Get all open positions
+            positions = await self._client.search_open_positions()
+
+            if not positions:
+                return {"success": True, "closed_count": 0, "total": 0, "results": []}
+
+            results = []
+            for pos in positions:
+                pos_id = str(getattr(pos, 'id', ''))
+                pos_symbol = getattr(pos, 'contractName', getattr(pos, 'symbol', ''))
+
+                # Filter by instrument if provided
+                if instrument and instrument.upper() not in pos_symbol.upper():
+                    continue
+
+                try:
+                    # Determine the base symbol from the position
+                    base_symbol = pos_symbol
+                    # Extract base symbol from contract name (e.g., "MNQH2026" -> "MNQ")
+                    for sym in ['MNQ', 'MES', 'MYM', 'M2K', 'MCL', 'MGC', 'MBT', 'ES', 'NQ', 'YM', 'RTY', 'CL', 'GC']:
+                        if sym in pos_symbol.upper():
+                            base_symbol = sym
+                            break
+
+                    result = await self.close_position(
+                        instrument=base_symbol,
+                        position_id=pos_id,
+                    )
+                    results.append({
+                        "position_id": pos_id,
+                        "symbol": pos_symbol,
+                        "success": result.get("success", False),
+                        "trade_id": result.get("trade_id", ""),
+                        "error": result.get("error"),
+                    })
+                except Exception as e:
+                    results.append({
+                        "position_id": pos_id,
+                        "symbol": pos_symbol,
+                        "success": False,
+                        "error": str(e),
+                    })
+
+            closed_count = sum(1 for r in results if r["success"])
+            return {
+                "success": closed_count > 0 or len(results) == 0,
+                "closed_count": closed_count,
+                "total": len(results),
+                "results": results,
+            }
+        except Exception as e:
+            logger.error(f"close_all_positions failed: {e}")
+            return {"success": False, "error": str(e)}
 
     async def get_market_data(
         self,

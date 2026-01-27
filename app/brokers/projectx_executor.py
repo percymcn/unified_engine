@@ -844,3 +844,132 @@ class ProjectXExecutor(BaseExecutor):
                 logger.error(f"SDK subscribe_realtime_data failed: {e}")
                 return {"success": False, "error": str(e)}
         return {"success": False, "error": "Real-time data requires SDK mode"}
+
+    async def close_all_positions(self, symbol: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Close all open positions (optionally filtered by symbol).
+
+        Args:
+            symbol: Optional symbol to filter positions
+
+        Returns:
+            Dict with success status, closed count, and results
+        """
+        if self.is_using_sdk:
+            try:
+                return await self._sdk_service.close_all_positions(symbol)
+            except Exception as e:
+                logger.error(f"SDK close_all_positions failed: {e}")
+                return {"success": False, "error": str(e)}
+
+        # Fallback to httpx - get all positions and close each
+        try:
+            positions = await self._get_positions_httpx()
+            if symbol:
+                positions = [p for p in positions if symbol.upper() in p.symbol.upper()]
+
+            results = []
+            for pos in positions:
+                result = await self._close_position_httpx(str(pos.id))
+                results.append({
+                    "position_id": str(pos.id),
+                    "symbol": pos.symbol,
+                    "success": result.success,
+                    "trade_id": result.trade_id if result.success else "",
+                    "error": result.error if not result.success else None,
+                })
+
+            closed_count = sum(1 for r in results if r["success"])
+            return {
+                "success": closed_count > 0 or len(results) == 0,
+                "closed_count": closed_count,
+                "total": len(results),
+                "results": results,
+            }
+        except Exception as e:
+            logger.error(f"close_all_positions failed: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def place_stop_order(
+        self,
+        instrument: str,
+        side: str,
+        size: int,
+        stop_price: float,
+    ) -> OrderResponse:
+        """
+        Place stop order (triggers market order when stop price is reached).
+
+        Args:
+            instrument: Instrument symbol
+            side: "buy" or "sell"
+            size: Number of contracts
+            stop_price: Stop trigger price
+
+        Returns:
+            OrderResponse with order details
+        """
+        if self.is_using_sdk:
+            try:
+                result = await self._sdk_service.place_stop_order(
+                    instrument=instrument,
+                    side=side,
+                    size=size,
+                    stop_price=stop_price,
+                )
+                return OrderResponse(
+                    success=result.get("success", False),
+                    order_id=result.get("order_id", ""),
+                    broker="projectx",
+                    status=result.get("status", "submitted"),
+                    timestamp=datetime.now(),
+                    error=result.get("error"),
+                )
+            except Exception as e:
+                logger.error(f"SDK place_stop_order failed: {e}")
+                return OrderResponse(success=False, error=str(e))
+
+        # Fallback to httpx
+        try:
+            # Get contract ID for symbol
+            contract_response = await self._session.post(
+                "/api/Contract/Search",
+                json={"symbol": instrument}
+            )
+
+            if contract_response.status_code != 200:
+                return OrderResponse(success=False, error="Failed to find contract")
+
+            contracts = contract_response.json()
+            if isinstance(contracts, dict):
+                contracts = contracts.get("contracts", contracts.get("data", []))
+
+            if not contracts:
+                return OrderResponse(success=False, error=f"Contract not found: {instrument}")
+
+            contract_id = contracts[0].get("id") or contracts[0].get("contract_id")
+
+            order_data = {
+                "contractId": contract_id,
+                "side": side,
+                "type": "stop",
+                "size": int(size),
+                "stopPrice": stop_price,
+            }
+
+            response = await self._session.post("/api/Order/place", json=order_data)
+
+            if response.status_code == 200:
+                result = response.json()
+                return OrderResponse(
+                    success=True,
+                    order_id=str(result.get("id", "")),
+                    broker="projectx",
+                    status=result.get("status", "submitted"),
+                    timestamp=datetime.now(),
+                )
+
+            return OrderResponse(success=False, error=response.text)
+        except Exception as e:
+            logger.error(f"httpx place_stop_order failed: {e}")
+            return OrderResponse(success=False, error=str(e))

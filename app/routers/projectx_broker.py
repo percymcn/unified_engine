@@ -976,7 +976,7 @@ async def subscribe_stream(
     executor = await get_projectx_executor(request.account_id, current_user, db)
     try:
         result = await executor.subscribe_realtime_data(request.symbol)
-        
+
         return ProjectXStreamSubscribeResponse(
             success=result.get("success", False),
             symbol=request.symbol,
@@ -986,3 +986,173 @@ async def subscribe_stream(
     finally:
         # Don't disconnect - keep connection for streaming
         pass
+
+
+# ============================================================================
+# Priority Feature Endpoints
+# ============================================================================
+
+class ProjectXCloseAllPositionsResponse(BaseModel):
+    """Close all positions response"""
+    success: bool
+    closed_count: int
+    total: int
+    results: List[Dict[str, Any]] = Field(default_factory=list)
+    message: Optional[str] = None
+
+
+class ProjectXPositionSizeRequest(BaseModel):
+    """Position size calculation request"""
+    account_id: int
+    symbol: str
+    risk_amount: float = Field(..., gt=0, description="Amount to risk in dollars")
+    stop_loss_price: float = Field(..., gt=0, description="Stop loss price")
+    entry_price: float = Field(..., gt=0, description="Entry price")
+
+
+class ProjectXPositionSizeResponse(BaseModel):
+    """Position size calculation response"""
+    position_size: float
+    risk_amount: float
+    stop_loss_price: float
+    entry_price: float
+    risk_per_contract: Optional[float] = None
+    message: Optional[str] = None
+
+
+class ProjectXStopOrderCreate(BaseModel):
+    """Stop order creation request"""
+    account_id: int
+    symbol: str
+    side: str = Field(..., description="buy or sell")
+    quantity: float = Field(..., gt=0, description="Number of contracts")
+    stop_price: float = Field(..., gt=0, description="Stop trigger price")
+
+
+@router.delete("/positions/all", response_model=ProjectXCloseAllPositionsResponse)
+async def close_all_positions(
+    account_id: int = Query(..., description="Database account ID"),
+    symbol: Optional[str] = Query(None, description="Optional symbol filter"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Close all open positions (emergency safety feature).
+
+    Optionally filter by symbol to close only positions for a specific instrument.
+    """
+    executor = await get_projectx_executor(account_id, current_user, db)
+    try:
+        result = await executor.close_all_positions(symbol)
+
+        return ProjectXCloseAllPositionsResponse(
+            success=result.get("success", False),
+            closed_count=result.get("closed_count", 0),
+            total=result.get("total", 0),
+            results=result.get("results", []),
+            message=result.get("error"),
+        )
+    finally:
+        await executor.disconnect()
+
+
+@router.post("/risk/position-size", response_model=ProjectXPositionSizeResponse)
+async def calculate_position_size_endpoint(
+    request: ProjectXPositionSizeRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Calculate optimal position size based on risk parameters.
+
+    This is critical for risk management - calculates how many contracts
+    to trade based on the amount you're willing to risk and your stop loss distance.
+    """
+    executor = await get_projectx_executor(request.account_id, current_user, db)
+    try:
+        result = await executor.calculate_position_size(
+            symbol=request.symbol,
+            risk_amount=request.risk_amount,
+            stop_loss_price=request.stop_loss_price,
+            entry_price=request.entry_price,
+        )
+
+        if not result:
+            # Fallback calculation if SDK method fails
+            # Calculate based on tick value
+            price_diff = abs(request.entry_price - request.stop_loss_price)
+            if price_diff > 0:
+                # Get tick info for the symbol
+                tick_value = 0.50  # Default for micro futures
+                if request.symbol.upper() in ['ES', 'NQ', 'YM', 'RTY']:
+                    tick_value = 12.50  # Full-size
+                elif request.symbol.upper() in ['MES', 'MNQ', 'MYM', 'M2K']:
+                    tick_value = 1.25  # Micro
+                elif request.symbol.upper() in ['CL']:
+                    tick_value = 10.0
+                elif request.symbol.upper() in ['GC']:
+                    tick_value = 10.0
+
+                risk_per_contract = price_diff * tick_value
+                position_size = request.risk_amount / risk_per_contract if risk_per_contract > 0 else 0
+
+                return ProjectXPositionSizeResponse(
+                    position_size=round(position_size, 2),
+                    risk_amount=request.risk_amount,
+                    stop_loss_price=request.stop_loss_price,
+                    entry_price=request.entry_price,
+                    risk_per_contract=round(risk_per_contract, 2),
+                    message="Calculated using fallback method",
+                )
+
+        return ProjectXPositionSizeResponse(
+            position_size=result.get("position_size", 0.0),
+            risk_amount=result.get("risk_amount", request.risk_amount),
+            stop_loss_price=result.get("stop_loss_price", request.stop_loss_price),
+            entry_price=result.get("entry_price", request.entry_price),
+        )
+    finally:
+        await executor.disconnect()
+
+
+@router.post("/orders/stop", response_model=ProjectXOrderResponse, status_code=status.HTTP_201_CREATED)
+async def place_stop_order(
+    order_data: ProjectXStopOrderCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Place a stop order.
+
+    A stop order becomes a market order when the stop price is reached.
+    Use this for entering on breakouts or for stop-loss protection.
+    """
+    executor = await get_projectx_executor(order_data.account_id, current_user, db)
+    try:
+        result = await executor.place_stop_order(
+            instrument=order_data.symbol,
+            side=order_data.side,
+            size=int(order_data.quantity),
+            stop_price=order_data.stop_price,
+        )
+
+        if not result.success:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=result.error or "Stop order placement failed"
+            )
+
+        return ProjectXOrderResponse(
+            id=result.order_id,
+            broker="projectx",
+            account_id=str(order_data.account_id),
+            symbol=order_data.symbol,
+            side=order_data.side,
+            order_type="stop",
+            quantity=order_data.quantity,
+            price=order_data.stop_price,
+            status=result.status,
+            timestamp=result.timestamp.isoformat() if result.timestamp else datetime.now().isoformat(),
+        )
+    finally:
+        await executor.disconnect()
