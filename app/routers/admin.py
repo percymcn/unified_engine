@@ -396,8 +396,8 @@ async def get_pipeline_status(
     import asyncio
     import aiohttp
     from datetime import datetime, timedelta
-    from app.models.models import Signal, Trade, WebhookConfig
-    from app.models.database_models import TradingAccount
+    from app.models.models import Signal, Trade
+    from app.models.database_models import TradingAccount, WebhookConfig
 
     # Pipeline components status
     components = {}
