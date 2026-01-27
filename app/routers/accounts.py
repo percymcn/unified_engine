@@ -541,10 +541,22 @@ async def discover_accounts(
                 accounts=[],
                 message="No accounts found. ProjectX/TopStep accounts may need to be added manually with your account ID."
             )
-        
+
+        # Filter to only show active/funded/sim accounts for cleaner UX
+        # Only show accounts with status in ('active', 'funded') or account_type in ('funded', 'demo', 'eval')
+        filtered = [
+            acc for acc in discovered
+            if acc.status in ('active', 'funded')
+            or acc.account_type in ('funded', 'demo', 'eval', 'sim')
+        ]
+
+        # Sort by balance descending (most valuable accounts first) and limit to last 5
+        filtered.sort(key=lambda x: x.meta.get('balance', 0) if x.meta else 0, reverse=True)
+        filtered = filtered[:5]
+
         return DiscoverAccountsResponse(
-            accounts=discovered,
-            message=None if discovered else "No accounts found"
+            accounts=filtered if filtered else discovered[:5],  # Fallback to first 5 if filter too strict
+            message=None if filtered else "No active accounts found. Showing available accounts."
         )
         
     except Exception as e:

@@ -554,20 +554,20 @@ async def monitor_system_health():
                 logger.warning("Redis connection lost, attempting to reconnect...")
                 redis_client._connect()
 
-            # Check broker connections
+            # Check broker connections (only for globally-configured brokers)
+            # Skip brokers that use per-account database credentials (projectx, tradelocker, tradovate)
+            db_credential_brokers = {'projectx', 'topstep', 'tradelocker', 'tradovate'}
             for name, broker in signal_processor.brokers.items():
+                # Skip brokers that should use database credentials per-account
+                if name.lower() in db_credential_brokers:
+                    continue
                 try:
-                    if not broker.is_connected():
-                        logger.warning(f"Broker {name} disconnected, attempting to reconnect...")
+                    if broker.is_available and not broker.is_connected():
+                        logger.info(f"Broker {name} reconnecting...")
                         await broker.connect()
-                except:
-                    logger.warning(f"Broker {name} check failed")
-                    logger.warning(f"Broker {name} disconnected, attempting to reconnect...")
-                    try:
-                        await broker.initialize()
-                        logger.info(f"✅ Reconnected to {name}")
-                    except Exception as e:
-                        logger.error(f"❌ Failed to reconnect to {name}: {e}")
+                except Exception as e:
+                    # Only log at debug level for expected failures
+                    logger.debug(f"Broker {name} check skipped: {e}")
 
             # Wait before next check
             await asyncio.sleep(settings.HEALTH_CHECK_INTERVAL)
