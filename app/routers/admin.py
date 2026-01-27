@@ -439,7 +439,7 @@ async def get_pipeline_status(
     try:
         active_webhooks = db.query(WebhookConfig).filter(WebhookConfig.is_active == True).count()
         recent_signals = db.query(Signal).filter(
-            Signal.received_at >= datetime.utcnow() - timedelta(hours=1)
+            Signal.created_at >= datetime.utcnow() - timedelta(hours=1)
         ).count()
         components["webhook_ingestion"] = {
             "status": "healthy" if active_webhooks > 0 else "idle",
