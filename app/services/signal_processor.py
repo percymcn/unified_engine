@@ -1333,7 +1333,9 @@ class SignalProcessor:
                     pos_id = self._get_position_id(pos)
                     if pos_id:
                         try:
-                            result = await broker.close_position(str(pos_id))
+                            # Use quantity for partial close if specified
+                            close_qty = quantity if quantity and quantity > 0 else None
+                            result = await broker.close_position(str(pos_id), close_qty)
                             if self._is_close_successful(result):
                                 closed_count += 1
                             else:
