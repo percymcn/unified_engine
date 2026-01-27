@@ -299,38 +299,43 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Welcome heading */}
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 relative">
+      {/* Futuristic background grid */}
+      <div className="fixed inset-0 cyber-grid pointer-events-none opacity-30" />
+
+      {/* Welcome heading - Futuristic style */}
+      <div className="flex items-center justify-between relative">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-primary via-cyan-400 to-primary bg-clip-text text-transparent">
+            Dashboard
+          </h1>
+          <p className="text-muted-foreground mt-1">
             Welcome to Tradeflow. Monitor your trading signals and accounts.
           </p>
         </div>
         {/* Streak badge + WebSocket connection indicator */}
         <div className="flex items-center gap-4">
           <StreakBadge />
-          <div className="flex items-center gap-2 text-sm">
+          <div className="flex items-center gap-2 text-sm px-3 py-1.5 rounded-full bg-card/50 backdrop-blur-sm border border-border/50">
             <div
               className={cn(
-                'h-2 w-2 rounded-full',
-                wsStatus === 'connected' && 'bg-green-500',
-                wsStatus === 'connecting' && 'bg-amber-500 animate-pulse',
-                wsStatus === 'disconnected' && 'bg-red-500',
-                wsStatus === 'error' && 'bg-red-500'
+                'h-2.5 w-2.5 rounded-full',
+                wsStatus === 'connected' && 'bg-emerald-500 shadow-lg shadow-emerald-500/50',
+                wsStatus === 'connecting' && 'bg-amber-500 animate-pulse shadow-lg shadow-amber-500/50',
+                wsStatus === 'disconnected' && 'bg-red-500 shadow-lg shadow-red-500/50',
+                wsStatus === 'error' && 'bg-red-500 shadow-lg shadow-red-500/50'
               )}
             />
-            <span className="text-muted-foreground hidden sm:inline">
+            <span className="text-muted-foreground hidden sm:inline font-medium">
               {wsStatus === 'connected' ? 'Live' : wsStatus === 'connecting' ? 'Connecting...' : 'Offline'}
             </span>
           </div>
         </div>
       </div>
 
-      {/* Dashboard Tabs */}
-      <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+      {/* Dashboard Tabs - Futuristic style */}
+      <Tabs defaultValue="overview" className="w-full relative">
+        <TabsList className="grid w-full max-w-md grid-cols-2 bg-card/50 backdrop-blur-sm border border-border/50 p-1">
           <TabsTrigger value="overview" className="flex items-center gap-2">
             <LayoutDashboard className="h-4 w-4" />
             Overview
@@ -343,7 +348,7 @@ export default function DashboardPage() {
 
         {/* Overview Tab Content */}
         <TabsContent value="overview" className="mt-6 space-y-6">
-          {/* Row 1: Stats grid */}
+          {/* Row 1: Stats grid - Futuristic cyber cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {loading ? (
           <>
@@ -353,25 +358,37 @@ export default function DashboardPage() {
             <StatCardSkeleton />
           </>
         ) : (
-          statCards.map((stat) => (
+          statCards.map((stat, index) => (
             <Card
               key={stat.key}
               className={cn(
-                'glass glass-hover transition-all duration-300',
-                recentlyUpdated === stat.key && 'ring-2 ring-primary animate-pulse'
+                'cyber-card backdrop-blur-sm transition-all duration-300 hover:scale-[1.02] hover:neon-glow-sm group',
+                recentlyUpdated === stat.key && 'ring-2 ring-primary animate-glow-pulse'
               )}
             >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-                <stat.icon className={`h-4 w-4 ${stat.iconColor}`} />
+                <CardTitle className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">
+                  {stat.title}
+                </CardTitle>
+                <div className={cn(
+                  'p-2 rounded-lg bg-gradient-to-br',
+                  index === 0 && 'from-primary/20 to-cyan-500/20',
+                  index === 1 && 'from-emerald-500/20 to-teal-500/20',
+                  index === 2 && 'from-orange-500/20 to-amber-500/20',
+                  index === 3 && 'from-blue-500/20 to-indigo-500/20'
+                )}>
+                  <stat.icon className={cn('h-4 w-4', stat.iconColor)} />
+                </div>
               </CardHeader>
               <CardContent>
                 {error ? (
                   <div className="text-2xl font-bold text-muted-foreground">-</div>
                 ) : (
-                  <div className="text-2xl font-bold">{stat.value}</div>
+                  <div className="text-3xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
+                    {stat.value}
+                  </div>
                 )}
-                <p className="text-xs text-muted-foreground">{stat.description}</p>
+                <p className="text-xs text-muted-foreground mt-1">{stat.description}</p>
               </CardContent>
             </Card>
           ))
@@ -393,16 +410,19 @@ export default function DashboardPage() {
         )}
       </div>
 
-          {/* Quick Actions Section */}
-      <Card>
+          {/* Quick Actions Section - Futuristic */}
+      <Card className="cyber-card">
         <CardHeader className="pb-3">
-          <CardTitle className="text-lg">Quick Actions</CardTitle>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+            Quick Actions
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap gap-2">
             <TestWebhookButton onSuccess={handleTestWebhookSuccess} />
           </div>
-          <div className="rounded-lg border bg-muted/40 p-4 space-y-3">
+          <div className="rounded-lg border border-border/50 bg-gradient-to-br from-card to-muted/20 p-4 space-y-3 backdrop-blur-sm">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div>
                 <div className="flex items-center gap-2">

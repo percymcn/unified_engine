@@ -121,6 +121,41 @@
     --chart-4: 180 60% 45%;
     --chart-5: 240 70% 65%;
   }
+
+  .cyber {
+    /* Cyberpunk/Futuristic theme - neon accents on deep dark */
+    --background: 240 20% 4%;
+    --foreground: 180 100% 95%;
+    --card: 240 20% 7%;
+    --card-foreground: 180 100% 95%;
+    --popover: 240 20% 6%;
+    --popover-foreground: 180 100% 95%;
+    --primary: 180 100% 50%;
+    --primary-foreground: 240 20% 4%;
+    --secondary: 260 80% 60%;
+    --secondary-foreground: 180 100% 95%;
+    --muted: 240 15% 15%;
+    --muted-foreground: 180 30% 60%;
+    --accent: 320 100% 60%;
+    --accent-foreground: 240 20% 4%;
+    --destructive: 0 90% 60%;
+    --destructive-foreground: 180 100% 95%;
+    --border: 240 20% 18%;
+    --input: 240 20% 12%;
+    --ring: 180 100% 50%;
+    --chart-1: 180 100% 50%;
+    --chart-2: 320 100% 60%;
+    --chart-3: 260 80% 60%;
+    --chart-4: 45 100% 55%;
+    --chart-5: 140 70% 50%;
+
+    /* Cyber-specific custom properties */
+    --neon-cyan: 180 100% 50%;
+    --neon-magenta: 320 100% 60%;
+    --neon-purple: 260 80% 60%;
+    --neon-yellow: 45 100% 55%;
+    --neon-green: 140 70% 50%;
+  }
 }
 
 @layer base {
@@ -158,4 +193,176 @@
 
 .animation-delay-4000 {
   animation-delay: 4s;
+}
+
+/* Futuristic/Cyber UI utilities */
+@layer utilities {
+  /* Neon glow effects */
+  .neon-glow {
+    box-shadow: 0 0 5px hsl(var(--primary)),
+                0 0 10px hsl(var(--primary) / 0.5),
+                0 0 20px hsl(var(--primary) / 0.3);
+  }
+
+  .neon-glow-sm {
+    box-shadow: 0 0 3px hsl(var(--primary)),
+                0 0 6px hsl(var(--primary) / 0.4);
+  }
+
+  .neon-text {
+    text-shadow: 0 0 5px hsl(var(--primary)),
+                 0 0 10px hsl(var(--primary) / 0.5);
+  }
+
+  .neon-border {
+    border-color: hsl(var(--primary) / 0.5);
+    box-shadow: inset 0 0 10px hsl(var(--primary) / 0.1),
+                0 0 10px hsl(var(--primary) / 0.2);
+  }
+
+  /* Gradient borders */
+  .gradient-border {
+    position: relative;
+    background: linear-gradient(hsl(var(--card)), hsl(var(--card))) padding-box,
+                linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)), hsl(var(--secondary))) border-box;
+    border: 1px solid transparent;
+  }
+
+  /* Scanline effect */
+  .scanlines::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      hsl(var(--primary) / 0.03) 2px,
+      hsl(var(--primary) / 0.03) 4px
+    );
+    pointer-events: none;
+  }
+
+  /* Holographic shimmer */
+  .holo-shimmer {
+    background: linear-gradient(
+      135deg,
+      hsl(180 100% 50% / 0.1) 0%,
+      hsl(320 100% 60% / 0.1) 25%,
+      hsl(260 80% 60% / 0.1) 50%,
+      hsl(180 100% 50% / 0.1) 75%,
+      hsl(320 100% 60% / 0.1) 100%
+    );
+    background-size: 200% 200%;
+    animation: holo-shift 8s ease infinite;
+  }
+
+  /* Grid pattern background */
+  .cyber-grid {
+    background-image:
+      linear-gradient(hsl(var(--primary) / 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--primary) / 0.05) 1px, transparent 1px);
+    background-size: 30px 30px;
+  }
+
+  /* Dot pattern background */
+  .dot-pattern {
+    background-image: radial-gradient(hsl(var(--primary) / 0.15) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+
+  /* Futuristic card */
+  .cyber-card {
+    @apply relative overflow-hidden;
+    background: linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--card) / 0.8) 100%);
+    border: 1px solid hsl(var(--border) / 0.5);
+    box-shadow:
+      0 4px 20px hsl(var(--primary) / 0.1),
+      inset 0 1px 0 hsl(var(--primary) / 0.1);
+  }
+
+  .cyber-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, hsl(var(--primary) / 0.5), transparent);
+  }
+
+  /* Animated border */
+  .animated-border {
+    position: relative;
+  }
+
+  .animated-border::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    background: linear-gradient(90deg, hsl(var(--primary)), hsl(var(--accent)), hsl(var(--primary)));
+    background-size: 200% 100%;
+    animation: border-flow 3s linear infinite;
+    border-radius: inherit;
+    z-index: -1;
+    opacity: 0.5;
+  }
+
+  /* Status indicator pulse */
+  .status-pulse {
+    @apply relative;
+  }
+
+  .status-pulse::after {
+    content: '';
+    @apply absolute inset-0 rounded-full;
+    background: inherit;
+    animation: status-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+  }
+
+  /* Data flow animation */
+  .data-flow {
+    background: linear-gradient(90deg, transparent, hsl(var(--primary) / 0.3), transparent);
+    background-size: 200% 100%;
+    animation: data-stream 2s linear infinite;
+  }
+}
+
+/* Keyframe animations */
+@keyframes holo-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes border-flow {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+@keyframes status-ping {
+  0% { transform: scale(1); opacity: 0.8; }
+  75%, 100% { transform: scale(2); opacity: 0; }
+}
+
+@keyframes data-stream {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 5px hsl(var(--primary)), 0 0 10px hsl(var(--primary) / 0.5); }
+  50% { box-shadow: 0 0 10px hsl(var(--primary)), 0 0 20px hsl(var(--primary) / 0.5), 0 0 30px hsl(var(--primary) / 0.3); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
 }
