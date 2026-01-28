@@ -35,7 +35,7 @@ import {
   type CredentialField,
 } from '@/lib/brokers/credentialSchemas';
 import { TradovateOAuthButton } from './tradovate-oauth-button';
-import { testConnection, TestConnectionResult, discoverAccounts, DiscoveredAccount } from '@/lib/api/accounts';
+import { testConnection, TestConnectionResult, discoverAccounts, DiscoveredAccount, connectMetaApiAccount } from '@/lib/api/accounts';
 import { Checkbox } from '@/components/ui/checkbox';
 
 /**
@@ -303,24 +303,66 @@ export function AccountForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Block submit for unsupported brokers
     if (!isBrokerSupported) {
       setFormError('This broker is not yet supported. Please select a supported broker.');
       return;
     }
-    
+
     setSubmitting(true);
     setFormError(null);
 
     try {
       // Map UI credentials to backend format
       const backendCredentials = mapCredentialsToBackend(broker, credentials);
-      
+
       if (process.env.NODE_ENV === 'development') {
         console.log('Create account - credential keys:', Object.keys(backendCredentials));
       }
 
+      // Special handling for MT4/MT5 - use MetaApi BYOA endpoint (password not stored)
+      if ((broker === 'mt4' || broker === 'mt5') && !isEdit) {
+        const login = backendCredentials.login as string;
+        const password = backendCredentials.password as string;
+        const server = backendCredentials.server as string;
+        const nickname = (backendCredentials.account_name as string) || `${broker.toUpperCase()}-${login}`;
+
+        if (!login || !password || !server) {
+          setFormError('Login, password, and server are required for MT4/MT5 accounts.');
+          setSubmitting(false);
+          return;
+        }
+
+        try {
+          // Use BYOA endpoint - password is sent to MetaApi only, never stored
+          const metaApiResult = await connectMetaApiAccount({
+            platform: broker as 'mt4' | 'mt5',
+            login,
+            password,
+            server,
+            nickname,
+            account_type: accountType as 'demo' | 'live' | 'funded' | 'evaluation',
+          });
+
+          // Success! The account was created via MetaApi
+          console.log('MetaApi account connected:', metaApiResult.metaapi_account_id);
+
+          // Close the form - the account list will refresh
+          onClose();
+
+          // Optionally show success info (parent can handle via refresh)
+          return;
+        } catch (metaApiError) {
+          console.error('MetaApi connection failed:', metaApiError);
+          const errorMsg = metaApiError instanceof Error ? metaApiError.message : 'Connection failed';
+          setFormError(`MetaApi connection failed: ${errorMsg}`);
+          setSubmitting(false);
+          return;
+        }
+      }
+
+      // Standard flow for other brokers
       // Determine account_id: use existing if editing, otherwise use default account ID or manual input
       const finalAccountId = isEdit
         ? account?.account_id || ''
@@ -340,7 +382,7 @@ export function AccountForm({
         leverage: parseInt(leverage),
         broker_config: brokerConfigWithAccounts,
       };
-      
+
       // Add broker account selection if accounts were discovered
       if (discoveredAccounts.length > 0 && selectedAccountIds.size > 0) {
         accountData.enabled_broker_account_ids = Array.from(selectedAccountIds);

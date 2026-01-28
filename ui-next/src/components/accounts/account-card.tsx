@@ -23,7 +23,7 @@ import {
   ACCOUNT_TYPE_DISPLAY_NAMES,
 } from '@/types/account';
 import { cn } from '@/lib/utils';
-import { syncAccount } from '@/lib/api/accounts';
+import { syncAccount, reconnectMetaApiAccount } from '@/lib/api/accounts';
 import { useToast } from '@/hooks/use-toast';
 import { parseAccountError, formatErrorForToast } from '@/lib/errors/account-errors';
 import { useUser } from '@/providers/user-provider';
@@ -54,8 +54,37 @@ export function AccountCard({
   onSyncRefresh,
 }: AccountCardProps) {
   const [syncing, setSyncing] = useState(false);
+  const [reconnecting, setReconnecting] = useState(false);
   const { toast } = useToast();
   const { user } = useUser();  // Patch 1.2.1 - get user_id for webhook URL
+
+  // Check if this is a MetaApi account (MT4/MT5)
+  const isMetaApiAccount = account.broker === 'mt4' || account.broker === 'mt5';
+
+  // Handle MetaApi reconnect for MT4/MT5
+  const handleReconnect = async () => {
+    if (!isMetaApiAccount) return;
+
+    setReconnecting(true);
+    try {
+      const result = await reconnectMetaApiAccount(account.id);
+      toast({
+        title: 'Reconnecting',
+        description: result.message || 'MetaApi account reconnection initiated.',
+      });
+      onSyncRefresh?.();
+    } catch (error) {
+      console.error('Failed to reconnect MetaApi account:', error);
+      const errorMsg = error instanceof Error ? error.message : 'Reconnection failed';
+      toast({
+        title: 'Reconnect Failed',
+        description: errorMsg,
+        variant: 'destructive',
+      });
+    } finally {
+      setReconnecting(false);
+    }
+  };
 
   const handleSync = async () => {
     setSyncing(true);
@@ -255,25 +284,48 @@ export function AccountCard({
 
         {/* Actions */}
         <div className="flex gap-2 pt-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleSync}
-            disabled={syncing || !account.is_connected}
-            className="flex-1"
-          >
-            {syncing ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Syncing...
-              </>
-            ) : (
-              <>
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Sync
-              </>
-            )}
-          </Button>
+          {/* Show Reconnect button for disconnected MT4/MT5 accounts */}
+          {isMetaApiAccount && !account.is_connected ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleReconnect}
+              disabled={reconnecting}
+              className="flex-1"
+            >
+              {reconnecting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Reconnecting...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Reconnect
+                </>
+              )}
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSync}
+              disabled={syncing || !account.is_connected}
+              className="flex-1"
+            >
+              {syncing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Syncing...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Sync
+                </>
+              )}
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"
