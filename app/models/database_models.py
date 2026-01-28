@@ -306,7 +306,7 @@ class RejectedSignalReason(enum.Enum):
     RISK_REWARD = "risk_reward"
     DISABLED = "disabled"
     DUPLICATE_ENTRY = "duplicate_entry"  # Position already open for symbol in same direction
-    TRIAL_EXPIRED = "trial_expired"  # Free trial has ended (100 trades or 3 days)
+    TRIAL_EXPIRED = "trial_expired"  # Free trial has ended (50 trades or 7 days)
 
 
 class RejectedSignal(Base):

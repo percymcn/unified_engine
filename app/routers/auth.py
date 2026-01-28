@@ -11,6 +11,12 @@ from app.models.models import User, UserSession
 from app.models.schemas import UserCreate, User as UserSchema, Token, TokenData, LoginRequest
 from app.core.config import settings
 from app.core.event_emitter import emit_user_event
+from app.services.email_service import (
+    generate_verification_token,
+    verify_email_token,
+    send_verification_email,
+    send_welcome_email
+)
 
 router = APIRouter()
 security = HTTPBearer()
@@ -174,13 +180,24 @@ async def register(user: UserCreate, db: Session = Depends(get_db)):
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
-    
+
+    # Send verification email (non-blocking)
+    try:
+        token = generate_verification_token(db_user.email, db_user.id)
+        email_sent = send_verification_email(db_user.email, db_user.username, token)
+        if email_sent:
+            logger.info(f"Verification email sent to {db_user.email}")
+        else:
+            logger.warning(f"Failed to send verification email to {db_user.email} - SMTP not configured")
+    except Exception as e:
+        logger.error(f"Error sending verification email: {e}")
+
     # Emit event
     await emit_user_event("signup", db_user.id, {
         "email": db_user.email,
         "username": db_user.username
     })
-    
+
     logger.info(f"User registered successfully: {db_user.id}, username: {db_user.username}")
     return db_user
 
@@ -337,6 +354,83 @@ async def revoke_session(
     db.commit()
     
     return {"message": "Session revoked"}
+
+
+@router.post("/verify-email")
+async def verify_email(token: str = Body(..., embed=True), db: Session = Depends(get_db)):
+    """
+    Verify user email with token from verification email.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+
+    # Decode and validate token
+    payload = verify_email_token(token)
+    if not payload:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid or expired verification token"
+        )
+
+    user_id = payload.get("user_id")
+    email = payload.get("sub")
+
+    # Find user
+    user = db.query(User).filter(User.id == user_id, User.email == email).first()
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
+        )
+
+    if user.is_verified:
+        return {"message": "Email already verified", "already_verified": True}
+
+    # Mark as verified
+    user.is_verified = True
+    db.commit()
+
+    # Send welcome email
+    try:
+        send_welcome_email(user.email, user.username)
+    except Exception as e:
+        logger.error(f"Failed to send welcome email: {e}")
+
+    logger.info(f"Email verified for user {user.id}")
+    return {"message": "Email verified successfully", "verified": True}
+
+
+@router.post("/resend-verification")
+async def resend_verification_email(
+    email: str = Body(..., embed=True),
+    db: Session = Depends(get_db)
+):
+    """
+    Resend verification email to user.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        # Don't reveal if email exists
+        return {"message": "If the email exists, a verification link has been sent"}
+
+    if user.is_verified:
+        return {"message": "Email already verified", "already_verified": True}
+
+    # Generate and send new verification email
+    try:
+        token = generate_verification_token(user.email, user.id)
+        email_sent = send_verification_email(user.email, user.username, token)
+        if email_sent:
+            logger.info(f"Verification email resent to {user.email}")
+        else:
+            logger.warning(f"SMTP not configured - could not resend verification")
+    except Exception as e:
+        logger.error(f"Error resending verification email: {e}")
+
+    return {"message": "If the email exists, a verification link has been sent"}
 
 
 async def verify_api_key(api_key: str = Header(None, alias="X-API-Key"), db: Session = Depends(get_db)) -> User:

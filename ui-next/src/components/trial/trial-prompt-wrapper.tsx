@@ -42,7 +42,7 @@ export function TrialPromptWrapper() {
 
   // Only show for expired or low trades
   const isExpired = trialStatus.is_expired || trialStatus.status === "expired";
-  const tradesRemaining = trialStatus.trades_remaining ?? 100;
+  const tradesRemaining = trialStatus.trades_remaining ?? 50;
   const isLowTrades = tradesRemaining > 0 && tradesRemaining <= 10;
 
   if (!isExpired && !isLowTrades) return null;

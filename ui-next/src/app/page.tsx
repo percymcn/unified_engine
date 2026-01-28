@@ -14,6 +14,7 @@ import { Comparison } from "@/components/landing/comparison";
 import { TestimonialsSection } from "@/components/landing/testimonials-section";
 import { FAQ } from "@/components/landing/faq";
 import { Footer } from "@/components/landing/footer";
+import { SalesChat } from "@/components/landing/sales-chat";
 
 export const metadata: Metadata = {
   title: "Tradeflow - Never Miss a Trade Again | Auto-Execute TradingView Signals",
@@ -75,6 +76,8 @@ export default function Home() {
         <FAQ />
       </main>
       <Footer />
+      {/* Sales chatbot for visitor questions */}
+      <SalesChat />
     </>
   );
 }

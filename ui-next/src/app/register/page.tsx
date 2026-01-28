@@ -78,6 +78,7 @@ export default function RegisterPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [registrationSuccess, setRegistrationSuccess] = useState(false);
 
   /**
    * Handle form submission
@@ -122,8 +123,8 @@ export default function RegisterPage() {
       const data: RegisterResponse = await response.json();
 
       if (data.success) {
-        // Redirect to login with success message
-        router.push("/login?registered=true");
+        // Show success message instead of redirecting
+        setRegistrationSuccess(true);
       } else {
         setError(data.error || "Registration failed. Please try again.");
       }
@@ -144,6 +145,50 @@ export default function RegisterPage() {
     // Redirect to Google OAuth authorization URL
     window.location.href = googleAuthUrl;
   };
+
+  // Show success screen after registration
+  if (registrationSuccess) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center px-4 py-12">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-0 -left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
+          <div className="absolute bottom-0 -right-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl" />
+        </div>
+
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="relative z-10 w-full max-w-md"
+        >
+          <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-xl p-8 shadow-2xl text-center">
+            <div className="mx-auto mb-6 w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center">
+              <Mail className="w-8 h-8 text-emerald-400" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-100 mb-2">Check Your Email</h1>
+            <p className="text-gray-400 mb-6">
+              We&apos;ve sent a verification link to <strong className="text-gray-200">{email}</strong>.
+              Click the link to activate your account.
+            </p>
+            <div className="bg-gray-900/50 rounded-lg p-4 mb-6 text-sm text-gray-400">
+              <p>The link expires in 24 hours. Check your spam folder if you don&apos;t see it.</p>
+            </div>
+            <div className="space-y-3">
+              <Link href="/login">
+                <button className="w-full py-3 bg-gradient-to-r from-blue-500 to-emerald-500 hover:from-blue-600 hover:to-emerald-600 text-white font-semibold rounded-lg transition-all">
+                  Go to Login
+                </button>
+              </Link>
+              <Link href="/resend-verification">
+                <button className="w-full py-3 border border-gray-600 text-gray-300 hover:bg-gray-800/50 rounded-lg transition-all">
+                  Resend Verification Email
+                </button>
+              </Link>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center px-4 py-12">

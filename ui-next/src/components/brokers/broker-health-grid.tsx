@@ -132,14 +132,11 @@ export function BrokerHealthGrid() {
     );
   }
 
-  // Determine if broker is connected: has active account OR health check says connected
+  // Determine if broker is connected: ONLY if user has an active account
+  // No fallback to system-wide health - show only the user's own connections
   const isBrokerConnected = (broker: BrokerType): boolean => {
-    // If we have an active account for this broker, consider it connected
-    if (accountBrokers.has(broker)) {
-      return true;
-    }
-    // Fall back to health status
-    return healthStatus?.brokers[broker] ?? false;
+    // Only show connected if user has an active account for this broker
+    return accountBrokers.has(broker);
   };
 
   return (

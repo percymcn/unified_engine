@@ -196,7 +196,16 @@ class Settings(BaseSettings):
     
     MICROSOFT_CLIENT_ID: Optional[str] = None
     MICROSOFT_CLIENT_SECRET: Optional[str] = None
-    
+
+    # Email (SMTP) Configuration
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: Optional[str] = None  # Email sender address
+    SMTP_PASSWORD: Optional[str] = None  # App password for Gmail
+    SMTP_FROM_NAME: str = "Tradeflow"
+    SMTP_FROM_EMAIL: Optional[str] = None  # If different from SMTP_USER
+    EMAIL_VERIFICATION_EXPIRE_HOURS: int = 24
+
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v):

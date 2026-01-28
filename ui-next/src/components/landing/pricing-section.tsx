@@ -46,7 +46,7 @@ export function PricingSection() {
           {/* Free Trial Callout */}
           <div className="inline-flex items-center gap-2 bg-green-500/10 text-green-600 dark:text-green-400 px-4 py-2 rounded-full text-sm font-medium mb-6">
             <Sparkles className="h-4 w-4" />
-            Start with 100 free trades - No credit card required
+            Start with 50 free trades or 7 days - No credit card required
           </div>
 
           {/* Annual/Monthly Toggle */}

@@ -192,11 +192,11 @@ export function TrialStatusWidget() {
   const isTrialNotStarted = trialStatus?.status === "not_started";
 
   const tradesRemaining = trialStatus?.trades_remaining ?? 0;
-  const tradesLimit = trialStatus?.trades_limit ?? 100;
+  const tradesLimit = trialStatus?.trades_limit ?? 50;
   const tradesUsed = trialStatus?.trades_used ?? 0;
   const daysRemaining = trialStatus?.days_remaining ?? 0;
   const hoursRemaining = trialStatus?.hours_remaining ?? 0;
-  const daysLimit = trialStatus?.days_limit ?? 3;
+  const daysLimit = trialStatus?.days_limit ?? 7;
 
   // Calculate progress percentages (inverted - remaining is what's left)
   const tradesProgress = tradesLimit > 0 ? (tradesUsed / tradesLimit) * 100 : 0;
@@ -277,7 +277,7 @@ export function TrialStatusWidget() {
               <div>
                 <p className="font-medium">Free Trial Ready</p>
                 <p className="text-xs text-muted-foreground">
-                  100 trades | 3 days
+                  50 trades | 7 days
                 </p>
               </div>
             </div>

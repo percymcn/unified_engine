@@ -1,7 +1,7 @@
 """
 Trial Service
 Handles free trial tracking and enforcement for new users.
-Trial limits: 100 trades OR 3 days (whichever comes first).
+Trial limits: 50 trades OR 7 days (whichever comes first).
 """
 import logging
 from datetime import datetime, timedelta
@@ -14,8 +14,8 @@ from app.models.models import User
 logger = logging.getLogger(__name__)
 
 # Trial constants
-MAX_TRIAL_TRADES = 100
-MAX_TRIAL_DAYS = 3
+MAX_TRIAL_TRADES = 50
+MAX_TRIAL_DAYS = 7
 
 
 class TrialStatus(str, Enum):
@@ -97,7 +97,7 @@ class TrialService:
             - NOT_APPLICABLE: User is on paid tier
             - NOT_STARTED: Trial pending, hasn't executed first signal yet
             - ACTIVE: Trial in progress, limits not exceeded
-            - EXPIRED: Trial expired (100 trades or 3 days exceeded)
+            - EXPIRED: Trial expired (50 trades or 7 days exceeded)
         """
         # Paid users bypass trial
         if user.subscription_tier != "free":
