@@ -575,14 +575,14 @@ async def get_pipeline_status(
     # 7. Recent activity feed
     recent_activity = []
     try:
-        recent_signals_list = db.query(Signal).order_by(Signal.received_at.desc()).limit(5).all()
+        recent_signals_list = db.query(Signal).order_by(Signal.created_at.desc()).limit(5).all()
         for sig in recent_signals_list:
             recent_activity.append({
                 "type": "signal",
                 "action": sig.action,
                 "symbol": sig.symbol,
                 "status": sig.status,
-                "time": sig.received_at.isoformat() if sig.received_at else None
+                "time": sig.created_at.isoformat() if sig.created_at else None
             })
 
         recent_trades_list = db.query(Trade).order_by(Trade.created_at.desc()).limit(5).all()
@@ -930,13 +930,13 @@ async def get_system_logs(
     try:
         # Get recent signals
         if log_type in ["all", "signals"]:
-            signals = db.query(Signal).order_by(Signal.received_at.desc()).offset(offset).limit(limit).all()
+            signals = db.query(Signal).order_by(Signal.created_at.desc()).offset(offset).limit(limit).all()
             for sig in signals:
                 user = db.query(User).filter(User.id == sig.user_id).first() if sig.user_id else None
                 logs.append({
                     "id": sig.id,
                     "type": "signal",
-                    "timestamp": sig.received_at.isoformat() if sig.received_at else None,
+                    "timestamp": sig.created_at.isoformat() if sig.created_at else None,
                     "user_email": user.email if user else "System",
                     "action": sig.action,
                     "symbol": sig.symbol,
