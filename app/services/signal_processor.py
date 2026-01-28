@@ -152,23 +152,37 @@ async def _create_account_executor(account: TradingAccount, db: Session):
 
     elif broker_type == "mt4":
         executor = MT4Executor()
-        # Use platform's master token + user's provisioned account_id
+        # Use per-user MetaAPI credentials from database
         metaapi_account_id = credentials.get("metaapi_account_id")
-        if metaapi_account_id:
-            from app.core.config import settings
-            executor._metaapi_token = settings.METAAPI_TOKEN
+        metaapi_token = credentials.get("metaapi_token") or credentials.get("api_token")
+        if metaapi_account_id and metaapi_token:
+            executor._metaapi_token = metaapi_token
             executor._metaapi_account_id = metaapi_account_id
-            executor.is_available = bool(executor._metaapi_token and executor._metaapi_account_id)
+            executor.is_available = True
+        elif metaapi_account_id:
+            # Fallback to platform token if user token not available
+            from app.core.config import settings
+            if settings.METAAPI_TOKEN:
+                executor._metaapi_token = settings.METAAPI_TOKEN
+                executor._metaapi_account_id = metaapi_account_id
+                executor.is_available = True
 
     elif broker_type == "mt5":
         executor = MT5Executor()
-        # Use platform's master token + user's provisioned account_id
+        # Use per-user MetaAPI credentials from database
         metaapi_account_id = credentials.get("metaapi_account_id")
-        if metaapi_account_id:
-            from app.core.config import settings
-            executor._metaapi_token = settings.METAAPI_TOKEN
+        metaapi_token = credentials.get("metaapi_token") or credentials.get("api_token")
+        if metaapi_account_id and metaapi_token:
+            executor._metaapi_token = metaapi_token
             executor._metaapi_account_id = metaapi_account_id
-            executor.is_available = bool(executor._metaapi_token and executor._metaapi_account_id)
+            executor.is_available = True
+        elif metaapi_account_id:
+            # Fallback to platform token if user token not available
+            from app.core.config import settings
+            if settings.METAAPI_TOKEN:
+                executor._metaapi_token = settings.METAAPI_TOKEN
+                executor._metaapi_account_id = metaapi_account_id
+                executor.is_available = True
 
     # Initialize the executor if created
     if executor:
