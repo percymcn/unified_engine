@@ -507,7 +507,7 @@ export function BacktestEngine({
             {/* Equity Curve Tab */}
             <TabsContent value="equity" className="space-y-4">
               <div className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={100} minHeight={100}>
                   <AreaChart data={results.equityCurve}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                     <XAxis
@@ -542,7 +542,7 @@ export function BacktestEngine({
 
               {/* Drawdown Chart */}
               <div className="h-[150px]">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={100} minHeight={50}>
                   <AreaChart data={results.equityCurve}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                     <XAxis
@@ -644,7 +644,7 @@ export function BacktestEngine({
             {/* Monthly Returns Tab */}
             <TabsContent value="monthly">
               <div className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={100} minHeight={100}>
                   <LineChart data={results.monthlyReturns}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                     <XAxis

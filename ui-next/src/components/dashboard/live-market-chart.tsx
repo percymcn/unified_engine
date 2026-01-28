@@ -321,7 +321,7 @@ export function LiveMarketChart() {
             animate={{ opacity: 1 }}
             transition={{ duration: 0.3 }}
           >
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={100} minHeight={100}>
               <ComposedChart
                 data={bars.slice(-50)} // Last 50 bars
                 margin={{ top: 5, right: 5, left: 0, bottom: 5 }}

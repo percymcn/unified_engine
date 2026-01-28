@@ -263,7 +263,7 @@ export function EquityChartWidget() {
           animate={{ opacity: 1 }}
           transition={{ duration: 0.5, delay: 0.2 }}
         >
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={100} minHeight={100}>
             <AreaChart
               data={equityData.data}
               margin={{ top: 10, right: 10, left: 0, bottom: 5 }}
