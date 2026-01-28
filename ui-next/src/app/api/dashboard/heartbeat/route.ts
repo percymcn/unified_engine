@@ -32,10 +32,12 @@ export async function GET() {
       : (accountsData?.accounts || []);
 
     // Build heartbeat data
+    // healthData.brokers is an object keyed by broker name, not an array
+    const brokersMap = healthData.brokers || {};
+
     const heartbeats = accounts.map((account: any) => {
-      const health = healthData.brokers?.find(
-        (b: any) => b.broker?.toLowerCase() === account.broker?.toLowerCase()
-      );
+      const brokerKey = account.broker?.toLowerCase();
+      const health = brokersMap[brokerKey] || null;
 
       // Calculate latency based on health data or estimate
       const latencyMs = health?.response_time_ms || Math.random() * 50 + 10;

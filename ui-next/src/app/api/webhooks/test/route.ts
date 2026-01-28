@@ -33,8 +33,7 @@ export async function POST() {
     }
 
     const profile = await profileResponse.json();
-
-    const accountsResponse = await fetch(`${BACKEND_URL}/api/v1/accounts`, {
+    const accountsResponse = await fetch(`${BACKEND_URL}/api/v1/accounts/`, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',

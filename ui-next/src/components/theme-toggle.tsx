@@ -14,6 +14,22 @@ import {
 export function ThemeToggle() {
   const { setTheme, theme } = useTheme();
 
+  // Save theme to backend for per-user persistence
+  const handleThemeChange = async (newTheme: string) => {
+    setTheme(newTheme);
+    // Persist to backend (fire-and-forget, don't block UI)
+    try {
+      await fetch('/api/users/me/preferences', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ theme: newTheme }),
+        credentials: 'include',
+      });
+    } catch (e) {
+      // Silent fail - localStorage already has it
+    }
+  };
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -31,28 +47,28 @@ export function ThemeToggle() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem
-          onClick={() => setTheme('light')}
+          onClick={() => handleThemeChange('light')}
           className={theme === 'light' ? 'bg-accent' : ''}
         >
           <Sun className="mr-2 h-4 w-4" />
           <span>Light</span>
         </DropdownMenuItem>
         <DropdownMenuItem
-          onClick={() => setTheme('dark')}
+          onClick={() => handleThemeChange('dark')}
           className={theme === 'dark' ? 'bg-accent' : ''}
         >
           <Moon className="mr-2 h-4 w-4" />
           <span>Dark</span>
         </DropdownMenuItem>
         <DropdownMenuItem
-          onClick={() => setTheme('system')}
+          onClick={() => handleThemeChange('system')}
           className={theme === 'system' ? 'bg-accent' : ''}
         >
           <Monitor className="mr-2 h-4 w-4" />
           <span>System</span>
         </DropdownMenuItem>
         <DropdownMenuItem
-          onClick={() => setTheme('ocean')}
+          onClick={() => handleThemeChange('ocean')}
           className={theme === 'ocean' ? 'bg-accent' : ''}
         >
           <Waves className="mr-2 h-4 w-4" />

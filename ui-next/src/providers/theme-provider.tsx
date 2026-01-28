@@ -45,9 +45,33 @@ export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
       storageKey="tradeflow-dashboard-theme"
       {...props}
     >
-      {children}
+      <ThemeLoader>{children}</ThemeLoader>
     </NextThemesProvider>
   );
+}
+
+/**
+ * Component that loads user's theme preference from backend on mount
+ */
+function ThemeLoader({ children }: { children: React.ReactNode }) {
+  const { setTheme } = useNextTheme();
+  const [loaded, setLoaded] = React.useState(false);
+
+  React.useEffect(() => {
+    if (loaded) return;
+    // Load theme from backend on mount
+    fetch('/api/users/me/preferences', { credentials: 'include' })
+      .then(res => res.ok ? res.json() : null)
+      .then(prefs => {
+        if (prefs?.theme) {
+          setTheme(prefs.theme);
+        }
+        setLoaded(true);
+      })
+      .catch(() => setLoaded(true));
+  }, [loaded, setTheme]);
+
+  return <>{children}</>;
 }
 
 /**

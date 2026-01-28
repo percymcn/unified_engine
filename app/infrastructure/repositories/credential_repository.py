@@ -172,3 +172,41 @@ class CredentialRepository:
         await self._session.flush()
         logger.info(f"Credential deactivated: {credential_id}")
         return True
+
+    async def get_by_user_and_service(
+        self,
+        user_id: int,
+        service: str,
+        active_only: bool = True
+    ) -> Optional[dict]:
+        """
+        Get decrypted credential data by user_id and service.
+
+        Returns the first active credential found for the user/service combination.
+        """
+        conditions = [
+            Credential.user_id == user_id,
+            Credential.service == service
+        ]
+        if active_only:
+            conditions.append(Credential.is_active == True)
+
+        result = await self._session.execute(
+            select(Credential).where(and_(*conditions)).limit(1)
+        )
+        credential = result.scalar_one_or_none()
+
+        if not credential:
+            return None
+
+        try:
+            # Update access tracking
+            credential.access_count += 1
+            credential.last_accessed = datetime.utcnow()
+            await self._session.flush()
+
+            # Decrypt and return
+            return self._encryption.decrypt_dict(credential.encrypted_data)
+        except EncryptionError as e:
+            logger.error(f"Failed to decrypt credential for user {user_id}, service {service}: {e}")
+            return None

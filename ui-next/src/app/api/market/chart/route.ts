@@ -41,10 +41,11 @@ export async function GET(request: NextRequest) {
       });
 
       if (accountsRes.ok) {
-        const accounts = await accountsRes.json();
+        const accountsData = await accountsRes.json();
+        const accounts = Array.isArray(accountsData) ? accountsData : (accountsData?.accounts || []);
         const projectxAccount = accounts.find(
           (a: { broker: string; is_active: boolean }) =>
-            (a.broker === 'projectx' || a.broker === 'topstep') && a.is_active
+            (a.broker === 'projectx' || a.broker === 'PROJECTX' || a.broker === 'topstep') && a.is_active
         );
         effectiveAccountId = projectxAccount?.id?.toString();
       }
@@ -72,8 +73,16 @@ export async function GET(request: NextRequest) {
     );
 
     if (!response.ok) {
-      // Return mock data on error
-      console.error('Market data fetch failed:', response.status);
+      // Parse error to provide meaningful feedback
+      let errorMessage = 'Market data unavailable';
+      try {
+        const errorData = await response.json();
+        if (errorData.detail?.includes('credentials')) {
+          errorMessage = 'ProjectX credentials not configured';
+        }
+      } catch {}
+
+      // Return mock data with error context
       return NextResponse.json({
         symbol,
         interval: `${interval}m`,
@@ -81,14 +90,14 @@ export async function GET(request: NextRequest) {
         indicators: generateMockIndicators(),
         contract_info: null,
         mock: true,
+        error: errorMessage,
       });
     }
 
     const data = await response.json();
     return NextResponse.json(data);
-  } catch (error) {
-    console.error('Error fetching chart data:', error);
-    // Return mock data on error
+  } catch {
+    // Return mock data silently on error
     return NextResponse.json({
       symbol: 'MNQ',
       interval: '5m',

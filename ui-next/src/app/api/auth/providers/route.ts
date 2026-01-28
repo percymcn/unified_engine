@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8765';
-// For Google OAuth, always use the public URL that's registered in Google Console
-const FRONTEND_URL = process.env.NEXT_PUBLIC_FRONTEND_URL || 'https://tradeflow.fluxeo.net';
+// For Google OAuth, ALWAYS use the production URL registered in Google Console
+// This ensures OAuth works even when testing locally (redirect goes to prod, then user can access locally)
+const OAUTH_REDIRECT_URL = 'https://tradeflow.fluxeo.net';
 
 /**
  * GET /api/auth/providers
@@ -35,9 +36,9 @@ export async function GET() {
       if (provider.provider === 'google' && provider.auth_url) {
         try {
           const url = new URL(provider.auth_url);
-          // Always set redirect_uri to the configured frontend URL
-          // This ensures it matches what's in Google Console
-          url.searchParams.set('redirect_uri', `${FRONTEND_URL}/api/auth/google/callback`);
+          // Always set redirect_uri to the production URL registered in Google Console
+          // This ensures OAuth works regardless of where frontend is running
+          url.searchParams.set('redirect_uri', `${OAUTH_REDIRECT_URL}/api/auth/google/callback`);
           provider.auth_url = url.toString();
         } catch (e) {
           console.error('Error parsing auth_url:', e);

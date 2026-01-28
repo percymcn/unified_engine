@@ -128,6 +128,14 @@ async def get_sdk_service(
             api_key = cred_data.get('api_key')
             account_name = cred_data.get('account_name') or cred_data.get('account_id')
 
+    # Fallback: Look up credentials by user_id and service (broker type)
+    if not username or not api_key:
+        cred_data = await cred_repo.get_by_user_and_service(user.id, broker_str.lower())
+        if cred_data:
+            username = cred_data.get('username')
+            api_key = cred_data.get('api_key')
+            account_name = cred_data.get('account_name') or cred_data.get('account_id')
+
     # Fallback to account fields if credentials not in credential repo
     if not username or not api_key:
         # Check broker_config for credentials

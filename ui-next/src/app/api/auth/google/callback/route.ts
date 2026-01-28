@@ -5,7 +5,9 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8765';
-const FRONTEND_URL = process.env.NEXT_PUBLIC_FRONTEND_URL || 'http://localhost:3456';
+// Always use production URL for OAuth callback redirects
+// This ensures OAuth works correctly in production
+const FRONTEND_URL = 'https://tradeflow.fluxeo.net';
 
 /**
  * Handle Google OAuth callback redirect.
