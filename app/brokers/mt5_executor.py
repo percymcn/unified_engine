@@ -132,7 +132,8 @@ class MT5Executor(BaseExecutor):
     async def _initialize_httpx(self) -> bool:
         """Initialize using custom httpx client (fallback to Manager API)."""
         if not (self.manager_login and self.manager_password):
-            logger.error("MT5 Manager API credentials not configured")
+            # INFO not ERROR - this is expected for multi-user platform (credentials come from database per-user)
+            logger.info("MT5 Manager API: no global credentials (per-user credentials used at runtime)")
             return False
 
         try:
