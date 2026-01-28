@@ -592,8 +592,9 @@ async def monitor_system_health():
                 redis_client._connect()
 
             # Check broker connections (only for globally-configured brokers)
-            # Skip brokers that use per-account database credentials (projectx, tradelocker, tradovate)
-            db_credential_brokers = {'projectx', 'topstep', 'tradelocker', 'tradovate'}
+            # Skip brokers that use per-account database credentials
+            # Multi-user platform: MT4/MT5/ProjectX/TradeLocker/Tradovate all use per-user DB credentials
+            db_credential_brokers = {'mt4', 'mt5', 'projectx', 'topstep', 'tradelocker', 'tradovate'}
             for name, broker in signal_processor.brokers.items():
                 # Skip brokers that should use database credentials per-account
                 if name.lower() in db_credential_brokers:
