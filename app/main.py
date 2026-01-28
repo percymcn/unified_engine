@@ -309,32 +309,63 @@ app.include_router(ai_suite_router, prefix="/api/v1", tags=["ai-suite"])
 async def websocket_endpoint(websocket: WebSocket):
     """WebSocket endpoint for real-time updates"""
     await websocket_manager.connect(websocket)
-    
+
     try:
         while True:
-            # Receive message from client
-            data = await websocket.receive_json()
-            
-            # Handle different message types
-            message_type = data.get("type")
-            
-            if message_type == "subscribe":
-                # Subscribe to specific updates (handled by connection manager)
-                channels = data.get("channels", [])
-                await websocket.send_json({"type": "subscribed", "channels": channels})
-                
-            elif message_type == "unsubscribe":
-                # Unsubscribe from specific updates (handled by connection manager)
-                channels = data.get("channels", [])
-                await websocket.send_json({"type": "unsubscribed", "channels": channels})
-                
-            elif message_type == "ping":
-                # Respond to ping
-                await websocket.send_json({"type": "pong"})
-                
-            else:
-                logger.warning(f"Unknown WebSocket message type: {message_type}")
-                
+            try:
+                # Receive message from client (can be text or json)
+                message = await websocket.receive()
+
+                # Handle different message types
+                if message.get("type") == "websocket.disconnect":
+                    break
+
+                # Parse the data
+                data = None
+                if "text" in message:
+                    try:
+                        import json
+                        data = json.loads(message["text"])
+                    except (json.JSONDecodeError, TypeError):
+                        # Not valid JSON, ignore
+                        continue
+                elif "bytes" in message:
+                    # Binary message, ignore
+                    continue
+
+                if not data:
+                    continue
+
+                message_type = data.get("type")
+
+                if message_type == "subscribe":
+                    # Subscribe to specific updates (handled by connection manager)
+                    channels = data.get("channels", [])
+                    await websocket.send_json({"type": "subscribed", "channels": channels})
+
+                elif message_type == "unsubscribe":
+                    # Unsubscribe from specific updates (handled by connection manager)
+                    channels = data.get("channels", [])
+                    await websocket.send_json({"type": "unsubscribed", "channels": channels})
+
+                elif message_type == "ping":
+                    # Respond to ping
+                    await websocket.send_json({"type": "pong"})
+
+                elif message_type == "heartbeat":
+                    # Respond to heartbeat
+                    await websocket.send_json({"type": "heartbeat", "status": "ok"})
+
+                else:
+                    # Unknown type - still send acknowledgment to keep connection alive
+                    pass
+
+            except RuntimeError as e:
+                # Connection closed during receive
+                if "disconnect" in str(e).lower():
+                    break
+                raise
+
     except WebSocketDisconnect:
         websocket_manager.disconnect(websocket)
         logger.info("WebSocket client disconnected")

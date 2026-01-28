@@ -137,16 +137,19 @@ export function useWebSocket(
         onDisconnect?.();
 
         // Attempt reconnect with exponential backoff if within limits
-        if (reconnectAttempts < maxReconnectAttempts) {
-          // Exponential backoff: 3s, 6s, 12s, 24s, 48s... capped at 60s
-          const backoffMs = Math.min(reconnectInterval * Math.pow(2, reconnectAttempts), 60000);
-          reconnectTimeoutRef.current = setTimeout(() => {
-            if (!isUnmountingRef.current) {
-              setReconnectAttempts((prev) => prev + 1);
-              connect();
-            }
-          }, backoffMs);
-        }
+        setReconnectAttempts((currentAttempts) => {
+          if (currentAttempts < maxReconnectAttempts) {
+            // Exponential backoff: 3s, 6s, 12s, 24s, 48s... capped at 60s
+            const backoffMs = Math.min(reconnectInterval * Math.pow(2, currentAttempts), 60000);
+            reconnectTimeoutRef.current = setTimeout(() => {
+              if (!isUnmountingRef.current) {
+                connectRef.current();
+              }
+            }, backoffMs);
+            return currentAttempts + 1;
+          }
+          return currentAttempts;
+        });
       };
     } catch {
       // Only log first creation error
@@ -155,6 +158,8 @@ export function useWebSocket(
       }
       setStatus('error');
     }
+  // Note: reconnectAttempts is NOT in dependencies to prevent connect from being recreated on each attempt
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     url,
     onMessage,
@@ -163,7 +168,6 @@ export function useWebSocket(
     onError,
     reconnectInterval,
     maxReconnectAttempts,
-    reconnectAttempts,
     clearTimers,
   ]);
 

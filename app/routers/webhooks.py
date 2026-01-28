@@ -639,9 +639,85 @@ async def get_webhook_logs(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get webhook logs"""
-    logs = db.query(WebhookLog).offset(skip).limit(limit).all()
-    return logs
+    """Get webhook logs with enriched data for the current user."""
+    from app.models.models import ExecutionLog
+
+    # Get user's webhook keys to filter logs
+    user_accounts = db.query(TradingAccount).filter(
+        TradingAccount.user_id == current_user.id
+    ).all()
+    user_webhook_keys = [a.webhook_key for a in user_accounts if a.webhook_key]
+
+    # Also get profile webhook key
+    user_webhook_config = db.query(WebhookConfig).filter(
+        WebhookConfig.user_id == current_user.id
+    ).first()
+    if user_webhook_config and user_webhook_config.webhook_key:
+        user_webhook_keys.append(user_webhook_config.webhook_key)
+
+    # Query logs
+    logs = db.query(WebhookLog).order_by(WebhookLog.created_at.desc()).offset(skip).limit(limit).all()
+
+    # Enrich logs with parsed data and execution info
+    enriched_logs = []
+    for log in logs:
+        # Parse payload to extract useful info
+        try:
+            payload_data = json.loads(log.payload) if log.payload else {}
+        except (json.JSONDecodeError, TypeError):
+            payload_data = {}
+
+        # Check if this log belongs to user's webhook key
+        log_webhook_key = payload_data.get("webhook_key", "")
+        is_user_log = log_webhook_key in user_webhook_keys if user_webhook_keys else False
+
+        # Filter to user's logs only (unless admin)
+        if not is_user_log and not getattr(current_user, 'is_admin', False):
+            continue
+
+        # Get execution logs if signal_id available in response
+        executions = []
+        response_data = {}
+        if log.response_body:
+            try:
+                response_data = json.loads(log.response_body)
+                signal_id = response_data.get("signal_id")
+                if signal_id:
+                    exec_logs = db.query(ExecutionLog).filter(
+                        ExecutionLog.signal_id == signal_id
+                    ).all()
+                    for el in exec_logs:
+                        executions.append({
+                            "account_id": el.account_id,
+                            "broker": el.broker.value if hasattr(el.broker, 'value') else str(el.broker),
+                            "status": el.status,
+                            "error": el.error_message,
+                        })
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+        enriched_logs.append({
+            "id": log.id,
+            "webhook_id": log.webhook_id,
+            "source": log.source,
+            "source_ip": log.source_ip,
+            "created_at": log.created_at.isoformat() if log.created_at else None,
+            "processed": log.processed,
+            "processing_time_ms": log.processing_time_ms,
+            "response_status": log.response_status,
+            "error_message": log.error_message,
+            # Extracted from payload
+            "action": payload_data.get("action"),
+            "symbol": payload_data.get("symbol"),
+            "quantity": payload_data.get("quantity"),
+            # Execution details
+            "total_accounts": response_data.get("total_accounts", 1) if response_data else 1,
+            "successful_accounts": response_data.get("successful", 1 if log.processed else 0) if response_data else (1 if log.processed else 0),
+            "failed_accounts": response_data.get("failed", 0 if log.processed else 1) if response_data else (0 if log.processed else 1),
+            "executions": executions,
+        })
+
+    return enriched_logs
 
 @router.get("/logs/{webhook_id}")
 async def get_webhook_log(

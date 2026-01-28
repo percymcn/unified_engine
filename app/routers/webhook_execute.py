@@ -666,15 +666,43 @@ async def execute_tradingview_signal(
         overall_status = "failed"
         overall_success = False
 
+    # === UPDATE SIGNAL STATUS IN DATABASE ===
+    try:
+        signal_to_update = db.query(SignalORM).filter(
+            SignalORM.signal_id == signal_uuid
+        ).first()
+        if signal_to_update:
+            signal_to_update.status = overall_status
+            signal_to_update.updated_at = datetime.utcnow()
+            # Store execution results in signal_data
+            signal_to_update.signal_data = {
+                **(signal_to_update.signal_data or {}),
+                "execution_results": {
+                    "total_accounts": len(accounts),
+                    "successful": successful_count,
+                    "failed": failed_count,
+                    "errors": all_errors,
+                    "processing_time_ms": processing_time_ms,
+                }
+            }
+            db.commit()
+            logger.debug(f"Updated signal {signal_uuid} status to {overall_status}")
+    except Exception as e:
+        logger.error(f"Failed to update signal status: {e}")
+        db.rollback()
+
     # Update webhook log
     try:
         webhook_log.processed = overall_success
         webhook_log.response_status = 200
         webhook_log.processing_time_ms = processing_time_ms
         webhook_log.response_body = json.dumps({
+            "signal_id": signal_uuid,
+            "status": overall_status,
             "total_accounts": len(accounts),
             "successful": successful_count,
-            "failed": failed_count
+            "failed": failed_count,
+            "errors": all_errors[:3] if all_errors else [],  # Limit errors stored
         })
         db.commit()
     except:
