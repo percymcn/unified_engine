@@ -107,7 +107,7 @@ export default function AIStrategyPage() {
             <TradingViewChart
               symbol={selectedSymbol}
               onSymbolChange={setSelectedSymbol}
-              className="h-[600px]"
+              className="w-full min-h-[600px] h-[calc(100vh-200px)]"
             />
           </TabsContent>
 

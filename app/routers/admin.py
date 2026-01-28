@@ -910,6 +910,108 @@ async def restart_backend(
     }
 
 
+@router.get("/system/logs")
+async def get_system_logs(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    log_type: str = "all",  # all, signals, trades, webhooks, errors
+    limit: int = 100,
+    offset: int = 0,
+) -> Dict[str, Any]:
+    """Get system logs - signals, trades, webhook activity (owner-only)"""
+    check_owner_access(current_user)
+
+    from datetime import datetime, timedelta
+    from app.models.models import Signal, Trade
+    from app.models.database_models import WebhookConfig
+
+    logs = []
+
+    try:
+        # Get recent signals
+        if log_type in ["all", "signals"]:
+            signals = db.query(Signal).order_by(Signal.received_at.desc()).offset(offset).limit(limit).all()
+            for sig in signals:
+                user = db.query(User).filter(User.id == sig.user_id).first() if sig.user_id else None
+                logs.append({
+                    "id": sig.id,
+                    "type": "signal",
+                    "timestamp": sig.received_at.isoformat() if sig.received_at else None,
+                    "user_email": user.email if user else "System",
+                    "action": sig.action,
+                    "symbol": sig.symbol,
+                    "status": sig.status,
+                    "message": sig.message or f"Signal {sig.action} {sig.symbol}",
+                    "details": {
+                        "quantity": sig.quantity,
+                        "strategy": sig.strategy_id,
+                        "source": sig.source,
+                    }
+                })
+
+        # Get recent trades
+        if log_type in ["all", "trades"]:
+            trades = db.query(Trade).order_by(Trade.created_at.desc()).offset(offset).limit(limit).all()
+            for trade in trades:
+                user = db.query(User).filter(User.id == trade.user_id).first() if trade.user_id else None
+                logs.append({
+                    "id": trade.id,
+                    "type": "trade",
+                    "timestamp": trade.created_at.isoformat() if trade.created_at else None,
+                    "user_email": user.email if user else "System",
+                    "action": trade.action,
+                    "symbol": trade.symbol,
+                    "status": trade.status,
+                    "message": f"Trade {trade.action} {trade.symbol} @ {trade.price}" if trade.price else f"Trade {trade.action} {trade.symbol}",
+                    "details": {
+                        "quantity": trade.quantity,
+                        "price": float(trade.price) if trade.price else None,
+                        "pnl": float(trade.pnl) if trade.pnl else None,
+                        "broker": trade.broker_type.value if trade.broker_type else None,
+                    }
+                })
+
+        # Get webhook configs activity
+        if log_type in ["all", "webhooks"]:
+            webhooks = db.query(WebhookConfig).order_by(WebhookConfig.updated_at.desc()).offset(offset).limit(limit).all()
+            for wh in webhooks:
+                user = db.query(User).filter(User.id == wh.user_id).first() if wh.user_id else None
+                logs.append({
+                    "id": wh.id,
+                    "type": "webhook",
+                    "timestamp": wh.updated_at.isoformat() if wh.updated_at else (wh.created_at.isoformat() if wh.created_at else None),
+                    "user_email": user.email if user else "System",
+                    "action": "active" if wh.is_active else "inactive",
+                    "symbol": wh.symbol_filter or "All",
+                    "status": "active" if wh.is_active else "inactive",
+                    "message": f"Webhook config '{wh.name}' - {wh.symbol_filter or 'all symbols'}",
+                    "details": {
+                        "name": wh.name,
+                        "broker_type": wh.broker_type.value if wh.broker_type else None,
+                        "is_active": wh.is_active,
+                    }
+                })
+
+        # Sort all logs by timestamp descending
+        logs.sort(key=lambda x: x.get("timestamp") or "", reverse=True)
+        logs = logs[:limit]
+
+    except Exception as e:
+        return {
+            "logs": [],
+            "total": 0,
+            "error": str(e)[:100],
+        }
+
+    return {
+        "logs": logs,
+        "total": len(logs),
+        "limit": limit,
+        "offset": offset,
+        "log_type": log_type,
+    }
+
+
 @router.put("/system/env-var/{key}")
 async def update_env_var(
     key: str,

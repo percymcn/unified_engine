@@ -33,6 +33,7 @@ import {
   Zap,
   ArrowRight,
   Loader2,
+  Home,
 } from "lucide-react";
 import { useOAuthProviders } from "@/lib/useOAuthProviders";
 
@@ -146,6 +147,15 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center px-4 py-12">
+      {/* Back to Home Button */}
+      <Link
+        href="/"
+        className="absolute top-4 left-4 z-20 flex items-center gap-2 px-3 py-2 text-sm text-gray-400 hover:text-white transition-colors rounded-lg hover:bg-gray-800/50"
+      >
+        <Home className="w-4 h-4" />
+        <span>Home</span>
+      </Link>
+
       {/* Background gradient effects */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 -left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />

@@ -61,6 +61,9 @@ import {
   Loader2,
   CreditCard,
   BarChart3,
+  ScrollText,
+  Signal,
+  ArrowUpDown,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -116,6 +119,7 @@ interface EnvDoctor {
 const tabs = [
   { id: "overview", label: "Overview", icon: BarChart3 },
   { id: "pipeline", label: "Pipeline", icon: Activity },
+  { id: "logs", label: "Logs", icon: ScrollText },
   { id: "users", label: "Users", icon: Users },
   { id: "plans", label: "Plans", icon: CreditCard },
   { id: "brokers", label: "Brokers", icon: Zap },
@@ -137,6 +141,7 @@ export default function OwnerPortal() {
   const [pipelineStatus, setPipelineStatus] = useState<any>(null);
   const [connectedAccounts, setConnectedAccounts] = useState<any>(null);
   const [allEnvVars, setAllEnvVars] = useState<any>(null);
+  const [systemLogs, setSystemLogs] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<typeof tabs[number]["id"]>("overview");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -202,6 +207,12 @@ export default function OwnerPortal() {
         if (response.ok) {
           const data = await response.json();
           setPipelineStatus(data);
+        }
+      } else if (activeTab === "logs") {
+        const response = await fetch("/api/admin/logs?limit=100", { credentials: "include" });
+        if (response.ok) {
+          const data = await response.json();
+          setSystemLogs(data);
         }
       } else if (activeTab === "users") {
         const response = await fetch("/api/admin/users", { credentials: "include" });
@@ -382,6 +393,9 @@ export default function OwnerPortal() {
             )}
             {activeTab === "pipeline" && (
               <PipelineTab pipelineStatus={pipelineStatus} loading={loading} />
+            )}
+            {activeTab === "logs" && (
+              <LogsTab logs={systemLogs} loading={loading} onRefresh={fetchData} />
             )}
             {activeTab === "users" && (
               <UsersTab
@@ -1541,6 +1555,213 @@ function SystemTab({ envDoctor, loading }: { envDoctor: EnvDoctor | null; loadin
           </div>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+// Logs Tab - System Activity Logs
+function LogsTab({ logs, loading, onRefresh }: { logs: any; loading: boolean; onRefresh: () => void }) {
+  const [logFilter, setLogFilter] = useState("all");
+
+  if (loading && !logs) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-20" />
+        <Skeleton className="h-96" />
+      </div>
+    );
+  }
+
+  const getLogIcon = (type: string) => {
+    switch (type) {
+      case "signal":
+        return Signal;
+      case "trade":
+        return ArrowUpDown;
+      case "webhook":
+        return Zap;
+      default:
+        return Activity;
+    }
+  };
+
+  const getLogColor = (type: string, status: string) => {
+    if (status === "failed" || status === "error") return "text-red-500 bg-red-500/10 border-red-500/30";
+    if (status === "pending") return "text-amber-500 bg-amber-500/10 border-amber-500/30";
+    switch (type) {
+      case "signal":
+        return "text-blue-500 bg-blue-500/10 border-blue-500/30";
+      case "trade":
+        return "text-emerald-500 bg-emerald-500/10 border-emerald-500/30";
+      case "webhook":
+        return "text-purple-500 bg-purple-500/10 border-purple-500/30";
+      default:
+        return "text-gray-500 bg-gray-500/10 border-gray-500/30";
+    }
+  };
+
+  const filteredLogs = logs?.logs?.filter((log: any) =>
+    logFilter === "all" ? true : log.type === logFilter
+  ) || [];
+
+  return (
+    <div className="space-y-6">
+      {/* Header with filters */}
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex items-center justify-between"
+      >
+        <div className="flex items-center gap-4">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <ScrollText className="h-5 w-5 text-primary" />
+            System Logs
+          </h2>
+          <Badge variant="outline">{logs?.total || 0} entries</Badge>
+        </div>
+        <div className="flex items-center gap-2">
+          <Select value={logFilter} onValueChange={setLogFilter}>
+            <SelectTrigger className="w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Logs</SelectItem>
+              <SelectItem value="signal">Signals</SelectItem>
+              <SelectItem value="trade">Trades</SelectItem>
+              <SelectItem value="webhook">Webhooks</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button variant="outline" size="sm" onClick={onRefresh} className="gap-2">
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+        </div>
+      </motion.div>
+
+      {/* Logs Table */}
+      <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[100px]">Type</TableHead>
+                  <TableHead>Time</TableHead>
+                  <TableHead>User</TableHead>
+                  <TableHead>Action</TableHead>
+                  <TableHead>Symbol</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Message</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredLogs.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-12">
+                      <ScrollText className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
+                      <p className="text-muted-foreground">No logs found</p>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredLogs.map((log: any, i: number) => {
+                    const Icon = getLogIcon(log.type);
+                    return (
+                      <motion.tr
+                        key={`${log.type}-${log.id}-${i}`}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.02 }}
+                        className="hover:bg-primary/5"
+                      >
+                        <TableCell>
+                          <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium ${getLogColor(log.type, log.status)}`}>
+                            <Icon className="h-3 w-3" />
+                            {log.type}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground font-mono">
+                          {log.timestamp ? new Date(log.timestamp).toLocaleString() : "-"}
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {log.user_email || "-"}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-xs">
+                            {log.action}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          {log.symbol || "-"}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className={`text-xs ${
+                              log.status === "executed" || log.status === "processed" || log.status === "active"
+                                ? "text-emerald-500 border-emerald-500/50"
+                                : log.status === "failed" || log.status === "error"
+                                ? "text-red-500 border-red-500/50"
+                                : "text-amber-500 border-amber-500/50"
+                            }`}
+                          >
+                            {log.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground max-w-[300px] truncate">
+                          {log.message}
+                        </TableCell>
+                      </motion.tr>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Live Activity Summary */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card className="border-border/50 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border-blue-500/30">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <Signal className="h-5 w-5 text-blue-500" />
+              <div>
+                <div className="text-2xl font-bold">
+                  {logs?.logs?.filter((l: any) => l.type === "signal").length || 0}
+                </div>
+                <p className="text-sm text-muted-foreground">Signals</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-border/50 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border-emerald-500/30">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <ArrowUpDown className="h-5 w-5 text-emerald-500" />
+              <div>
+                <div className="text-2xl font-bold">
+                  {logs?.logs?.filter((l: any) => l.type === "trade").length || 0}
+                </div>
+                <p className="text-sm text-muted-foreground">Trades</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-border/50 bg-gradient-to-br from-purple-500/10 to-pink-500/10 border-purple-500/30">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <Zap className="h-5 w-5 text-purple-500" />
+              <div>
+                <div className="text-2xl font-bold">
+                  {logs?.logs?.filter((l: any) => l.type === "webhook").length || 0}
+                </div>
+                <p className="text-sm text-muted-foreground">Webhooks</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

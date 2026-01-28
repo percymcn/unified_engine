@@ -83,9 +83,24 @@ export function TestWebhookButton({ onSuccess }: TestWebhookButtonProps) {
         });
         onSuccess?.();
       } else {
+        // Provide helpful error messages based on the issue
+        let errorTitle = 'Test Failed';
+        let errorDescription = testResult.message || 'Unknown error occurred.';
+
+        if (testResult.message?.toLowerCase().includes('no webhook key')) {
+          errorTitle = 'No Webhook Key';
+          errorDescription = 'Generate a webhook key first to test.';
+        } else if (testResult.message?.toLowerCase().includes('add an account')) {
+          errorTitle = 'No Accounts Connected';
+          errorDescription = 'Connect a broker account first to test webhooks.';
+        } else if (testResult.message?.toLowerCase().includes('invalid')) {
+          errorTitle = 'Invalid Webhook Key';
+          errorDescription = 'Your webhook key may be invalid. Try generating a new one.';
+        }
+
         toast({
-          title: 'Invalid key or backend issue',
-          description: testResult.message || 'Invalid key or backend issue.',
+          title: errorTitle,
+          description: errorDescription,
           variant: 'destructive',
         });
       }
@@ -99,8 +114,8 @@ export function TestWebhookButton({ onSuccess }: TestWebhookButtonProps) {
         message: errorMessage,
       });
       toast({
-        title: 'Invalid key or backend issue',
-        description: errorMessage || 'Invalid key or backend issue.',
+        title: 'Connection Error',
+        description: 'Could not connect to the backend. Please check if the server is running.',
         variant: 'destructive',
       });
       setTimeout(() => setResult(null), 5000);

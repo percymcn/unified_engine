@@ -79,6 +79,7 @@ export const PRICING_TIERS: Record<string, PricingTier> = {
       "Custom symbol aliases",
       "Unlimited account groups",
       "Full analytics suite",
+      "AI Strategy Suite access",
       "API access",
       "30-day webhook logs",
       "Priority support (12h)",
@@ -96,6 +97,8 @@ export const PRICING_TIERS: Record<string, PricingTier> = {
     features: [
       "8 broker connections",
       "Everything in Pro",
+      "AI Strategy Suite + AI Coach",
+      "Pine Script AI Fixer",
       "Custom risk profiles per account",
       "Strategy-based routing",
       "Bulk symbol import/export",

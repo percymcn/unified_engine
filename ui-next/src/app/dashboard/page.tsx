@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Activity, Users, Signal, TrendingUp, CalendarClock, KeyRound, Loader2, BarChart3, LayoutDashboard, Shield, Zap, Sparkles, Brain } from 'lucide-react';
+import { Activity, Users, Signal, TrendingUp, CalendarClock, KeyRound, Loader2, BarChart3, LayoutDashboard, Shield, Zap, Sparkles, Brain, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
 import { BrokerHealthGrid } from '@/components/brokers/broker-health-grid';
 import {
@@ -24,6 +24,7 @@ import { EquityChartWidget } from '@/components/dashboard/equity-chart-widget';
 import { TrialStatusWidget } from '@/components/dashboard/trial-status-widget';
 import { OpenPositionsWidget } from '@/components/dashboard/open-positions-widget';
 import { FlowGuardBot } from '@/components/signal-intelligence/flowguard-bot';
+import { SupportChat } from '@/components/dashboard/support-chat';
 import { SignalHeatMap } from '@/components/signal-intelligence/signal-heat-map';
 import { GuardModal } from '@/components/signal-intelligence/guard-modal';
 import { StreakBadge } from '@/components/dashboard/streak-badge';
@@ -72,6 +73,7 @@ export default function DashboardPage() {
   const [recentlyUpdated, setRecentlyUpdated] = useState<string | null>(null);
   const [primaryWebhookKey, setPrimaryWebhookKey] = useState<string | null>(null);
   const [generatingKey, setGeneratingKey] = useState(false);
+  const [showWebhookKey, setShowWebhookKey] = useState(false);
 
   // Guard modal state for pending webhook confirmations
   const [guardModalOpen, setGuardModalOpen] = useState(false);
@@ -466,10 +468,29 @@ export default function DashboardPage() {
             </div>
             <div className="flex items-center gap-2">
               <div className="flex-1 rounded-md bg-background px-3 py-2 font-mono text-xs break-all">
-                {primaryWebhookKey || 'No key yet. Click generate to create one.'}
+                {primaryWebhookKey ? (
+                  showWebhookKey ? primaryWebhookKey : '••••••••••••••••••••••••••••••••'
+                ) : (
+                  'No key yet. Click generate to create one.'
+                )}
               </div>
               {primaryWebhookKey && (
-                <CopyButton text={primaryWebhookKey} tooltip="Copy webhook key" />
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowWebhookKey(!showWebhookKey)}
+                    className="h-8 w-8 p-0"
+                    title={showWebhookKey ? 'Hide key' : 'Show key'}
+                  >
+                    {showWebhookKey ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </Button>
+                  <CopyButton text={primaryWebhookKey} tooltip="Copy webhook key" />
+                </>
               )}
             </div>
           </div>
@@ -580,6 +601,9 @@ export default function DashboardPage() {
 
       {/* FlowGuard Bot - Floating (available on all tabs) */}
       <FlowGuardBot />
+
+      {/* Support Chat / FAQ - Floating Button */}
+      <SupportChat />
 
       {/* Onboarding Tooltip for First-Time Users */}
       <OnboardingTooltip />

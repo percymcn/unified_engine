@@ -410,9 +410,9 @@ export function AICoach({ code = '', backtestResults, className }: AICoachProps)
           </TabsContent>
 
           {/* Chat Tab */}
-          <TabsContent value="chat" className="space-y-4">
-            <ScrollArea className="h-[300px] pr-4">
-              <div className="space-y-4">
+          <TabsContent value="chat" className="space-y-4 min-h-[400px]">
+            <ScrollArea className="h-[350px] w-full">
+              <div className="space-y-4 pr-4">
                 {chatMessages.length === 0 && (
                   <div className="text-center py-8 text-muted-foreground">
                     <MessageSquare className="h-12 w-12 mx-auto mb-2 opacity-50" />
@@ -444,19 +444,19 @@ export function AICoach({ code = '', backtestResults, className }: AICoachProps)
                   <div
                     key={idx}
                     className={cn(
-                      'flex',
+                      'flex w-full',
                       message.role === 'user' ? 'justify-end' : 'justify-start'
                     )}
                   >
                     <div
                       className={cn(
-                        'max-w-[80%] p-3 rounded-lg',
+                        'max-w-[90%] p-3 rounded-lg',
                         message.role === 'user'
                           ? 'bg-primary text-primary-foreground'
                           : 'bg-muted'
                       )}
                     >
-                      <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                      <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
                       <div className="text-xs opacity-60 mt-1">
                         {new Date(message.timestamp).toLocaleTimeString()}
                       </div>
@@ -474,12 +474,12 @@ export function AICoach({ code = '', backtestResults, className }: AICoachProps)
               </div>
             </ScrollArea>
 
-            <div className="flex gap-2">
+            <div className="flex gap-2 w-full">
               <Textarea
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
                 placeholder="Ask the AI Coach..."
-                className="min-h-[60px] resize-none"
+                className="min-h-[60px] resize-none flex-1"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
@@ -490,7 +490,7 @@ export function AICoach({ code = '', backtestResults, className }: AICoachProps)
               <Button
                 onClick={sendChatMessage}
                 disabled={isChatting || !chatInput.trim()}
-                className="px-4"
+                className="px-4 h-auto"
               >
                 <Send className="h-4 w-4" />
               </Button>

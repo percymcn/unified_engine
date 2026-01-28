@@ -38,6 +38,15 @@ const TIMEFRAMES = [
   { value: 'W', label: '1W' },
 ];
 
+const CHART_STYLES = [
+  { value: '1', label: 'Candles' },
+  { value: '8', label: 'Heikin Ashi' },
+  { value: '9', label: 'Hollow Candles' },
+  { value: '0', label: 'Bars' },
+  { value: '3', label: 'Area' },
+  { value: '2', label: 'Line' },
+];
+
 const POPULAR_SYMBOLS = [
   'EURUSD', 'GBPUSD', 'USDJPY', 'XAUUSD',
   'MES1!', 'MNQ1!', 'ES1!', 'NQ1!',
@@ -55,6 +64,7 @@ export function TradingViewChart({
   const widgetRef = useRef<any>(null);
   const [symbol, setSymbol] = useState(initialSymbol);
   const [timeframe, setTimeframe] = useState('60');
+  const [chartStyle, setChartStyle] = useState('1'); // Default to candles
   const [isLoading, setIsLoading] = useState(true);
   const [showPositions, setShowPositions] = useState(initialShowPositions);
   const [positions, setPositions] = useState<ChartPosition[]>([]);
@@ -116,7 +126,7 @@ export function TradingViewChart({
       interval: timeframe,
       timezone: 'Etc/UTC',
       theme: 'dark',
-      style: '1',
+      style: chartStyle,
       locale: 'en',
       enable_publishing: false,
       allow_symbol_change: true,
@@ -160,7 +170,7 @@ export function TradingViewChart({
         containerRef.current.innerHTML = '';
       }
     };
-  }, [symbol, timeframe]);
+  }, [symbol, timeframe, chartStyle]);
 
   const handleSymbolChange = (newSymbol: string) => {
     setSymbol(newSymbol.toUpperCase());
@@ -183,7 +193,7 @@ export function TradingViewChart({
   };
 
   return (
-    <Card className={cn('cyber-card flex flex-col', className)}>
+    <Card className={cn('cyber-card flex flex-col w-full', className)}>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <CardTitle className="text-lg flex items-center gap-2">
@@ -223,6 +233,20 @@ export function TradingViewChart({
                 {TIMEFRAMES.map((tf) => (
                   <SelectItem key={tf.value} value={tf.value}>
                     {tf.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Chart Style Select */}
+            <Select value={chartStyle} onValueChange={setChartStyle}>
+              <SelectTrigger className="w-32 h-8">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CHART_STYLES.map((style) => (
+                  <SelectItem key={style.value} value={style.value}>
+                    {style.label}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -274,11 +298,11 @@ export function TradingViewChart({
         </div>
       </CardHeader>
 
-      <CardContent className="flex-1 p-0 relative">
+      <CardContent className="flex-1 p-0 relative min-h-[500px]">
         {/* Chart Container */}
         <div
           ref={containerRef}
-          className="w-full h-[500px] relative"
+          className="w-full h-full min-h-[500px] relative"
         >
           {isLoading && (
             <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-10">

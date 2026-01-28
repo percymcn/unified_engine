@@ -8,6 +8,8 @@ import {
   ArrowRightLeft,
   BarChart3,
   Users,
+  Sparkles,
+  Brain,
 } from "lucide-react";
 
 const features = [
@@ -46,6 +48,18 @@ const features = [
     title: "Multi-Account Routing",
     description:
       "Route one signal to multiple accounts across different brokers simultaneously.",
+  },
+  {
+    icon: Sparkles,
+    title: "AI Strategy Suite",
+    description:
+      "Build strategies with Pine Script, get AI-powered fixes, and deploy to live alerts instantly.",
+  },
+  {
+    icon: Brain,
+    title: "AI Trading Coach",
+    description:
+      "Get intelligent feedback on your strategies with bias detection and improvement suggestions.",
   },
 ];
 
