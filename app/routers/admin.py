@@ -1012,6 +1012,53 @@ async def get_system_logs(
     }
 
 
+@router.get("/system/webhook-retention")
+async def get_webhook_retention_stats(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """Get webhook log retention statistics (owner-only)"""
+    check_owner_access(current_user)
+
+    from app.services.webhook_retention_service import get_retention_stats
+
+    try:
+        stats = await get_retention_stats(db)
+        return {
+            "success": True,
+            **stats
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+@router.post("/system/webhook-retention/cleanup")
+async def trigger_webhook_cleanup(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """Manually trigger webhook log cleanup (owner-only)"""
+    check_owner_access(current_user)
+
+    from app.services.webhook_retention_service import cleanup_all_webhook_logs
+
+    try:
+        summary = await cleanup_all_webhook_logs(db)
+        return {
+            "success": True,
+            "message": "Webhook log cleanup completed",
+            **summary
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
 @router.put("/system/env-var/{key}")
 async def update_env_var(
     key: str,

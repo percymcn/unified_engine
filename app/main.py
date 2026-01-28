@@ -135,6 +135,7 @@ async def lifespan(app: FastAPI):
         asyncio.create_task(websocket_manager.start_heartbeat())
         asyncio.create_task(monitor_system_health())
         asyncio.create_task(tradovate_token_refresh_loop())
+        asyncio.create_task(webhook_log_cleanup_loop())
 
         logger.info("🎉 Unified Trading Engine started successfully!")
         
@@ -629,6 +630,38 @@ async def tradovate_token_refresh_loop():
 
         # Wait before next refresh check
         await asyncio.sleep(REFRESH_INTERVAL_SECONDS)
+
+
+# Background task for webhook log cleanup (runs once per day)
+async def webhook_log_cleanup_loop():
+    """
+    Periodically clean up old webhook logs based on user subscription tiers.
+
+    Retention periods:
+    - Free/Starter: 7 days
+    - Trader: 14 days
+    - Pro: 30 days
+    - Enterprise: 90 days
+    """
+    from app.services.webhook_retention_service import cleanup_all_webhook_logs
+
+    # Run cleanup once per day (86400 seconds)
+    CLEANUP_INTERVAL_SECONDS = 86400
+
+    # Wait 5 minutes after startup before first cleanup
+    await asyncio.sleep(300)
+
+    while True:
+        try:
+            logger.info("Starting scheduled webhook log cleanup...")
+            summary = await cleanup_all_webhook_logs()
+            logger.info(f"Webhook log cleanup complete: {summary['logs_deleted']} logs deleted, {summary['users_processed']} users processed")
+        except Exception as e:
+            logger.error(f"Webhook log cleanup error: {e}")
+
+        # Wait before next cleanup
+        await asyncio.sleep(CLEANUP_INTERVAL_SECONDS)
+
 
 # Enhanced Exception handlers
 @app.exception_handler(HTTPException)
