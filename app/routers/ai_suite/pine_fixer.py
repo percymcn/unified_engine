@@ -6,9 +6,18 @@ Uses Claude/OpenAI to fix and enhance Pine Script code
 import os
 import logging
 from typing import Optional
+from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
+
+# Load .env file for API keys
+try:
+    from dotenv import load_dotenv
+    env_path = Path(__file__).resolve().parents[3] / ".env"
+    load_dotenv(env_path)
+except ImportError:
+    pass  # dotenv not installed, rely on environment
 
 from app.db.database import get_db
 from app.models.models import User
