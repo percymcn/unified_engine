@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Activity, Users, Signal, TrendingUp, CalendarClock, KeyRound, Loader2, BarChart3, LayoutDashboard, Shield, Zap } from 'lucide-react';
+import { Activity, Users, Signal, TrendingUp, CalendarClock, KeyRound, Loader2, BarChart3, LayoutDashboard, Shield, Zap, Sparkles, Brain } from 'lucide-react';
+import Link from 'next/link';
 import { BrokerHealthGrid } from '@/components/brokers/broker-health-grid';
 import {
   ExpirationAlerts,
@@ -429,6 +430,12 @@ export default function DashboardPage() {
         <CardContent className="space-y-4">
           <div className="flex flex-wrap gap-2">
             <TestWebhookButton onSuccess={handleTestWebhookSuccess} />
+            <Link href="/ai-suite">
+              <Button variant="outline" className="gap-2">
+                <Sparkles className="h-4 w-4" />
+                AI Strategy Suite
+              </Button>
+            </Link>
           </div>
           <div className="rounded-lg border border-border/50 bg-gradient-to-br from-card to-muted/20 p-4 space-y-3 backdrop-blur-sm">
             <div className="flex items-center justify-between gap-3 flex-wrap">
