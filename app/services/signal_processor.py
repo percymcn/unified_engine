@@ -214,8 +214,17 @@ class SignalProcessor:
         
     async def initialize(self):
         """Initialize all broker connections"""
+        # Multi-user platform: MT4/MT5 use per-user credentials from database
+        # Skip global initialization for these - they're initialized per-request
+        skip_global_init = {"mt4", "mt5"}
+
         for broker_name, broker in self.brokers.items():
             try:
+                # Skip MT4/MT5 global init - credentials come from database per-user
+                if broker_name in skip_global_init:
+                    logger.info(f"Skipping global init for {broker_name}: per-user credentials used at runtime")
+                    continue
+
                 if hasattr(broker, "is_available") and not broker.is_available:
                     logger.info(f"Skipping global init for {broker_name}: platform credentials not configured")
                     continue
