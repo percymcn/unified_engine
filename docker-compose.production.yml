@@ -23,6 +23,7 @@ services:
       - JWT_SECRET_KEY=${JWT_SECRET}
       - CREDENTIAL_ENCRYPTION_KEY=${ENCRYPTION_KEY}
       - FRONTEND_URL=https://tradeflow.fluxeo.net
+      - CORS_ORIGINS=["https://tradeflow.fluxeo.net","https://www.tradeflow.fluxeo.net"]
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - GOOGLE_REDIRECT_URI=https://tradeflow.fluxeo.net/api/auth/google/callback
@@ -101,7 +102,9 @@ services:
     environment:
       - BACKEND_URL=http://backend:8000
       - NEXT_PUBLIC_FRONTEND_URL=https://tradeflow.fluxeo.net
-      - NEXT_PUBLIC_BACKEND_URL=https://tradeflow.fluxeo.net
+      - NEXT_PUBLIC_BACKEND_URL=https://api.tradeflow.fluxeo.net
+      - NEXT_PUBLIC_WEBHOOK_BASE_URL=https://api.tradeflow.fluxeo.net
+      - NEXT_PUBLIC_WS_URL=wss://api.tradeflow.fluxeo.net/ws
       - NODE_ENV=production
     depends_on:
       - backend

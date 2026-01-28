@@ -536,6 +536,7 @@ async def execute_tradingview_signal(
                 stop_loss=sl_price,
                 take_profit=tp_price,
                 trailing_stop=trailing_stop,  # For trailing stop orders
+                comment=raw_payload.get("comment"),  # Trade comment for MT4/MT5
             )
 
             # Execute the order directly

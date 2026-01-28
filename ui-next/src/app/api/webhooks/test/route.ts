@@ -51,13 +51,19 @@ export async function POST() {
         : accountsPayload.accounts || [];
       if (Array.isArray(accounts)) {
         hasAccounts = accounts.length > 0;
-        const accountWithKey = accounts.find((account) => account.webhook_key);
+        // Prioritize: 1) signal-enabled accounts, 2) any account with webhook_key
+        const signalEnabledAccount = accounts.find(
+          (account) => account.webhook_key && account.is_signal_enabled
+        );
+        const accountWithKey = signalEnabledAccount || accounts.find((account) => account.webhook_key);
         accountWebhookKey = accountWithKey?.webhook_key;
       }
     }
 
     const profileWebhookKey = profile?.primary_webhook_key;
-    const executeWebhookKey = accountWebhookKey || profileWebhookKey;
+    // Prefer profile webhook key (uses WebhookConfig routing with default_account_id)
+    // Fall back to account-specific key if profile key not available
+    const executeWebhookKey = profileWebhookKey || accountWebhookKey;
 
     if (!executeWebhookKey && !profileWebhookKey) {
       return NextResponse.json(

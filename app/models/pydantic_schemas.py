@@ -286,6 +286,8 @@ class OrderRequest(BaseModel):
     stop_loss: Optional[float] = None
     take_profit: Optional[float] = None
     trailing_stop: Optional[float] = None  # Trailing stop distance (in ticks for ProjectX)
+    comment: Optional[str] = None  # Trade comment (for MT4/MT5)
+    magic_number: Optional[int] = None  # Magic number for EA identification (MT4/MT5)
 
 
 class OrderResponse(BaseModel):

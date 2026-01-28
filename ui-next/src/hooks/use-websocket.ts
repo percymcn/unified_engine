@@ -176,19 +176,38 @@ export function useWebSocket(
     }
   }, []);
 
-  // Auto-connect on mount
+  // Store latest callbacks in refs to avoid dependency issues
+  const connectRef = useRef(connect);
+  const disconnectRef = useRef(disconnect);
+
+  useEffect(() => {
+    connectRef.current = connect;
+    disconnectRef.current = disconnect;
+  }, [connect, disconnect]);
+
+  // Auto-connect on mount - only run once
   useEffect(() => {
     isUnmountingRef.current = false;
 
     if (autoConnect) {
-      connect();
+      // Use a small delay to ensure component is fully mounted
+      const timeoutId = setTimeout(() => {
+        connectRef.current();
+      }, 100);
+
+      return () => {
+        clearTimeout(timeoutId);
+        isUnmountingRef.current = true;
+        disconnectRef.current();
+      };
     }
 
     return () => {
       isUnmountingRef.current = true;
-      disconnect();
+      disconnectRef.current();
     };
-  }, [autoConnect, connect, disconnect]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoConnect]); // Only depend on autoConnect, not the callbacks
 
   return {
     status,
