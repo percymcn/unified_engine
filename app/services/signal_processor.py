@@ -87,6 +87,14 @@ def _load_account_credentials(db: Session, account: TradingAccount) -> Dict[str,
     if account.default_broker_account_id:
         credentials["broker_account_id"] = account.default_broker_account_id
 
+    # For MT4/MT5 accounts, also check extra_metadata for metaapi_account_id (BYOA accounts)
+    if account.broker and account.broker.value in ("mt4", "mt5"):
+        if account.extra_metadata and isinstance(account.extra_metadata, dict):
+            if account.extra_metadata.get("metaapi_account_id"):
+                credentials["metaapi_account_id"] = account.extra_metadata["metaapi_account_id"]
+            if account.extra_metadata.get("server"):
+                credentials["server"] = account.extra_metadata["server"]
+
     return credentials
 
 
