@@ -9,16 +9,33 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { formatDistanceToNow } from 'date-fns';
 
+interface WebhookExecution {
+  account_id: number;
+  broker: string;
+  status: string;
+  error?: string;
+}
+
 interface WebhookLog {
   id: number;
   webhook_id: string;
   source: string;
-  source_ip: string;
-  user_agent: string;
-  payload: string;
-  status: string;
-  error_message?: string;
+  source_ip?: string;
+  user_agent?: string;
+  payload?: string;
   created_at: string;
+  processed: boolean;
+  processing_time_ms?: number;
+  response_status?: number;
+  error_message?: string;
+  // Enriched fields from API
+  action?: string;
+  symbol?: string;
+  quantity?: number;
+  total_accounts?: number;
+  successful_accounts?: number;
+  failed_accounts?: number;
+  executions?: WebhookExecution[];
 }
 
 export default function WebhookLogsPage() {
@@ -57,52 +74,37 @@ export default function WebhookLogsPage() {
     fetchLogs();
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case 'success':
-      case 'executed':
-        return (
-          <Badge className="bg-green-500/10 text-green-500 border-green-500/20">
-            <CheckCircle2 className="h-3 w-3 mr-1" />
-            Success
-          </Badge>
-        );
-      case 'failed':
-      case 'error':
-        return (
-          <Badge variant="destructive">
-            <XCircle className="h-3 w-3 mr-1" />
-            Failed
-          </Badge>
-        );
-      case 'pending':
-        return (
-          <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20">
-            <Clock className="h-3 w-3 mr-1" />
-            Pending
-          </Badge>
-        );
-      default:
-        return (
-          <Badge variant="secondary">
-            <AlertCircle className="h-3 w-3 mr-1" />
-            {status || 'Unknown'}
-          </Badge>
-        );
+  const getStatusBadge = (log: WebhookLog) => {
+    if (log.processed && log.successful_accounts === log.total_accounts) {
+      return (
+        <Badge className="bg-green-500/10 text-green-500 border-green-500/20">
+          <CheckCircle2 className="h-3 w-3 mr-1" />
+          Success
+        </Badge>
+      );
     }
-  };
-
-  const parsePayload = (payload: string) => {
-    try {
-      const parsed = JSON.parse(payload);
-      return {
-        symbol: parsed.symbol || parsed.ticker || 'N/A',
-        action: parsed.action || 'N/A',
-        quantity: parsed.quantity || parsed.contracts || parsed.volume || 'N/A',
-      };
-    } catch {
-      return { symbol: 'N/A', action: 'N/A', quantity: 'N/A' };
+    if (log.processed && log.successful_accounts && log.successful_accounts > 0) {
+      return (
+        <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20">
+          <AlertCircle className="h-3 w-3 mr-1" />
+          Partial
+        </Badge>
+      );
     }
+    if (!log.processed || (log.failed_accounts && log.failed_accounts > 0)) {
+      return (
+        <Badge variant="destructive">
+          <XCircle className="h-3 w-3 mr-1" />
+          Failed
+        </Badge>
+      );
+    }
+    return (
+      <Badge variant="secondary">
+        <Clock className="h-3 w-3 mr-1" />
+        Unknown
+      </Badge>
+    );
   };
 
   if (loading) {
@@ -162,56 +164,85 @@ export default function WebhookLogsPage() {
       ) : (
         <ScrollArea className="h-[calc(100vh-200px)]">
           <div className="space-y-4">
-            {logs.map((log) => {
-              const { symbol, action, quantity } = parsePayload(log.payload);
-              return (
-                <Card key={log.id} className="hover:border-primary/50 transition-colors">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-start justify-between">
+            {logs.map((log) => (
+              <Card key={log.id} className="hover:border-primary/50 transition-colors">
+                <CardHeader className="pb-2">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-1">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Badge variant="outline">{log.source || 'unknown'}</Badge>
+                        <span className="font-mono text-sm">{log.symbol || 'N/A'}</span>
+                        <Badge variant={log.action?.toLowerCase() === 'buy' ? 'default' : log.action?.toLowerCase() === 'sell' ? 'destructive' : 'secondary'}>
+                          {log.action || 'N/A'}
+                        </Badge>
+                      </CardTitle>
+                      <CardDescription className="font-mono text-xs">
+                        ID: {log.webhook_id}
+                      </CardDescription>
+                    </div>
+                    {getStatusBadge(log)}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+                    <div>
+                      <p className="text-muted-foreground text-xs">Quantity</p>
+                      <p className="font-medium font-mono">{log.quantity ?? 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground text-xs">Accounts</p>
+                      <p className="font-medium">
+                        <span className="text-green-500">{log.successful_accounts ?? 0}</span>
+                        <span className="text-muted-foreground">/</span>
+                        <span>{log.total_accounts ?? 0}</span>
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground text-xs">Processing</p>
+                      <p className="font-mono text-xs">{log.processing_time_ms ? `${log.processing_time_ms}ms` : 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground text-xs">Source IP</p>
+                      <p className="font-mono text-xs">{log.source_ip || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground text-xs">Time</p>
+                      <p className="text-xs">
+                        {log.created_at
+                          ? formatDistanceToNow(new Date(log.created_at), { addSuffix: true })
+                          : 'N/A'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Execution details per account */}
+                  {log.executions && log.executions.length > 0 && (
+                    <div className="mt-4 pt-3 border-t border-border">
+                      <p className="text-muted-foreground text-xs mb-2">Execution Details</p>
                       <div className="space-y-1">
-                        <CardTitle className="text-base flex items-center gap-2">
-                          <Badge variant="outline">{log.source || 'unknown'}</Badge>
-                          <span className="font-mono text-sm">{symbol}</span>
-                          <Badge variant={action === 'buy' ? 'default' : action === 'sell' ? 'destructive' : 'secondary'}>
-                            {action}
-                          </Badge>
-                        </CardTitle>
-                        <CardDescription className="font-mono text-xs">
-                          ID: {log.webhook_id}
-                        </CardDescription>
+                        {log.executions.map((exec, idx) => (
+                          <div key={idx} className="flex items-center gap-2 text-xs">
+                            <Badge variant="outline" className="text-xs py-0">{exec.broker}</Badge>
+                            <span className="text-muted-foreground">Account {exec.account_id}:</span>
+                            <span className={exec.status === 'success' ? 'text-green-500' : 'text-red-500'}>
+                              {exec.status}
+                            </span>
+                            {exec.error && <span className="text-red-400 truncate max-w-[200px]">{exec.error}</span>}
+                          </div>
+                        ))}
                       </div>
-                      {getStatusBadge(log.status)}
                     </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                      <div>
-                        <p className="text-muted-foreground">Quantity</p>
-                        <p className="font-medium">{quantity}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Source IP</p>
-                        <p className="font-mono text-xs">{log.source_ip || 'N/A'}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Time</p>
-                        <p className="text-xs">
-                          {log.created_at
-                            ? formatDistanceToNow(new Date(log.created_at), { addSuffix: true })
-                            : 'N/A'}
-                        </p>
-                      </div>
-                      {log.error_message && (
-                        <div className="col-span-2 md:col-span-4">
-                          <p className="text-muted-foreground">Error</p>
-                          <p className="text-destructive text-xs">{log.error_message}</p>
-                        </div>
-                      )}
+                  )}
+
+                  {log.error_message && (
+                    <div className="mt-3 pt-3 border-t border-border">
+                      <p className="text-muted-foreground text-xs">Error</p>
+                      <p className="text-destructive text-xs">{log.error_message}</p>
                     </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+                  )}
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </ScrollArea>
       )}
