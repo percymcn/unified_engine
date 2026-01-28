@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Activity, Users, Signal, TrendingUp, CalendarClock, KeyRound, Loader2, BarChart3, LayoutDashboard } from 'lucide-react';
+import { Activity, Users, Signal, TrendingUp, CalendarClock, KeyRound, Loader2, BarChart3, LayoutDashboard, Shield, Zap } from 'lucide-react';
 import { BrokerHealthGrid } from '@/components/brokers/broker-health-grid';
 import {
   ExpirationAlerts,
@@ -28,6 +28,9 @@ import { GuardModal } from '@/components/signal-intelligence/guard-modal';
 import { StreakBadge } from '@/components/dashboard/streak-badge';
 import { OnboardingTooltip } from '@/components/dashboard/onboarding-tooltip';
 import { LiveMarketChart } from '@/components/dashboard/live-market-chart';
+import { PropFirmCompliance } from '@/components/dashboard/prop-firm-compliance';
+import { BrokerHeartbeat } from '@/components/dashboard/broker-heartbeat';
+import { KillSwitch } from '@/components/dashboard/kill-switch';
 import { useWebSocketContext } from '@/providers/websocket-provider';
 import { cn } from '@/lib/utils';
 import { CopyButton } from '@/components/ui/copy-button';
@@ -332,14 +335,22 @@ export default function DashboardPage() {
 
       {/* Dashboard Tabs - Futuristic style */}
       <Tabs defaultValue="overview" className="w-full relative">
-        <TabsList className="grid w-full max-w-md grid-cols-2 bg-card/50 backdrop-blur-sm border border-border/50 p-1">
+        <TabsList className="grid w-full max-w-2xl grid-cols-4 bg-card/50 backdrop-blur-sm border border-border/50 p-1">
           <TabsTrigger value="overview" className="flex items-center gap-2">
             <LayoutDashboard className="h-4 w-4" />
             Overview
           </TabsTrigger>
+          <TabsTrigger value="prop-survival" className="flex items-center gap-2">
+            <Shield className="h-4 w-4" />
+            Prop Survival
+          </TabsTrigger>
           <TabsTrigger value="live-market" className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4" />
             Live Market
+          </TabsTrigger>
+          <TabsTrigger value="controls" className="flex items-center gap-2">
+            <Zap className="h-4 w-4" />
+            Controls
           </TabsTrigger>
         </TabsList>
 
@@ -521,6 +532,11 @@ export default function DashboardPage() {
           </div>
         </TabsContent>
 
+        {/* Prop Survival Tab Content */}
+        <TabsContent value="prop-survival" className="mt-6">
+          <PropFirmCompliance />
+        </TabsContent>
+
         {/* Live Market Tab Content */}
         <TabsContent value="live-market" className="mt-6">
           <div className="space-y-4">
@@ -533,6 +549,24 @@ export default function DashboardPage() {
               </div>
             </div>
             <LiveMarketChart />
+          </div>
+        </TabsContent>
+
+        {/* Controls Tab Content */}
+        <TabsContent value="controls" className="mt-6">
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold">Trading Controls</h2>
+                <p className="text-sm text-muted-foreground">
+                  Emergency controls and broker monitoring
+                </p>
+              </div>
+            </div>
+            <div className="grid gap-6 lg:grid-cols-2">
+              <BrokerHeartbeat />
+              <KillSwitch />
+            </div>
           </div>
         </TabsContent>
       </Tabs>
