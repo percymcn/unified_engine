@@ -597,13 +597,24 @@ class ProjectXSDKService:
                 pnl_val = getattr(pos, 'pnl', getattr(pos, 'unrealized_pnl', 0))
                 if callable(pnl_val):
                     pnl_val = 0.0
+
+                # Determine side from 'type' attribute or size sign
+                # Position type: 2 = long (buy), 0 = short (sell)
+                # Fallback: positive size = long, negative = short
+                pos_type = getattr(pos, 'type', None)
+                pos_size = getattr(pos, 'size', getattr(pos, 'qty', 0)) or 0
+                if pos_type is not None:
+                    side = "buy" if pos_type == 2 else "sell"
+                else:
+                    side = "buy" if pos_size > 0 else "sell"
+
                 result.append({
                     "id": str(getattr(pos, 'id', '')),
                     "contract_id": str(getattr(pos, 'contractId', getattr(pos, 'contract_id', ''))),
                     "symbol": getattr(pos, 'contractName', getattr(pos, 'symbol', '')),
-                    "side": "buy" if getattr(pos, 'side', 0) == 0 else "sell",
-                    "size": abs(float(getattr(pos, 'qty', getattr(pos, 'size', 0)) or 0)),
-                    "entry_price": float(getattr(pos, 'avgPrice', getattr(pos, 'entry_price', 0)) or 0),
+                    "side": side,
+                    "size": abs(float(pos_size)),
+                    "entry_price": float(getattr(pos, 'avgPrice', getattr(pos, 'averagePrice', getattr(pos, 'entry_price', 0))) or 0),
                     "current_price": float(getattr(pos, 'currentPrice', getattr(pos, 'current_price', 0)) or 0),
                     "unrealized_pnl": float(pnl_val) if not callable(pnl_val) else 0.0,
                 })
@@ -636,13 +647,22 @@ class ProjectXSDKService:
 
             for pos in positions:
                 pos_id = str(getattr(pos, 'id', ''))
-                contract_id = str(getattr(pos, 'contract_id', ''))
+                contract_id = str(getattr(pos, 'contractId', getattr(pos, 'contract_id', '')))
 
                 if pos_id == position_id or contract_id == position_id:
-                    # Place opposite order to close
-                    pos_side = getattr(pos, 'side', 0)
-                    close_side = 1 if pos_side == 0 else 0  # Opposite side
-                    close_size = size if size else int(getattr(pos, 'size', 1))
+                    # Determine position side from 'type' attribute or size sign
+                    # type=2 or positive size = long (bought), type=0 or negative size = short (sold)
+                    # SDK order sides: 0=sell, 1=buy (empirically verified)
+                    pos_type = getattr(pos, 'type', None)
+                    pos_size = getattr(pos, 'size', 0)
+
+                    # Long position (type=2 or positive size) needs sell order (side=0)
+                    # Short position (type=0 or negative size) needs buy order (side=1)
+                    is_long = pos_type == 2 or (pos_type is None and pos_size > 0)
+                    close_side = 0 if is_long else 1  # SDK: 0=sell, 1=buy
+                    close_size = size if size else abs(int(pos_size)) or 1
+
+                    logger.info(f"Closing position {pos_id}: type={pos_type}, size={pos_size}, is_long={is_long}, close_side={close_side}, close_size={close_size}")
 
                     response = await suite.orders.place_market_order(
                         contract_id=suite.instrument_id,
