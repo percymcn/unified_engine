@@ -525,22 +525,73 @@ async def execute_tradingview_signal(
                 except Exception as init_err:
                     logger.warning(f"Executor init warning for account {account.id}: {init_err}")
 
-            # Build order request - support market, limit, and trailing stop
-            effective_order_type = f"{order_type_payload}_{action_str}"  # e.g., "market_buy", "limit_sell"
-            order_request = OrderRequest(
-                account_id=account.id,
-                symbol=symbol,
-                order_type=effective_order_type,
-                quantity=quantity,
-                price=limit_price,  # For limit orders
-                stop_loss=sl_price,
-                take_profit=tp_price,
-                trailing_stop=trailing_stop,  # For trailing stop orders
-                comment=raw_payload.get("comment"),  # Trade comment for MT4/MT5
-            )
+            # Handle close action separately - need to find and close positions
+            if action_str == "close":
+                # Helper to get attribute from dict or object
+                def get_attr(obj, key, default=''):
+                    if isinstance(obj, dict):
+                        return obj.get(key, default)
+                    return getattr(obj, key, default)
 
-            # Execute the order directly
-            order_result = await executor.place_order(order_request)
+                # Get positions and close matching ones
+                try:
+                    positions = await executor.get_positions()
+                    matching_positions = [
+                        p for p in (positions or [])
+                        if symbol.upper() in (get_attr(p, 'symbol', '') or '').upper()
+                    ]
+
+                    if not matching_positions:
+                        # No positions to close - return success
+                        order_result = type('Result', (), {
+                            'success': True,
+                            'order_id': 'no_positions',
+                            'error': None
+                        })()
+                    else:
+                        # Close each matching position
+                        closed = 0
+                        close_errors = []
+                        for pos in matching_positions:
+                            pos_id = get_attr(pos, 'id') or get_attr(pos, 'position_id') or get_attr(pos, 'contract_id')
+                            if pos_id:
+                                close_result = await executor.close_position(str(pos_id), quantity if quantity > 0 else None)
+                                if close_result.success if hasattr(close_result, 'success') else close_result.get('success'):
+                                    closed += 1
+                                else:
+                                    err = close_result.error if hasattr(close_result, 'error') else close_result.get('error')
+                                    if err:
+                                        close_errors.append(str(err))
+
+                        order_result = type('Result', (), {
+                            'success': closed > 0,
+                            'order_id': f'closed_{closed}',
+                            'error': '; '.join(close_errors) if close_errors and closed == 0 else None
+                        })()
+                except Exception as close_err:
+                    logger.error(f"Error during close: {close_err}")
+                    order_result = type('Result', (), {
+                        'success': False,
+                        'order_id': None,
+                        'error': str(close_err)
+                    })()
+            else:
+                # Build order request - support market, limit, and trailing stop
+                effective_order_type = f"{order_type_payload}_{action_str}"  # e.g., "market_buy", "limit_sell"
+                order_request = OrderRequest(
+                    account_id=account.id,
+                    symbol=symbol,
+                    order_type=effective_order_type,
+                    quantity=quantity,
+                    price=limit_price,  # For limit orders
+                    stop_loss=sl_price,
+                    take_profit=tp_price,
+                    trailing_stop=trailing_stop,  # For trailing stop orders
+                    comment=raw_payload.get("comment"),  # Trade comment for MT4/MT5
+                )
+
+                # Execute the order directly
+                order_result = await executor.place_order(order_request)
             execution_success = order_result.success if hasattr(order_result, 'success') else order_result.get('success', False)
             execution_error = order_result.error if hasattr(order_result, 'error') else order_result.get('error')
             order_id = order_result.order_id if hasattr(order_result, 'order_id') else order_result.get('order_id')
