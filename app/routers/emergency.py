@@ -83,7 +83,7 @@ async def emergency_kill_switch(
     async def flatten_account(account: TradingAccount):
         nonlocal positions_closed, orders_cancelled, accounts_affected
         try:
-            logger.info(f"[FLATTEN] Processing account: {account.account_name} (broker: {account.broker_type})")
+            logger.info(f"[FLATTEN] Processing account: {account.account_name} (broker: {account.broker})")
             executor, needs_cleanup = await _create_account_executor(account, db)
             if not executor:
                 errors.append(f"Failed to create executor for {account.account_name}")
