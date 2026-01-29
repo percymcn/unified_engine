@@ -69,10 +69,24 @@ export const FEATURES: Record<string, FeatureDefinition> = {
   },
 
   // Analytics features
+  AI_SUITE: {
+    id: 'ai_suite',
+    name: 'AI Strategy Suite',
+    description: 'Pine Script AI fixer, backtest preview, and AI trading coach',
+    minTier: 'pro',
+    category: 'analytics',
+  },
   BACKTEST_PREVIEW: {
     id: 'backtest_preview',
     name: 'Backtest Preview',
     description: 'One-click backtest preview from TradingView webhooks',
+    minTier: 'pro',
+    category: 'analytics',
+  },
+  WEBHOOK_LOGS: {
+    id: 'webhook_logs',
+    name: 'Webhook Logs',
+    description: '30-day webhook execution history and debugging',
     minTier: 'pro',
     category: 'analytics',
   },

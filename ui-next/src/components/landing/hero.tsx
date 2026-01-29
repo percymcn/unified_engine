@@ -48,7 +48,7 @@ export function Hero() {
           >
             Never Miss a Trade Again{" "}
             <span className="block mt-2 bg-gradient-to-r from-green-400 via-emerald-500 to-cyan-500 bg-clip-text text-transparent">
-              Auto-Execute in &lt;50ms
+              Auto-Execute in &lt;100ms
             </span>
           </motion.h1>
 

@@ -405,7 +405,7 @@ export function PricingSection() {
             Not sure which plan is right for you?
           </p>
           <Button variant="outline" asChild>
-            <a href="mailto:support@tradeflow.fluxeo.net">Contact Sales</a>
+            <a href="mailto:support@mytradeflow.app">Contact Sales</a>
           </Button>
         </div>
       </div>

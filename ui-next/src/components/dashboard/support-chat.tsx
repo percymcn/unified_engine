@@ -253,7 +253,7 @@ export function SupportChat() {
               AI Strategy Suite
             </a>
             <a
-              href="mailto:support@tradeflow.com"
+              href="mailto:support@mytradeflow.app"
               className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               <ExternalLink className="h-3 w-3" />
@@ -267,7 +267,7 @@ export function SupportChat() {
           <p className="text-sm text-muted-foreground">
             Can't find what you're looking for?
           </p>
-          <Button variant="outline" size="sm" className="mt-2 w-full" onClick={() => window.location.href = 'mailto:support@tradeflow.com'}>
+          <Button variant="outline" size="sm" className="mt-2 w-full" onClick={() => window.location.href = 'mailto:support@mytradeflow.app'}>
             <MessageCircle className="h-4 w-4 mr-2" />
             Contact Support
           </Button>

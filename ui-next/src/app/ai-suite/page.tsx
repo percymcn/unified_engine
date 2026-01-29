@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   BarChart3,
   Code2,
@@ -14,6 +15,7 @@ import {
   Settings,
   Save,
   Share2,
+  Lock,
 } from 'lucide-react';
 import Link from 'next/link';
 import {
@@ -23,8 +25,13 @@ import {
   AICoach,
 } from '@/features/ai-suite';
 import type { BacktestResults, WebhookPayload } from '@/features/ai-suite/types';
+import { useUser } from '@/providers/user-provider';
+import { hasFeatureAccess, FEATURES, SubscriptionTier } from '@/lib/feature-flags';
 
 export default function AIStrategyPage() {
+  const { user } = useUser();
+  const userTier = (user?.subscription_tier || 'free') as SubscriptionTier;
+  const hasAccess = hasFeatureAccess(userTier, 'AI_SUITE');
   const [pineCode, setPineCode] = useState('');
   const [backtestResults, setBacktestResults] = useState<BacktestResults | null>(null);
   const [webhookPayload, setWebhookPayload] = useState<WebhookPayload | null>(null);
@@ -42,6 +49,66 @@ export default function AIStrategyPage() {
   const handleWebhookGenerated = useCallback((payload: WebhookPayload) => {
     setWebhookPayload(payload);
   }, []);
+
+  // Show upgrade prompt for users without Pro tier
+  if (!hasAccess) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="max-w-lg w-full">
+          <CardHeader className="text-center">
+            <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+              <Lock className="h-8 w-8 text-primary" />
+            </div>
+            <CardTitle className="flex items-center justify-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              AI Strategy Suite
+              <Badge variant="secondary">Pro</Badge>
+            </CardTitle>
+            <CardDescription className="mt-2">
+              {FEATURES.AI_SUITE.description}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="flex items-center gap-2">
+                <Code2 className="h-4 w-4 text-muted-foreground" />
+                <span>Pine Script AI Fixer</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                <span>Backtest Engine</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Brain className="h-4 w-4 text-muted-foreground" />
+                <span>AI Trading Coach</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <LineChart className="h-4 w-4 text-muted-foreground" />
+                <span>Live Charts</span>
+              </div>
+            </div>
+            <div className="flex flex-col gap-3">
+              <Link href="/dashboard/settings/billing">
+                <Button className="w-full">
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Upgrade to Pro
+                </Button>
+              </Link>
+              <Link href="/dashboard">
+                <Button variant="outline" className="w-full">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back to Dashboard
+                </Button>
+              </Link>
+            </div>
+            <p className="text-xs text-muted-foreground text-center">
+              Current plan: <span className="font-medium capitalize">{userTier}</span>
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">

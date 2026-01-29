@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 const stats = [
   { value: "10,000+", label: "Signals Routed" },
   { value: "99.9%", label: "Uptime SLA" },
-  { value: "5", label: "Broker Integrations" },
+  { value: "4+", label: "Broker Integrations" },
   { value: "<100ms", label: "Avg Execution" },
 ];
 

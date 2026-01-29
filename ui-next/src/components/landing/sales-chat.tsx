@@ -282,7 +282,7 @@ export function SalesChat() {
             variant="outline"
             size="sm"
             className="mt-2 w-full"
-            onClick={() => window.location.href = 'mailto:support@tradeflow.com'}
+            onClick={() => window.location.href = 'mailto:support@mytradeflow.app'}
           >
             <MessageCircle className="h-4 w-4 mr-2" />
             Contact Sales

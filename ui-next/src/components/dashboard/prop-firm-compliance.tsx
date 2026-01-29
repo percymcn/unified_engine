@@ -21,8 +21,13 @@ import {
   Calendar,
   Clock,
   Wallet,
+  Lock,
+  Sparkles,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useUser } from '@/providers/user-provider';
+import { hasFeatureAccess, FEATURES, SubscriptionTier } from '@/lib/feature-flags';
+import Link from 'next/link';
 
 interface PropFirmRule {
   id: string;
@@ -59,12 +64,20 @@ interface ComplianceData {
 }
 
 export function PropFirmCompliance() {
+  const { user } = useUser();
+  const userTier = (user?.subscription_tier || 'free') as SubscriptionTier;
+  const hasAccess = hasFeatureAccess(userTier, 'PROP_FIRM_DASHBOARD');
+
   const [accounts, setAccounts] = useState<ComplianceData[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedAccount, setSelectedAccount] = useState<number | null>(null);
   const [alertsEnabled, setAlertsEnabled] = useState(true);
 
   const fetchComplianceData = useCallback(async () => {
+    if (!hasAccess) {
+      setLoading(false);
+      return;
+    }
     try {
       const response = await fetch('/api/dashboard/prop-firm/compliance', { credentials: 'include' });
       if (response.ok) {
@@ -119,6 +132,46 @@ export function PropFirmCompliance() {
   };
 
   const selectedData = accounts.find((a) => a.accountId === selectedAccount);
+
+  // Show upgrade prompt for users without Trader tier or higher
+  if (!hasAccess) {
+    return (
+      <Card className="cyber-card border-amber-500/30">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="h-5 w-5 text-amber-500" />
+            Prop Firm Compliance
+            <Badge variant="outline" className="ml-auto text-xs">Trader+</Badge>
+          </CardTitle>
+          <CardDescription>
+            Real-time drawdown tracking and compliance monitoring
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8 space-y-4">
+            <div className="mx-auto w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center">
+              <Lock className="h-6 w-6 text-amber-500" />
+            </div>
+            <div>
+              <h3 className="font-semibold">Trader Feature</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                {FEATURES.PROP_FIRM_DASHBOARD.description}
+              </p>
+            </div>
+            <Link href="/dashboard/settings/billing">
+              <Button>
+                <Sparkles className="h-4 w-4 mr-2" />
+                Upgrade to Trader
+              </Button>
+            </Link>
+            <p className="text-xs text-muted-foreground">
+              Current plan: <span className="font-medium capitalize">{userTier}</span>
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (loading) {
     return (

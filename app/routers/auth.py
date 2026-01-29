@@ -15,7 +15,8 @@ from app.services.email_service import (
     generate_verification_token,
     verify_email_token,
     send_verification_email,
-    send_welcome_email
+    send_welcome_email,
+    send_password_reset_email
 )
 
 router = APIRouter()
@@ -431,6 +432,110 @@ async def resend_verification_email(
         logger.error(f"Error resending verification email: {e}")
 
     return {"message": "If the email exists, a verification link has been sent"}
+
+
+def generate_password_reset_token(email: str, user_id: int) -> str:
+    """Generate a JWT token for password reset"""
+    expires = datetime.utcnow() + timedelta(hours=1)  # Token valid for 1 hour
+    to_encode = {
+        "sub": email,
+        "user_id": user_id,
+        "type": "password_reset",
+        "exp": expires
+    }
+    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
+
+def verify_password_reset_token(token: str) -> Optional[dict]:
+    """Verify a password reset token and return payload if valid"""
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        if payload.get("type") != "password_reset":
+            return None
+        return payload
+    except JWTError:
+        return None
+
+
+@router.post("/forgot-password")
+async def forgot_password(
+    email: str = Body(..., embed=True),
+    db: Session = Depends(get_db)
+):
+    """
+    Request a password reset email.
+    Always returns success message to prevent email enumeration.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+
+    user = db.query(User).filter(User.email == email).first()
+
+    # Always return same message regardless of whether user exists (security)
+    if user:
+        try:
+            token = generate_password_reset_token(user.email, user.id)
+            email_sent = send_password_reset_email(user.email, user.username, token)
+            if email_sent:
+                logger.info(f"Password reset email sent to {user.email}")
+            else:
+                logger.warning(f"SMTP not configured - could not send password reset email")
+        except Exception as e:
+            logger.error(f"Error sending password reset email: {e}")
+
+    return {"message": "If an account exists with that email, a password reset link has been sent"}
+
+
+@router.post("/reset-password")
+async def reset_password(
+    token: str = Body(...),
+    new_password: str = Body(...),
+    db: Session = Depends(get_db)
+):
+    """
+    Reset password using the token from the email.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+
+    # Verify the token
+    payload = verify_password_reset_token(token)
+    if not payload:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset token"
+        )
+
+    user_id = payload.get("user_id")
+    email = payload.get("sub")
+
+    user = db.query(User).filter(User.id == user_id, User.email == email).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset token"
+        )
+
+    # Validate new password
+    if len(new_password) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password must be at least 8 characters"
+        )
+
+    # Update password
+    try:
+        user.hashed_password = get_password_hash(new_password)
+        db.commit()
+        logger.info(f"Password reset successfully for user {user.id}")
+        return {"message": "Password reset successfully"}
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error resetting password: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to reset password"
+        )
 
 
 async def verify_api_key(api_key: str = Header(None, alias="X-API-Key"), db: Session = Depends(get_db)) -> User:

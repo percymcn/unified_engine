@@ -1,13 +1,16 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { History, RefreshCw, CheckCircle2, XCircle, AlertCircle, Clock } from 'lucide-react';
+import { History, RefreshCw, CheckCircle2, XCircle, AlertCircle, Clock, Lock, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { formatDistanceToNow } from 'date-fns';
+import { useUser } from '@/providers/user-provider';
+import { hasFeatureAccess, FEATURES, SubscriptionTier } from '@/lib/feature-flags';
+import Link from 'next/link';
 
 interface WebhookExecution {
   account_id: number;
@@ -39,12 +42,20 @@ interface WebhookLog {
 }
 
 export default function WebhookLogsPage() {
+  const { user } = useUser();
+  const userTier = (user?.subscription_tier || 'free') as SubscriptionTier;
+  const hasAccess = hasFeatureAccess(userTier, 'WEBHOOK_LOGS');
+
   const [logs, setLogs] = useState<WebhookLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchLogs = useCallback(async () => {
+    if (!hasAccess) {
+      setLoading(false);
+      return;
+    }
     try {
       setError(null);
       const response = await fetch('/api/webhooks/logs', { credentials: 'include' });
@@ -106,6 +117,41 @@ export default function WebhookLogsPage() {
       </Badge>
     );
   };
+
+  // Show upgrade prompt for users without Pro tier
+  if (!hasAccess) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Webhook Logs</h1>
+          <p className="text-muted-foreground mt-2">
+            View execution history and debug webhook signals
+          </p>
+        </div>
+
+        <Card className="p-8 text-center space-y-4">
+          <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+            <Lock className="h-8 w-8 text-primary" />
+          </div>
+          <h2 className="text-xl font-semibold">Pro Feature</h2>
+          <p className="text-muted-foreground max-w-md mx-auto">
+            {FEATURES.WEBHOOK_LOGS.description}. Upgrade to Pro or higher to view webhook execution history.
+          </p>
+          <div className="flex gap-3 justify-center">
+            <Link href="/dashboard/settings/billing">
+              <Button>
+                <Sparkles className="h-4 w-4 mr-2" />
+                Upgrade to Pro
+              </Button>
+            </Link>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Current plan: <span className="font-medium capitalize">{userTier}</span>
+          </p>
+        </Card>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

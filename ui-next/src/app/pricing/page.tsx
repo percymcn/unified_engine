@@ -72,8 +72,8 @@ export default function PricingPage() {
           </h2>
           <p className="text-muted-foreground">
             Email us at{" "}
-            <a href="mailto:support@tradeflow.fluxeo.net" className="text-primary hover:underline">
-              support@tradeflow.fluxeo.net
+            <a href="mailto:support@mytradeflow.app" className="text-primary hover:underline">
+              support@mytradeflow.app
             </a>
           </p>
         </div>

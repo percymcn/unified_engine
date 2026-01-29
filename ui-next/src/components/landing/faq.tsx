@@ -10,7 +10,7 @@ import {
 const faqs = [
   {
     question: "What brokers does Tradeflow support?",
-    answer: "Tradeflow supports TradeLocker, Tradovate, TopStep, and MetaTrader 4/5. We're constantly adding new integrations based on user demand."
+    answer: "Tradeflow supports TradeLocker, Tradovate, TopStep (ProjectX), and MetaTrader 4/5. We're continuously expanding our broker integrations."
   },
   {
     question: "How secure are my API credentials?",
@@ -22,7 +22,7 @@ const faqs = [
   },
   {
     question: "Can I route signals to multiple accounts?",
-    answer: "Yes! Pro users can connect unlimited broker accounts and route signals to multiple accounts simultaneously with a single webhook."
+    answer: "Yes! Starter plans support 1 account, Trader plans support 2 accounts, Pro supports 4 accounts, and Enterprise supports 8+ accounts. All plans allow routing signals to multiple accounts simultaneously."
   },
   {
     question: "How fast are trades executed?",
@@ -30,7 +30,7 @@ const faqs = [
   },
   {
     question: "Is there a free plan?",
-    answer: "Yes! Our free plan includes 1 broker connection with full signal routing. Upgrade to Pro for unlimited connections and priority execution."
+    answer: "Yes! Our free plan includes up to 50 signals per day with basic signal routing. Upgrade to Starter ($29/mo) or higher for more signals, multiple accounts, and advanced features."
   },
 ];
 

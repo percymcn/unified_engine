@@ -27,7 +27,7 @@ export default function ContactPage() {
   const [error, setError] = useState("");
 
   // Masked email for display - actual email is handled server-side
-  const supportEmail = "support@tradeflow.com";
+  const supportEmail = "support@mytradeflow.app";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

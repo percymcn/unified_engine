@@ -15,9 +15,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Power, AlertTriangle, Shield, Loader2 } from 'lucide-react';
+import { Power, AlertTriangle, Shield, Loader2, Lock, Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { useUser } from '@/providers/user-provider';
+import { hasFeatureAccess, FEATURES, SubscriptionTier } from '@/lib/feature-flags';
+import Link from 'next/link';
 
 interface KillSwitchProps {
   className?: string;
@@ -25,6 +28,9 @@ interface KillSwitchProps {
 }
 
 export function KillSwitch({ className, variant = 'full' }: KillSwitchProps) {
+  const { user } = useUser();
+  const userTier = (user?.subscription_tier || 'free') as SubscriptionTier;
+  const hasAccess = hasFeatureAccess(userTier, 'KILL_SWITCH');
   const [isKilling, setIsKilling] = useState(false);
   const [isPausing, setIsPausing] = useState(false);
   const [isArmed, setIsArmed] = useState(false);
@@ -105,6 +111,58 @@ export function KillSwitch({ className, variant = 'full' }: KillSwitchProps) {
       setIsPausing(false);
     }
   };
+
+  // Show upgrade prompt for non-Enterprise users
+  if (!hasAccess) {
+    if (variant === 'compact') {
+      return (
+        <Link href="/dashboard/settings/billing">
+          <Button variant="outline" size="sm" className={cn('gap-2', className)}>
+            <Lock className="h-4 w-4" />
+            Kill Switch
+            <Badge variant="secondary" className="ml-1 text-[10px]">Enterprise</Badge>
+          </Button>
+        </Link>
+      );
+    }
+
+    return (
+      <Card className={cn('cyber-card border-amber-500/30', className)}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="h-5 w-5 text-amber-500" />
+            Emergency Controls
+            <Badge variant="outline" className="ml-auto text-xs">Enterprise</Badge>
+          </CardTitle>
+          <CardDescription>
+            Account-wide emergency controls for risk management
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="text-center py-6 space-y-4">
+            <div className="mx-auto w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center">
+              <Lock className="h-6 w-6 text-amber-500" />
+            </div>
+            <div>
+              <h3 className="font-semibold">Enterprise Feature</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                {FEATURES.KILL_SWITCH.description}
+              </p>
+            </div>
+            <Link href="/dashboard/settings/billing">
+              <Button>
+                <Sparkles className="h-4 w-4 mr-2" />
+                Upgrade to Enterprise
+              </Button>
+            </Link>
+            <p className="text-xs text-muted-foreground">
+              Current plan: <span className="font-medium capitalize">{userTier}</span>
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (variant === 'compact') {
     return (
