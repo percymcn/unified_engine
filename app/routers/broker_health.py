@@ -15,6 +15,7 @@ from app.brokers.tradovate_executor import TradovateExecutor
 from app.brokers.projectx_executor import ProjectXExecutor
 from app.brokers.mt4_executor import MT4Executor
 from app.brokers.mt5_executor import MT5Executor
+from app.core.config import settings
 import logging
 
 logger = logging.getLogger(__name__)
@@ -178,7 +179,14 @@ async def _test_broker_connection(broker_type: DBBrokerType, account: TradingAcc
             # If no credentials, try Credential table
             if not credentials.get("login") and not credentials.get("metaapi_token"):
                 credentials.update(_load_credential_fallback(db, account, broker_type))
-        
+
+            # Also check extra_metadata for metaapi_account_id (metaapi.py stores it there)
+            if hasattr(account, 'extra_metadata') and account.extra_metadata:
+                if account.extra_metadata.get("metaapi_account_id"):
+                    credentials["metaapi_account_id"] = account.extra_metadata.get("metaapi_account_id")
+                if account.extra_metadata.get("server") and not credentials.get("server"):
+                    credentials["server"] = account.extra_metadata.get("server")
+
         # Check if we have required credentials
         if broker_type == DBBrokerType.TRADELOCKER:
             has_sdk = all([credentials.get("username"), credentials.get("password"), credentials.get("server")])
@@ -197,11 +205,16 @@ async def _test_broker_connection(broker_type: DBBrokerType, account: TradingAcc
                 logger.warning("projectx: Missing username/api_key")
                 return False
         elif broker_type in [DBBrokerType.MT4, DBBrokerType.MT5]:
-            has_metaapi = bool(credentials.get("metaapi_token") and credentials.get("metaapi_account_id"))
+            # Use settings.METAAPI_TOKEN as fallback if not in credentials
+            metaapi_token = credentials.get("metaapi_token") or settings.METAAPI_TOKEN
+            has_metaapi = bool(metaapi_token and credentials.get("metaapi_account_id"))
             has_manager = bool(credentials.get("login") and credentials.get("password") and credentials.get("server"))
             if not (has_metaapi or has_manager):
                 logger.warning(f"{broker_type.value}: Missing MetaAPI or manager credentials")
                 return False
+            # Store resolved token for later use
+            if metaapi_token and not credentials.get("metaapi_token"):
+                credentials["metaapi_token"] = metaapi_token
         
         # Create executor and test connection
         executor = None
@@ -257,26 +270,38 @@ async def _test_broker_connection(broker_type: DBBrokerType, account: TradingAcc
                     return False
                 
             elif broker_type == DBBrokerType.MT4:
-                # Pass credentials through constructor - no env var fallback
-                if credentials.get("metaapi_token") and credentials.get("metaapi_account_id"):
+                # Try MetaAPI credentials first (from settings fallback if needed)
+                metaapi_token = credentials.get("metaapi_token") or settings.METAAPI_TOKEN
+                metaapi_account_id = credentials.get("metaapi_account_id") or credentials.get("account_id")
+
+                if metaapi_token and metaapi_account_id:
                     executor = MT4Executor(
-                        metaapi_token=credentials.get("metaapi_token"),
-                        metaapi_account_id=credentials.get("metaapi_account_id"),
+                        metaapi_token=metaapi_token,
+                        metaapi_account_id=metaapi_account_id,
                     )
                 else:
-                    logger.warning(f"MT4 missing metaapi_token or metaapi_account_id")
-                    return False
+                    # Try creating executor with global config (manager mode)
+                    executor = MT4Executor()
+                    if not executor.is_available:
+                        logger.warning(f"MT4: No MetaAPI or manager credentials configured")
+                        return False
 
             elif broker_type == DBBrokerType.MT5:
-                # Pass credentials through constructor - no env var fallback
-                if credentials.get("metaapi_token") and credentials.get("metaapi_account_id"):
+                # Try MetaAPI credentials first (from settings fallback if needed)
+                metaapi_token = credentials.get("metaapi_token") or settings.METAAPI_TOKEN
+                metaapi_account_id = credentials.get("metaapi_account_id") or credentials.get("account_id")
+
+                if metaapi_token and metaapi_account_id:
                     executor = MT5Executor(
-                        metaapi_token=credentials.get("metaapi_token"),
-                        metaapi_account_id=credentials.get("metaapi_account_id"),
+                        metaapi_token=metaapi_token,
+                        metaapi_account_id=metaapi_account_id,
                     )
                 else:
-                    logger.warning(f"MT5 missing metaapi_token or metaapi_account_id")
-                    return False
+                    # Try creating executor with global config (manager mode)
+                    executor = MT5Executor()
+                    if not executor.is_available:
+                        logger.warning(f"MT5: No MetaAPI or manager credentials configured")
+                        return False
             
             if executor:
                 # Try to initialize (with timeout)
