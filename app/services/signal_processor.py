@@ -147,30 +147,28 @@ async def _create_account_executor(account: TradingAccount, db: Session):
             )
 
     elif broker_type == "mt4":
-        # Use per-user MetaAPI credentials from database - NO env var fallback
+        # Use per-user MetaAPI credentials - fall back to global METAAPI_TOKEN if not in credentials
         metaapi_account_id = credentials.get("metaapi_account_id")
-        metaapi_token = credentials.get("metaapi_token") or credentials.get("api_token")
+        metaapi_token = credentials.get("metaapi_token") or credentials.get("api_token") or settings.METAAPI_TOKEN
         if metaapi_account_id and metaapi_token:
-            # Pass credentials through constructor - no env var fallback
             executor = MT4Executor(
                 metaapi_token=metaapi_token,
                 metaapi_account_id=metaapi_account_id,
             )
         else:
-            logger.warning(f"MT4 account {account.account_name} missing credentials (metaapi_account_id + token required)")
+            logger.warning(f"MT4 account {account.account_name} missing credentials (metaapi_account_id={metaapi_account_id}, token={'SET' if metaapi_token else 'MISSING'})")
 
     elif broker_type == "mt5":
-        # Use per-user MetaAPI credentials from database - NO env var fallback
+        # Use per-user MetaAPI credentials - fall back to global METAAPI_TOKEN if not in credentials
         metaapi_account_id = credentials.get("metaapi_account_id")
-        metaapi_token = credentials.get("metaapi_token") or credentials.get("api_token")
+        metaapi_token = credentials.get("metaapi_token") or credentials.get("api_token") or settings.METAAPI_TOKEN
         if metaapi_account_id and metaapi_token:
-            # Pass credentials through constructor - no env var fallback
             executor = MT5Executor(
                 metaapi_token=metaapi_token,
                 metaapi_account_id=metaapi_account_id,
             )
         else:
-            logger.warning(f"MT5 account {account.account_name} missing credentials (metaapi_account_id + token required)")
+            logger.warning(f"MT5 account {account.account_name} missing credentials (metaapi_account_id={metaapi_account_id}, token={'SET' if metaapi_token else 'MISSING'})")
 
     # Initialize the executor if created
     if executor:
