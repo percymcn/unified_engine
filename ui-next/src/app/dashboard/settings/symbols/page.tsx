@@ -160,7 +160,7 @@ export default function SymbolMappingPage() {
           </Card>
           <Card>
             <CardContent className="py-4">
-              <div className="text-2xl font-bold">{groups.length}</div>
+              <div className="text-2xl font-bold">{groups?.length || 0}</div>
               <div className="text-sm text-muted-foreground">Brokers</div>
             </CardContent>
           </Card>

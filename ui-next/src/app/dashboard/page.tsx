@@ -498,7 +498,7 @@ export default function DashboardPage() {
       </Card>
 
       {/* Contract Expiration Alerts */}
-      {!contractsLoading && expiringContracts.length > 0 && (
+      {!contractsLoading && (expiringContracts?.length || 0) > 0 && (
         <Card>
           <CardHeader className="flex flex-row items-center gap-2">
             <CalendarClock className="h-5 w-5 text-amber-500" />

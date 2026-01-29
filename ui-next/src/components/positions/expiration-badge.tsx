@@ -188,9 +188,9 @@ export function ExpirationAlerts({ alerts, onRollover }: ExpirationAlertProps) {
  * Compact list of expiring contracts for sidebar/summary views.
  */
 export function ExpirationList({ contracts }: { contracts: FuturesInfo[] }) {
-  const expiring = contracts.filter((c) => c.daysUntilExpiration <= 7);
+  const expiring = (contracts || []).filter((c) => c.daysUntilExpiration <= 7);
 
-  if (expiring.length === 0) {
+  if ((expiring?.length || 0) === 0) {
     return null;
   }
 
@@ -198,7 +198,7 @@ export function ExpirationList({ contracts }: { contracts: FuturesInfo[] }) {
     <div className="space-y-2">
       <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-1">
         <AlertTriangle className="h-3 w-3" />
-        Expiring Contracts ({expiring.length})
+        Expiring Contracts ({expiring?.length || 0})
       </h4>
       <ul className="space-y-1">
         {expiring.map((contract) => (
