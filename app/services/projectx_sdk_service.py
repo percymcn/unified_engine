@@ -589,19 +589,25 @@ class ProjectXSDKService:
             # Use client's search_open_positions directly (SDK v3.0+)
             positions = await self._client.search_open_positions()
 
-            return [
-                {
-                    "id": str(getattr(pos, 'id', '')) if pos else "",
-                    "contract_id": str(getattr(pos, 'contractId', getattr(pos, 'contract_id', ''))) if pos else "",
-                    "symbol": getattr(pos, 'contractName', getattr(pos, 'symbol', '')) if pos else '',
+            result = []
+            for pos in positions:
+                if not pos:
+                    continue
+                # Handle pnl which might be a method or property
+                pnl_val = getattr(pos, 'pnl', getattr(pos, 'unrealized_pnl', 0))
+                if callable(pnl_val):
+                    pnl_val = 0.0
+                result.append({
+                    "id": str(getattr(pos, 'id', '')),
+                    "contract_id": str(getattr(pos, 'contractId', getattr(pos, 'contract_id', ''))),
+                    "symbol": getattr(pos, 'contractName', getattr(pos, 'symbol', '')),
                     "side": "buy" if getattr(pos, 'side', 0) == 0 else "sell",
-                    "size": abs(float(getattr(pos, 'qty', getattr(pos, 'size', 0)))) if pos else 0,
-                    "entry_price": float(getattr(pos, 'avgPrice', getattr(pos, 'entry_price', 0))) if pos else 0.0,
-                    "current_price": float(getattr(pos, 'currentPrice', getattr(pos, 'current_price', 0))) if pos else 0.0,
-                    "unrealized_pnl": float(getattr(pos, 'pnl', getattr(pos, 'unrealized_pnl', 0))) if pos else 0.0,
-                }
-                for pos in positions
-            ]
+                    "size": abs(float(getattr(pos, 'qty', getattr(pos, 'size', 0)) or 0)),
+                    "entry_price": float(getattr(pos, 'avgPrice', getattr(pos, 'entry_price', 0)) or 0),
+                    "current_price": float(getattr(pos, 'currentPrice', getattr(pos, 'current_price', 0)) or 0),
+                    "unrealized_pnl": float(pnl_val) if not callable(pnl_val) else 0.0,
+                })
+            return result
         except Exception as e:
             logger.error(f"Error getting positions: {e}")
             return []

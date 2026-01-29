@@ -83,43 +83,78 @@ async def emergency_kill_switch(
     async def flatten_account(account: TradingAccount):
         nonlocal positions_closed, orders_cancelled, accounts_affected
         try:
+            logger.info(f"[FLATTEN] Processing account: {account.account_name} (broker: {account.broker_type})")
             executor, needs_cleanup = await _create_account_executor(account, db)
             if not executor:
                 errors.append(f"Failed to create executor for {account.account_name}")
+                logger.error(f"[FLATTEN] No executor for {account.account_name}")
                 return
 
             try:
                 # Get all positions
+                logger.info(f"[FLATTEN] Calling get_positions for {account.account_name}...")
                 positions = await executor.get_positions()
+                logger.info(f"[FLATTEN] Got {len(positions) if positions else 0} positions for {account.account_name}")
+
+                if positions:
+                    logger.info(f"[FLATTEN] Position types: {[type(p).__name__ for p in positions[:3]]}")
+                    # Log first position details for debugging
+                    first_pos = positions[0]
+                    if hasattr(first_pos, '__dict__'):
+                        logger.info(f"[FLATTEN] First position attrs: {vars(first_pos)}")
+                    elif hasattr(first_pos, 'keys'):
+                        logger.info(f"[FLATTEN] First position keys: {first_pos.keys()}")
 
                 # Close all positions
-                for pos in positions:
+                for idx, pos in enumerate(positions):
                     try:
                         pos_id = pos.id if hasattr(pos, 'id') else pos.get('id')
                         symbol = pos.symbol if hasattr(pos, 'symbol') else pos.get('symbol')
                         side = pos.side if hasattr(pos, 'side') else pos.get('side', 'buy')
                         size = pos.size if hasattr(pos, 'size') else pos.get('size', pos.get('volume', 0))
 
-                        # Close by opening opposite position
-                        close_side = 'sell' if side.lower() == 'buy' else 'buy'
+                        logger.info(f"[FLATTEN] Position {idx+1}/{len(positions)}: id={pos_id}, symbol={symbol}, side={side}, size={size}")
 
-                        from app.models.pydantic_schemas import TradeRequest
-                        close_request = TradeRequest(
-                            symbol=symbol,
-                            side=close_side,
-                            volume=float(size),
-                            order_type="market",
-                            comment="EMERGENCY_FLATTEN"
-                        )
+                        # Use close_position if available (preferred for TradeLocker, MT4, MT5)
+                        if hasattr(executor, 'close_position'):
+                            logger.info(f"[FLATTEN] Closing position {pos_id} via close_position()")
+                            result = await executor.close_position(str(pos_id))
+                            logger.info(f"[FLATTEN] Close result: success={result.success}, error={getattr(result, 'error', None)}")
 
-                        result = await executor.execute_trade(close_request)
-                        if result.success:
-                            positions_closed += 1
-                            logger.info(f"Closed position {pos_id} on {account.account_name}")
+                            if result.success:
+                                positions_closed += 1
+                                logger.info(f"[FLATTEN] Successfully closed position {pos_id} on {account.account_name}")
+                            else:
+                                err_msg = f"Failed to close {symbol} on {account.account_name}: {result.error}"
+                                errors.append(err_msg)
+                                logger.error(f"[FLATTEN] {err_msg}")
                         else:
-                            errors.append(f"Failed to close {symbol} on {account.account_name}: {result.error}")
+                            # Fallback: close by opening opposite position (for brokers without close_position)
+                            close_side = 'sell' if side.lower() == 'buy' else 'buy'
+                            logger.info(f"[FLATTEN] Closing via opposite trade: {close_side} {size} {symbol}")
+
+                            from app.models.pydantic_schemas import OrderRequest
+                            close_request = OrderRequest(
+                                symbol=symbol,
+                                side=close_side,
+                                quantity=float(size),
+                                order_type="market",
+                            )
+
+                            result = await executor.place_order(close_request)
+                            logger.info(f"[FLATTEN] Trade result: success={result.success}, error={getattr(result, 'error', None)}")
+
+                            if result.success:
+                                positions_closed += 1
+                                logger.info(f"[FLATTEN] Successfully closed position {pos_id} on {account.account_name}")
+                            else:
+                                err_msg = f"Failed to close {symbol} on {account.account_name}: {result.error}"
+                                errors.append(err_msg)
+                                logger.error(f"[FLATTEN] {err_msg}")
                     except Exception as e:
-                        errors.append(f"Error closing position on {account.account_name}: {str(e)}")
+                        err_msg = f"Error closing position on {account.account_name}: {str(e)}"
+                        errors.append(err_msg)
+                        logger.error(f"[FLATTEN] {err_msg}", exc_info=True)
 
                 # Cancel pending orders if executor supports it
                 if hasattr(executor, 'cancel_all_orders'):
