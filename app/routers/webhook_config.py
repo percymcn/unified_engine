@@ -72,9 +72,9 @@ class WebhookConfigResponse(BaseModel):
     symbol_filter: Optional[List[str]] = None
     action_filter: Optional[List[str]] = None
     is_active: bool
-    total_signals: int
-    successful_signals: int
-    failed_signals: int
+    total_signals: Optional[int] = 0
+    successful_signals: Optional[int] = 0
+    failed_signals: Optional[int] = 0
     last_signal_at: Optional[str] = None
     created_at: str
     updated_at: Optional[str] = None

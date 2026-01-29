@@ -498,9 +498,9 @@ class WebhookConfigResponse(BaseModel):
     symbol_filter: Optional[Dict[str, Any]]
     action_filter: Optional[Dict[str, Any]]
     is_active: bool
-    total_signals: int
-    successful_signals: int
-    failed_signals: int
+    total_signals: Optional[int] = 0
+    successful_signals: Optional[int] = 0
+    failed_signals: Optional[int] = 0
     created_at: datetime
 
     class Config:
