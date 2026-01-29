@@ -1,22 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { AUTH_COOKIE_NAME } from '@/lib/auth';
-
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+import { getTokenFromCookies } from '@/lib/auth';
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8765';
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export async function GET(_request: NextRequest) {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(AUTH_COOKIE_NAME)?.value;
-
-  if (!token) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
+export async function GET() {
   try {
+    const token = await getTokenFromCookies();
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const response = await fetch(`${BACKEND_URL}/api/v1/api-keys/`, {
       method: 'GET',
       headers: {
@@ -25,57 +18,59 @@ export async function GET(_request: NextRequest) {
       },
     });
 
+    const data = await response.json();
+
     if (!response.ok) {
-      return NextResponse.json(
-        { error: 'Failed to fetch API keys' },
-        { status: response.status }
-      );
+      return NextResponse.json(data, { status: response.status });
     }
 
-    const data = await response.json();
     return NextResponse.json(data);
   } catch (error) {
-    console.error('Error fetching API keys:', error);
+    console.error('Get API keys error:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Failed to fetch API keys' },
       { status: 500 }
     );
   }
 }
 
 export async function POST(request: NextRequest) {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(AUTH_COOKIE_NAME)?.value;
-
-  if (!token) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
   try {
+    const token = await getTokenFromCookies();
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
 
-    const response = await fetch(`${BACKEND_URL}/api/v1/api-keys/`, {
+    const params = new URLSearchParams();
+    params.append('name', body.name || 'API Key');
+    if (body.expires_days) {
+      params.append('expires_days', body.expires_days.toString());
+    }
+    if (body.permissions) {
+      body.permissions.forEach((p: string) => params.append('permissions', p));
+    }
+
+    const response = await fetch(`${BACKEND_URL}/api/v1/api-keys/?${params.toString()}`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(body),
     });
 
+    const data = await response.json();
+
     if (!response.ok) {
-      return NextResponse.json(
-        { error: 'Failed to create API key' },
-        { status: response.status }
-      );
+      return NextResponse.json(data, { status: response.status });
     }
 
-    const data = await response.json();
     return NextResponse.json(data);
   } catch (error) {
-    console.error('Error creating API key:', error);
+    console.error('Create API key error:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Failed to create API key' },
       { status: 500 }
     );
   }

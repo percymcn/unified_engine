@@ -92,6 +92,13 @@ export const FEATURES: Record<string, FeatureDefinition> = {
   },
 
   // Security features
+  API_KEYS: {
+    id: 'api_keys',
+    name: 'API Keys',
+    description: 'Programmatic access to trading API with custom permissions',
+    minTier: 'pro',
+    category: 'security',
+  },
   KILL_SWITCH: {
     id: 'kill_switch',
     name: 'Emergency Kill Switch',

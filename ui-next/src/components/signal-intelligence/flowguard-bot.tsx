@@ -444,7 +444,7 @@ export function FlowGuardBot() {
                           <li>Open your TradingView chart and create/edit an alert</li>
                           <li>Set your alert conditions (price cross, indicator signal, etc.)</li>
                           <li>In &quot;Notifications&quot;, enable &quot;Webhook URL&quot;</li>
-                          <li>Enter: <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">https://tradeflow.fluxeo.net/api/webhook/execute</code></li>
+                          <li>Enter: <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">https://api.mytradeflow.app/api/v1/webhook/{webhookKey || 'YOUR_KEY'}</code></li>
                           <li>Paste this JSON in the &quot;Message&quot; field</li>
                           <li>Click &quot;Create&quot; to save your alert</li>
                         </ol>

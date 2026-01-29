@@ -26,6 +26,7 @@ interface KillSwitchProps {
 
 export function KillSwitch({ className, variant = 'full' }: KillSwitchProps) {
   const [isKilling, setIsKilling] = useState(false);
+  const [isPausing, setIsPausing] = useState(false);
   const [isArmed, setIsArmed] = useState(false);
   const { toast } = useToast();
 
@@ -70,24 +71,38 @@ export function KillSwitch({ className, variant = 'full' }: KillSwitchProps) {
   };
 
   const handlePauseAll = async () => {
+    console.log('[KillSwitch] Pausing all trading...');
+    setIsPausing(true);
     try {
       const response = await fetch('/api/emergency/pause-all', {
         method: 'POST',
         credentials: 'include',
       });
 
+      const result = await response.json();
+      console.log('[KillSwitch] Pause response:', response.status, result);
+
       if (response.ok) {
         toast({
           title: 'All Trading Paused',
-          description: 'Signal execution has been paused across all accounts.',
+          description: result.message || `Signal execution paused for ${result.accountsPaused || 0} accounts.`,
+        });
+      } else {
+        toast({
+          title: 'Pause Failed',
+          description: result.error || result.message || 'Unable to pause trading.',
+          variant: 'destructive',
         });
       }
     } catch (error) {
+      console.error('[KillSwitch] Pause error:', error);
       toast({
         title: 'Pause Failed',
-        description: 'Unable to pause trading.',
+        description: error instanceof Error ? error.message : 'Unable to pause trading.',
         variant: 'destructive',
       });
+    } finally {
+      setIsPausing(false);
     }
   };
 
@@ -221,9 +236,19 @@ export function KillSwitch({ className, variant = 'full' }: KillSwitchProps) {
           variant="outline"
           className="w-full"
           onClick={handlePauseAll}
+          disabled={isPausing}
         >
-          <Power className="h-4 w-4 mr-2" />
-          Pause All Trading
+          {isPausing ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Pausing...
+            </>
+          ) : (
+            <>
+              <Power className="h-4 w-4 mr-2" />
+              Pause All Trading
+            </>
+          )}
         </Button>
 
         <p className="text-xs text-muted-foreground text-center">

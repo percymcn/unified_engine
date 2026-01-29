@@ -24,8 +24,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Plus } from 'lucide-react';
+import { Plus, Lock, Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useUser } from '@/providers/user-provider';
+import { hasFeatureAccess, FEATURES, SubscriptionTier } from '@/lib/feature-flags';
+import Link from 'next/link';
 
 export default function ApiKeysPage() {
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
@@ -37,11 +40,19 @@ export default function ApiKeysPage() {
   const [keyToRevoke, setKeyToRevoke] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
+  const { user } = useUser();
+
+  const userTier = (user?.subscription_tier || 'free') as SubscriptionTier;
+  const hasAccess = hasFeatureAccess(userTier, 'API_KEYS');
 
   useEffect(() => {
-    loadApiKeys();
+    if (hasAccess) {
+      loadApiKeys();
+    } else {
+      setIsLoading(false);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [hasAccess]);
 
   const loadApiKeys = async () => {
     setIsLoading(true);
@@ -113,6 +124,41 @@ export default function ApiKeysPage() {
     setCreatedModalOpen(false);
     setCreatedKey(null);
   };
+
+  // Show upgrade prompt if user doesn't have access
+  if (!hasAccess) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">API Keys</h1>
+          <p className="text-muted-foreground mt-2">
+            Manage API keys for programmatic access to your trading account
+          </p>
+        </div>
+
+        <div className="rounded-lg border bg-card p-8 text-center space-y-4">
+          <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+            <Lock className="h-8 w-8 text-primary" />
+          </div>
+          <h2 className="text-xl font-semibold">Pro Feature</h2>
+          <p className="text-muted-foreground max-w-md mx-auto">
+            {FEATURES.API_KEYS.description}. Upgrade to Pro or higher to unlock API key management.
+          </p>
+          <div className="flex gap-3 justify-center">
+            <Link href="/dashboard/settings/billing">
+              <Button>
+                <Sparkles className="h-4 w-4 mr-2" />
+                Upgrade to Pro
+              </Button>
+            </Link>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Current plan: <span className="font-medium capitalize">{userTier}</span>
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
