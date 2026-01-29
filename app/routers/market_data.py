@@ -17,7 +17,7 @@ from app.services.contract_resolver import get_contract_resolver
 from app.routers.auth import get_current_user
 from app.models.schemas import User
 from app.db.database import get_async_session
-from app.infrastructure.repositories.account_repository import AccountRepository
+from app.infrastructure.repositories.account_repository import SQLAlchemyAccountRepository as AccountRepository
 from app.infrastructure.repositories.credential_repository import CredentialRepository
 from app.domain.value_objects import AccountId
 
