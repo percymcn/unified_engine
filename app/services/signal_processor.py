@@ -20,7 +20,7 @@ from app.brokers.mt5_executor import MT5Executor
 from app.brokers.tradelocker_executor import TradeLockerExecutor
 from app.brokers.tradovate_executor import TradovateExecutor
 from app.brokers.projectx_executor import ProjectXExecutor
-from app.db.database import get_db
+from app.db.database import get_db, get_db_session
 from app.domain.services.symbol_normalization_service import SymbolNormalizationService
 from app.services.signal_deduplication_service import (
     SignalDeduplicationService,
@@ -354,7 +354,10 @@ class SignalProcessor:
         except Exception as e:
             logger.error(f"Error logging signal: {e}")
             return f"signal_{datetime.now().timestamp()}"
-    
+        finally:
+            if 'db' in locals():
+                db.close()
+
     async def _validate_signal(self, signal_request: SignalRequest) -> Dict[str, Any]:
         """Validate signal request.
 
@@ -553,6 +556,9 @@ class SignalProcessor:
         except Exception as e:
             logger.error(f"Error checking deduplication: {e}")
             return {"passed": True}  # Allow on error (fail open)
+        finally:
+            if 'db' in locals():
+                db.close()
 
     def _log_duplicate_rejection(
         self,
@@ -656,6 +662,9 @@ class SignalProcessor:
         except Exception as e:
             logger.error(f"Error checking trial status: {e}")
             return {"passed": True}  # Allow on error (fail open)
+        finally:
+            if 'db' in locals():
+                db.close()
 
     def _log_trial_rejection(
         self,
@@ -717,6 +726,9 @@ class SignalProcessor:
 
         except Exception as e:
             logger.error(f"Error incrementing trial trade count: {e}")
+        finally:
+            if 'db' in locals():
+                db.close()
 
     async def _calculate_position_size(
         self,
@@ -1003,6 +1015,9 @@ class SignalProcessor:
                 "success": False,
                 "error": str(e)
             }
+        finally:
+            if 'db' in locals():
+                db.close()
 
     async def _get_target_accounts(
         self,
@@ -1444,6 +1459,9 @@ class SignalProcessor:
 
         except Exception as e:
             logger.error(f"Error updating signal status: {e}")
+        finally:
+            if 'db' in locals():
+                db.close()
 
     async def _update_account_balance(self, account_id: int, broker_type: str):
         """Refresh account balance after trade"""
@@ -1474,7 +1492,10 @@ class SignalProcessor:
 
         except Exception as e:
             logger.warning(f"Failed to update account balance: {e}")
-    
+        finally:
+            if 'db' in locals():
+                db.close()
+
     async def process_webhook(self, webhook_request: WebhookRequest) -> Dict[str, Any]:
         """Process webhook signal"""
         try:
@@ -1537,7 +1558,10 @@ class SignalProcessor:
         except Exception as e:
             logger.error(f"Error logging webhook: {e}")
             return f"webhook_{datetime.now().timestamp()}"
-    
+        finally:
+            if 'db' in locals():
+                db.close()
+
     async def _parse_webhook_payload(self, payload: Dict[str, Any]) -> Optional[SignalRequest]:
         """Parse webhook payload into signal request.
 
@@ -1644,7 +1668,10 @@ class SignalProcessor:
         except Exception as e:
             logger.error(f"Error getting signal history: {e}")
             return []
-    
+        finally:
+            if 'db' in locals():
+                db.close()
+
     async def get_webhook_history(self, limit: int = 100) -> List[Dict[str, Any]]:
         """Get webhook history"""
         try:
@@ -1666,6 +1693,9 @@ class SignalProcessor:
         except Exception as e:
             logger.error(f"Error getting webhook history: {e}")
             return []
+        finally:
+            if 'db' in locals():
+                db.close()
 
 # Global signal processor instance
 signal_processor = SignalProcessor()
