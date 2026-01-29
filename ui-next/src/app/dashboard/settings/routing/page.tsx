@@ -212,7 +212,7 @@ export default function RoutingConfigPage() {
   }
   
   // Empty state when no accounts connected
-  if (accounts.length === 0 && !loading) {
+  if ((accounts?.length || 0) === 0 && !loading) {
     return (
       <div className="space-y-6">
         <div>
@@ -255,7 +255,7 @@ export default function RoutingConfigPage() {
       </div>
 
       {/* Configurations List */}
-      {configs.length === 0 ? (
+      {(configs?.length || 0) === 0 ? (
         <div className="flex flex-col items-center justify-center h-96 border border-dashed border-border rounded-lg">
           <div className="text-center space-y-4">
             <div className="text-muted-foreground">

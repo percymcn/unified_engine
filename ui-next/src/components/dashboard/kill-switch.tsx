@@ -30,6 +30,7 @@ export function KillSwitch({ className, variant = 'full' }: KillSwitchProps) {
   const { toast } = useToast();
 
   const handleKillSwitch = async () => {
+    console.log('[KillSwitch] Executing flatten all...');
     setIsKilling(true);
     try {
       const response = await fetch('/api/emergency/kill-switch', {
@@ -39,21 +40,28 @@ export function KillSwitch({ className, variant = 'full' }: KillSwitchProps) {
         body: JSON.stringify({ action: 'flatten_all' }),
       });
 
+      const result = await response.json();
+      console.log('[KillSwitch] Response:', response.status, result);
+
       if (response.ok) {
-        const result = await response.json();
         toast({
           title: 'Emergency Kill Switch Activated',
-          description: `Flattened ${result.positionsClosed || 0} positions across ${result.accountsAffected || 0} accounts`,
+          description: `Flattened ${result.positionsClosed || 0} positions across ${result.accountsAffected || 0} accounts${result.errors?.length ? `. Errors: ${result.errors.length}` : ''}`,
           variant: 'destructive',
         });
         setIsArmed(false);
       } else {
-        throw new Error('Failed to execute kill switch');
+        toast({
+          title: 'Kill Switch Failed',
+          description: result.error || result.message || 'Unknown error occurred',
+          variant: 'destructive',
+        });
       }
     } catch (error) {
+      console.error('[KillSwitch] Error:', error);
       toast({
         title: 'Kill Switch Failed',
-        description: 'Unable to flatten positions. Check your connections.',
+        description: error instanceof Error ? error.message : 'Unable to flatten positions. Check your connections.',
         variant: 'destructive',
       });
     } finally {
@@ -159,18 +167,15 @@ export function KillSwitch({ className, variant = 'full' }: KillSwitchProps) {
           </Button>
         </div>
 
-        {/* Kill switch button */}
+        {/* Kill switch button - no longer requires arming */}
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button
               variant="destructive"
-              className={cn(
-                'w-full h-14 text-lg gap-3 transition-all',
-                !isArmed && 'opacity-50 cursor-not-allowed'
-              )}
-              disabled={!isArmed || isKilling}
+              className="w-full h-14 text-lg gap-3 transition-all"
+              disabled={isKilling}
             >
-              <Power className={cn('h-6 w-6', isArmed && 'animate-pulse')} />
+              <Power className="h-6 w-6" />
               {isKilling ? 'FLATTENING...' : 'EMERGENCY FLATTEN ALL'}
             </Button>
           </AlertDialogTrigger>

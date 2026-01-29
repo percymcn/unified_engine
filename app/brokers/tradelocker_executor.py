@@ -143,15 +143,30 @@ class TradeLockerExecutor(BaseExecutor):
 
             # Connect to WebSocket
             ws_url = self.config.get("ws_url") or f"{self._sdk_environment.replace('https://', 'wss://')}/socket.io"
-            await self.sio.connect(
-                ws_url,
-                transports=['websocket'],
-                auth={'type': self._sdk_environment.split('//')[1].split('.')[0]}  # Extract environment from URL
-            )
+
+            # Try connecting with auth parameter (socketio 5.x), fallback to headers for older versions
+            try:
+                await self.sio.connect(
+                    ws_url,
+                    transports=['websocket'],
+                    auth={'type': self._sdk_environment.split('//')[1].split('.')[0]}
+                )
+            except TypeError as auth_err:
+                if 'auth' in str(auth_err):
+                    # Fallback: older socketio version doesn't support auth param
+                    logger.debug("Falling back to socketio without auth parameter")
+                    await self.sio.connect(
+                        ws_url,
+                        transports=['websocket'],
+                        headers={'X-Environment': self._sdk_environment.split('//')[1].split('.')[0]}
+                    )
+                else:
+                    raise
+
             logger.info("TradeLocker WebSocket connected")
         except Exception as e:
             # WebSocket failure is non-fatal - SDK can work without real-time updates
-            logger.warning(f"WebSocket connection failed (non-fatal): {e}")
+            logger.debug(f"WebSocket connection skipped (SDK works without it): {e}")
     
     async def disconnect(self):
         """Disconnect from TradeLocker"""

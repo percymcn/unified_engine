@@ -437,7 +437,7 @@ class DeduplicationSettings(BaseModel):
 
 class PreferencesResponse(BaseModel):
     timezone: str = "UTC"
-    theme: str = "system"  # Patch 1.2.1: system, dark, light
+    theme: str = "system"  # Patch 1.2.3: system, dark, light, ocean
     notification_preferences: NotificationPreferences
     deduplication: DeduplicationSettings = DeduplicationSettings()
 
@@ -447,6 +447,6 @@ class PreferencesResponse(BaseModel):
 
 class PreferencesUpdate(BaseModel):
     timezone: Optional[str] = None
-    theme: Optional[str] = None  # Patch 1.2.1
+    theme: Optional[str] = None  # Patch 1.2.3: system, dark, light, ocean
     notification_preferences: Optional[NotificationPreferences] = None
     deduplication: Optional[DeduplicationSettings] = None

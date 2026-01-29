@@ -91,6 +91,7 @@ class Container:
         self._event_publisher: Optional[EventPort] = None
         self._broker_adapters: Dict[BrokerType, BrokerPort] = {}
         self._initialized = False
+        self._active_sessions = []  # Track sessions for cleanup
 
     async def initialize(self) -> None:
         """Initialize all infrastructure components."""
@@ -123,6 +124,9 @@ class Container:
 
     async def shutdown(self) -> None:
         """Cleanup all connections."""
+        # Cleanup tracked database sessions first
+        await self._cleanup_sessions()
+
         if self._event_publisher:
             try:
                 await self._event_publisher.disconnect()
@@ -140,10 +144,43 @@ class Container:
 
         self._initialized = False
 
+    def _create_tracked_session(self):
+        """Create a session and track it for cleanup."""
+        # Limit tracked sessions to prevent memory leak
+        # Close old sessions when we have too many
+        MAX_TRACKED_SESSIONS = 50
+        if len(self._active_sessions) >= MAX_TRACKED_SESSIONS:
+            # Schedule cleanup of oldest sessions (async-safe)
+            import asyncio
+            asyncio.create_task(self._cleanup_old_sessions(MAX_TRACKED_SESSIONS // 2))
+
+        session = self._session_factory.create_session()
+        self._active_sessions.append(session)
+        return session
+
+    async def _cleanup_old_sessions(self, count: int):
+        """Close oldest tracked sessions."""
+        to_close = self._active_sessions[:count]
+        self._active_sessions = self._active_sessions[count:]
+        for session in to_close:
+            try:
+                await session.close()
+            except Exception:
+                pass  # Ignore errors during cleanup
+
+    async def _cleanup_sessions(self):
+        """Close all tracked sessions."""
+        for session in self._active_sessions:
+            try:
+                await session.close()
+            except Exception:
+                pass  # Ignore errors during cleanup
+        self._active_sessions.clear()
+
     def _get_repositories(self):
         """Get repository instances from current session."""
-        # Create a new session for this request
-        session = self._session_factory.create_session()
+        # Create a new session for this request (tracked for cleanup)
+        session = self._create_tracked_session()
 
         return (
             SQLAlchemySignalRepository(session),
@@ -156,7 +193,7 @@ class Container:
 
     def _get_symbol_alias_repository(self):
         """Get symbol alias repository instance."""
-        session = self._session_factory.create_session()
+        session = self._create_tracked_session()
         return SQLAlchemySymbolAliasRepository(session)
 
     # Use case factories
@@ -286,17 +323,17 @@ class Container:
 
     def _get_account_group_repository(self) -> AccountGroupRepository:
         """Get account group repository instance."""
-        session = self._session_factory.create_session()
+        session = self._create_tracked_session()
         return AccountGroupRepository(session)
 
     def update_account_settings_use_case(self) -> UpdateAccountSettingsUseCase:
         """Create UpdateAccountSettingsUseCase with injected dependencies."""
-        session = self._session_factory.create_session()
+        session = self._create_tracked_session()
         return UpdateAccountSettingsUseCase(session)
 
     def get_account_settings_use_case(self) -> GetAccountSettingsUseCase:
         """Create GetAccountSettingsUseCase with injected dependencies."""
-        session = self._session_factory.create_session()
+        session = self._create_tracked_session()
         return GetAccountSettingsUseCase(session)
 
     def create_account_group_use_case(self) -> CreateAccountGroupUseCase:

@@ -16,6 +16,9 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/webhooks", tags=["webhooks"])
 
+# Also create an alias router for the /api/v1/stripe/webhook path that Stripe may be configured to use
+alias_router = APIRouter(prefix="/api/v1/stripe", tags=["webhooks"])
+
 
 def get_user_by_stripe_customer(db: Session, customer_id: str) -> User | None:
     """Find user by Stripe customer ID"""
@@ -275,3 +278,10 @@ async def handle_payment_failed(db: Session, invoice: dict):
         user.subscription_status = "past_due"
         db.commit()
         logger.warning(f"User {user.id} payment failed, tier={user.subscription_tier}, status set to past_due")
+
+
+# Alias endpoint for /api/v1/stripe/webhook (what Stripe may be configured to use)
+@alias_router.post("/webhook")
+async def stripe_webhook_alias(request: Request, db: Session = Depends(get_db)):
+    """Alias for Stripe webhook - redirects to main handler"""
+    return await stripe_webhook(request, db)

@@ -14,20 +14,9 @@ import {
 export function ThemeToggle() {
   const { setTheme, theme } = useTheme();
 
-  // Save theme to backend for per-user persistence
-  const handleThemeChange = async (newTheme: string) => {
+  // setTheme from our provider already saves to backend
+  const handleThemeChange = (newTheme: string) => {
     setTheme(newTheme);
-    // Persist to backend (fire-and-forget, don't block UI)
-    try {
-      await fetch('/api/users/me/preferences', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ theme: newTheme }),
-        credentials: 'include',
-      });
-    } catch (e) {
-      // Silent fail - localStorage already has it
-    }
   };
 
   return (

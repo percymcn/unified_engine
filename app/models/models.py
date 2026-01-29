@@ -106,7 +106,7 @@ class User(Base):
 
     # User preferences
     timezone = Column(String(50), default="UTC")
-    theme = Column(String(10), default="system", nullable=False)  # system, dark, light
+    theme = Column(String(10), default="system", nullable=False)  # system, dark, light, ocean
     notification_preferences = Column(JSON, default=lambda: {
         "trade_alerts": True,
         "error_notifications": True,

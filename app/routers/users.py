@@ -184,9 +184,9 @@ async def update_preferences(
     Validates timezone against pytz.all_timezones list.
     Validates deduplication_scope against allowed values.
     """
-    # Update theme if provided (Patch 1.2.1)
+    # Update theme if provided (Patch 1.2.3 - added ocean theme)
     if preferences.theme is not None:
-        valid_themes = ['system', 'dark', 'light']
+        valid_themes = ['system', 'dark', 'light', 'ocean']
         if preferences.theme not in valid_themes:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

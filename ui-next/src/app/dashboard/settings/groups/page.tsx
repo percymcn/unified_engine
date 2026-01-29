@@ -60,11 +60,11 @@ export default function AccountGroupsPage() {
         getAccountGroups(),
         getAccounts(),
       ]);
-      setGroups(groupsData);
-      setAccounts(accountsData);
-      
+      setGroups(groupsData || []);
+      setAccounts(accountsData || []);
+
       // Don't show error if just no accounts connected
-      if (accountsData.length === 0) {
+      if ((accountsData?.length || 0) === 0) {
         setError(null);
       }
     } catch (err) {
@@ -72,7 +72,7 @@ export default function AccountGroupsPage() {
       // Check if it's just no accounts
       try {
         const accounts = await getAccounts();
-        if (accounts.length === 0) {
+        if ((accounts?.length || 0) === 0) {
           setError(null); // Will show empty state
         } else {
           setError('Unable to load account groups. Please check your connection and try again.');
@@ -218,7 +218,7 @@ export default function AccountGroupsPage() {
   }
   
   // Empty state when no accounts connected
-  if (accounts.length === 0 && !loading) {
+  if ((accounts?.length || 0) === 0 && !loading) {
     return (
       <div className="space-y-6">
         <div>
@@ -263,7 +263,7 @@ export default function AccountGroupsPage() {
       </div>
 
       {/* Groups Grid */}
-      {groups.length === 0 ? (
+      {(groups?.length || 0) === 0 ? (
         <div className="flex flex-col items-center justify-center h-96 border border-dashed border-border rounded-lg">
           <FolderOpen className="h-12 w-12 text-muted-foreground mb-4" />
           <div className="text-center space-y-2">

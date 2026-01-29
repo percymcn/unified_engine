@@ -43,7 +43,7 @@ from app.routers.oauth import router as oauth_router
 from app.routers.analytics import router as analytics_router
 from app.routers.notifications import router as notifications_router
 from app.routers.webhook_config import router as webhook_config_router
-from app.routers.stripe_webhooks import router as stripe_webhooks_router
+from app.routers.stripe_webhooks import router as stripe_webhooks_router, alias_router as stripe_webhooks_alias_router
 from app.routers.billing import router as billing_router
 from app.routers.tradovate_oauth import router as tradovate_oauth_router
 from app.routers.market_data import router as market_data_router
@@ -165,6 +165,11 @@ async def lifespan(app: FastAPI):
         # Close WebSocket connections
         logger.info("✅ WebSocket connections closed")
 
+        # Dispose async database engine
+        from app.db.database import dispose_async_engine
+        await dispose_async_engine()
+        logger.info("✅ Async database connections disposed")
+
         logger.info("👋 Unified Trading Engine shutdown complete")
 
     except Exception as e:
@@ -284,6 +289,7 @@ app.include_router(notifications_router, tags=["notifications"])
 app.include_router(webhook_config_router, prefix="/api/v1", tags=["webhook-configs"])
 app.include_router(market_data_router, tags=["market-data"])
 app.include_router(stripe_webhooks_router)
+app.include_router(stripe_webhooks_alias_router)  # Alias: /api/v1/stripe/webhook
 app.include_router(billing_router, tags=["billing"])
 app.include_router(tradovate_oauth_router, tags=["tradovate-oauth"])
 app.include_router(symbol_aliases_router, prefix="/api/v1/symbol-aliases", tags=["symbol-aliases"])
@@ -403,10 +409,10 @@ async def health_check():
             except:
                 broker_status[name] = False
         
-        # Overall health - Redis is required, brokers are optional
-        # If no brokers configured, that's OK. If brokers are configured, at least one should be connected.
-        brokers_ok = len(broker_status) == 0 or any(broker_status.values())
-        is_healthy = redis_status and brokers_ok
+        # Overall health - Redis is required, brokers are informational only
+        # Multi-user platform: broker connections happen per-user at request time
+        # So global broker status doesn't determine system health
+        is_healthy = redis_status
 
         return JSONResponse(
             status_code=200 if is_healthy else 503,

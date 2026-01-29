@@ -41,6 +41,9 @@ elif async_database_url.startswith("sqlite:///"):
 _async_engine_kwargs = {
     "echo": settings.DEBUG,
     "future": True,
+    "pool_pre_ping": True,  # Verify connections before using them
+    "pool_recycle": 3600,   # Recycle connections after 1 hour
+    "pool_timeout": 30,     # Timeout for getting connection from pool
 }
 if not _is_sqlite:
     # Postgres async pooling configuration
@@ -80,6 +83,24 @@ def get_db():
     finally:
         db.close()
 
+from contextlib import contextmanager
+
+@contextmanager
+def get_db_session():
+    """Context manager for database sessions outside FastAPI dependency injection.
+
+    Usage:
+        with get_db_session() as db:
+            db.query(...)
+
+    This ensures the session is always closed, even if an exception occurs.
+    """
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
 async def get_async_session():
     """Async database dependency for FastAPI"""
     if not AsyncSessionLocal:
@@ -108,3 +129,10 @@ def drop_db():
     except Exception as e:
         logger.error(f"Database drop failed: {e}")
         raise
+
+
+async def dispose_async_engine():
+    """Properly dispose async engine connections on shutdown"""
+    if async_engine:
+        await async_engine.dispose()
+        logger.info("Async database engine disposed")

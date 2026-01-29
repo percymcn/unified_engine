@@ -158,7 +158,8 @@ class MT5Executor(BaseExecutor):
                 return False
 
         except Exception as e:
-            logger.error(f"MT5 initialization failed: {e}")
+            # INFO level: Multi-user platform uses per-user credentials from database
+            logger.info(f"MT5 initialization skipped (credentials from database): {e}")
             return False
 
     async def disconnect(self):
