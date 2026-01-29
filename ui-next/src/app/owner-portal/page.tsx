@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
   Table,
@@ -64,6 +65,7 @@ import {
   ScrollText,
   Signal,
   ArrowUpDown,
+  Mail,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -123,6 +125,7 @@ const tabs = [
   { id: "users", label: "Users", icon: Users },
   { id: "plans", label: "Plans", icon: CreditCard },
   { id: "brokers", label: "Brokers", icon: Zap },
+  { id: "broadcast", label: "Broadcast", icon: Mail },
   { id: "config", label: "Config", icon: Settings },
   { id: "env", label: "System", icon: Server },
 ] as const;
@@ -420,6 +423,9 @@ export default function OwnerPortal() {
             )}
             {activeTab === "env" && (
               <SystemTab envDoctor={envDoctor} loading={loading} />
+            )}
+            {activeTab === "broadcast" && (
+              <BroadcastTab />
             )}
           </motion.div>
         </AnimatePresence>
@@ -1868,6 +1874,208 @@ function LogsTab({ logs, loading, onRefresh }: { logs: any; loading: boolean; on
           </CardContent>
         </Card>
       </div>
+    </div>
+  );
+}
+
+// Broadcast Tab - Send mass emails/notifications to users
+function BroadcastTab() {
+  const { toast } = useToast();
+  const [subject, setSubject] = useState("");
+  const [message, setMessage] = useState("");
+  const [ctaText, setCtaText] = useState("");
+  const [ctaUrl, setCtaUrl] = useState("");
+  const [tierFilter, setTierFilter] = useState<string>("");
+  const [sending, setSending] = useState(false);
+  const [lastResult, setLastResult] = useState<{
+    sent: number;
+    failed: number;
+    total: number;
+  } | null>(null);
+
+  const sendBroadcast = async () => {
+    if (!subject.trim() || !message.trim()) {
+      toast({
+        title: "Error",
+        description: "Subject and message are required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSending(true);
+    try {
+      const response = await fetch("/api/admin/broadcast/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          subject,
+          message,
+          cta_text: ctaText || undefined,
+          cta_url: ctaUrl || undefined,
+          tier_filter: tierFilter || undefined,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setLastResult({
+          sent: data.sent,
+          failed: data.failed,
+          total: data.total_users,
+        });
+        toast({
+          title: "Broadcast Sent",
+          description: `Email sent to ${data.sent} users`,
+        });
+        // Clear form
+        setSubject("");
+        setMessage("");
+        setCtaText("");
+        setCtaUrl("");
+      } else {
+        toast({
+          title: "Error",
+          description: data.message || "Failed to send broadcast",
+          variant: "destructive",
+        });
+      }
+    } catch {
+      toast({
+        title: "Error",
+        description: "Failed to send broadcast",
+        variant: "destructive",
+      });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Mail className="h-5 w-5 text-primary" />
+            Send Broadcast Email
+          </CardTitle>
+          <CardDescription>
+            Send email to all users or a specific tier. Use for maintenance announcements, feature updates, etc.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="broadcast-subject">Subject</Label>
+            <Input
+              id="broadcast-subject"
+              placeholder="e.g., Scheduled Maintenance - Jan 30"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="broadcast-message">Message</Label>
+            <Textarea
+              id="broadcast-message"
+              placeholder="Write your message here..."
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              rows={6}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="cta-text">CTA Button Text (optional)</Label>
+              <Input
+                id="cta-text"
+                placeholder="e.g., View Status Page"
+                value={ctaText}
+                onChange={(e) => setCtaText(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="cta-url">CTA Button URL (optional)</Label>
+              <Input
+                id="cta-url"
+                placeholder="https://..."
+                value={ctaUrl}
+                onChange={(e) => setCtaUrl(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="tier-filter">Filter by Tier (optional)</Label>
+            <Select value={tierFilter} onValueChange={setTierFilter}>
+              <SelectTrigger id="tier-filter">
+                <SelectValue placeholder="All users" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All Users</SelectItem>
+                <SelectItem value="free">Free</SelectItem>
+                <SelectItem value="starter">Starter</SelectItem>
+                <SelectItem value="trader">Trader</SelectItem>
+                <SelectItem value="pro">Pro</SelectItem>
+                <SelectItem value="enterprise">Enterprise</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex items-center justify-between pt-4">
+            <div className="text-sm text-muted-foreground">
+              {lastResult && (
+                <span>
+                  Last broadcast: {lastResult.sent}/{lastResult.total} sent
+                  {lastResult.failed > 0 && ` (${lastResult.failed} failed)`}
+                </span>
+              )}
+            </div>
+            <Button onClick={sendBroadcast} disabled={sending}>
+              {sending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Mail className="mr-2 h-4 w-4" />
+                  Send Broadcast
+                </>
+              )}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Preview */}
+      {(subject || message) && (
+        <Card className="border-border/50 bg-card/50">
+          <CardHeader>
+            <CardTitle className="text-sm">Email Preview</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-lg border p-4 bg-white dark:bg-gray-900">
+              <div className="text-center mb-4 pb-4 border-b">
+                <h1 className="text-xl font-bold text-indigo-600">MyTradeFlow</h1>
+                <p className="text-xs text-gray-500">Automated Trading Signal Router</p>
+              </div>
+              <h2 className="font-semibold text-lg mb-2">{subject || "Subject"}</h2>
+              <p className="text-gray-600 dark:text-gray-300 whitespace-pre-wrap">{message || "Your message here..."}</p>
+              {ctaText && ctaUrl && (
+                <div className="mt-4 text-center">
+                  <span className="inline-block bg-indigo-600 text-white px-6 py-2 rounded-lg text-sm font-medium">
+                    {ctaText}
+                  </span>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

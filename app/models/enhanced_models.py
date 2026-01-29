@@ -256,7 +256,17 @@ class NotificationPreference(Base):
     alert_notifications = Column(Boolean, default=True)
     system_notifications = Column(Boolean, default=True)
     billing_notifications = Column(Boolean, default=True)
-    
+
+    # Messaging handles for push notifications
+    telegram_enabled = Column(Boolean, default=False)
+    telegram_chat_id = Column(String, nullable=True)  # Telegram chat ID from bot
+    discord_enabled = Column(Boolean, default=False)
+    discord_webhook_url = Column(String, nullable=True)  # Discord webhook URL
+    slack_enabled = Column(Boolean, default=False)
+    slack_webhook_url = Column(String, nullable=True)  # Slack incoming webhook URL
+    whatsapp_enabled = Column(Boolean, default=False)
+    whatsapp_number = Column(String, nullable=True)  # WhatsApp number (E.164 format)
+
     # Quiet hours
     quiet_hours_enabled = Column(Boolean, default=False)
     quiet_hours_start = Column(String, default="22:00")  # HH:MM format

@@ -2,7 +2,7 @@
 Admin Router for Owner-Only Admin Dashboard
 Protected by email allowlist and authentication
 """
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Body
 from sqlalchemy.orm import Session
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
@@ -1187,4 +1187,132 @@ async def update_env_var(
         "requires_restart": not runtime_applied,
         "key": key,
         "value": redact_secret(body.value) if key in SECRET_KEYS else body.value,
+    }
+
+
+# ============================================================
+# Admin Mass Broadcast (Email to all users)
+# ============================================================
+
+class BroadcastEmailRequest(BaseModel):
+    """Request model for admin broadcast email"""
+    subject: str
+    message: str
+    cta_text: Optional[str] = None
+    cta_url: Optional[str] = None
+    tier_filter: Optional[str] = None  # Optional: only send to specific tier
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "subject": "Scheduled Maintenance - Jan 30",
+                "message": "We will be performing scheduled maintenance on January 30 from 2:00 AM to 4:00 AM UTC. Trading will be temporarily unavailable during this period.",
+                "cta_text": "View Status Page",
+                "cta_url": "https://status.mytradeflow.app",
+            }
+        }
+
+
+@router.post("/broadcast/email")
+async def send_broadcast_email(
+    request: BroadcastEmailRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """
+    Send broadcast email to all users (owner-only).
+    Use for maintenance announcements, feature updates, etc.
+    """
+    check_owner_access(current_user)
+
+    from app.services.resend_email_service import send_broadcast_email as send_broadcast
+
+    # Get all active users
+    query = db.query(User).filter(User.is_active == True)
+
+    # Filter by tier if specified
+    if request.tier_filter:
+        query = query.filter(User.subscription_tier == request.tier_filter)
+
+    users = query.all()
+    emails = [u.email for u in users if u.email]
+
+    if not emails:
+        return {
+            "success": False,
+            "message": "No active users found",
+            "sent": 0,
+            "failed": 0,
+        }
+
+    # Send broadcast
+    results = await send_broadcast(
+        to_emails=emails,
+        subject=request.subject,
+        message=request.message,
+        cta_text=request.cta_text,
+        cta_url=request.cta_url,
+    )
+
+    return {
+        "success": True,
+        "message": f"Broadcast sent to {results['sent']} users",
+        "total_users": len(emails),
+        "sent": results["sent"],
+        "failed": results["failed"],
+        "errors": results.get("errors", [])[:10],  # Limit errors in response
+    }
+
+
+@router.post("/broadcast/telegram")
+async def send_broadcast_telegram(
+    message: str = Body(..., embed=True),
+    min_tier: str = Body("free", embed=True),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """
+    Send broadcast Telegram message to all users with Telegram enabled (owner-only).
+    """
+    check_owner_access(current_user)
+
+    from app.services.telegram_service import broadcast_telegram_message
+    from app.models.enhanced_models import NotificationPreference
+
+    # Get all users with Telegram enabled
+    prefs = db.query(NotificationPreference).filter(
+        NotificationPreference.telegram_enabled == True,
+        NotificationPreference.telegram_chat_id != None,
+    ).all()
+
+    if not prefs:
+        return {
+            "success": False,
+            "message": "No users with Telegram enabled",
+            "sent": 0,
+            "failed": 0,
+        }
+
+    # Build chat_ids and user_tiers for tier gating
+    chat_ids = []
+    user_tiers = {}
+    for pref in prefs:
+        user = db.query(User).filter(User.id == pref.user_id).first()
+        if user and user.is_active:
+            chat_id = pref.telegram_chat_id
+            chat_ids.append(chat_id)
+            user_tiers[chat_id] = user.subscription_tier
+
+    results = await broadcast_telegram_message(
+        chat_ids=chat_ids,
+        message=message,
+        min_tier=min_tier,
+        user_tiers=user_tiers,
+    )
+
+    return {
+        "success": True,
+        "message": f"Telegram broadcast sent to {results['sent']} users",
+        "total_eligible": len(chat_ids),
+        **results,
     }

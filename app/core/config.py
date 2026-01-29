@@ -209,7 +209,7 @@ class Settings(BaseSettings):
     MICROSOFT_CLIENT_ID: Optional[str] = None
     MICROSOFT_CLIENT_SECRET: Optional[str] = None
 
-    # Email (SMTP) Configuration
+    # Email (SMTP) Configuration - Fallback
     SMTP_HOST: str = "smtp.gmail.com"
     SMTP_PORT: int = 587
     SMTP_USER: Optional[str] = None  # Email sender address
@@ -217,6 +217,15 @@ class Settings(BaseSettings):
     SMTP_FROM_NAME: str = "Tradeflow"
     SMTP_FROM_EMAIL: Optional[str] = None  # If different from SMTP_USER
     EMAIL_VERIFICATION_EXPIRE_HOURS: int = 24
+
+    # Resend Email Configuration (Primary)
+    RESEND_API_KEY: Optional[str] = None
+    RESEND_FROM_EMAIL: str = "noreply@mytradeflow.app"
+    RESEND_FROM_NAME: str = "MyTradeFlow"
+
+    # Telegram Bot Configuration
+    TELEGRAM_BOT_TOKEN: Optional[str] = None
+    TELEGRAM_WEBHOOK_SECRET: Optional[str] = None
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod

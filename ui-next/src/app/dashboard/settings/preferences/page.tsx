@@ -7,7 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Clock, Bell, Mail, AlertCircle, BarChart3, Loader2, Palette } from "lucide-react";
+import { Clock, Bell, Mail, AlertCircle, BarChart3, Loader2, Palette, Send, MessageSquare, Hash, Phone, ExternalLink } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { useTheme } from "@/providers/theme-provider";
 
 interface NotificationPreferences {
@@ -21,6 +23,14 @@ interface PreferencesData {
   timezone: string;
   theme?: string;  // Patch 1.2.1
   notification_preferences: NotificationPreferences;
+}
+
+interface MessagingHandles {
+  telegram: { enabled: boolean; chat_id: string | null };
+  discord: { enabled: boolean; webhook_url: string | null };
+  slack: { enabled: boolean; webhook_url: string | null };
+  whatsapp: { enabled: boolean; number: string | null };
+  user_tier: string;
 }
 
 // Common timezones for the dropdown
@@ -85,9 +95,74 @@ export default function PreferencesPage() {
   const { toast } = useToast();
   const { theme, setTheme } = useTheme();  // Patch 1.2.1
 
+  // Messaging handles state
+  const [messagingHandles, setMessagingHandles] = useState<MessagingHandles | null>(null);
+  const [savingHandles, setSavingHandles] = useState(false);
+  const [testingTelegram, setTestingTelegram] = useState(false);
+
   useEffect(() => {
     fetchPreferences();
+    fetchMessagingHandles();
   }, []);
+
+  async function fetchMessagingHandles() {
+    try {
+      const res = await fetch("/api/notifications/messaging-handles");
+      if (res.ok) {
+        const data = await res.json();
+        setMessagingHandles(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch messaging handles:", error);
+    }
+  }
+
+  async function saveMessagingHandles() {
+    if (!messagingHandles) return;
+    setSavingHandles(true);
+    try {
+      const res = await fetch("/api/notifications/messaging-handles", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          telegram_enabled: messagingHandles.telegram.enabled,
+          telegram_chat_id: messagingHandles.telegram.chat_id,
+          discord_enabled: messagingHandles.discord.enabled,
+          discord_webhook_url: messagingHandles.discord.webhook_url,
+          slack_enabled: messagingHandles.slack.enabled,
+          slack_webhook_url: messagingHandles.slack.webhook_url,
+          whatsapp_enabled: messagingHandles.whatsapp.enabled,
+          whatsapp_number: messagingHandles.whatsapp.number,
+        }),
+      });
+      if (res.ok) {
+        toast({ title: "Saved", description: "Messaging handles updated successfully" });
+      } else {
+        toast({ title: "Error", description: "Failed to save messaging handles", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to save messaging handles", variant: "destructive" });
+    } finally {
+      setSavingHandles(false);
+    }
+  }
+
+  async function testTelegramNotification() {
+    setTestingTelegram(true);
+    try {
+      const res = await fetch("/api/notifications/test-telegram", { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        toast({ title: "Success", description: "Test notification sent to Telegram" });
+      } else {
+        toast({ title: "Error", description: data.detail || "Failed to send test", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to send test notification", variant: "destructive" });
+    } finally {
+      setTestingTelegram(false);
+    }
+  }
 
   // Update current time display every second
   useEffect(() => {
@@ -421,6 +496,220 @@ export default function PreferencesPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Push Notifications (Telegram, Discord, Slack, WhatsApp) */}
+      {messagingHandles && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Send className="h-5 w-5" />
+              Push Notifications
+            </CardTitle>
+            <CardDescription>
+              Connect messaging apps to receive real-time trade notifications.
+              {messagingHandles.user_tier && (
+                <Badge variant="outline" className="ml-2">
+                  {messagingHandles.user_tier} tier
+                </Badge>
+              )}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Telegram */}
+            <div className="space-y-3 rounded-lg border p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Send className="h-5 w-5 text-blue-400" />
+                  <div>
+                    <Label className="text-base">Telegram</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Receive trade alerts via Telegram bot
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  checked={messagingHandles.telegram.enabled}
+                  onCheckedChange={(checked) =>
+                    setMessagingHandles({
+                      ...messagingHandles,
+                      telegram: { ...messagingHandles.telegram, enabled: checked },
+                    })
+                  }
+                />
+              </div>
+              {messagingHandles.telegram.enabled && (
+                <div className="space-y-2 pl-8">
+                  <Label>Telegram Chat ID</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Your Telegram chat ID"
+                      value={messagingHandles.telegram.chat_id || ""}
+                      onChange={(e) =>
+                        setMessagingHandles({
+                          ...messagingHandles,
+                          telegram: { ...messagingHandles.telegram, chat_id: e.target.value },
+                        })
+                      }
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={testTelegramNotification}
+                      disabled={testingTelegram || !messagingHandles.telegram.chat_id}
+                    >
+                      {testingTelegram ? <Loader2 className="h-4 w-4 animate-spin" /> : "Test"}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Start a chat with @MyTradeFlowBot, then send /start to get your chat ID.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Discord */}
+            <div className="space-y-3 rounded-lg border p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Hash className="h-5 w-5 text-indigo-400" />
+                  <div>
+                    <Label className="text-base">Discord</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Send notifications to a Discord channel
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  checked={messagingHandles.discord.enabled}
+                  onCheckedChange={(checked) =>
+                    setMessagingHandles({
+                      ...messagingHandles,
+                      discord: { ...messagingHandles.discord, enabled: checked },
+                    })
+                  }
+                />
+              </div>
+              {messagingHandles.discord.enabled && (
+                <div className="space-y-2 pl-8">
+                  <Label>Discord Webhook URL</Label>
+                  <Input
+                    placeholder="https://discord.com/api/webhooks/..."
+                    value={messagingHandles.discord.webhook_url || ""}
+                    onChange={(e) =>
+                      setMessagingHandles({
+                        ...messagingHandles,
+                        discord: { ...messagingHandles.discord, webhook_url: e.target.value },
+                      })
+                    }
+                  />
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    <ExternalLink className="h-3 w-3" />
+                    <a href="https://support.discord.com/hc/en-us/articles/228383668" target="_blank" rel="noopener" className="underline">
+                      How to create a Discord webhook
+                    </a>
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Slack */}
+            <div className="space-y-3 rounded-lg border p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <MessageSquare className="h-5 w-5 text-green-500" />
+                  <div>
+                    <Label className="text-base">Slack</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Send notifications to a Slack channel
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  checked={messagingHandles.slack.enabled}
+                  onCheckedChange={(checked) =>
+                    setMessagingHandles({
+                      ...messagingHandles,
+                      slack: { ...messagingHandles.slack, enabled: checked },
+                    })
+                  }
+                />
+              </div>
+              {messagingHandles.slack.enabled && (
+                <div className="space-y-2 pl-8">
+                  <Label>Slack Webhook URL</Label>
+                  <Input
+                    placeholder="https://hooks.slack.com/services/..."
+                    value={messagingHandles.slack.webhook_url || ""}
+                    onChange={(e) =>
+                      setMessagingHandles({
+                        ...messagingHandles,
+                        slack: { ...messagingHandles.slack, webhook_url: e.target.value },
+                      })
+                    }
+                  />
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    <ExternalLink className="h-3 w-3" />
+                    <a href="https://api.slack.com/messaging/webhooks" target="_blank" rel="noopener" className="underline">
+                      How to create a Slack webhook
+                    </a>
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* WhatsApp */}
+            <div className="space-y-3 rounded-lg border p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Phone className="h-5 w-5 text-emerald-500" />
+                  <div>
+                    <Label className="text-base">WhatsApp</Label>
+                    <Badge variant="secondary" className="ml-2 text-xs">Coming Soon</Badge>
+                    <p className="text-sm text-muted-foreground">
+                      Receive notifications via WhatsApp
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  checked={messagingHandles.whatsapp.enabled}
+                  onCheckedChange={(checked) =>
+                    setMessagingHandles({
+                      ...messagingHandles,
+                      whatsapp: { ...messagingHandles.whatsapp, enabled: checked },
+                    })
+                  }
+                  disabled
+                />
+              </div>
+            </div>
+
+            {/* Save Button for Messaging Handles */}
+            <div className="flex justify-end">
+              <Button onClick={saveMessagingHandles} disabled={savingHandles}>
+                {savingHandles ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save Messaging Settings"
+                )}
+              </Button>
+            </div>
+
+            {/* Tier Info */}
+            <div className="rounded-lg bg-muted/50 p-4 text-sm">
+              <p className="font-medium mb-2">Notification Tiers:</p>
+              <ul className="space-y-1 text-muted-foreground">
+                <li><Badge variant="outline" className="mr-2">Starter</Badge> Price alerts</li>
+                <li><Badge variant="outline" className="mr-2">Trader</Badge> + Daily summaries</li>
+                <li><Badge variant="outline" className="mr-2">Pro</Badge> + All trade & signal notifications</li>
+                <li><Badge variant="outline" className="mr-2">Enterprise</Badge> + Real-time updates & custom alerts</li>
+              </ul>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Save Button */}
       <div className="flex justify-end">
