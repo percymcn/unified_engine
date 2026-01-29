@@ -328,44 +328,26 @@ async def discover_accounts(
     try:
         if broker_type == BrokerType.TRADELOCKER:
             from app.brokers.tradelocker_executor import TradeLockerExecutor
-            from app.core.config import settings
-            # Get config and override with provided credentials
-            config = settings.get_broker_config("tradelocker")
-            if body.credentials.get("username") and body.credentials.get("password") and body.credentials.get("server"):
-                config["username"] = body.credentials.get("username")
-                config["password"] = body.credentials.get("password")
-                config["server"] = body.credentials.get("server")
-                config["sdk_environment"] = body.credentials.get("sdk_environment") or body.credentials.get("environment", "https://demo.tradelocker.com")
-            elif body.credentials.get("api_key"):
-                config["api_key"] = body.credentials.get("api_key")
-            executor = TradeLockerExecutor()
-            # Override config values
-            if body.credentials.get("username"):
-                executor._sdk_username = body.credentials.get("username")
-            if body.credentials.get("password"):
-                executor._sdk_password = body.credentials.get("password")
-            if body.credentials.get("server"):
-                executor._sdk_server = body.credentials.get("server")
-            # Accept both sdk_environment (new) and environment (legacy)
-            if body.credentials.get("sdk_environment") or body.credentials.get("environment"):
-                # Normalize environment URL to ensure it has proper scheme
-                raw_env = body.credentials.get("sdk_environment") or body.credentials.get("environment")
-                if raw_env:
-                    raw_env = raw_env.strip()
-                    if not raw_env.startswith("http://") and not raw_env.startswith("https://"):
-                        if raw_env.lower() in ("demo", "live"):
-                            raw_env = f"https://{raw_env.lower()}.tradelocker.com"
-                        elif "." in raw_env:
-                            raw_env = f"https://{raw_env}"
-                        else:
-                            raw_env = f"https://{raw_env}.tradelocker.com"
-                executor._sdk_environment = raw_env
-            if body.credentials.get("api_key"):
-                executor.api_key = body.credentials.get("api_key")
-            # Re-check availability
-            executor._sdk_available = all([executor._sdk_username, executor._sdk_password, executor._sdk_server])
-            executor._brand_api_available = bool(executor.api_key)
-            executor.is_available = executor._sdk_available or executor._brand_api_available
+            # Normalize environment URL
+            raw_env = body.credentials.get("sdk_environment") or body.credentials.get("environment")
+            if raw_env:
+                raw_env = raw_env.strip()
+                if not raw_env.startswith("http://") and not raw_env.startswith("https://"):
+                    if raw_env.lower() in ("demo", "live"):
+                        raw_env = f"https://{raw_env.lower()}.tradelocker.com"
+                    elif "." in raw_env:
+                        raw_env = f"https://{raw_env}"
+                    else:
+                        raw_env = f"https://{raw_env}.tradelocker.com"
+
+            # Pass ALL credentials through constructor - no env var fallback
+            executor = TradeLockerExecutor(
+                username=body.credentials.get("username"),
+                password=body.credentials.get("password"),
+                server=body.credentials.get("server"),
+                sdk_environment=raw_env,
+                user_id=current_user.id,
+            )
             
         elif broker_type in (BrokerType.PROJECTX, BrokerType.TOPSTEP):
             from app.brokers.projectx_executor import ProjectXExecutor

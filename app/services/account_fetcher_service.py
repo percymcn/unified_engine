@@ -210,7 +210,23 @@ class AccountFetcherService:
         try:
             from app.brokers.tradelocker_executor import TradeLockerExecutor
 
-            executor = TradeLockerExecutor()
+            # Normalize environment URL
+            raw_env = credentials.get("sdk_environment") or credentials.get("environment")
+            if raw_env:
+                raw_env = raw_env.strip()
+                if not raw_env.startswith("http://") and not raw_env.startswith("https://"):
+                    if raw_env.lower() in ("demo", "live"):
+                        raw_env = f"https://{raw_env.lower()}.tradelocker.com"
+                    else:
+                        raw_env = f"https://{raw_env}.tradelocker.com"
+
+            # Pass credentials through constructor - no env var fallback
+            executor = TradeLockerExecutor(
+                username=credentials.get("username"),
+                password=credentials.get("password"),
+                server=credentials.get("server"),
+                sdk_environment=raw_env,
+            )
             if not await executor.initialize():
                 return []
 
@@ -330,7 +346,11 @@ class AccountFetcherService:
         try:
             from app.brokers.projectx_executor import ProjectXExecutor
 
-            executor = ProjectXExecutor()
+            # Pass credentials through constructor - no env var fallback
+            executor = ProjectXExecutor(
+                username=credentials.get("username"),
+                api_key=credentials.get("api_key") or credentials.get("api_token"),
+            )
             if not await executor.initialize():
                 return []
 
@@ -385,12 +405,15 @@ class AccountFetcherService:
             environment = credentials.get("environment", "demo")
 
             if access_token:
+                # Pass credentials through constructor - no env var fallback
                 executor = TradovateExecutor(
                     access_token=access_token,
                     environment=environment
                 )
             else:
-                executor = TradovateExecutor()
+                # No OAuth token - cannot proceed without credentials
+                logger.warning("Tradovate requires access_token credentials")
+                return []
 
             if not await executor.initialize():
                 logger.error("Failed to initialize Tradovate executor")
@@ -577,12 +600,26 @@ class AccountFetcherService:
     ) -> List[BrokerAccountInfo]:
         """Fallback account fetching for MetaAPI using executor."""
         try:
+            # Pass credentials through constructor - no env var fallback
+            metaapi_token = credentials.get("metaapi_token") or credentials.get("api_token")
+            metaapi_account_id = credentials.get("metaapi_account_id")
+
+            if not metaapi_token or not metaapi_account_id:
+                logger.warning(f"{broker_type.upper()} requires metaapi_token and metaapi_account_id")
+                return []
+
             if broker_type == "mt4":
                 from app.brokers.mt4_executor import MT4Executor
-                executor = MT4Executor()
+                executor = MT4Executor(
+                    metaapi_token=metaapi_token,
+                    metaapi_account_id=metaapi_account_id,
+                )
             else:
                 from app.brokers.mt5_executor import MT5Executor
-                executor = MT5Executor()
+                executor = MT5Executor(
+                    metaapi_token=metaapi_token,
+                    metaapi_account_id=metaapi_account_id,
+                )
 
             if not await executor.initialize():
                 return []

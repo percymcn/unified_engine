@@ -207,14 +207,10 @@ async def _test_broker_connection(broker_type: DBBrokerType, account: TradingAcc
         executor = None
         try:
             if broker_type == DBBrokerType.TRADELOCKER:
-                executor = TradeLockerExecutor()
-                # TradeLocker SDK uses username/password/server
+                # TradeLocker SDK uses username/password/server - pass through constructor
                 if credentials.get("username") and credentials.get("password") and credentials.get("server"):
-                    executor._sdk_username = credentials.get("username")
-                    executor._sdk_password = credentials.get("password")
-                    executor._sdk_server = credentials.get("server")
-                    # Normalize environment URL if provided, otherwise use executor's default
-                    # Accept both sdk_environment (new) and environment (legacy)
+                    # Normalize environment URL if provided
+                    raw_env = None
                     if credentials.get("sdk_environment") or credentials.get("environment"):
                         raw_env = (credentials.get("sdk_environment") or credentials.get("environment")).strip()
                         if not raw_env.startswith("http://") and not raw_env.startswith("https://"):
@@ -224,9 +220,16 @@ async def _test_broker_connection(broker_type: DBBrokerType, account: TradingAcc
                                 raw_env = f"https://{raw_env}"
                             else:
                                 raw_env = f"https://{raw_env}.tradelocker.com"
-                        executor._sdk_environment = raw_env
-                    executor._sdk_available = True
-                    executor.is_available = True
+
+                    # Pass ALL credentials through constructor - no env var fallback
+                    executor = TradeLockerExecutor(
+                        username=credentials.get("username"),
+                        password=credentials.get("password"),
+                        server=credentials.get("server"),
+                        sdk_environment=raw_env,
+                        account_id=credentials.get("broker_account_id"),
+                        account_num=credentials.get("account_num"),
+                    )
                 else:
                     return False
                 
@@ -254,31 +257,25 @@ async def _test_broker_connection(broker_type: DBBrokerType, account: TradingAcc
                     return False
                 
             elif broker_type == DBBrokerType.MT4:
-                executor = MT4Executor()
+                # Pass credentials through constructor - no env var fallback
                 if credentials.get("metaapi_token") and credentials.get("metaapi_account_id"):
-                    executor._metaapi_token = credentials.get("metaapi_token")
-                    executor._metaapi_account_id = credentials.get("metaapi_account_id")
-                elif credentials.get("login") and credentials.get("password") and credentials.get("server"):
-                    executor.config = {
-                        "login": credentials.get("login"),
-                        "password": credentials.get("password"),
-                        "server": credentials.get("server")
-                    }
+                    executor = MT4Executor(
+                        metaapi_token=credentials.get("metaapi_token"),
+                        metaapi_account_id=credentials.get("metaapi_account_id"),
+                    )
                 else:
+                    logger.warning(f"MT4 missing metaapi_token or metaapi_account_id")
                     return False
-                
+
             elif broker_type == DBBrokerType.MT5:
-                executor = MT5Executor()
+                # Pass credentials through constructor - no env var fallback
                 if credentials.get("metaapi_token") and credentials.get("metaapi_account_id"):
-                    executor._metaapi_token = credentials.get("metaapi_token")
-                    executor._metaapi_account_id = credentials.get("metaapi_account_id")
-                elif credentials.get("login") and credentials.get("password") and credentials.get("server"):
-                    executor.config = {
-                        "login": credentials.get("login"),
-                        "password": credentials.get("password"),
-                        "server": credentials.get("server")
-                    }
+                    executor = MT5Executor(
+                        metaapi_token=credentials.get("metaapi_token"),
+                        metaapi_account_id=credentials.get("metaapi_account_id"),
+                    )
                 else:
+                    logger.warning(f"MT5 missing metaapi_token or metaapi_account_id")
                     return False
             
             if executor:

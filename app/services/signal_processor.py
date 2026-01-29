@@ -112,11 +112,6 @@ async def _create_account_executor(account: TradingAccount, db: Session):
 
     if broker_type == "tradelocker":
         if credentials.get("username") and credentials.get("password") and credentials.get("server"):
-            executor = TradeLockerExecutor()
-            executor._sdk_username = credentials.get("username")
-            executor._sdk_password = credentials.get("password")
-            executor._sdk_server = credentials.get("server")
-
             # Normalize environment URL - accept both sdk_environment (new) and environment (legacy)
             raw_env = credentials.get("sdk_environment") or credentials.get("environment", "https://demo.tradelocker.com")
             if raw_env and not raw_env.startswith("http"):
@@ -124,16 +119,17 @@ async def _create_account_executor(account: TradingAccount, db: Session):
                     raw_env = f"https://{raw_env.lower()}.tradelocker.com"
                 else:
                     raw_env = f"https://{raw_env}.tradelocker.com"
-            executor._sdk_environment = raw_env
 
-            # Pre-resolved account info to skip rediscovery
-            if credentials.get("broker_account_id"):
-                executor._sdk_account_id = credentials.get("broker_account_id")
-            if credentials.get("account_num"):
-                executor._sdk_account_num = credentials.get("account_num")
-
-            executor._sdk_available = True
-            executor.is_available = True
+            # Pass ALL credentials through constructor - no env var fallback
+            executor = TradeLockerExecutor(
+                username=credentials.get("username"),
+                password=credentials.get("password"),
+                server=credentials.get("server"),
+                sdk_environment=raw_env,
+                account_id=credentials.get("broker_account_id"),
+                account_num=credentials.get("account_num"),
+                user_id=account.user_id,
+            )
 
     elif broker_type == "tradovate":
         if credentials.get("access_token"):
@@ -151,38 +147,30 @@ async def _create_account_executor(account: TradingAccount, db: Session):
             )
 
     elif broker_type == "mt4":
-        executor = MT4Executor()
-        # Use per-user MetaAPI credentials from database
+        # Use per-user MetaAPI credentials from database - NO env var fallback
         metaapi_account_id = credentials.get("metaapi_account_id")
         metaapi_token = credentials.get("metaapi_token") or credentials.get("api_token")
         if metaapi_account_id and metaapi_token:
-            executor._metaapi_token = metaapi_token
-            executor._metaapi_account_id = metaapi_account_id
-            executor.is_available = True
-        elif metaapi_account_id:
-            # Fallback to platform token if user token not available
-            from app.core.config import settings
-            if settings.METAAPI_TOKEN:
-                executor._metaapi_token = settings.METAAPI_TOKEN
-                executor._metaapi_account_id = metaapi_account_id
-                executor.is_available = True
+            # Pass credentials through constructor - no env var fallback
+            executor = MT4Executor(
+                metaapi_token=metaapi_token,
+                metaapi_account_id=metaapi_account_id,
+            )
+        else:
+            logger.warning(f"MT4 account {account.account_name} missing credentials (metaapi_account_id + token required)")
 
     elif broker_type == "mt5":
-        executor = MT5Executor()
-        # Use per-user MetaAPI credentials from database
+        # Use per-user MetaAPI credentials from database - NO env var fallback
         metaapi_account_id = credentials.get("metaapi_account_id")
         metaapi_token = credentials.get("metaapi_token") or credentials.get("api_token")
         if metaapi_account_id and metaapi_token:
-            executor._metaapi_token = metaapi_token
-            executor._metaapi_account_id = metaapi_account_id
-            executor.is_available = True
-        elif metaapi_account_id:
-            # Fallback to platform token if user token not available
-            from app.core.config import settings
-            if settings.METAAPI_TOKEN:
-                executor._metaapi_token = settings.METAAPI_TOKEN
-                executor._metaapi_account_id = metaapi_account_id
-                executor.is_available = True
+            # Pass credentials through constructor - no env var fallback
+            executor = MT5Executor(
+                metaapi_token=metaapi_token,
+                metaapi_account_id=metaapi_account_id,
+            )
+        else:
+            logger.warning(f"MT5 account {account.account_name} missing credentials (metaapi_account_id + token required)")
 
     # Initialize the executor if created
     if executor:
@@ -214,15 +202,17 @@ class SignalProcessor:
         
     async def initialize(self):
         """Initialize all broker connections"""
-        # Multi-user platform: MT4/MT5 use per-user credentials from database
-        # Skip global initialization for these - they're initialized per-request
-        skip_global_init = {"mt4", "mt5"}
+        # MULTI-USER PLATFORM: All brokers use per-user credentials from database
+        # Skip global initialization - executors are created per-request with DB credentials
+        # This eliminates "disabled" messages from missing env vars and ensures each user's
+        # credentials are used correctly at runtime
+        skip_global_init = {"mt4", "mt5", "tradelocker", "projectx", "topstep", "tradovate"}
 
         for broker_name, broker in self.brokers.items():
             try:
-                # Skip MT4/MT5 global init - credentials come from database per-user
+                # Skip global init - credentials come from database per-user, not env vars
                 if broker_name in skip_global_init:
-                    logger.info(f"Skipping global init for {broker_name}: per-user credentials used at runtime")
+                    logger.info(f"Skipping global init for {broker_name}: multi-user platform uses DB credentials")
                     continue
 
                 if hasattr(broker, "is_available") and not broker.is_available:
