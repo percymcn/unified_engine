@@ -1885,7 +1885,7 @@ function BroadcastTab() {
   const [message, setMessage] = useState("");
   const [ctaText, setCtaText] = useState("");
   const [ctaUrl, setCtaUrl] = useState("");
-  const [tierFilter, setTierFilter] = useState<string>("");
+  const [tierFilter, setTierFilter] = useState<string>("all");
   const [sending, setSending] = useState(false);
   const [lastResult, setLastResult] = useState<{
     sent: number;
@@ -1914,7 +1914,7 @@ function BroadcastTab() {
           message,
           cta_text: ctaText || undefined,
           cta_url: ctaUrl || undefined,
-          tier_filter: tierFilter || undefined,
+          tier_filter: tierFilter === "all" ? undefined : tierFilter,
         }),
       });
 
@@ -2015,7 +2015,7 @@ function BroadcastTab() {
                 <SelectValue placeholder="All users" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Users</SelectItem>
+                <SelectItem value="all">All Users</SelectItem>
                 <SelectItem value="free">Free</SelectItem>
                 <SelectItem value="starter">Starter</SelectItem>
                 <SelectItem value="trader">Trader</SelectItem>
