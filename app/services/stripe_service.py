@@ -16,12 +16,13 @@ stripe.api_key = settings.STRIPE_SECRET_KEY
 
 # 4-tier pricing structure with feature-based differentiation
 # Each tier has: name, price (cents), broker limit, stripe_price_id, tagline, and features
+# Price IDs come from environment variables (set after creating products in Stripe Dashboard)
 PRICING_TIERS = {
     "tier_1": {
         "name": "Starter",
         "price": 2900,  # $29/month
         "brokers": 1,
-        "stripe_price_id": "price_tier1_monthly",
+        "stripe_price_id": settings.STRIPE_PRICE_TIER1_MONTHLY or "price_tier1_monthly",
         "tagline": "Get started with automated trading",
         "signals_per_day": 100,
         "webhooks": 2,
@@ -40,7 +41,7 @@ PRICING_TIERS = {
         "name": "Trader",
         "price": 5900,  # $59/month
         "brokers": 2,
-        "stripe_price_id": "price_tier2_monthly",
+        "stripe_price_id": settings.STRIPE_PRICE_TIER2_MONTHLY or "price_tier2_monthly",
         "tagline": "For serious traders who want protection",
         "signals_per_day": -1,  # unlimited
         "webhooks": 5,
@@ -61,7 +62,7 @@ PRICING_TIERS = {
         "name": "Pro",
         "price": 9900,  # $99/month
         "brokers": 4,
-        "stripe_price_id": "price_tier3_monthly",
+        "stripe_price_id": settings.STRIPE_PRICE_TIER3_MONTHLY or "price_tier3_monthly",
         "tagline": "Scale your trading across multiple accounts",
         "signals_per_day": -1,  # unlimited
         "webhooks": -1,  # unlimited
@@ -84,7 +85,7 @@ PRICING_TIERS = {
         "name": "Enterprise",
         "price": 19900,  # $199/month
         "brokers": 8,
-        "stripe_price_id": "price_tier4_monthly",
+        "stripe_price_id": settings.STRIPE_PRICE_TIER4_MONTHLY or "price_tier4_monthly",
         "tagline": "Unlimited power for professional traders",
         "signals_per_day": -1,  # unlimited
         "webhooks": -1,  # unlimited

@@ -178,10 +178,22 @@ class Settings(BaseSettings):
     STRIPE_SECRET_KEY: str = ""
     STRIPE_PUBLISHABLE_KEY: str = ""
     STRIPE_WEBHOOK_SECRET: str = ""
-    STRIPE_PRO_PRICE_ID: str = ""  # Price ID for Pro tier ($29/mo)
+    STRIPE_PRO_PRICE_ID: str = ""  # Deprecated - use tier-specific IDs below
+
+    # Stripe Price IDs for each tier (Monthly)
+    STRIPE_PRICE_TIER1_MONTHLY: str = ""  # Starter $29/mo
+    STRIPE_PRICE_TIER2_MONTHLY: str = ""  # Trader $59/mo
+    STRIPE_PRICE_TIER3_MONTHLY: str = ""  # Pro $99/mo
+    STRIPE_PRICE_TIER4_MONTHLY: str = ""  # Enterprise $199/mo
+
+    # Stripe Price IDs for each tier (Annual - 20% discount)
+    STRIPE_PRICE_TIER1_ANNUAL: str = ""   # Starter $278/yr
+    STRIPE_PRICE_TIER2_ANNUAL: str = ""   # Trader $566/yr
+    STRIPE_PRICE_TIER3_ANNUAL: str = ""   # Pro $950/yr
+    STRIPE_PRICE_TIER4_ANNUAL: str = ""   # Enterprise $1910/yr
 
     # Frontend URL (for Stripe redirect URLs)
-    FRONTEND_URL: str = "https://tradeflow.fluxeo.net"
+    FRONTEND_URL: str = "https://mytradeflow.app"
     
     # Admin Configuration
     OWNER_ADMIN_EMAILS: str = ""  # Comma-separated list of owner/admin emails
@@ -189,7 +201,7 @@ class Settings(BaseSettings):
     # OAuth Configuration
     GOOGLE_CLIENT_ID: Optional[str] = None
     GOOGLE_CLIENT_SECRET: Optional[str] = None
-    GOOGLE_REDIRECT_URI: str = "https://tradeflow.fluxeo.net/api/auth/google/callback"
+    GOOGLE_REDIRECT_URI: str = "https://mytradeflow.app/api/auth/google/callback"
     
     GITHUB_CLIENT_ID: Optional[str] = None
     GITHUB_CLIENT_SECRET: Optional[str] = None
