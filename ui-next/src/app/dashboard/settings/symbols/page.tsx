@@ -72,10 +72,10 @@ export default function SymbolMappingPage() {
     setShowForm(true);
   };
 
-  // Calculate total aliases
-  const totalAliases = groups.reduce((sum, g) => sum + g.aliases.length, 0);
+  // Calculate total aliases (with null guards)
+  const totalAliases = groups.reduce((sum, g) => sum + (g.aliases?.length || 0), 0);
   const autoDetectedCount = groups.reduce(
-    (sum, g) => sum + g.aliases.filter((a) => a.isAutoDetected).length,
+    (sum, g) => sum + (g.aliases?.filter((a) => a.isAutoDetected)?.length || 0),
     0
   );
 
