@@ -65,12 +65,12 @@ export default function RoutingConfigPage() {
         getWebhookConfigs(),
         getAccounts(),
       ]);
-      setConfigs(configsData);
-      setAccounts(accountsData);
+      setConfigs(configsData || []);
+      setAccounts(accountsData || []);
       await queryClient.invalidateQueries({ queryKey: ['accounts'] });
-      
+
       // Only show error if accounts fail AND we have no configs (likely no accounts connected)
-      if (accountsData.length === 0 && configsData.length === 0) {
+      if ((accountsData?.length || 0) === 0 && (configsData?.length || 0) === 0) {
         // Don't set error - will show empty state instead
         setError(null);
       }
@@ -78,7 +78,7 @@ export default function RoutingConfigPage() {
       console.error('Failed to load data:', err);
       // Only show error if it's a real connection issue, not just no accounts
       const accounts = await getAccounts().catch(() => []);
-      if (accounts.length === 0) {
+      if ((accounts?.length || 0) === 0) {
         setError(null); // Will show empty state
       } else {
         setError('Unable to load configurations. Please check your connection and try again.');
