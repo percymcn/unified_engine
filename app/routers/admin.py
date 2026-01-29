@@ -1012,6 +1012,85 @@ async def get_system_logs(
     }
 
 
+@router.get("/users/{user_id}/logs")
+async def get_user_logs(
+    user_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    limit: int = 50,
+) -> Dict[str, Any]:
+    """Get logs for a specific user (owner-only)"""
+    check_owner_access(current_user)
+
+    from datetime import datetime
+    from app.models.models import Signal, Trade
+
+    # Get target user
+    target_user = db.query(User).filter(User.id == user_id).first()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    logs = []
+
+    try:
+        # Get user's signals
+        signals = db.query(Signal).filter(Signal.user_id == user_id).order_by(Signal.created_at.desc()).limit(limit).all()
+        for sig in signals:
+            logs.append({
+                "id": sig.id,
+                "type": "signal",
+                "timestamp": sig.created_at.isoformat() if sig.created_at else None,
+                "action": sig.action,
+                "symbol": sig.symbol,
+                "status": sig.status,
+                "message": sig.message or f"Signal {sig.action} {sig.symbol}",
+                "details": {
+                    "quantity": sig.quantity,
+                    "strategy": sig.strategy_id,
+                    "source": sig.source,
+                }
+            })
+
+        # Get user's trades
+        trades = db.query(Trade).filter(Trade.user_id == user_id).order_by(Trade.created_at.desc()).limit(limit).all()
+        for trade in trades:
+            logs.append({
+                "id": trade.id,
+                "type": "trade",
+                "timestamp": trade.created_at.isoformat() if trade.created_at else None,
+                "action": trade.action,
+                "symbol": trade.symbol,
+                "status": trade.status,
+                "message": f"Trade {trade.action} {trade.symbol} @ {trade.price}" if trade.price else f"Trade {trade.action} {trade.symbol}",
+                "details": {
+                    "quantity": trade.quantity,
+                    "price": float(trade.price) if trade.price else None,
+                    "pnl": float(trade.pnl) if trade.pnl else None,
+                    "broker": trade.broker_type.value if trade.broker_type else None,
+                }
+            })
+
+        # Sort all logs by timestamp descending
+        logs.sort(key=lambda x: x.get("timestamp") or "", reverse=True)
+        logs = logs[:limit]
+
+    except Exception as e:
+        return {
+            "user_id": user_id,
+            "user_email": target_user.email,
+            "logs": [],
+            "total": 0,
+            "error": str(e)[:100],
+        }
+
+    return {
+        "user_id": user_id,
+        "user_email": target_user.email,
+        "logs": logs,
+        "total": len(logs),
+    }
+
+
 @router.get("/system/webhook-retention")
 async def get_webhook_retention_stats(
     current_user: User = Depends(get_current_user),

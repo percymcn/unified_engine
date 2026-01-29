@@ -837,93 +837,199 @@ function UsersTab({
   onToggleActive: (id: number) => void;
   onSetTier: (id: number, tier: string) => void;
 }) {
+  const { toast } = useToast();
+  const [selectedUserLogs, setSelectedUserLogs] = useState<{
+    userId: number;
+    email: string;
+    logs: any[];
+    loading: boolean;
+  } | null>(null);
+
+  const handleViewLogs = async (userId: number, email: string) => {
+    setSelectedUserLogs({ userId, email, logs: [], loading: true });
+    try {
+      const response = await fetch(`/api/admin/users/${userId}/logs`, {
+        credentials: "include",
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setSelectedUserLogs({ userId, email, logs: data.logs || [], loading: false });
+      } else {
+        toast({ title: "Error", description: "Failed to fetch user logs", variant: "destructive" });
+        setSelectedUserLogs(null);
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to fetch user logs", variant: "destructive" });
+      setSelectedUserLogs(null);
+    }
+  };
+
   if (loading) {
     return <Skeleton className="h-96" />;
   }
 
   return (
-    <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Users className="h-5 w-5 text-primary" />
-          User Management
-        </CardTitle>
-        <CardDescription>
-          {users.length} users registered
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>User</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Tier</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {users.map((user) => (
-                <TableRow key={user.id} className="hover:bg-primary/5">
-                  <TableCell>
-                    <div>
-                      <p className="font-medium">{user.email}</p>
-                      <p className="text-xs text-muted-foreground">@{user.username}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      <Badge variant={user.is_active ? "default" : "secondary"}>
-                        {user.is_active ? "Active" : "Inactive"}
-                      </Badge>
-                      {user.is_verified && (
-                        <Badge variant="outline" className="text-emerald-500 border-emerald-500/50">
-                          Verified
-                        </Badge>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Select
-                      value={user.subscription_tier}
-                      onValueChange={(value) => onSetTier(user.id, value)}
-                    >
-                      <SelectTrigger className="w-28 h-8">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="free">Free</SelectItem>
-                        <SelectItem value="starter">Starter</SelectItem>
-                        <SelectItem value="pro">Pro</SelectItem>
-                        <SelectItem value="enterprise">Enterprise</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {new Date(user.created_at).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => onToggleActive(user.id)}
-                    >
-                      {user.is_active ? (
-                        <X className="h-4 w-4 text-destructive" />
-                      ) : (
-                        <Check className="h-4 w-4 text-emerald-500" />
-                      )}
-                    </Button>
-                  </TableCell>
+    <>
+      <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5 text-primary" />
+            User Management
+          </CardTitle>
+          <CardDescription>
+            {users.length} users registered
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>User</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Tier</TableHead>
+                  <TableHead>Created</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
-    </Card>
+              </TableHeader>
+              <TableBody>
+                {users.map((user) => (
+                  <TableRow key={user.id} className="hover:bg-primary/5">
+                    <TableCell>
+                      <div>
+                        <p className="font-medium">{user.email}</p>
+                        <p className="text-xs text-muted-foreground">@{user.username}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Badge variant={user.is_active ? "default" : "secondary"}>
+                          {user.is_active ? "Active" : "Inactive"}
+                        </Badge>
+                        {user.is_verified && (
+                          <Badge variant="outline" className="text-emerald-500 border-emerald-500/50">
+                            Verified
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Select
+                        value={user.subscription_tier}
+                        onValueChange={(value) => onSetTier(user.id, value)}
+                      >
+                        <SelectTrigger className="w-28 h-8">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="free">Free</SelectItem>
+                          <SelectItem value="starter">Starter</SelectItem>
+                          <SelectItem value="trader">Trader</SelectItem>
+                          <SelectItem value="pro">Pro</SelectItem>
+                          <SelectItem value="enterprise">Enterprise</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {new Date(user.created_at).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleViewLogs(user.id, user.email)}
+                          title="View Logs"
+                        >
+                          <ScrollText className="h-4 w-4 text-blue-500" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onToggleActive(user.id)}
+                          title={user.is_active ? "Deactivate" : "Activate"}
+                        >
+                          {user.is_active ? (
+                            <X className="h-4 w-4 text-destructive" />
+                          ) : (
+                            <Check className="h-4 w-4 text-emerald-500" />
+                          )}
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* User Logs Dialog */}
+      <Dialog open={!!selectedUserLogs} onOpenChange={() => setSelectedUserLogs(null)}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ScrollText className="h-5 w-5 text-primary" />
+              Activity Logs for {selectedUserLogs?.email}
+            </DialogTitle>
+            <DialogDescription>
+              Recent signals and trades for this user
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto">
+            {selectedUserLogs?.loading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin" />
+              </div>
+            ) : selectedUserLogs?.logs.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <ScrollText className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p>No activity logs found for this user</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {selectedUserLogs?.logs.map((log: any, i: number) => (
+                  <div
+                    key={`${log.type}-${log.id}-${i}`}
+                    className="flex items-center gap-3 p-3 rounded-lg bg-muted/50"
+                  >
+                    <div className={`w-2 h-2 rounded-full ${log.type === "signal" ? "bg-blue-500" : "bg-emerald-500"}`} />
+                    <Badge variant="outline" className="text-xs">
+                      {log.type}
+                    </Badge>
+                    <span className="text-sm font-medium">{log.symbol || "-"}</span>
+                    <Badge variant={log.action === "buy" ? "default" : "secondary"} className="text-xs">
+                      {log.action}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground flex-1 text-right">
+                      {log.timestamp ? new Date(log.timestamp).toLocaleString() : "-"}
+                    </span>
+                    <Badge
+                      variant="outline"
+                      className={`text-xs ${
+                        log.status === "executed" || log.status === "processed"
+                          ? "text-emerald-500 border-emerald-500/50"
+                          : log.status === "failed"
+                          ? "text-red-500 border-red-500/50"
+                          : "text-amber-500 border-amber-500/50"
+                      }`}
+                    >
+                      {log.status}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSelectedUserLogs(null)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
