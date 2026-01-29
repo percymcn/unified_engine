@@ -207,10 +207,13 @@ async def toggle_user_active(
     }
 
 
+class SetTierRequest(BaseModel):
+    tier: str
+
 @router.patch("/users/{user_id}/set-tier")
 async def set_user_tier(
     user_id: int,
-    tier: str,
+    request: SetTierRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> Dict[str, Any]:
@@ -224,19 +227,19 @@ async def set_user_tier(
         raise HTTPException(status_code=404, detail="User not found")
     
     try:
-        tier_enum = SubscriptionTier(tier)
+        tier_enum = SubscriptionTier(request.tier)
         user.subscription_tier = tier_enum
         db.commit()
         db.refresh(user)
-        
+
         return {
             "id": user.id,
             "email": user.email,
-            "subscription_tier": tier,
-            "message": f"User tier set to {tier}"
+            "subscription_tier": request.tier,
+            "message": f"User tier set to {request.tier}"
         }
     except ValueError:
-        raise HTTPException(status_code=400, detail=f"Invalid tier: {tier}")
+        raise HTTPException(status_code=400, detail=f"Invalid tier: {request.tier}")
 
 
 @router.post("/users/{user_id}/reset-password-link")
