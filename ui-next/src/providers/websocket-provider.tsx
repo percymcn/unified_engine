@@ -111,13 +111,17 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
           break;
         }
         case 'heartbeat':
-          // Heartbeat handled silently - connection is alive
+        case 'pong':
+          // Heartbeat/pong handled silently - connection is alive
           break;
         case 'error':
           console.error('WebSocket error message:', message.data);
           break;
         default:
-          console.warn('Unknown WebSocket message type:', message.type);
+          // Only log for truly unknown message types
+          if (message.type && !['ping', 'ack', 'connected'].includes(message.type)) {
+            console.warn('Unknown WebSocket message type:', message.type);
+          }
       }
     },
     [signalHandlers, orderHandlers, positionHandlers, accountHandlers]

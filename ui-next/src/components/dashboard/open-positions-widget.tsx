@@ -83,7 +83,7 @@ export function OpenPositionsWidget() {
     );
   }
 
-  if (!data || data.positions.length === 0) {
+  if (!data || !data.positions || data.positions.length === 0) {
     return (
       <Card className="glass glass-hover">
         <CardHeader className="pb-2">

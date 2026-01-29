@@ -223,7 +223,9 @@ export async function syncAccount(id: number): Promise<Account> {
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to sync account: ${response.statusText}`);
+    const errorData = await response.json().catch(() => ({}));
+    const message = errorData.error || errorData.detail || `Sync failed (${response.status})`;
+    throw new Error(message);
   }
 
   return response.json();
