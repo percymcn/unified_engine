@@ -92,7 +92,7 @@ export function WebhookConfigForm({
       setRoutingStrategy(config.routing_strategy || 'default_only');
       setDefaultAccountId(config.default_account_id);
       setSpecificAccountIds(config.specific_account_ids || []);
-      setRoutingRules(config.routing_rules);
+      setRoutingRules(config.routing_rules || []);
       setSymbolFilter(config.symbol_filter?.join(', ') || '');
       setActionFilter(config.action_filter || []);
       setIsActive(config.is_active);

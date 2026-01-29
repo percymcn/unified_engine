@@ -76,6 +76,8 @@ export function RoutingConfig({
     }
   };
 
+  const safeRoutingRules = routingRules || [];
+
   const handleAddRule = () => {
     const newRule: RoutingRule = {
       id: `rule-${Date.now()}`,
@@ -85,19 +87,19 @@ export function RoutingConfig({
         value: '',
       },
       target_account_id: accountList[0]?.id || 0,
-      priority: routingRules.length,
+      priority: safeRoutingRules.length,
     };
-    onRoutingRulesChange([...routingRules, newRule]);
+    onRoutingRulesChange([...safeRoutingRules, newRule]);
   };
 
   const handleUpdateRule = (index: number, updatedRule: RoutingRule) => {
-    const updated = [...routingRules];
+    const updated = [...safeRoutingRules];
     updated[index] = updatedRule;
     onRoutingRulesChange(updated);
   };
 
   const handleRemoveRule = (index: number) => {
-    onRoutingRulesChange(routingRules.filter((_, i) => i !== index));
+    onRoutingRulesChange(safeRoutingRules.filter((_, i) => i !== index));
   };
 
   return (
@@ -183,13 +185,13 @@ export function RoutingConfig({
               </Button>
             </div>
 
-            {routingRules.length === 0 ? (
+            {safeRoutingRules.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground border border-dashed rounded-lg">
                 No routing rules. Add a rule to route signals based on conditions.
               </div>
             ) : (
               <div className="space-y-3">
-                {routingRules.map((rule, index) => (
+                {safeRoutingRules.map((rule, index) => (
                   <RoutingRuleBuilder
                     key={rule.id}
                     rule={rule}

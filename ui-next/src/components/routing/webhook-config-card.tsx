@@ -186,10 +186,10 @@ export function WebhookConfigCard({
         <div className="space-y-2 pt-2 border-t border-border">
           <div className="text-xs font-medium">Configuration</div>
           <div className="space-y-1 text-xs text-muted-foreground">
-            {config.routing_rules.length > 0 && (
+            {(config.routing_rules?.length || 0) > 0 && (
               <div>
-                {config.routing_rules.length} routing rule
-                {config.routing_rules.length !== 1 ? 's' : ''}
+                {config.routing_rules?.length || 0} routing rule
+                {(config.routing_rules?.length || 0) !== 1 ? 's' : ''}
               </div>
             )}
             {config.symbol_filter && config.symbol_filter.length > 0 && (
