@@ -30,10 +30,16 @@ async def get_profile(
     """
     Get current user's profile information.
     """
+    # Debug: refresh from DB to get latest tier
+    db.refresh(current_user)
+
     webhook_config = db.query(WebhookConfig).filter(
         WebhookConfig.user_id == current_user.id,
         WebhookConfig.is_active == True
     ).order_by(WebhookConfig.updated_at.desc()).first()
+
+    # Get tier directly from DB to avoid stale data
+    tier = current_user.subscription_tier or "free"
 
     return ProfileResponse(
         id=current_user.id,
@@ -42,7 +48,7 @@ async def get_profile(
         full_name=current_user.full_name,
         avatar_url=getattr(current_user, 'avatar_url', None),
         timezone=getattr(current_user, 'timezone', None),
-        subscription_tier=current_user.subscription_tier or "free",
+        subscription_tier=tier,
         primary_webhook_key=webhook_config.webhook_key if webhook_config else None,
         created_at=current_user.created_at,
     )
