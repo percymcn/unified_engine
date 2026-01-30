@@ -40,6 +40,11 @@ import {
   Copy,
   Download,
   FolderOpen,
+  Key,
+  Loader2,
+  RefreshCw,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import Link from 'next/link';
 import {
@@ -78,9 +83,12 @@ export default function AIStrategyPage() {
     defaultTimeframe: '60',
     autoSave: false,
     darkTheme: true,
+    webhookKey: '',
   });
+  const [showWebhookKey, setShowWebhookKey] = useState(false);
+  const [loadingWebhookKey, setLoadingWebhookKey] = useState(false);
 
-  // Load saved strategies on mount
+  // Load saved strategies and settings on mount
   useEffect(() => {
     const stored = localStorage.getItem('tradeflow-strategies');
     if (stored) {
@@ -88,9 +96,48 @@ export default function AIStrategyPage() {
     }
     const storedSettings = localStorage.getItem('tradeflow-ai-suite-settings');
     if (storedSettings) {
-      setSettings(JSON.parse(storedSettings));
+      const parsed = JSON.parse(storedSettings);
+      setSettings(parsed);
+      // Apply default symbol from settings
+      if (parsed.defaultSymbol) {
+        setSelectedSymbol(parsed.defaultSymbol);
+      }
     }
+
+    // Fetch webhook key from API
+    const fetchWebhookKey = async () => {
+      try {
+        const response = await fetch('/api/webhooks/primary-key', { credentials: 'include' });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.key) {
+            setSettings(prev => ({ ...prev, webhookKey: data.key }));
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch webhook key:', error);
+      }
+    };
+    fetchWebhookKey();
   }, []);
+
+  // Auto-save feature
+  useEffect(() => {
+    if (!settings.autoSave || !pineCode.trim()) return;
+
+    const autoSaveTimer = setInterval(() => {
+      const autoSaveData = {
+        name: `Auto-save ${new Date().toLocaleTimeString()}`,
+        code: pineCode,
+        symbol: selectedSymbol,
+        savedAt: new Date().toISOString(),
+        backtestResults: backtestResults,
+      };
+      localStorage.setItem('tradeflow-autosave', JSON.stringify(autoSaveData));
+    }, 5 * 60 * 1000); // Every 5 minutes
+
+    return () => clearInterval(autoSaveTimer);
+  }, [settings.autoSave, pineCode, selectedSymbol, backtestResults]);
 
   const handleCodeChange = useCallback((code: string) => {
     setPineCode(code);
@@ -389,6 +436,7 @@ export default function AIStrategyPage() {
                 onCodeChange={handleCodeChange}
                 onWebhookGenerated={handleWebhookGenerated}
                 initialCode={pineCode}
+                webhookKey={settings.webhookKey}
               />
               <div className="space-y-4">
                 <TradingViewChart
@@ -451,6 +499,7 @@ export default function AIStrategyPage() {
                 <PineScriptEditor
                   onCodeChange={handleCodeChange}
                   initialCode={pineCode}
+                  webhookKey={settings.webhookKey}
                 />
               </div>
             </div>
@@ -458,7 +507,7 @@ export default function AIStrategyPage() {
 
           {/* Script Converter Tab */}
           <TabsContent value="converter" className="space-y-4">
-            <ScriptConverter />
+            <ScriptConverter webhookKey={settings.webhookKey} />
           </TabsContent>
         </Tabs>
 
@@ -697,6 +746,95 @@ export default function AIStrategyPage() {
                 checked={settings.autoSave}
                 onCheckedChange={(checked) => setSettings({ ...settings, autoSave: checked })}
               />
+            </div>
+
+            {/* Webhook Key Section */}
+            <div className="pt-4 border-t space-y-3">
+              <div className="flex items-center gap-2">
+                <Key className="h-4 w-4 text-primary" />
+                <Label className="text-sm font-medium">Webhook Key Integration</Label>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Your webhook key will be automatically embedded in generated scripts and templates.
+              </p>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Input
+                    type={showWebhookKey ? 'text' : 'password'}
+                    value={settings.webhookKey}
+                    onChange={(e) => setSettings({ ...settings, webhookKey: e.target.value })}
+                    placeholder="Enter or paste your webhook key"
+                    className="pr-10 font-mono text-sm"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 p-0"
+                    onClick={() => setShowWebhookKey(!showWebhookKey)}
+                  >
+                    {showWebhookKey ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    setLoadingWebhookKey(true);
+                    try {
+                      const response = await fetch('/api/webhooks/primary-key', { credentials: 'include' });
+                      if (response.ok) {
+                        const data = await response.json();
+                        if (data.key) {
+                          setSettings(prev => ({ ...prev, webhookKey: data.key }));
+                          toast({
+                            title: 'Webhook Key Loaded',
+                            description: 'Your primary webhook key has been loaded.',
+                          });
+                        }
+                      } else {
+                        toast({
+                          title: 'No Webhook Key Found',
+                          description: 'Create one in Settings > API Keys.',
+                          variant: 'destructive',
+                        });
+                      }
+                    } catch {
+                      toast({
+                        title: 'Failed to Load',
+                        description: 'Could not fetch webhook key.',
+                        variant: 'destructive',
+                      });
+                    }
+                    setLoadingWebhookKey(false);
+                  }}
+                  disabled={loadingWebhookKey}
+                >
+                  {loadingWebhookKey ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+              {settings.webhookKey && (
+                <div className="flex items-center gap-2 p-2 rounded bg-emerald-500/10 border border-emerald-500/30">
+                  <Check className="h-4 w-4 text-emerald-400" />
+                  <span className="text-xs text-emerald-400">
+                    Webhook key configured - will be auto-embedded in scripts
+                  </span>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Don&apos;t have a webhook key?{' '}
+                <Link href="/dashboard/settings" className="text-primary hover:underline">
+                  Create one in Settings → API Keys
+                </Link>
+              </p>
             </div>
           </div>
           <DialogFooter>

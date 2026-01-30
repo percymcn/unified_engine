@@ -38,6 +38,7 @@ import { useToast } from '@/hooks/use-toast';
 
 interface ScriptConverterProps {
   className?: string;
+  webhookKey?: string;
 }
 
 interface ConversionConfig {
@@ -76,7 +77,7 @@ TradeFlow Webhook JSON Format:
 }
 `.trim();
 
-export function ScriptConverter({ className }: ScriptConverterProps) {
+export function ScriptConverter({ className, webhookKey: externalWebhookKey }: ScriptConverterProps) {
   const [inputCode, setInputCode] = useState('');
   const [outputCode, setOutputCode] = useState('');
   const [webhookTemplate, setWebhookTemplate] = useState('');
@@ -159,7 +160,7 @@ export function ScriptConverter({ className }: ScriptConverterProps) {
         });
       } else {
         // Fallback to local conversion
-        const localResult = convertScriptLocally(inputCode, config);
+        const localResult = convertScriptLocally(inputCode, config, externalWebhookKey);
         setOutputCode(localResult.convertedCode);
         setWebhookTemplate(localResult.webhookTemplate);
         setAlertMessage(localResult.alertMessage);
@@ -173,7 +174,7 @@ export function ScriptConverter({ className }: ScriptConverterProps) {
     } catch (error) {
       console.error('Conversion error:', error);
       // Fallback to local conversion
-      const localResult = convertScriptLocally(inputCode, config);
+      const localResult = convertScriptLocally(inputCode, config, externalWebhookKey);
       setOutputCode(localResult.convertedCode);
       setWebhookTemplate(localResult.webhookTemplate);
       setAlertMessage(localResult.alertMessage);
@@ -510,9 +511,10 @@ if shortCondition
 }
 
 // Local conversion function (fallback when API is unavailable)
-function convertScriptLocally(code: string, config: ConversionConfig): ConversionResult {
+function convertScriptLocally(code: string, config: ConversionConfig, webhookKey?: string): ConversionResult {
   const warnings: string[] = [];
   let convertedCode = code;
+  const userWebhookKey = webhookKey || 'YOUR_WEBHOOK_KEY';
 
   // Detect script type
   const isIndicator = code.includes('indicator(') || code.includes('study(');
@@ -525,7 +527,7 @@ function convertScriptLocally(code: string, config: ConversionConfig): Conversio
 
   // Build webhook JSON
   const webhookJson = {
-    webhook_key: 'YOUR_WEBHOOK_KEY',
+    webhook_key: userWebhookKey,
     action: '{{strategy.order.action}}',
     symbol: config.useSymbolFromChart ? '{{ticker}}' : 'SYMBOL',
     ...(config.includeQuantity && { quantity: parseFloat(config.defaultQuantity) || 0.01 }),
@@ -542,7 +544,7 @@ function convertScriptLocally(code: string, config: ConversionConfig): Conversio
   if (isStrategy || hasStrategyEntry) {
     // Strategy - use strategy placeholders
     alertMessage = JSON.stringify({
-      webhook_key: 'YOUR_WEBHOOK_KEY',
+      webhook_key: userWebhookKey,
       action: '{{strategy.order.action}}',
       symbol: config.useSymbolFromChart ? '{{ticker}}' : 'SYMBOL',
       quantity: parseFloat(config.defaultQuantity) || 0.01,
@@ -554,7 +556,7 @@ function convertScriptLocally(code: string, config: ConversionConfig): Conversio
     // Indicator - generate buy/sell JSON templates
     alertMessage = `// For BUY alerts:
 ${JSON.stringify({
-  webhook_key: 'YOUR_WEBHOOK_KEY',
+  webhook_key: userWebhookKey,
   action: 'buy',
   symbol: config.useSymbolFromChart ? '{{ticker}}' : 'SYMBOL',
   quantity: parseFloat(config.defaultQuantity) || 0.01,
@@ -565,7 +567,7 @@ ${JSON.stringify({
 
 // For SELL alerts:
 ${JSON.stringify({
-  webhook_key: 'YOUR_WEBHOOK_KEY',
+  webhook_key: userWebhookKey,
   action: 'sell',
   symbol: config.useSymbolFromChart ? '{{ticker}}' : 'SYMBOL',
   quantity: parseFloat(config.defaultQuantity) || 0.01,
@@ -576,7 +578,7 @@ ${JSON.stringify({
 
 // For CLOSE alerts:
 ${JSON.stringify({
-  webhook_key: 'YOUR_WEBHOOK_KEY',
+  webhook_key: userWebhookKey,
   action: 'close',
   symbol: config.useSymbolFromChart ? '{{ticker}}' : 'SYMBOL',
   ...(config.includeTimestamp && { timestamp: '{{timenow}}' }),
@@ -601,17 +603,17 @@ ${JSON.stringify({
 // Long/Buy Alert
 alertcondition(${longConditionMatch ? longConditionMatch[1] : 'longCondition'},
     title="${config.strategyName} - Buy Signal",
-    message='{"webhook_key":"YOUR_WEBHOOK_KEY","action":"buy","symbol":"{{ticker}}","quantity":${config.defaultQuantity}${config.includeTimestamp ? ',"timestamp":"{{timenow}}"' : ''},"strategy_id":"${config.strategyName.toLowerCase().replace(/\s+/g, '_')}","comment":"${config.strategyName} Buy"}')
+    message='{"webhook_key":"${userWebhookKey}","action":"buy","symbol":"{{ticker}}","quantity":${config.defaultQuantity}${config.includeTimestamp ? ',"timestamp":"{{timenow}}"' : ''},"strategy_id":"${config.strategyName.toLowerCase().replace(/\s+/g, '_')}","comment":"${config.strategyName} Buy"}')
 
 // Short/Sell Alert
 alertcondition(${shortConditionMatch ? shortConditionMatch[1] : 'shortCondition'},
     title="${config.strategyName} - Sell Signal",
-    message='{"webhook_key":"YOUR_WEBHOOK_KEY","action":"sell","symbol":"{{ticker}}","quantity":${config.defaultQuantity}${config.includeTimestamp ? ',"timestamp":"{{timenow}}"' : ''},"strategy_id":"${config.strategyName.toLowerCase().replace(/\s+/g, '_')}","comment":"${config.strategyName} Sell"}')
+    message='{"webhook_key":"${userWebhookKey}","action":"sell","symbol":"{{ticker}}","quantity":${config.defaultQuantity}${config.includeTimestamp ? ',"timestamp":"{{timenow}}"' : ''},"strategy_id":"${config.strategyName.toLowerCase().replace(/\s+/g, '_')}","comment":"${config.strategyName} Sell"}')
 
 // Close Position Alert (optional - use with exit condition)
 // alertcondition(exitCondition,
 //     title="${config.strategyName} - Close Position",
-//     message='{"webhook_key":"YOUR_WEBHOOK_KEY","action":"close","symbol":"{{ticker}}"${config.includeTimestamp ? ',"timestamp":"{{timenow}}"' : ''},"strategy_id":"${config.strategyName.toLowerCase().replace(/\s+/g, '_')}","comment":"${config.strategyName} Close"}')
+//     message='{"webhook_key":"${userWebhookKey}","action":"close","symbol":"{{ticker}}"${config.includeTimestamp ? ',"timestamp":"{{timenow}}"' : ''},"strategy_id":"${config.strategyName.toLowerCase().replace(/\s+/g, '_')}","comment":"${config.strategyName} Close"}')
 
 // ============ End TradeFlow Integration ============
 `;
@@ -632,7 +634,7 @@ alertcondition(${shortConditionMatch ? shortConditionMatch[1] : 'shortCondition'
 //
 // 5. In the Message field, use this JSON format:
 //    {
-//      "webhook_key": "YOUR_WEBHOOK_KEY",
+//      "webhook_key": "${userWebhookKey}",
 //      "action": "{{strategy.order.action}}",
 //      "symbol": "{{ticker}}",
 //      "quantity": ${config.defaultQuantity},
@@ -640,8 +642,7 @@ alertcondition(${shortConditionMatch ? shortConditionMatch[1] : 'shortCondition'
 //      "strategy_id": "${config.strategyName.toLowerCase().replace(/\s+/g, '_')}",
 //      "comment": "{{strategy.order.comment}}"
 //    }
-//
-// Replace YOUR_WEBHOOK_KEY with your actual webhook key from TradeFlow
+//${userWebhookKey === 'YOUR_WEBHOOK_KEY' ? '\n// Replace YOUR_WEBHOOK_KEY with your actual webhook key from TradeFlow' : ''}
 // ============ End TradeFlow Integration ============
 
 `;
@@ -671,7 +672,7 @@ alertcondition(${shortConditionMatch ? shortConditionMatch[1] : 'shortCondition'
 https://app.mytradeflow.com/api/webhook/execute
 
 Your Webhook Key:
-Get this from TradeFlow Dashboard > Settings > API Keys
+${userWebhookKey !== 'YOUR_WEBHOOK_KEY' ? userWebhookKey : 'Get this from TradeFlow Dashboard > Settings > API Keys'}
 
 Payload Format:
 ${JSON.stringify(webhookJson, null, 2)}`;

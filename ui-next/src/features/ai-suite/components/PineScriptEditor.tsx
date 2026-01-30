@@ -106,6 +106,7 @@ interface PineScriptEditorProps {
   onWebhookGenerated?: (payload: WebhookPayload) => void;
   initialCode?: string;
   className?: string;
+  webhookKey?: string;
 }
 
 export function PineScriptEditor({
@@ -113,6 +114,7 @@ export function PineScriptEditor({
   onWebhookGenerated,
   initialCode,
   className,
+  webhookKey: externalWebhookKey,
 }: PineScriptEditorProps) {
   const [code, setCode] = useState(initialCode || DEFAULT_TEMPLATE);
   const [errors, setErrors] = useState<PineScriptError[]>([]);
@@ -525,6 +527,7 @@ export function PineScriptEditor({
               payload={webhookPayload}
               onPayloadChange={setWebhookPayload}
               onCopy={copyToClipboard}
+              externalWebhookKey={externalWebhookKey}
             />
           </TabsContent>
         </Tabs>
@@ -538,13 +541,19 @@ interface WebhookGeneratorProps {
   payload: WebhookPayload | null;
   onPayloadChange: (payload: WebhookPayload) => void;
   onCopy: (text: string) => void;
+  externalWebhookKey?: string;
 }
 
-function WebhookGenerator({ payload, onPayloadChange, onCopy }: WebhookGeneratorProps) {
-  const [webhookKey, setWebhookKey] = useState('');
+function WebhookGenerator({ payload, onPayloadChange, onCopy, externalWebhookKey }: WebhookGeneratorProps) {
+  const [webhookKey, setWebhookKey] = useState(externalWebhookKey || '');
 
   useEffect(() => {
-    // Fetch user's webhook key
+    // Use external key if provided
+    if (externalWebhookKey) {
+      setWebhookKey(externalWebhookKey);
+      return;
+    }
+    // Otherwise fetch user's webhook key
     fetch('/api/webhooks/primary-key', { credentials: 'include' })
       .then((res) => res.json())
       .then((data) => {
@@ -553,7 +562,7 @@ function WebhookGenerator({ payload, onPayloadChange, onCopy }: WebhookGenerator
         }
       })
       .catch(console.error);
-  }, []);
+  }, [externalWebhookKey]);
 
   const defaultPayload: WebhookPayload = payload || {
     webhook_key: webhookKey,
