@@ -3,6 +3,7 @@ import localFont from "next/font/local";
 import "./globals.css";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { QueryProvider } from "@/providers/query-provider";
+import { CookieConsent } from "@/components/cookie-consent";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -32,6 +33,7 @@ export default function RootLayout({
       >
         <ThemeProvider>
           <QueryProvider>{children}</QueryProvider>
+          <CookieConsent />
         </ThemeProvider>
       </body>
     </html>

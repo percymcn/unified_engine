@@ -398,5 +398,57 @@ class StripeService:
             logger.error(f"Stripe webhook construction failed: {e}")
             return {"success": False, "error": str(e)}
 
+    @staticmethod
+    def list_customer_subscriptions(customer_id: str) -> Dict[str, Any]:
+        """List all subscriptions for a customer"""
+        try:
+            subscriptions = stripe.Subscription.list(
+                customer=customer_id,
+                status="active",
+                limit=10
+            )
+            return {"success": True, "subscriptions": subscriptions.data}
+        except stripe.error.StripeError as e:
+            logger.error(f"Stripe list subscriptions failed: {e}")
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def update_subscription(
+        subscription_id: str,
+        subscription_item_id: str,
+        new_price_id: str,
+        metadata: Optional[Dict] = None
+    ) -> Dict[str, Any]:
+        """
+        Update a subscription to a new price (upgrade/downgrade).
+        Uses proration_behavior='create_prorations' for immediate billing adjustment.
+        """
+        try:
+            # Update the subscription item to the new price
+            subscription = stripe.Subscription.modify(
+                subscription_id,
+                items=[{
+                    "id": subscription_item_id,
+                    "price": new_price_id,
+                }],
+                proration_behavior="create_prorations",
+                metadata=metadata or {}
+            )
+            return {"success": True, "subscription": subscription}
+        except stripe.error.StripeError as e:
+            logger.error(f"Stripe subscription update failed: {e}")
+            return {"success": False, "error": str(e)}
+
+
+def get_tier_from_price_id(price_id: str) -> Optional[str]:
+    """
+    Reverse lookup: get tier_id from a Stripe price_id.
+    Useful for webhook handling when tier_id isn't in metadata.
+    """
+    for tier_id, tier_info in PRICING_TIERS.items():
+        if tier_info.get("stripe_price_id") == price_id:
+            return tier_id
+    return None
+
 
 stripe_service = StripeService()

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +17,7 @@ import {
   Save,
   Share2,
   Lock,
+  Wand2,
 } from 'lucide-react';
 import Link from 'next/link';
 import {
@@ -23,6 +25,7 @@ import {
   PineScriptEditor,
   BacktestEngine,
   AICoach,
+  ScriptConverter,
 } from '@/features/ai-suite';
 import type { BacktestResults, WebhookPayload } from '@/features/ai-suite/types';
 import { useUser } from '@/providers/user-provider';
@@ -46,6 +49,72 @@ export default function AIStrategyPage() {
   const handleBacktestResults = useCallback((results: BacktestResults | null) => {
     setBacktestResults(results);
   }, []);
+
+  const { toast } = useToast();
+
+  // Save strategy to localStorage
+  const handleSaveStrategy = useCallback(() => {
+    if (!pineCode.trim()) {
+      toast({
+        title: 'Nothing to Save',
+        description: 'Please enter some code in the editor first.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const strategyData = {
+      code: pineCode,
+      symbol: selectedSymbol,
+      savedAt: new Date().toISOString(),
+      backtestResults: backtestResults,
+    };
+
+    // Save to localStorage
+    const savedStrategies = JSON.parse(localStorage.getItem('tradeflow-strategies') || '[]');
+    const strategyName = `Strategy ${savedStrategies.length + 1}`;
+    savedStrategies.push({ name: strategyName, ...strategyData });
+    localStorage.setItem('tradeflow-strategies', JSON.stringify(savedStrategies));
+
+    toast({
+      title: 'Strategy Saved!',
+      description: `"${strategyName}" has been saved locally.`,
+    });
+  }, [pineCode, selectedSymbol, backtestResults, toast]);
+
+  // Share strategy (copy to clipboard)
+  const handleShareStrategy = useCallback(async () => {
+    if (!pineCode.trim()) {
+      toast({
+        title: 'Nothing to Share',
+        description: 'Please enter some code in the editor first.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(pineCode);
+      toast({
+        title: 'Copied to Clipboard!',
+        description: 'Your Pine Script code has been copied. Share it anywhere!',
+      });
+    } catch {
+      toast({
+        title: 'Copy Failed',
+        description: 'Could not copy to clipboard.',
+        variant: 'destructive',
+      });
+    }
+  }, [pineCode, toast]);
+
+  // Settings placeholder (open settings panel or show toast)
+  const handleOpenSettings = useCallback(() => {
+    toast({
+      title: 'Settings Coming Soon',
+      description: 'AI Suite settings will be available in a future update.',
+    });
+  }, [toast]);
 
   const handleWebhookGenerated = useCallback((payload: WebhookPayload) => {
     setWebhookPayload(payload);
@@ -86,6 +155,10 @@ export default function AIStrategyPage() {
               <div className="flex items-center gap-2">
                 <LineChart className="h-4 w-4 text-muted-foreground" />
                 <span>Live Charts</span>
+              </div>
+              <div className="flex items-center gap-2 col-span-2">
+                <Wand2 className="h-4 w-4 text-muted-foreground" />
+                <span>Script to TradeFlow Converter</span>
               </div>
             </div>
             <div className="flex flex-col gap-3">
@@ -133,15 +206,15 @@ export default function AIStrategyPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={handleSaveStrategy}>
               <Save className="h-4 w-4 mr-2" />
               Save Strategy
             </Button>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={handleShareStrategy}>
               <Share2 className="h-4 w-4 mr-2" />
               Share
             </Button>
-            <Button variant="ghost" size="sm">
+            <Button variant="ghost" size="sm" onClick={handleOpenSettings}>
               <Settings className="h-4 w-4" />
             </Button>
           </div>
@@ -151,7 +224,7 @@ export default function AIStrategyPage() {
       {/* Main Content */}
       <main className="container px-4 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
             <TabsTrigger value="chart" className="gap-2">
               <LineChart className="h-4 w-4" />
               <span className="hidden sm:inline">Chart</span>
@@ -167,6 +240,10 @@ export default function AIStrategyPage() {
             <TabsTrigger value="coach" className="gap-2">
               <Brain className="h-4 w-4" />
               <span className="hidden sm:inline">AI Coach</span>
+            </TabsTrigger>
+            <TabsTrigger value="converter" className="gap-2">
+              <Wand2 className="h-4 w-4" />
+              <span className="hidden sm:inline">Converter</span>
             </TabsTrigger>
           </TabsList>
 
@@ -250,6 +327,11 @@ export default function AIStrategyPage() {
               </div>
             </div>
           </TabsContent>
+
+          {/* Script Converter Tab */}
+          <TabsContent value="converter" className="space-y-4">
+            <ScriptConverter />
+          </TabsContent>
         </Tabs>
 
         {/* Quick Actions Bar */}
@@ -286,6 +368,14 @@ export default function AIStrategyPage() {
               onClick={() => setActiveTab('coach')}
             >
               <Brain className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={activeTab === 'converter' ? 'default' : 'ghost'}
+              size="sm"
+              className="rounded-full"
+              onClick={() => setActiveTab('converter')}
+            >
+              <Wand2 className="h-4 w-4" />
             </Button>
           </div>
         </div>

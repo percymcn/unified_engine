@@ -270,3 +270,127 @@ async def create_portal_session(
         )
 
     return {"portal_url": portal_result["url"]}
+
+
+class UpgradeRequest(BaseModel):
+    """Upgrade request with target tier_id"""
+    tier_id: str
+
+
+class UpgradeResponse(BaseModel):
+    success: bool
+    message: str
+    new_tier: str
+    checkout_url: Optional[str] = None
+
+
+@router.post("/upgrade", response_model=UpgradeResponse)
+async def upgrade_subscription(
+    request: UpgradeRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Upgrade an existing subscription to a higher tier.
+
+    For users WITH an active subscription:
+    - Updates the subscription to the new price with proration
+    - Immediately upgrades the user's tier
+
+    For users WITHOUT a subscription:
+    - Returns a checkout URL to start a new subscription
+    """
+    tier_id = request.tier_id
+
+    # Validate tier_id
+    if tier_id not in PRICING_TIERS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid tier_id. Available: {', '.join(PRICING_TIERS.keys())}"
+        )
+
+    tier_info = PRICING_TIERS[tier_id]
+    new_price_id = get_stripe_price_id(tier_id)
+
+    if not new_price_id:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Stripe not configured for this tier"
+        )
+
+    # Check if user has an active subscription
+    current_tier = current_user.subscription_tier or "free"
+    has_active_sub = (
+        current_user.stripe_customer_id
+        and current_user.subscription_status == "active"
+        and current_tier not in ["free", None]
+    )
+
+    if not has_active_sub:
+        # No active subscription - redirect to checkout
+        # Create checkout session and return URL
+        checkout_request = CheckoutRequest(tier_id=tier_id)
+        checkout_response = await create_checkout(checkout_request, current_user, db)
+        return UpgradeResponse(
+            success=True,
+            message="Redirecting to checkout",
+            new_tier=tier_id,
+            checkout_url=checkout_response.checkout_url
+        )
+
+    # User has active subscription - upgrade via Stripe API
+    try:
+        # Get user's current subscription from Stripe
+        subscriptions = stripe_service.list_customer_subscriptions(current_user.stripe_customer_id)
+        if not subscriptions["success"] or not subscriptions["subscriptions"]:
+            # No subscription found - redirect to checkout
+            checkout_request = CheckoutRequest(tier_id=tier_id)
+            checkout_response = await create_checkout(checkout_request, current_user, db)
+            return UpgradeResponse(
+                success=True,
+                message="Redirecting to checkout",
+                new_tier=tier_id,
+                checkout_url=checkout_response.checkout_url
+            )
+
+        subscription = subscriptions["subscriptions"][0]
+        subscription_id = subscription.id
+        subscription_item_id = subscription["items"]["data"][0].id
+
+        # Update the subscription to the new price
+        update_result = stripe_service.update_subscription(
+            subscription_id=subscription_id,
+            subscription_item_id=subscription_item_id,
+            new_price_id=new_price_id,
+            metadata={
+                "tier_id": tier_id,
+                "tier_name": tier_info["name"],
+                "user_id": str(current_user.id),
+            }
+        )
+
+        if not update_result["success"]:
+            logger.error(f"Failed to upgrade subscription: {update_result['error']}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to upgrade subscription. Please try again or contact support."
+            )
+
+        # Update user's tier immediately
+        current_user.subscription_tier = tier_id
+        db.commit()
+
+        logger.info(f"User {current_user.id} upgraded from {current_tier} to {tier_id}")
+
+        return UpgradeResponse(
+            success=True,
+            message=f"Successfully upgraded to {tier_info['name']}!",
+            new_tier=tier_id
+        )
+
+    except Exception as e:
+        logger.error(f"Upgrade failed for user {current_user.id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Upgrade failed. Please try again or contact support."
+        )

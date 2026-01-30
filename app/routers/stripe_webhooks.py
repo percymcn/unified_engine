@@ -9,7 +9,7 @@ from datetime import datetime
 
 from app.db.database import get_db
 from app.models.models import User
-from app.services.stripe_service import stripe_service, PRICING_TIERS
+from app.services.stripe_service import stripe_service, PRICING_TIERS, get_tier_from_price_id
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -181,9 +181,20 @@ async def handle_subscription_updated(db: Session, subscription: dict):
 
     # Get tier from subscription metadata
     tier_id = metadata.get("tier_id")
+
+    # If no tier in metadata, try to detect from price_id
     if not tier_id:
-        # Fallback to user's current tier if metadata missing
+        items = subscription.get("items", {}).get("data", [])
+        if items:
+            price_id = items[0].get("price", {}).get("id")
+            if price_id:
+                tier_id = get_tier_from_price_id(price_id)
+                logger.info(f"Detected tier {tier_id} from price_id {price_id}")
+
+    # Final fallback to user's current tier
+    if not tier_id:
         tier_id = user.subscription_tier or "tier_1"
+        logger.warning(f"No tier detected, using current: {tier_id}")
 
     # Map Stripe status to our status
     status_map = {
