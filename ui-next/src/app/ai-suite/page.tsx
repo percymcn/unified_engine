@@ -6,6 +6,24 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   BarChart3,
   Code2,
@@ -18,6 +36,10 @@ import {
   Share2,
   Lock,
   Wand2,
+  Check,
+  Copy,
+  Download,
+  FolderOpen,
 } from 'lucide-react';
 import Link from 'next/link';
 import {
@@ -42,6 +64,34 @@ export default function AIStrategyPage() {
   const [activeTab, setActiveTab] = useState('chart');
   const [selectedSymbol, setSelectedSymbol] = useState('EURUSD');
 
+  // Dialog states
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
+  const [strategyName, setStrategyName] = useState('');
+  const [savedStrategies, setSavedStrategies] = useState<Array<{name: string; code: string; savedAt: string}>>([]);
+  const [loadDialogOpen, setLoadDialogOpen] = useState(false);
+
+  // Settings state
+  const [settings, setSettings] = useState({
+    defaultSymbol: 'EURUSD',
+    defaultTimeframe: '60',
+    autoSave: false,
+    darkTheme: true,
+  });
+
+  // Load saved strategies on mount
+  useEffect(() => {
+    const stored = localStorage.getItem('tradeflow-strategies');
+    if (stored) {
+      setSavedStrategies(JSON.parse(stored));
+    }
+    const storedSettings = localStorage.getItem('tradeflow-ai-suite-settings');
+    if (storedSettings) {
+      setSettings(JSON.parse(storedSettings));
+    }
+  }, []);
+
   const handleCodeChange = useCallback((code: string) => {
     setPineCode(code);
   }, []);
@@ -52,7 +102,7 @@ export default function AIStrategyPage() {
 
   const { toast } = useToast();
 
-  // Save strategy to localStorage
+  // Open save dialog
   const handleSaveStrategy = useCallback(() => {
     if (!pineCode.trim()) {
       toast({
@@ -62,28 +112,54 @@ export default function AIStrategyPage() {
       });
       return;
     }
+    setStrategyName(`Strategy ${savedStrategies.length + 1}`);
+    setSaveDialogOpen(true);
+  }, [pineCode, savedStrategies.length, toast]);
 
+  // Actually save the strategy
+  const confirmSaveStrategy = useCallback(() => {
     const strategyData = {
+      name: strategyName || `Strategy ${savedStrategies.length + 1}`,
       code: pineCode,
       symbol: selectedSymbol,
       savedAt: new Date().toISOString(),
       backtestResults: backtestResults,
     };
 
-    // Save to localStorage
-    const savedStrategies = JSON.parse(localStorage.getItem('tradeflow-strategies') || '[]');
-    const strategyName = `Strategy ${savedStrategies.length + 1}`;
-    savedStrategies.push({ name: strategyName, ...strategyData });
-    localStorage.setItem('tradeflow-strategies', JSON.stringify(savedStrategies));
+    const updated = [...savedStrategies, strategyData];
+    setSavedStrategies(updated);
+    localStorage.setItem('tradeflow-strategies', JSON.stringify(updated));
+    setSaveDialogOpen(false);
 
     toast({
       title: 'Strategy Saved!',
-      description: `"${strategyName}" has been saved locally.`,
+      description: `"${strategyData.name}" has been saved. You now have ${updated.length} saved strategies.`,
     });
-  }, [pineCode, selectedSymbol, backtestResults, toast]);
+  }, [strategyName, pineCode, selectedSymbol, backtestResults, savedStrategies, toast]);
 
-  // Share strategy (copy to clipboard)
-  const handleShareStrategy = useCallback(async () => {
+  // Load a saved strategy
+  const loadStrategy = useCallback((strategy: typeof savedStrategies[0]) => {
+    setPineCode(strategy.code);
+    setLoadDialogOpen(false);
+    toast({
+      title: 'Strategy Loaded',
+      description: `"${strategy.name}" has been loaded into the editor.`,
+    });
+  }, [toast]);
+
+  // Delete a saved strategy
+  const deleteStrategy = useCallback((index: number) => {
+    const updated = savedStrategies.filter((_, i) => i !== index);
+    setSavedStrategies(updated);
+    localStorage.setItem('tradeflow-strategies', JSON.stringify(updated));
+    toast({
+      title: 'Strategy Deleted',
+      description: 'The strategy has been removed.',
+    });
+  }, [savedStrategies, toast]);
+
+  // Open share dialog
+  const handleShareStrategy = useCallback(() => {
     if (!pineCode.trim()) {
       toast({
         title: 'Nothing to Share',
@@ -92,12 +168,16 @@ export default function AIStrategyPage() {
       });
       return;
     }
+    setShareDialogOpen(true);
+  }, [pineCode, toast]);
 
+  // Copy code to clipboard
+  const copyToClipboard = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(pineCode);
       toast({
-        title: 'Copied to Clipboard!',
-        description: 'Your Pine Script code has been copied. Share it anywhere!',
+        title: 'Copied!',
+        description: 'Pine Script code copied to clipboard.',
       });
     } catch {
       toast({
@@ -108,16 +188,49 @@ export default function AIStrategyPage() {
     }
   }, [pineCode, toast]);
 
-  // Settings placeholder (open settings panel or show toast)
-  const handleOpenSettings = useCallback(() => {
+  // Download as file
+  const downloadAsFile = useCallback(() => {
+    const blob = new Blob([pineCode], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${strategyName || 'strategy'}.pine`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
     toast({
-      title: 'Settings Coming Soon',
-      description: 'AI Suite settings will be available in a future update.',
+      title: 'Downloaded!',
+      description: 'Pine Script saved as .pine file.',
     });
-  }, [toast]);
+  }, [pineCode, strategyName, toast]);
+
+  // Open settings dialog
+  const handleOpenSettings = useCallback(() => {
+    setSettingsDialogOpen(true);
+  }, []);
+
+  // Save settings
+  const saveSettings = useCallback(() => {
+    localStorage.setItem('tradeflow-ai-suite-settings', JSON.stringify(settings));
+    setSettingsDialogOpen(false);
+    toast({
+      title: 'Settings Saved',
+      description: 'Your preferences have been updated.',
+    });
+  }, [settings, toast]);
 
   const handleWebhookGenerated = useCallback((payload: WebhookPayload) => {
     setWebhookPayload(payload);
+  }, []);
+
+  // Handle applying AI suggestions to the code
+  const handleApplySuggestion = useCallback((codeSnippet: string) => {
+    setPineCode((prevCode) => {
+      // Add a newline separator and append the suggestion
+      const separator = prevCode.trim() ? '\n\n// === AI Coach Suggestion ===\n' : '';
+      return prevCode + separator + codeSnippet;
+    });
   }, []);
 
   // Show upgrade prompt for users without Pro tier
@@ -206,9 +319,15 @@ export default function AIStrategyPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            {savedStrategies.length > 0 && (
+              <Button variant="outline" size="sm" onClick={() => setLoadDialogOpen(true)}>
+                <FolderOpen className="h-4 w-4 mr-2" />
+                Load ({savedStrategies.length})
+              </Button>
+            )}
             <Button variant="outline" size="sm" onClick={handleSaveStrategy}>
               <Save className="h-4 w-4 mr-2" />
-              Save Strategy
+              Save
             </Button>
             <Button variant="outline" size="sm" onClick={handleShareStrategy}>
               <Share2 className="h-4 w-4 mr-2" />
@@ -306,6 +425,7 @@ export default function AIStrategyPage() {
                 <AICoach
                   code={pineCode}
                   backtestResults={backtestResults}
+                  onApplySuggestion={handleApplySuggestion}
                 />
               </div>
             </div>
@@ -318,6 +438,7 @@ export default function AIStrategyPage() {
                 code={pineCode}
                 backtestResults={backtestResults}
                 className="h-full"
+                onApplySuggestion={handleApplySuggestion}
               />
               <div className="space-y-4">
                 <PineScriptEditor
@@ -380,6 +501,208 @@ export default function AIStrategyPage() {
           </div>
         </div>
       </main>
+
+      {/* Save Strategy Dialog */}
+      <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Save className="h-5 w-5" />
+              Save Strategy
+            </DialogTitle>
+            <DialogDescription>
+              Save your Pine Script strategy locally for later use.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="strategy-name">Strategy Name</Label>
+              <Input
+                id="strategy-name"
+                value={strategyName}
+                onChange={(e) => setStrategyName(e.target.value)}
+                placeholder="Enter a name for your strategy"
+              />
+            </div>
+            <div className="text-sm text-muted-foreground">
+              <p>Symbol: {selectedSymbol}</p>
+              <p>Code length: {pineCode.length} characters</p>
+              {backtestResults && (
+                <p>Includes backtest results: Win Rate {backtestResults.winRate}%</p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSaveDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={confirmSaveStrategy}>
+              <Check className="h-4 w-4 mr-2" />
+              Save Strategy
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Load Strategy Dialog */}
+      <Dialog open={loadDialogOpen} onOpenChange={setLoadDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FolderOpen className="h-5 w-5" />
+              Load Strategy
+            </DialogTitle>
+            <DialogDescription>
+              Select a previously saved strategy to load into the editor.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[400px] overflow-y-auto space-y-2">
+            {savedStrategies.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">No saved strategies yet.</p>
+            ) : (
+              savedStrategies.map((strategy, index) => (
+                <div
+                  key={index}
+                  className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50"
+                >
+                  <div>
+                    <p className="font-medium">{strategy.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Saved: {new Date(strategy.savedAt).toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={() => loadStrategy(strategy)}>
+                      Load
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => deleteStrategy(index)}
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Share Strategy Dialog */}
+      <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Share2 className="h-5 w-5" />
+              Share Strategy
+            </DialogTitle>
+            <DialogDescription>
+              Share your Pine Script code with others.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="p-4 rounded-lg bg-muted overflow-hidden">
+              <pre className="text-xs overflow-x-auto max-h-[200px]">
+                {pineCode.slice(0, 500)}{pineCode.length > 500 ? '...' : ''}
+              </pre>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="outline" onClick={copyToClipboard}>
+                <Copy className="h-4 w-4 mr-2" />
+                Copy to Clipboard
+              </Button>
+              <Button variant="outline" onClick={downloadAsFile}>
+                <Download className="h-4 w-4 mr-2" />
+                Download .pine File
+              </Button>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShareDialogOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Settings Dialog */}
+      <Dialog open={settingsDialogOpen} onOpenChange={setSettingsDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              AI Suite Settings
+            </DialogTitle>
+            <DialogDescription>
+              Configure your AI Strategy Suite preferences.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6 py-4">
+            <div className="space-y-2">
+              <Label>Default Symbol</Label>
+              <Select
+                value={settings.defaultSymbol}
+                onValueChange={(v) => setSettings({ ...settings, defaultSymbol: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="EURUSD">EUR/USD</SelectItem>
+                  <SelectItem value="GBPUSD">GBP/USD</SelectItem>
+                  <SelectItem value="USDJPY">USD/JPY</SelectItem>
+                  <SelectItem value="XAUUSD">XAU/USD (Gold)</SelectItem>
+                  <SelectItem value="BTCUSD">BTC/USD</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Default Timeframe</Label>
+              <Select
+                value={settings.defaultTimeframe}
+                onValueChange={(v) => setSettings({ ...settings, defaultTimeframe: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1 Minute</SelectItem>
+                  <SelectItem value="5">5 Minutes</SelectItem>
+                  <SelectItem value="15">15 Minutes</SelectItem>
+                  <SelectItem value="60">1 Hour</SelectItem>
+                  <SelectItem value="240">4 Hours</SelectItem>
+                  <SelectItem value="D">Daily</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>Auto-save</Label>
+                <p className="text-xs text-muted-foreground">
+                  Automatically save your work every 5 minutes
+                </p>
+              </div>
+              <Switch
+                checked={settings.autoSave}
+                onCheckedChange={(checked) => setSettings({ ...settings, autoSave: checked })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSettingsDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={saveSettings}>
+              <Check className="h-4 w-4 mr-2" />
+              Save Settings
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

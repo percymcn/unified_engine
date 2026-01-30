@@ -83,8 +83,13 @@ const TIMEFRAMES = [
   { value: 'D', label: 'Daily' },
 ];
 
+const CANDLE_TYPES = [
+  { value: 'regular', label: 'Regular Candles' },
+  { value: 'heikinashi', label: 'Heikin-Ashi' },
+];
+
 // Mock backtest simulation
-function simulateBacktest(config: BacktestConfig, code: string): BacktestResults {
+function simulateBacktest(config: BacktestConfig & { candleType?: string }, code: string): BacktestResults {
   const trades: BacktestTrade[] = [];
   const equityCurve: EquityPoint[] = [];
   let equity = config.initialCapital;
@@ -101,11 +106,18 @@ function simulateBacktest(config: BacktestConfig, code: string): BacktestResults
   const isLongOnly = code.includes('long_only') || !code.includes('strategy.short');
   const hasATRStop = code.toLowerCase().includes('atr');
   const hasRSIFilter = code.toLowerCase().includes('rsi');
+  const isHeikinAshi = config.candleType === 'heikinashi';
 
   // Adjust win rate based on strategy characteristics
   let baseWinRate = 0.45;
   if (hasATRStop) baseWinRate += 0.05;
   if (hasRSIFilter) baseWinRate += 0.03;
+
+  // Heikin-Ashi candles typically smooth price action, reducing false signals
+  // This can improve win rate and trend following but may delay entries/exits
+  if (isHeikinAshi) {
+    baseWinRate += 0.08; // Heikin-Ashi tends to filter out noise
+  }
 
   // Generate trades (roughly 2-4 trades per week based on timeframe)
   const tradesPerWeek = config.timeframe === 'D' ? 1 : config.timeframe === '60' ? 3 : 5;
@@ -241,7 +253,7 @@ export function BacktestEngine({
   onResultsChange,
   className,
 }: BacktestEngineProps) {
-  const [config, setConfig] = useState<BacktestConfig>({
+  const [config, setConfig] = useState<BacktestConfig & { candleType: string }>({
     symbol: 'EURUSD',
     timeframe: '60',
     startDate: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -249,6 +261,7 @@ export function BacktestEngine({
     initialCapital: 10000,
     commission: 0.5,
     slippage: 0.1,
+    candleType: 'regular',
   });
 
   const [results, setResults] = useState<BacktestResults | null>(null);
@@ -304,7 +317,7 @@ export function BacktestEngine({
 
       <CardContent className="space-y-6">
         {/* Configuration */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <div className="space-y-2">
             <Label>Symbol</Label>
             <Select
@@ -339,6 +352,26 @@ export function BacktestEngine({
                 {TIMEFRAMES.map((tf) => (
                   <SelectItem key={tf.value} value={tf.value}>
                     {tf.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Candle Type</Label>
+            <Select
+              value={config.candleType}
+              onValueChange={(v) => setConfig({ ...config, candleType: v })}
+              disabled={isRunning}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CANDLE_TYPES.map((ct) => (
+                  <SelectItem key={ct.value} value={ct.value}>
+                    {ct.label}
                   </SelectItem>
                 ))}
               </SelectContent>

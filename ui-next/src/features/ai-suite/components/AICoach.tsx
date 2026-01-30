@@ -41,6 +41,7 @@ interface AICoachProps {
   code?: string;
   backtestResults?: BacktestResults | null;
   className?: string;
+  onApplySuggestion?: (codeSnippet: string) => void;
 }
 
 interface AnalysisResult {
@@ -79,7 +80,7 @@ const severityIcons = {
   critical: XCircle,
 };
 
-export function AICoach({ code = '', backtestResults, className }: AICoachProps) {
+export function AICoach({ code = '', backtestResults, className, onApplySuggestion }: AICoachProps) {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [chatMessages, setChatMessages] = useState<AICoachMessage[]>([]);
@@ -346,9 +347,28 @@ export function AICoach({ code = '', backtestResults, className }: AICoachProps)
                               key={idx}
                               className="p-3 rounded-lg border border-yellow-400/30 bg-yellow-400/10"
                             >
-                              <div className="flex items-center gap-2 font-medium text-sm text-yellow-400">
-                                <Zap className="h-4 w-4" />
-                                {suggestion.type}
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2 font-medium text-sm text-yellow-400">
+                                  <Zap className="h-4 w-4" />
+                                  {suggestion.type}
+                                </div>
+                                {suggestion.codeSnippet && onApplySuggestion && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 text-xs border-yellow-400/50 hover:bg-yellow-400/20"
+                                    onClick={() => {
+                                      onApplySuggestion(suggestion.codeSnippet!);
+                                      toast({
+                                        title: 'Suggestion Applied',
+                                        description: `Added ${suggestion.type} to your strategy code.`,
+                                      });
+                                    }}
+                                  >
+                                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                                    Apply
+                                  </Button>
+                                )}
                               </div>
                               <p className="text-sm mt-1 opacity-80">{suggestion.description}</p>
                               <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
@@ -363,6 +383,30 @@ export function AICoach({ code = '', backtestResults, className }: AICoachProps)
                             </div>
                           ))}
                         </div>
+
+                        {/* Apply All Suggestions Button */}
+                        {onApplySuggestion && analysis.suggestions.some(s => s.codeSnippet) && (
+                          <Button
+                            className="w-full mt-4"
+                            variant="outline"
+                            onClick={() => {
+                              const allSnippets = analysis.suggestions
+                                .filter(s => s.codeSnippet)
+                                .map(s => `// ${s.type}\n${s.codeSnippet}`)
+                                .join('\n\n');
+                              if (allSnippets) {
+                                onApplySuggestion(allSnippets);
+                                toast({
+                                  title: 'All Suggestions Applied',
+                                  description: `Added ${analysis.suggestions.filter(s => s.codeSnippet).length} improvements to your strategy.`,
+                                });
+                              }
+                            }}
+                          >
+                            <Sparkles className="h-4 w-4 mr-2" />
+                            Apply All Suggestions
+                          </Button>
+                        )}
                       </AccordionContent>
                     </AccordionItem>
                   </Accordion>
