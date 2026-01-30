@@ -219,27 +219,30 @@ async def set_user_tier(
 ) -> Dict[str, Any]:
     """Set user subscription tier (owner-only)"""
     check_owner_access(current_user)
-    
-    from app.models.enhanced_models import SubscriptionTier
-    
+
+    # Valid tiers: free, starter/tier_1, trader/tier_2, pro/tier_3, enterprise/tier_4
+    VALID_TIERS = {"free", "starter", "trader", "pro", "enterprise", "tier_1", "tier_2", "tier_3", "tier_4"}
+
+    tier = request.tier.lower()
+    if tier not in VALID_TIERS:
+        raise HTTPException(status_code=400, detail=f"Invalid tier: {request.tier}. Valid tiers: {', '.join(sorted(VALID_TIERS))}")
+
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    
-    try:
-        tier_enum = SubscriptionTier(request.tier)
-        user.subscription_tier = tier_enum
-        db.commit()
-        db.refresh(user)
 
-        return {
-            "id": user.id,
-            "email": user.email,
-            "subscription_tier": request.tier,
-            "message": f"User tier set to {request.tier}"
-        }
-    except ValueError:
-        raise HTTPException(status_code=400, detail=f"Invalid tier: {request.tier}")
+    user.subscription_tier = tier
+    db.commit()
+    db.refresh(user)
+
+    logger.info(f"Admin {current_user.id} set user {user_id} tier to {tier}")
+
+    return {
+        "id": user.id,
+        "email": user.email,
+        "subscription_tier": tier,
+        "message": f"User tier set to {tier}"
+    }
 
 
 @router.post("/users/{user_id}/reset-password-link")
