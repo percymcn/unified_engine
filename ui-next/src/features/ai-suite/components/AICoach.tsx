@@ -32,6 +32,8 @@ import {
   MessageSquare,
   BarChart3,
   Sparkles,
+  Copy,
+  Save,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -248,6 +250,41 @@ export function AICoach({ code = '', backtestResults, className, onApplySuggesti
                   <AlertDescription>{analysis.summary}</AlertDescription>
                 </Alert>
 
+                {/* Action Buttons */}
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={async () => {
+                      const fullAssessment = formatAnalysisAsText(analysis, backtestResults);
+                      await navigator.clipboard.writeText(fullAssessment);
+                      toast({
+                        title: 'Copied!',
+                        description: 'Full AI assessment copied to clipboard.',
+                      });
+                    }}
+                  >
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copy Full Assessment
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => {
+                      saveAnalysisToHistory(analysis, code, backtestResults);
+                      toast({
+                        title: 'Saved!',
+                        description: 'Analysis saved to your history.',
+                      });
+                    }}
+                  >
+                    <Save className="h-4 w-4 mr-2" />
+                    Save to History
+                  </Button>
+                </div>
+
                 {/* Biases */}
                 {analysis.biases.length > 0 && (
                   <Accordion type="single" collapsible defaultValue="biases">
@@ -352,23 +389,38 @@ export function AICoach({ code = '', backtestResults, className, onApplySuggesti
                                   <Zap className="h-4 w-4" />
                                   {suggestion.type}
                                 </div>
-                                {suggestion.codeSnippet && onApplySuggestion && (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="h-7 text-xs border-yellow-400/50 hover:bg-yellow-400/20"
-                                    onClick={() => {
-                                      onApplySuggestion(suggestion.codeSnippet!);
-                                      toast({
-                                        title: 'Suggestion Applied',
-                                        description: `Added ${suggestion.type} to your strategy code.`,
-                                      });
-                                    }}
-                                  >
-                                    <CheckCircle2 className="h-3 w-3 mr-1" />
-                                    Apply
-                                  </Button>
-                                )}
+                                <div className="flex gap-1">
+                                  {suggestion.codeSnippet && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-7 text-xs border-yellow-400/50 hover:bg-yellow-400/20"
+                                      onClick={async () => {
+                                        await navigator.clipboard.writeText(suggestion.codeSnippet!);
+                                        toast({
+                                          title: 'Copied!',
+                                          description: `${suggestion.type} code copied to clipboard.`,
+                                        });
+                                      }}
+                                    >
+                                      <Copy className="h-3 w-3 mr-1" />
+                                      Copy
+                                    </Button>
+                                  )}
+                                  {suggestion.codeSnippet && onApplySuggestion && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-7 text-xs border-emerald-400/50 hover:bg-emerald-400/20 text-emerald-400"
+                                      onClick={() => {
+                                        onApplySuggestion(suggestion.codeSnippet!);
+                                      }}
+                                    >
+                                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                                      Apply
+                                    </Button>
+                                  )}
+                                </div>
                               </div>
                               <p className="text-sm mt-1 opacity-80">{suggestion.description}</p>
                               <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
@@ -719,4 +771,79 @@ function calculateStrategyScore(
   }
 
   return Math.max(0, Math.min(100, score));
+}
+
+// Format analysis as copyable text
+function formatAnalysisAsText(
+  analysis: AnalysisResult,
+  backtestResults?: BacktestResults | null
+): string {
+  let text = '# AI Strategy Assessment\n\n';
+  text += `## Summary\n${analysis.summary}\n\n`;
+
+  if (analysis.biases.length > 0) {
+    text += '## Trading Biases\n';
+    analysis.biases.forEach((bias) => {
+      text += `- **${bias.type}** (${bias.severity}): ${bias.description}\n`;
+    });
+    text += '\n';
+  }
+
+  if (analysis.riskIssues.length > 0) {
+    text += '## Risk Issues\n';
+    analysis.riskIssues.forEach((issue) => {
+      text += `- **${issue.type}** (${issue.severity}): ${issue.description}\n`;
+      text += `  - Recommendation: ${issue.recommendation}\n`;
+    });
+    text += '\n';
+  }
+
+  if (analysis.suggestions.length > 0) {
+    text += '## Improvement Suggestions\n';
+    analysis.suggestions.forEach((suggestion) => {
+      text += `### ${suggestion.type}\n`;
+      text += `${suggestion.description}\n`;
+      text += `Expected Impact: ${suggestion.expectedImpact}\n`;
+      if (suggestion.codeSnippet) {
+        text += '```pinescript\n' + suggestion.codeSnippet + '\n```\n';
+      }
+      text += '\n';
+    });
+  }
+
+  if (backtestResults) {
+    text += '## Backtest Results\n';
+    text += `- Win Rate: ${backtestResults.winRate}%\n`;
+    text += `- Profit Factor: ${backtestResults.profitFactor}\n`;
+    text += `- Max Drawdown: ${backtestResults.maxDrawdownPercent}%\n`;
+    text += `- Sharpe Ratio: ${backtestResults.sharpeRatio}\n`;
+  }
+
+  text += '\n---\nGenerated by TradeFlow AI Coach';
+  return text;
+}
+
+// Save analysis to local storage history
+function saveAnalysisToHistory(
+  analysis: AnalysisResult,
+  code: string,
+  backtestResults?: BacktestResults | null
+) {
+  const historyKey = 'tradeflow-analysis-history';
+  const existing = localStorage.getItem(historyKey);
+  const history = existing ? JSON.parse(existing) : [];
+
+  const entry = {
+    id: Date.now().toString(),
+    timestamp: new Date().toISOString(),
+    analysis,
+    code: code.slice(0, 500) + (code.length > 500 ? '...' : ''), // Store first 500 chars
+    backtestResults,
+  };
+
+  history.unshift(entry); // Add to beginning
+  // Keep only last 20 entries
+  if (history.length > 20) history.pop();
+
+  localStorage.setItem(historyKey, JSON.stringify(history));
 }

@@ -128,6 +128,14 @@ export function PineScriptEditor({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToast();
 
+  // Sync internal code state with external initialCode prop when it changes
+  useEffect(() => {
+    if (initialCode !== undefined && initialCode !== code) {
+      setCode(initialCode);
+      validateSyntax(initialCode);
+    }
+  }, [initialCode]);
+
   // Basic syntax validation
   const validateSyntax = useCallback((code: string) => {
     const errors: PineScriptError[] = [];

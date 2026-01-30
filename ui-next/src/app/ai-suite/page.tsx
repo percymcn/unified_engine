@@ -231,7 +231,14 @@ export default function AIStrategyPage() {
       const separator = prevCode.trim() ? '\n\n// === AI Coach Suggestion ===\n' : '';
       return prevCode + separator + codeSnippet;
     });
-  }, []);
+    // Switch to editor tab so user can see the applied code
+    setActiveTab('editor');
+    // Show visual feedback
+    toast({
+      title: 'Code Updated!',
+      description: 'Suggestion applied - check the Editor tab to see the changes.',
+    });
+  }, [toast]);
 
   // Show upgrade prompt for users without Pro tier
   if (!hasAccess) {
