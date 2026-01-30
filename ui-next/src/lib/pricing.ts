@@ -164,42 +164,66 @@ export function formatPriceWithPeriod(
 
 /**
  * Get features for a tier
- * @param tier_id - Tier identifier (e.g., "tier_1", "free")
+ * @param tier_id - Tier identifier (supports aliases: starter, trader, pro, enterprise)
  * @returns Array of feature strings
  */
 export function getTierFeatures(tier_id: string): string[] {
-  if (tier_id === "free") {
+  const normalizedId = normalizeTierId(tier_id);
+  if (normalizedId === "free") {
     return FREE_TIER.features;
   }
-  return PRICING_TIERS[tier_id]?.features || FREE_TIER.features;
+  return PRICING_TIERS[normalizedId]?.features || FREE_TIER.features;
+}
+
+/**
+ * Normalize tier ID to canonical format
+ * @param tier_id - Tier identifier (can be alias like "pro" or canonical like "tier_3")
+ * @returns Canonical tier ID
+ */
+export function normalizeTierId(tier_id: string): string {
+  const t = tier_id?.toLowerCase() || "free";
+  switch (t) {
+    case "starter":
+    case "tier_1":
+      return "tier_1";
+    case "trader":
+    case "tier_2":
+      return "tier_2";
+    case "pro":
+    case "tier_3":
+      return "tier_3";
+    case "enterprise":
+    case "tier_4":
+      return "tier_4";
+    default:
+      return "free";
+  }
 }
 
 /**
  * Get tier info by ID
- * @param tier_id - Tier identifier
+ * @param tier_id - Tier identifier (supports aliases: starter, trader, pro, enterprise)
  * @returns Full tier information
  */
 export function getTierInfo(tier_id: string): PricingTier {
-  if (tier_id === "free") {
+  const normalizedId = normalizeTierId(tier_id);
+  if (normalizedId === "free") {
     return FREE_TIER;
   }
-  return PRICING_TIERS[tier_id] || FREE_TIER;
+  return PRICING_TIERS[normalizedId] || FREE_TIER;
 }
 
 /**
  * Get broker limit for a tier
- * @param tier_id - Tier identifier
+ * @param tier_id - Tier identifier (supports aliases)
  * @returns Maximum brokers allowed
  */
 export function getBrokerLimit(tier_id: string): number {
-  if (tier_id === "free") {
+  const normalizedId = normalizeTierId(tier_id);
+  if (normalizedId === "free") {
     return FREE_TIER.brokers;
   }
-  // Handle legacy "pro" tier
-  if (tier_id === "pro") {
-    return PRICING_TIERS.tier_4.brokers;
-  }
-  return PRICING_TIERS[tier_id]?.brokers || FREE_TIER.brokers;
+  return PRICING_TIERS[normalizedId]?.brokers || FREE_TIER.brokers;
 }
 
 /**
@@ -246,25 +270,26 @@ export function getTierByBrokerCount(brokerCount: number): string | null {
 
 /**
  * Check if a tier is higher than another
- * @param tier1 - First tier ID
- * @param tier2 - Second tier ID
+ * @param tier1 - First tier ID (supports aliases)
+ * @param tier2 - Second tier ID (supports aliases)
  * @returns true if tier1 is higher than tier2
  */
 export function isTierHigher(tier1: string, tier2: string): boolean {
   const tierOrder = ["free", "tier_1", "tier_2", "tier_3", "tier_4"];
-  const index1 = tierOrder.indexOf(tier1);
-  const index2 = tierOrder.indexOf(tier2);
+  const index1 = tierOrder.indexOf(normalizeTierId(tier1));
+  const index2 = tierOrder.indexOf(normalizeTierId(tier2));
   return index1 > index2;
 }
 
 /**
  * Get upgrade options from a given tier
- * @param currentTier - Current tier ID
+ * @param currentTier - Current tier ID (supports aliases)
  * @returns Array of tiers that are upgrades
  */
 export function getUpgradeTiers(currentTier: string): PricingTier[] {
   const tierOrder = ["free", "tier_1", "tier_2", "tier_3", "tier_4"];
-  const currentIndex = tierOrder.indexOf(currentTier);
+  const normalizedTier = normalizeTierId(currentTier);
+  const currentIndex = tierOrder.indexOf(normalizedTier);
 
   if (currentIndex === -1 || currentIndex >= tierOrder.length - 1) {
     return []; // Unknown tier or already at highest

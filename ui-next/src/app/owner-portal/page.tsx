@@ -287,13 +287,22 @@ export default function OwnerPortal() {
         credentials: "include",
         body: JSON.stringify({ tier }),
       });
+      const data = await response.json();
       if (response.ok) {
-        const data = await response.json();
-        toast({ title: "Success", description: data.message });
+        toast({ title: "Success", description: data.message || `Tier set to ${tier}` });
         fetchData();
+      } else {
+        // Show the actual error from backend
+        console.error("Set tier error:", response.status, data);
+        toast({
+          title: "Error",
+          description: data.detail || data.error || data.message || `Failed to set tier (${response.status})`,
+          variant: "destructive"
+        });
       }
     } catch (error) {
-      toast({ title: "Error", description: "Failed to set tier", variant: "destructive" });
+      console.error("Set tier exception:", error);
+      toast({ title: "Error", description: "Failed to set tier - network error", variant: "destructive" });
     }
   };
 

@@ -152,22 +152,52 @@ export const FEATURES: Record<string, FeatureDefinition> = {
   },
 };
 
-// Tier hierarchy for comparison
-const TIER_LEVELS: Record<SubscriptionTier, number> = {
+// Tier hierarchy for comparison (includes aliases)
+const TIER_LEVELS: Record<string, number> = {
   free: 0,
   starter: 1,
+  tier_1: 1,
   trader: 2,
+  tier_2: 2,
   pro: 3,
+  tier_3: 3,
   enterprise: 4,
+  tier_4: 4,
 };
+
+/**
+ * Normalize tier name to canonical form
+ */
+export function normalizeTier(tier: string): SubscriptionTier {
+  const t = tier?.toLowerCase() || 'free';
+  switch (t) {
+    case 'tier_1':
+    case 'starter':
+      return 'starter';
+    case 'tier_2':
+    case 'trader':
+      return 'trader';
+    case 'tier_3':
+    case 'pro':
+      return 'pro';
+    case 'tier_4':
+    case 'enterprise':
+      return 'enterprise';
+    default:
+      return 'free';
+  }
+}
 
 /**
  * Check if a user's tier has access to a feature
  */
-export function hasFeatureAccess(userTier: SubscriptionTier, featureId: string): boolean {
+export function hasFeatureAccess(userTier: SubscriptionTier | string, featureId: string): boolean {
   const feature = FEATURES[featureId];
   if (!feature) return false;
-  return TIER_LEVELS[userTier] >= TIER_LEVELS[feature.minTier];
+  const normalizedTier = typeof userTier === 'string' ? userTier.toLowerCase() : userTier;
+  const userLevel = TIER_LEVELS[normalizedTier] ?? 0;
+  const requiredLevel = TIER_LEVELS[feature.minTier] ?? 0;
+  return userLevel >= requiredLevel;
 }
 
 /**

@@ -18,8 +18,12 @@ import {
   Settings2,
   UserCircle,
   Wrench,
+  Crown,
+  Sparkles,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useUser } from '@/providers/user-provider';
+import { Badge } from '@/components/ui/badge';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -46,8 +50,32 @@ interface SidebarProps {
   className?: string;
 }
 
+// Helper to get tier display info
+function getTierDisplay(tier: string): { name: string; color: string; icon: typeof Crown } {
+  const t = tier?.toLowerCase() || 'free';
+  switch (t) {
+    case 'enterprise':
+    case 'tier_4':
+      return { name: 'Enterprise', color: 'bg-purple-500/20 text-purple-400 border-purple-500/30', icon: Crown };
+    case 'pro':
+    case 'tier_3':
+      return { name: 'Pro', color: 'bg-amber-500/20 text-amber-400 border-amber-500/30', icon: Crown };
+    case 'trader':
+    case 'tier_2':
+      return { name: 'Trader', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30', icon: Sparkles };
+    case 'starter':
+    case 'tier_1':
+      return { name: 'Starter', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30', icon: Sparkles };
+    default:
+      return { name: 'Free', color: 'bg-muted text-muted-foreground', icon: Sparkles };
+  }
+}
+
 export function Sidebar({ className }: SidebarProps) {
   const pathname = usePathname();
+  const { user } = useUser();
+  const tierDisplay = getTierDisplay(user?.subscription_tier || 'free');
+  const TierIcon = tierDisplay.icon;
 
   return (
     <div
@@ -118,9 +146,16 @@ export function Sidebar({ className }: SidebarProps) {
         </div>
       </nav>
 
-      {/* Footer */}
+      {/* Subscription Status */}
       <div className="border-t border-border p-4">
-        <p className="text-xs text-muted-foreground">
+        <div className="flex items-center gap-2 mb-2">
+          <TierIcon className="h-4 w-4" />
+          <span className="text-sm font-medium">Your Plan</span>
+        </div>
+        <Badge variant="outline" className={cn("text-xs", tierDisplay.color)}>
+          {tierDisplay.name}
+        </Badge>
+        <p className="text-xs text-muted-foreground mt-2">
           Tradeflow v1.1
         </p>
       </div>

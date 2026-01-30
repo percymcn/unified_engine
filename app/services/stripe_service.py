@@ -155,17 +155,25 @@ def get_broker_limit(tier: str) -> int:
 
     Args:
         tier: Tier ID ('free', 'tier_1', 'tier_2', 'tier_3', 'tier_4')
+              Also accepts aliases: 'starter', 'trader', 'pro', 'enterprise'
 
     Returns:
-        Maximum brokers allowed (1-4)
+        Maximum brokers allowed (1-8)
     """
     if tier == "free":
         return FREE_TIER["brokers"]
     if tier in PRICING_TIERS:
         return PRICING_TIERS[tier]["brokers"]
-    # Legacy "pro" tier maps to tier_4 (unlimited-ish, 4 brokers)
-    if tier == "pro":
-        return PRICING_TIERS["tier_4"]["brokers"]
+    # Handle tier aliases (human-readable names)
+    tier_aliases = {
+        "starter": "tier_1",
+        "trader": "tier_2",
+        "pro": "tier_3",
+        "enterprise": "tier_4",
+    }
+    normalized = tier_aliases.get(tier.lower() if tier else "", None)
+    if normalized and normalized in PRICING_TIERS:
+        return PRICING_TIERS[normalized]["brokers"]
     # Default to free tier limit
     return FREE_TIER["brokers"]
 
@@ -176,6 +184,7 @@ def get_tier_info(tier: str) -> Dict[str, Any]:
 
     Args:
         tier: Tier ID ('free', 'tier_1', 'tier_2', 'tier_3', 'tier_4')
+              Also accepts aliases: 'starter', 'trader', 'pro', 'enterprise'
 
     Returns:
         Dict with tier details
@@ -184,9 +193,16 @@ def get_tier_info(tier: str) -> Dict[str, Any]:
         return FREE_TIER.copy()
     if tier in PRICING_TIERS:
         return PRICING_TIERS[tier].copy()
-    # Legacy "pro" tier maps to tier_3
-    if tier == "pro":
-        return PRICING_TIERS["tier_3"].copy()
+    # Handle tier aliases (human-readable names)
+    tier_aliases = {
+        "starter": "tier_1",
+        "trader": "tier_2",
+        "pro": "tier_3",
+        "enterprise": "tier_4",
+    }
+    normalized = tier_aliases.get(tier.lower() if tier else "", None)
+    if normalized and normalized in PRICING_TIERS:
+        return PRICING_TIERS[normalized].copy()
     return FREE_TIER.copy()
 
 

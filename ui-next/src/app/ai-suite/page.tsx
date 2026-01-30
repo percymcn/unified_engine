@@ -26,12 +26,13 @@ import {
 } from '@/features/ai-suite';
 import type { BacktestResults, WebhookPayload } from '@/features/ai-suite/types';
 import { useUser } from '@/providers/user-provider';
-import { hasFeatureAccess, FEATURES, SubscriptionTier } from '@/lib/feature-flags';
+import { hasFeatureAccess, FEATURES, normalizeTier } from '@/lib/feature-flags';
 
 export default function AIStrategyPage() {
   const { user } = useUser();
-  const userTier = (user?.subscription_tier || 'free') as SubscriptionTier;
-  const hasAccess = hasFeatureAccess(userTier, 'AI_SUITE');
+  const rawTier = user?.subscription_tier || 'free';
+  const userTier = normalizeTier(rawTier);
+  const hasAccess = hasFeatureAccess(rawTier, 'AI_SUITE');
   const [pineCode, setPineCode] = useState('');
   const [backtestResults, setBacktestResults] = useState<BacktestResults | null>(null);
   const [webhookPayload, setWebhookPayload] = useState<WebhookPayload | null>(null);
