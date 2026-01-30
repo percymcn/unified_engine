@@ -7,7 +7,7 @@ export const revalidate = 0;
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8765';
 // Always use production URL for OAuth callback redirects
 // This ensures OAuth works correctly in production
-const FRONTEND_URL = 'https://tradeflow.fluxeo.net';
+const FRONTEND_URL = 'https://mytradeflow.app';
 
 /**
  * Handle Google OAuth callback redirect.

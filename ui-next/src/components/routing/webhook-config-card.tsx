@@ -45,7 +45,7 @@ export function WebhookConfigCard({
   // Use the backend API URL for webhooks, not the frontend URL
   const webhookBaseUrl = process.env.NEXT_PUBLIC_WEBHOOK_BASE_URL ||
                          process.env.NEXT_PUBLIC_BACKEND_URL ||
-                         'https://api.tradeflow.fluxeo.net';
+                         'https://api.mytradeflow.app';
   const webhookUrl = `${webhookBaseUrl}/webhooks/tradingview/${config.webhook_key}`;
 
   const handleCopyUrl = async () => {

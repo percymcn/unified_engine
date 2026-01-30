@@ -18,6 +18,10 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ChartConfig, ChartPosition } from '../types';
+import {
+  installTradingViewErrorFilter,
+  uninstallTradingViewErrorFilter,
+} from '@/lib/tradingview-error-filter';
 
 interface TradingViewChartProps {
   symbol?: string;
@@ -69,6 +73,14 @@ export function TradingViewChart({
   const [showPositions, setShowPositions] = useState(initialShowPositions);
   const [positions, setPositions] = useState<ChartPosition[]>([]);
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Install TradingView error filter to suppress known harmless CORS errors
+  useEffect(() => {
+    installTradingViewErrorFilter();
+    return () => {
+      uninstallTradingViewErrorFilter();
+    };
+  }, []);
 
   // Fetch open positions from TradeFlow
   const fetchPositions = useCallback(async () => {

@@ -352,100 +352,109 @@ export default function AIStrategyPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-14 items-center justify-between px-4">
-          <div className="flex items-center gap-4">
-            <Link href="/dashboard">
-              <Button variant="ghost" size="sm">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Dashboard
-              </Button>
-            </Link>
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary" />
-              <h1 className="text-lg font-semibold">AI Strategy Suite</h1>
-              <Badge variant="secondary" className="text-xs">
-                Beta
-              </Badge>
+    <div className="min-h-screen bg-background pb-20 md:pb-6">
+      {/* Header - Responsive with wrapping */}
+      <header className="sticky top-0 z-40 border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container px-3 sm:px-4">
+          {/* Top row: Back button and title */}
+          <div className="flex h-12 sm:h-14 items-center justify-between gap-2">
+            <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+              <Link href="/dashboard">
+                <Button variant="ghost" size="sm" className="px-2 sm:px-3">
+                  <ArrowLeft className="h-4 w-4" />
+                  <span className="hidden sm:inline ml-2">Dashboard</span>
+                </Button>
+              </Link>
+              <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0" />
+                <h1 className="text-sm sm:text-lg font-semibold truncate">AI Suite</h1>
+                <Badge variant="secondary" className="text-[10px] sm:text-xs hidden xs:inline-flex">
+                  Beta
+                </Badge>
+              </div>
             </div>
-          </div>
 
-          <div className="flex items-center gap-2">
-            {savedStrategies.length > 0 && (
-              <Button variant="outline" size="sm" onClick={() => setLoadDialogOpen(true)}>
-                <FolderOpen className="h-4 w-4 mr-2" />
-                Load ({savedStrategies.length})
+            {/* Action buttons - compact on mobile */}
+            <div className="flex items-center gap-1 sm:gap-2">
+              {savedStrategies.length > 0 && (
+                <Button variant="outline" size="sm" className="h-8 px-2 sm:px-3" onClick={() => setLoadDialogOpen(true)}>
+                  <FolderOpen className="h-4 w-4" />
+                  <span className="hidden sm:inline ml-2">Load ({savedStrategies.length})</span>
+                </Button>
+              )}
+              <Button variant="outline" size="sm" className="h-8 px-2 sm:px-3" onClick={handleSaveStrategy}>
+                <Save className="h-4 w-4" />
+                <span className="hidden sm:inline ml-2">Save</span>
               </Button>
-            )}
-            <Button variant="outline" size="sm" onClick={handleSaveStrategy}>
-              <Save className="h-4 w-4 mr-2" />
-              Save
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleShareStrategy}>
-              <Share2 className="h-4 w-4 mr-2" />
-              Share
-            </Button>
-            <Button variant="ghost" size="sm" onClick={handleOpenSettings}>
-              <Settings className="h-4 w-4" />
-            </Button>
+              <Button variant="outline" size="sm" className="h-8 px-2 sm:px-3 hidden xs:flex" onClick={handleShareStrategy}>
+                <Share2 className="h-4 w-4" />
+                <span className="hidden sm:inline ml-2">Share</span>
+              </Button>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={handleOpenSettings}>
+                <Settings className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="container px-4 py-6">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
-            <TabsTrigger value="chart" className="gap-2">
-              <LineChart className="h-4 w-4" />
-              <span className="hidden sm:inline">Chart</span>
+      <main className="container px-3 sm:px-4 py-4 sm:py-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-6">
+          {/* Responsive Tabs - hidden on mobile (use bottom nav instead) */}
+          <TabsList className="hidden sm:grid w-full grid-cols-5 lg:w-auto lg:inline-grid h-auto">
+            <TabsTrigger value="chart" className="gap-1.5 sm:gap-2 py-2 px-2 sm:px-4 text-xs sm:text-sm">
+              <LineChart className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden md:inline">Chart</span>
             </TabsTrigger>
-            <TabsTrigger value="editor" className="gap-2">
-              <Code2 className="h-4 w-4" />
-              <span className="hidden sm:inline">Editor</span>
+            <TabsTrigger value="editor" className="gap-1.5 sm:gap-2 py-2 px-2 sm:px-4 text-xs sm:text-sm">
+              <Code2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden md:inline">Editor</span>
             </TabsTrigger>
-            <TabsTrigger value="backtest" className="gap-2">
-              <BarChart3 className="h-4 w-4" />
-              <span className="hidden sm:inline">Backtest</span>
+            <TabsTrigger value="backtest" className="gap-1.5 sm:gap-2 py-2 px-2 sm:px-4 text-xs sm:text-sm">
+              <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden md:inline">Backtest</span>
             </TabsTrigger>
-            <TabsTrigger value="coach" className="gap-2">
-              <Brain className="h-4 w-4" />
-              <span className="hidden sm:inline">AI Coach</span>
+            <TabsTrigger value="coach" className="gap-1.5 sm:gap-2 py-2 px-2 sm:px-4 text-xs sm:text-sm">
+              <Brain className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden md:inline">AI Coach</span>
             </TabsTrigger>
-            <TabsTrigger value="converter" className="gap-2">
-              <Wand2 className="h-4 w-4" />
-              <span className="hidden sm:inline">Converter</span>
+            <TabsTrigger value="converter" className="gap-1.5 sm:gap-2 py-2 px-2 sm:px-4 text-xs sm:text-sm">
+              <Wand2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden md:inline">Converter</span>
             </TabsTrigger>
           </TabsList>
 
-          {/* Chart Tab */}
-          <TabsContent value="chart" className="space-y-4">
+          {/* Chart Tab - Responsive height */}
+          <TabsContent value="chart" className="space-y-4 mt-0 sm:mt-2">
             <TradingViewChart
               symbol={selectedSymbol}
               onSymbolChange={setSelectedSymbol}
-              className="w-full min-h-[600px] h-[calc(100vh-200px)]"
+              className="w-full min-h-[350px] sm:min-h-[450px] md:min-h-[500px] lg:min-h-[600px] h-[calc(100vh-180px)] sm:h-[calc(100vh-200px)]"
             />
           </TabsContent>
 
-          {/* Editor Tab */}
-          <TabsContent value="editor" className="space-y-4">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <PineScriptEditor
-                onCodeChange={handleCodeChange}
-                onWebhookGenerated={handleWebhookGenerated}
-                initialCode={pineCode}
-                webhookKey={settings.webhookKey}
-              />
-              <div className="space-y-4">
+          {/* Editor Tab - Stack on mobile, side-by-side on desktop */}
+          <TabsContent value="editor" className="space-y-4 mt-0 sm:mt-2">
+            <div className="flex flex-col lg:grid lg:grid-cols-2 gap-4 lg:gap-6">
+              {/* Editor comes first on mobile for better UX */}
+              <div className="order-1">
+                <PineScriptEditor
+                  onCodeChange={handleCodeChange}
+                  onWebhookGenerated={handleWebhookGenerated}
+                  initialCode={pineCode}
+                  webhookKey={settings.webhookKey}
+                />
+              </div>
+              {/* Chart and stats - hidden on mobile to save space, shown on tablet+ */}
+              <div className="order-2 space-y-4 hidden md:block">
                 <TradingViewChart
                   symbol={selectedSymbol}
                   onSymbolChange={setSelectedSymbol}
-                  className="h-[400px]"
+                  className="h-[300px] lg:h-[400px]"
                 />
                 {backtestResults && (
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-3 gap-2 sm:gap-4">
                     <QuickStat
                       label="Win Rate"
                       value={`${backtestResults.winRate}%`}
@@ -467,9 +476,9 @@ export default function AIStrategyPage() {
             </div>
           </TabsContent>
 
-          {/* Backtest Tab */}
-          <TabsContent value="backtest" className="space-y-4">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Backtest Tab - Stack on mobile */}
+          <TabsContent value="backtest" className="space-y-4 mt-0 sm:mt-2">
+            <div className="flex flex-col lg:grid lg:grid-cols-3 gap-4 lg:gap-6">
               <div className="lg:col-span-2">
                 <BacktestEngine
                   code={pineCode}
@@ -486,16 +495,20 @@ export default function AIStrategyPage() {
             </div>
           </TabsContent>
 
-          {/* AI Coach Tab */}
-          <TabsContent value="coach" className="space-y-4">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <AICoach
-                code={pineCode}
-                backtestResults={backtestResults}
-                className="h-full"
-                onApplySuggestion={handleApplySuggestion}
-              />
-              <div className="space-y-4">
+          {/* AI Coach Tab - Stack on mobile */}
+          <TabsContent value="coach" className="space-y-4 mt-0 sm:mt-2">
+            <div className="flex flex-col lg:grid lg:grid-cols-2 gap-4 lg:gap-6">
+              {/* AI Coach first on all devices */}
+              <div className="order-1">
+                <AICoach
+                  code={pineCode}
+                  backtestResults={backtestResults}
+                  className="h-full"
+                  onApplySuggestion={handleApplySuggestion}
+                />
+              </div>
+              {/* Editor second - collapses on mobile */}
+              <div className="order-2">
                 <PineScriptEditor
                   onCodeChange={handleCodeChange}
                   initialCode={pineCode}
@@ -506,81 +519,87 @@ export default function AIStrategyPage() {
           </TabsContent>
 
           {/* Script Converter Tab */}
-          <TabsContent value="converter" className="space-y-4">
+          <TabsContent value="converter" className="space-y-4 mt-0 sm:mt-2">
             <ScriptConverter webhookKey={settings.webhookKey} />
           </TabsContent>
         </Tabs>
-
-        {/* Quick Actions Bar */}
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50">
-          <div className="flex items-center gap-2 p-2 rounded-full bg-background/95 border shadow-lg backdrop-blur">
-            <Button
-              variant={activeTab === 'chart' ? 'default' : 'ghost'}
-              size="sm"
-              className="rounded-full"
-              onClick={() => setActiveTab('chart')}
-            >
-              <LineChart className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={activeTab === 'editor' ? 'default' : 'ghost'}
-              size="sm"
-              className="rounded-full"
-              onClick={() => setActiveTab('editor')}
-            >
-              <Code2 className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={activeTab === 'backtest' ? 'default' : 'ghost'}
-              size="sm"
-              className="rounded-full"
-              onClick={() => setActiveTab('backtest')}
-            >
-              <BarChart3 className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={activeTab === 'coach' ? 'default' : 'ghost'}
-              size="sm"
-              className="rounded-full"
-              onClick={() => setActiveTab('coach')}
-            >
-              <Brain className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={activeTab === 'converter' ? 'default' : 'ghost'}
-              size="sm"
-              className="rounded-full"
-              onClick={() => setActiveTab('converter')}
-            >
-              <Wand2 className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
       </main>
+
+      {/* Quick Actions Bar - Fixed bottom navigation for mobile */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 sm:bottom-4 sm:left-1/2 sm:right-auto sm:-translate-x-1/2">
+        <div className="flex items-center justify-center gap-1 sm:gap-2 p-2 pb-safe sm:p-2 sm:rounded-full bg-background/95 border-t sm:border shadow-lg backdrop-blur">
+          <Button
+            variant={activeTab === 'chart' ? 'default' : 'ghost'}
+            size="sm"
+            className="flex-1 sm:flex-none h-10 sm:h-8 rounded-lg sm:rounded-full flex-col sm:flex-row gap-0.5 sm:gap-0"
+            onClick={() => setActiveTab('chart')}
+          >
+            <LineChart className="h-4 w-4" />
+            <span className="text-[10px] sm:hidden">Chart</span>
+          </Button>
+          <Button
+            variant={activeTab === 'editor' ? 'default' : 'ghost'}
+            size="sm"
+            className="flex-1 sm:flex-none h-10 sm:h-8 rounded-lg sm:rounded-full flex-col sm:flex-row gap-0.5 sm:gap-0"
+            onClick={() => setActiveTab('editor')}
+          >
+            <Code2 className="h-4 w-4" />
+            <span className="text-[10px] sm:hidden">Editor</span>
+          </Button>
+          <Button
+            variant={activeTab === 'backtest' ? 'default' : 'ghost'}
+            size="sm"
+            className="flex-1 sm:flex-none h-10 sm:h-8 rounded-lg sm:rounded-full flex-col sm:flex-row gap-0.5 sm:gap-0"
+            onClick={() => setActiveTab('backtest')}
+          >
+            <BarChart3 className="h-4 w-4" />
+            <span className="text-[10px] sm:hidden">Test</span>
+          </Button>
+          <Button
+            variant={activeTab === 'coach' ? 'default' : 'ghost'}
+            size="sm"
+            className="flex-1 sm:flex-none h-10 sm:h-8 rounded-lg sm:rounded-full flex-col sm:flex-row gap-0.5 sm:gap-0"
+            onClick={() => setActiveTab('coach')}
+          >
+            <Brain className="h-4 w-4" />
+            <span className="text-[10px] sm:hidden">Coach</span>
+          </Button>
+          <Button
+            variant={activeTab === 'converter' ? 'default' : 'ghost'}
+            size="sm"
+            className="flex-1 sm:flex-none h-10 sm:h-8 rounded-lg sm:rounded-full flex-col sm:flex-row gap-0.5 sm:gap-0"
+            onClick={() => setActiveTab('converter')}
+          >
+            <Wand2 className="h-4 w-4" />
+            <span className="text-[10px] sm:hidden">Convert</span>
+          </Button>
+        </div>
+      </div>
 
       {/* Save Strategy Dialog */}
       <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-[95vw] sm:max-w-lg mx-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Save className="h-5 w-5" />
+            <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Save className="h-4 w-4 sm:h-5 sm:w-5" />
               Save Strategy
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-sm">
               Save your Pine Script strategy locally for later use.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 py-2 sm:py-4">
             <div className="space-y-2">
-              <Label htmlFor="strategy-name">Strategy Name</Label>
+              <Label htmlFor="strategy-name" className="text-sm">Strategy Name</Label>
               <Input
                 id="strategy-name"
                 value={strategyName}
                 onChange={(e) => setStrategyName(e.target.value)}
                 placeholder="Enter a name for your strategy"
+                className="h-9 sm:h-10"
               />
             </div>
-            <div className="text-sm text-muted-foreground">
+            <div className="text-xs sm:text-sm text-muted-foreground space-y-1">
               <p>Symbol: {selectedSymbol}</p>
               <p>Code length: {pineCode.length} characters</p>
               {backtestResults && (
@@ -588,11 +607,11 @@ export default function AIStrategyPage() {
               )}
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setSaveDialogOpen(false)}>
+          <DialogFooter className="flex-col-reverse sm:flex-row gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setSaveDialogOpen(false)} className="w-full sm:w-auto">
               Cancel
             </Button>
-            <Button onClick={confirmSaveStrategy}>
+            <Button onClick={confirmSaveStrategy} className="w-full sm:w-auto">
               <Check className="h-4 w-4 mr-2" />
               Save Strategy
             </Button>
@@ -602,38 +621,39 @@ export default function AIStrategyPage() {
 
       {/* Load Strategy Dialog */}
       <Dialog open={loadDialogOpen} onOpenChange={setLoadDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-[95vw] sm:max-w-2xl mx-auto max-h-[85vh] flex flex-col">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <FolderOpen className="h-5 w-5" />
+            <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <FolderOpen className="h-4 w-4 sm:h-5 sm:w-5" />
               Load Strategy
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-sm">
               Select a previously saved strategy to load into the editor.
             </DialogDescription>
           </DialogHeader>
-          <div className="max-h-[400px] overflow-y-auto space-y-2">
+          <div className="flex-1 overflow-y-auto space-y-2 max-h-[50vh] sm:max-h-[400px]">
             {savedStrategies.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">No saved strategies yet.</p>
+              <p className="text-center text-muted-foreground py-8 text-sm">No saved strategies yet.</p>
             ) : (
               savedStrategies.map((strategy, index) => (
                 <div
                   key={index}
-                  className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50"
+                  className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg border hover:bg-muted/50 gap-2"
                 >
-                  <div>
-                    <p className="font-medium">{strategy.name}</p>
+                  <div className="min-w-0">
+                    <p className="font-medium text-sm truncate">{strategy.name}</p>
                     <p className="text-xs text-muted-foreground">
                       Saved: {new Date(strategy.savedAt).toLocaleString()}
                     </p>
                   </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" onClick={() => loadStrategy(strategy)}>
+                  <div className="flex gap-2 shrink-0">
+                    <Button size="sm" className="flex-1 sm:flex-none h-8" onClick={() => loadStrategy(strategy)}>
                       Load
                     </Button>
                     <Button
                       size="sm"
                       variant="destructive"
+                      className="flex-1 sm:flex-none h-8"
                       onClick={() => deleteStrategy(index)}
                     >
                       Delete
@@ -648,35 +668,35 @@ export default function AIStrategyPage() {
 
       {/* Share Strategy Dialog */}
       <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-[95vw] sm:max-w-lg mx-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Share2 className="h-5 w-5" />
+            <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Share2 className="h-4 w-4 sm:h-5 sm:w-5" />
               Share Strategy
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-sm">
               Share your Pine Script code with others.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="p-4 rounded-lg bg-muted overflow-hidden">
-              <pre className="text-xs overflow-x-auto max-h-[200px]">
+          <div className="space-y-4 py-2 sm:py-4">
+            <div className="p-3 sm:p-4 rounded-lg bg-muted overflow-hidden">
+              <pre className="text-[10px] sm:text-xs overflow-x-auto max-h-[150px] sm:max-h-[200px]">
                 {pineCode.slice(0, 500)}{pineCode.length > 500 ? '...' : ''}
               </pre>
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <Button variant="outline" onClick={copyToClipboard}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <Button variant="outline" onClick={copyToClipboard} className="h-9 sm:h-10">
                 <Copy className="h-4 w-4 mr-2" />
                 Copy to Clipboard
               </Button>
-              <Button variant="outline" onClick={downloadAsFile}>
+              <Button variant="outline" onClick={downloadAsFile} className="h-9 sm:h-10">
                 <Download className="h-4 w-4 mr-2" />
-                Download .pine File
+                Download .pine
               </Button>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShareDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setShareDialogOpen(false)} className="w-full sm:w-auto">
               Close
             </Button>
           </DialogFooter>
@@ -685,61 +705,64 @@ export default function AIStrategyPage() {
 
       {/* Settings Dialog */}
       <Dialog open={settingsDialogOpen} onOpenChange={setSettingsDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-[95vw] sm:max-w-lg mx-auto max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Settings className="h-5 w-5" />
+            <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Settings className="h-4 w-4 sm:h-5 sm:w-5" />
               AI Suite Settings
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-sm">
               Configure your AI Strategy Suite preferences.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-6 py-4">
-            <div className="space-y-2">
-              <Label>Default Symbol</Label>
-              <Select
-                value={settings.defaultSymbol}
-                onValueChange={(v) => setSettings({ ...settings, defaultSymbol: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="EURUSD">EUR/USD</SelectItem>
-                  <SelectItem value="GBPUSD">GBP/USD</SelectItem>
-                  <SelectItem value="USDJPY">USD/JPY</SelectItem>
-                  <SelectItem value="XAUUSD">XAU/USD (Gold)</SelectItem>
-                  <SelectItem value="BTCUSD">BTC/USD</SelectItem>
-                </SelectContent>
-              </Select>
+          <div className="space-y-4 sm:space-y-6 py-2 sm:py-4">
+            {/* Symbol and Timeframe in grid on tablet+ */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-sm">Default Symbol</Label>
+                <Select
+                  value={settings.defaultSymbol}
+                  onValueChange={(v) => setSettings({ ...settings, defaultSymbol: v })}
+                >
+                  <SelectTrigger className="h-9 sm:h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="EURUSD">EUR/USD</SelectItem>
+                    <SelectItem value="GBPUSD">GBP/USD</SelectItem>
+                    <SelectItem value="USDJPY">USD/JPY</SelectItem>
+                    <SelectItem value="XAUUSD">XAU/USD (Gold)</SelectItem>
+                    <SelectItem value="BTCUSD">BTC/USD</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm">Default Timeframe</Label>
+                <Select
+                  value={settings.defaultTimeframe}
+                  onValueChange={(v) => setSettings({ ...settings, defaultTimeframe: v })}
+                >
+                  <SelectTrigger className="h-9 sm:h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">1 Minute</SelectItem>
+                    <SelectItem value="5">5 Minutes</SelectItem>
+                    <SelectItem value="15">15 Minutes</SelectItem>
+                    <SelectItem value="60">1 Hour</SelectItem>
+                    <SelectItem value="240">4 Hours</SelectItem>
+                    <SelectItem value="D">Daily</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label>Default Timeframe</Label>
-              <Select
-                value={settings.defaultTimeframe}
-                onValueChange={(v) => setSettings({ ...settings, defaultTimeframe: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1">1 Minute</SelectItem>
-                  <SelectItem value="5">5 Minutes</SelectItem>
-                  <SelectItem value="15">15 Minutes</SelectItem>
-                  <SelectItem value="60">1 Hour</SelectItem>
-                  <SelectItem value="240">4 Hours</SelectItem>
-                  <SelectItem value="D">Daily</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div>
-                <Label>Auto-save</Label>
+            <div className="flex items-center justify-between p-3 rounded-lg border">
+              <div className="space-y-0.5">
+                <Label className="text-sm">Auto-save</Label>
                 <p className="text-xs text-muted-foreground">
-                  Automatically save your work every 5 minutes
+                  Save work every 5 minutes
                 </p>
               </div>
               <Switch
@@ -749,22 +772,22 @@ export default function AIStrategyPage() {
             </div>
 
             {/* Webhook Key Section */}
-            <div className="pt-4 border-t space-y-3">
+            <div className="pt-3 sm:pt-4 border-t space-y-3">
               <div className="flex items-center gap-2">
                 <Key className="h-4 w-4 text-primary" />
                 <Label className="text-sm font-medium">Webhook Key Integration</Label>
               </div>
               <p className="text-xs text-muted-foreground">
-                Your webhook key will be automatically embedded in generated scripts and templates.
+                Auto-embedded in generated scripts and templates.
               </p>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <div className="relative flex-1">
                   <Input
                     type={showWebhookKey ? 'text' : 'password'}
                     value={settings.webhookKey}
                     onChange={(e) => setSettings({ ...settings, webhookKey: e.target.value })}
                     placeholder="Enter or paste your webhook key"
-                    className="pr-10 font-mono text-sm"
+                    className="pr-10 font-mono text-xs sm:text-sm h-9 sm:h-10"
                   />
                   <Button
                     type="button"
@@ -783,6 +806,7 @@ export default function AIStrategyPage() {
                 <Button
                   variant="outline"
                   size="sm"
+                  className="h-9 sm:h-10 px-3"
                   onClick={async () => {
                     setLoadingWebhookKey(true);
                     try {
@@ -817,31 +841,34 @@ export default function AIStrategyPage() {
                   {loadingWebhookKey ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    <RefreshCw className="h-4 w-4" />
+                    <>
+                      <RefreshCw className="h-4 w-4 sm:mr-2" />
+                      <span className="hidden sm:inline">Load</span>
+                    </>
                   )}
                 </Button>
               </div>
               {settings.webhookKey && (
                 <div className="flex items-center gap-2 p-2 rounded bg-emerald-500/10 border border-emerald-500/30">
-                  <Check className="h-4 w-4 text-emerald-400" />
+                  <Check className="h-4 w-4 text-emerald-400 shrink-0" />
                   <span className="text-xs text-emerald-400">
-                    Webhook key configured - will be auto-embedded in scripts
+                    Webhook key configured
                   </span>
                 </div>
               )}
               <p className="text-xs text-muted-foreground">
                 Don&apos;t have a webhook key?{' '}
                 <Link href="/dashboard/settings" className="text-primary hover:underline">
-                  Create one in Settings → API Keys
+                  Create one in Settings
                 </Link>
               </p>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setSettingsDialogOpen(false)}>
+          <DialogFooter className="flex-col-reverse sm:flex-row gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setSettingsDialogOpen(false)} className="w-full sm:w-auto">
               Cancel
             </Button>
-            <Button onClick={saveSettings}>
+            <Button onClick={saveSettings} className="w-full sm:w-auto">
               <Check className="h-4 w-4 mr-2" />
               Save Settings
             </Button>

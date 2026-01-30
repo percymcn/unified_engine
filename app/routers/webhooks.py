@@ -285,6 +285,33 @@ async def generate_primary_webhook_key(
         "created": created,
     }
 
+
+@router.get("/primary-key")
+async def get_primary_webhook_key(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Get the primary webhook key for the current user.
+
+    Returns the most recently updated active webhook config key, or None if no config exists.
+    This does NOT regenerate the key - use POST /generate-key to create/regenerate.
+    """
+    config = db.query(WebhookConfig).filter(
+        WebhookConfig.user_id == current_user.id,
+        WebhookConfig.is_active == True
+    ).order_by(WebhookConfig.updated_at.desc()).first()
+
+    if not config:
+        return {"key": None, "message": "No webhook key configured. Use Settings to generate one."}
+
+    return {
+        "key": config.webhook_key,
+        "config_id": config.id,
+        "name": config.name,
+    }
+
+
 @router.post("/tradingview")
 async def tradingview_webhook(request: Request, db: Session = Depends(get_db)):
     """TradingView webhook endpoint"""

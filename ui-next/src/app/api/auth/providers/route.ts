@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8765';
 // For Google OAuth, ALWAYS use the production URL registered in Google Console
 // This ensures OAuth works even when testing locally (redirect goes to prod, then user can access locally)
-const OAUTH_REDIRECT_URL = 'https://tradeflow.fluxeo.net';
+const OAUTH_REDIRECT_URL = 'https://mytradeflow.app';
 
 /**
  * GET /api/auth/providers

@@ -66,7 +66,7 @@ async def google_oauth_callback(
             detail="Google OAuth not configured"
         )
     
-    redirect_uri = settings.GOOGLE_REDIRECT_URI or "https://tradeflow.fluxeo.net/api/auth/google/callback"
+    redirect_uri = settings.GOOGLE_REDIRECT_URI or "https://mytradeflow.app/api/auth/google/callback"
     
     # Exchange authorization code for access token
     try:

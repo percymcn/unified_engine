@@ -208,7 +208,7 @@ async def create_checkout(
         logger.info(f"Created Stripe customer {current_user.stripe_customer_id} for user {current_user.id}")
 
     # Build URLs
-    base_url = settings.FRONTEND_URL or "https://tradeflow.fluxeo.net"
+    base_url = settings.FRONTEND_URL or "https://mytradeflow.app"
     success_url = f"{base_url}/dashboard/settings/billing?success=true&session_id={{CHECKOUT_SESSION_ID}}"
     cancel_url = f"{base_url}/pricing?canceled=true"
 
@@ -254,7 +254,7 @@ async def create_portal_session(
             detail="No billing account. Subscribe first."
         )
 
-    base_url = settings.FRONTEND_URL or "https://tradeflow.fluxeo.net"
+    base_url = settings.FRONTEND_URL or "https://mytradeflow.app"
     return_url = f"{base_url}/dashboard/settings/billing"
 
     portal_result = stripe_service.create_portal_session(

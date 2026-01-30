@@ -55,8 +55,9 @@ class Settings(BaseSettings):
         "http://localhost:3000",
         "http://localhost:3456",
         "http://localhost:8080",
+        "https://mytradeflow.app",
+        "https://www.mytradeflow.app",
         "https://tradeflow.fluxeo.net",
-        "https://www.tradeflow.fluxeo.net",
     ]
     RATE_LIMIT_PER_MINUTE: int = 100
     
@@ -114,7 +115,7 @@ class Settings(BaseSettings):
     # Tradovate OAuth
     TRADOVATE_CLIENT_ID: Optional[str] = None
     TRADOVATE_CLIENT_SECRET: Optional[str] = None
-    TRADOVATE_OAUTH_REDIRECT_URI: str = "https://tradeflow.fluxeo.net/api/auth/tradovate/callback"
+    TRADOVATE_OAUTH_REDIRECT_URI: str = "https://mytradeflow.app/api/auth/tradovate/callback"
     TRADOVATE_OAUTH_ENVIRONMENT: str = "demo"  # "demo" or "live"
     
     # ProjectX/TopStep Configuration (Legacy - httpx fallback)

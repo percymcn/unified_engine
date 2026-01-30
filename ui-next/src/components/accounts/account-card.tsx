@@ -254,7 +254,7 @@ export function AccountCard({
             <div className="flex items-center justify-between gap-2">
               <div className="flex-1 min-w-0">
                 <p className="text-xs text-muted-foreground mb-1">Webhook URL</p>
-                <p className="text-xs font-mono truncate" title={`${process.env.NEXT_PUBLIC_API_URL || 'https://api.tradeflow.fluxeo.net'}/api/v1/webhooks/incoming?broker=${account.broker}&user=${account.user_id || 'USER_ID'}&key=${account.webhookKey}`}>
+                <p className="text-xs font-mono truncate" title={`${process.env.NEXT_PUBLIC_API_URL || 'https://api.mytradeflow.app'}/api/v1/webhooks/incoming?broker=${account.broker}&user=${account.user_id || 'USER_ID'}&key=${account.webhookKey}`}>
                   .../incoming?broker={account.broker}&key=...
                 </p>
               </div>
@@ -262,7 +262,7 @@ export function AccountCard({
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.tradeflow.fluxeo.net';
+                  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.mytradeflow.app';
                   const userId = user?.id || account.user_id || 'USER_ID';
                   const webhookUrl = `${baseUrl}/api/v1/webhooks/incoming?broker=${account.broker}&user=${userId}&key=${account.webhookKey}`;
                   navigator.clipboard.writeText(webhookUrl);

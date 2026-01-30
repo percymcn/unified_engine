@@ -131,12 +131,18 @@ export function PineScriptEditor({
   const { toast } = useToast();
 
   // Sync internal code state with external initialCode prop when it changes
+  // Use a ref to track user modifications to avoid overwriting user's work
+  const lastExternalCodeRef = useRef(initialCode);
+
   useEffect(() => {
-    if (initialCode !== undefined && initialCode !== code) {
+    // Always sync if initialCode changed from what we last received externally
+    // This ensures parent state updates (like AI suggestions) are reflected
+    if (initialCode !== undefined && initialCode !== lastExternalCodeRef.current) {
+      lastExternalCodeRef.current = initialCode;
       setCode(initialCode);
       validateSyntax(initialCode);
     }
-  }, [initialCode]);
+  }, [initialCode, validateSyntax]);
 
   // Basic syntax validation
   const validateSyntax = useCallback((code: string) => {
