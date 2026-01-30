@@ -3,7 +3,7 @@
  * Proxies trial information from backend /api/trial/status
  */
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { getTokenFromCookies } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -26,8 +26,7 @@ export interface TrialStatusResponse {
 }
 
 export async function GET() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("token")?.value;
+  const token = await getTokenFromCookies();
 
   if (!token) {
     // Return null trial info for unauthenticated users (graceful degradation)
