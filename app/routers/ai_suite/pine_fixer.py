@@ -322,7 +322,7 @@ async def analyze_strategy(
         analysis_prompt = f"""Analyze this Pine Script strategy and provide:
 1. Identified trading biases (time-of-day, trend, etc.)
 2. Risk management issues
-3. Suggested improvements
+3. Suggested improvements with ACTUAL CODE SNIPPETS
 4. Expected performance characteristics
 
 CODE:
@@ -330,13 +330,29 @@ CODE:
 {request.code}
 ```
 
-Return analysis in JSON format:
+Return analysis in JSON format. IMPORTANT: Every suggestion MUST include a working "codeSnippet" that can be directly added to the strategy:
+
 {{
-    "biases": [{{"type": "time|day|session|trend", "description": "...", "severity": "low|medium|high"}}],
-    "riskIssues": [{{"type": "no_sl|large_position|etc", "description": "...", "severity": "low|medium|high|critical", "recommendation": "..."}}],
-    "suggestions": [{{"type": "parameter|logic|filter|exit", "description": "...", "expectedImpact": "...", "codeSnippet": "..."}}],
-    "summary": "Brief overall assessment"
+    "biases": [{{"type": "time|trend|session", "description": "Description of the bias", "severity": "low|medium|high"}}],
+    "riskIssues": [{{"type": "position_sizing|risk_reward|complex_exit_logic|reentry_logic", "description": "Issue description", "severity": "low|medium|high|critical", "recommendation": "How to fix it"}}],
+    "suggestions": [
+        {{
+            "type": "filter",
+            "description": "Add ADX filter to avoid trading in low-volatility markets",
+            "expectedImpact": "Reduce whipsaws by 30-40%",
+            "codeSnippet": "adx_period = input.int(14, 'ADX Period')\\nadx_threshold = input.float(25.0, 'ADX Threshold')\\n[diPlus, diMinus, adx] = ta.dmi(adx_period, adx_period)\\ntrend_strength_ok = adx > adx_threshold"
+        }},
+        {{
+            "type": "parameter",
+            "description": "Implement dynamic position sizing based on account equity",
+            "expectedImpact": "Better risk management and consistent risk per trade",
+            "codeSnippet": "risk_percent = input.float(1.0, 'Risk Per Trade %')\\nsl_distance = math.abs(close - stop_loss_price)\\nposition_size = (strategy.equity * risk_percent / 100) / sl_distance"
+        }}
+    ],
+    "summary": "Brief overall assessment of the strategy"
 }}
+
+CRITICAL: Every item in "suggestions" array MUST have a non-empty "codeSnippet" field with actual Pine Script v5 code that can be appended to the strategy.
 """
 
         response = await call_anthropic_api(analysis_prompt)
