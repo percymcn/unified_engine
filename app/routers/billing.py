@@ -370,11 +370,30 @@ async def upgrade_subscription(
         )
 
         if not update_result["success"]:
-            logger.error(f"Failed to upgrade subscription: {update_result['error']}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to upgrade subscription. Please try again or contact support."
-            )
+            error_msg = update_result.get("error", "")
+            logger.error(f"Failed to upgrade subscription: {error_msg}")
+
+            # Check for common card errors and return user-friendly messages
+            if "insufficient funds" in error_msg.lower():
+                raise HTTPException(
+                    status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                    detail="Payment failed: Your card has insufficient funds. Please update your payment method."
+                )
+            elif "card_declined" in error_msg.lower() or "declined" in error_msg.lower():
+                raise HTTPException(
+                    status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                    detail="Payment failed: Your card was declined. Please update your payment method or try a different card."
+                )
+            elif "expired" in error_msg.lower():
+                raise HTTPException(
+                    status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                    detail="Payment failed: Your card has expired. Please update your payment method."
+                )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to upgrade subscription: {error_msg}. Please try again or contact support."
+                )
 
         # Update user's tier immediately
         current_user.subscription_tier = tier_id

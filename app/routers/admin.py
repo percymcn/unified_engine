@@ -923,7 +923,12 @@ async def get_system_logs(
     offset: int = 0,
 ) -> Dict[str, Any]:
     """Get system logs - signals, trades, webhook activity (owner-only)"""
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"[ADMIN LOGS] User {current_user.email} requesting logs, type={log_type}, limit={limit}")
+
     check_owner_access(current_user)
+    logger.info(f"[ADMIN LOGS] Owner access verified for {current_user.email}")
 
     from datetime import datetime, timedelta
     from app.models.models import Signal, Trade
@@ -935,6 +940,7 @@ async def get_system_logs(
         # Get recent signals
         if log_type in ["all", "signals"]:
             signals = db.query(Signal).order_by(Signal.created_at.desc()).offset(offset).limit(limit).all()
+            logger.info(f"[ADMIN LOGS] Found {len(signals)} signals")
             for sig in signals:
                 user = db.query(User).filter(User.id == sig.user_id).first() if sig.user_id else None
                 logs.append({

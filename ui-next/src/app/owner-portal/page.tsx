@@ -213,9 +213,14 @@ export default function OwnerPortal() {
         }
       } else if (activeTab === "logs") {
         const response = await fetch("/api/admin/logs?limit=100", { credentials: "include" });
+        console.log("[DEBUG] Logs response status:", response.status);
         if (response.ok) {
           const data = await response.json();
+          console.log("[DEBUG] Logs data received:", data);
+          console.log("[DEBUG] Logs count:", data?.logs?.length, "Total:", data?.total);
           setSystemLogs(data);
+        } else {
+          console.log("[DEBUG] Logs response not ok:", await response.text());
         }
       } else if (activeTab === "users") {
         const response = await fetch("/api/admin/users", { credentials: "include" });

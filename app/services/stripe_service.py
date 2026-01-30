@@ -11,8 +11,13 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Initialize Stripe with API key
-stripe.api_key = settings.STRIPE_SECRET_KEY
+def _ensure_stripe_configured():
+    """Ensure Stripe API key is set before making requests"""
+    if not stripe.api_key and settings.STRIPE_SECRET_KEY:
+        stripe.api_key = settings.STRIPE_SECRET_KEY
+        logger.info("Stripe API key configured")
+    elif not settings.STRIPE_SECRET_KEY:
+        logger.warning("STRIPE_SECRET_KEY not set in environment")
 
 # 4-tier pricing structure with feature-based differentiation
 # Each tier has: name, price (cents), broker limit, stripe_price_id, tagline, and features
@@ -301,6 +306,7 @@ class StripeService:
     @staticmethod
     def create_customer(email: str, name: Optional[str] = None, metadata: Optional[Dict] = None) -> Dict[str, Any]:
         """Create a Stripe customer"""
+        _ensure_stripe_configured()
         try:
             customer = stripe.Customer.create(
                 email=email,
@@ -321,6 +327,7 @@ class StripeService:
         metadata: Optional[Dict] = None
     ) -> Dict[str, Any]:
         """Create a Stripe Checkout session"""
+        _ensure_stripe_configured()
         try:
             session = stripe.checkout.Session.create(
                 customer=customer_id,
@@ -345,6 +352,7 @@ class StripeService:
     @staticmethod
     def create_portal_session(customer_id: str, return_url: str) -> Dict[str, Any]:
         """Create a Stripe Customer Portal session"""
+        _ensure_stripe_configured()
         try:
             session = stripe.billing_portal.Session.create(
                 customer=customer_id,
@@ -358,6 +366,7 @@ class StripeService:
     @staticmethod
     def get_subscription(subscription_id: str) -> Dict[str, Any]:
         """Get subscription details"""
+        _ensure_stripe_configured()
         try:
             subscription = stripe.Subscription.retrieve(subscription_id)
             return {"success": True, "subscription": subscription}
@@ -368,6 +377,7 @@ class StripeService:
     @staticmethod
     def cancel_subscription(subscription_id: str, at_period_end: bool = True) -> Dict[str, Any]:
         """Cancel a subscription"""
+        _ensure_stripe_configured()
         try:
             if at_period_end:
                 subscription = stripe.Subscription.modify(
@@ -401,6 +411,7 @@ class StripeService:
     @staticmethod
     def list_customer_subscriptions(customer_id: str) -> Dict[str, Any]:
         """List all subscriptions for a customer"""
+        _ensure_stripe_configured()
         try:
             subscriptions = stripe.Subscription.list(
                 customer=customer_id,
@@ -421,17 +432,21 @@ class StripeService:
     ) -> Dict[str, Any]:
         """
         Update a subscription to a new price (upgrade/downgrade).
-        Uses proration_behavior='create_prorations' for immediate billing adjustment.
+        Uses proration_behavior='always_invoice' to charge the prorated difference immediately.
+        This ensures users pay for the upgrade instantly and get access right away.
         """
+        _ensure_stripe_configured()
         try:
             # Update the subscription item to the new price
+            # 'always_invoice' creates and immediately finalizes an invoice for proration
             subscription = stripe.Subscription.modify(
                 subscription_id,
                 items=[{
                     "id": subscription_item_id,
                     "price": new_price_id,
                 }],
-                proration_behavior="create_prorations",
+                proration_behavior="always_invoice",
+                payment_behavior="error_if_incomplete",  # Fail if payment can't be collected
                 metadata=metadata or {}
             )
             return {"success": True, "subscription": subscription}
