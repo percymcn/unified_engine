@@ -23,6 +23,7 @@ class SubscriptionLimits(NamedTuple):
 
 # 4-tier limit definitions
 # Broker limits: tier_1=1, tier_2=2, tier_3=3, tier_4=4
+# Tier aliases: starter=tier_1, trader=tier_2, pro=tier_3, enterprise=tier_4
 TIER_LIMITS = {
     "free": SubscriptionLimits(
         tier="free",
@@ -54,10 +55,28 @@ TIER_LIMITS = {
         max_signals_per_day=-1,  # unlimited
         max_webhooks=-1,  # unlimited
     ),
-    # Legacy "pro" tier for backward compatibility (maps to tier_3 limits)
+    # Tier aliases (display names used in UI)
+    "starter": SubscriptionLimits(
+        tier="starter",
+        max_broker_connections=1,
+        max_signals_per_day=-1,  # unlimited
+        max_webhooks=-1,  # unlimited
+    ),
+    "trader": SubscriptionLimits(
+        tier="trader",
+        max_broker_connections=2,
+        max_signals_per_day=-1,  # unlimited
+        max_webhooks=-1,  # unlimited
+    ),
     "pro": SubscriptionLimits(
         tier="pro",
         max_broker_connections=3,
+        max_signals_per_day=-1,  # unlimited
+        max_webhooks=-1,  # unlimited
+    ),
+    "enterprise": SubscriptionLimits(
+        tier="enterprise",
+        max_broker_connections=4,
         max_signals_per_day=-1,  # unlimited
         max_webhooks=-1,  # unlimited
     ),
