@@ -41,6 +41,8 @@ async def get_profile(
         username=current_user.username,
         full_name=current_user.full_name,
         avatar_url=getattr(current_user, 'avatar_url', None),
+        timezone=getattr(current_user, 'timezone', None),
+        subscription_tier=current_user.subscription_tier or "free",
         primary_webhook_key=webhook_config.webhook_key if webhook_config else None,
         created_at=current_user.created_at,
     )
@@ -89,6 +91,8 @@ async def update_profile(
         username=current_user.username,
         full_name=current_user.full_name,
         avatar_url=getattr(current_user, 'avatar_url', None),
+        timezone=getattr(current_user, 'timezone', None),
+        subscription_tier=current_user.subscription_tier or "free",
         primary_webhook_key=webhook_config.webhook_key if webhook_config else None,
         created_at=current_user.created_at,
     )
