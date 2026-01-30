@@ -235,8 +235,6 @@ async def set_user_tier(
     db.commit()
     db.refresh(user)
 
-    logger.info(f"Admin {current_user.id} set user {user_id} tier to {tier}")
-
     return {
         "id": user.id,
         "email": user.email,
