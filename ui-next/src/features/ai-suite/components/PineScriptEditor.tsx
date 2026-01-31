@@ -134,17 +134,7 @@ export function PineScriptEditor({
   // Use a ref to track user modifications to avoid overwriting user's work
   const lastExternalCodeRef = useRef(initialCode);
 
-  useEffect(() => {
-    // Always sync if initialCode changed from what we last received externally
-    // This ensures parent state updates (like AI suggestions) are reflected
-    if (initialCode !== undefined && initialCode !== lastExternalCodeRef.current) {
-      lastExternalCodeRef.current = initialCode;
-      setCode(initialCode);
-      validateSyntax(initialCode);
-    }
-  }, [initialCode, validateSyntax]);
-
-  // Basic syntax validation
+  // Basic syntax validation - MUST be declared before useEffect that uses it
   const validateSyntax = useCallback((code: string) => {
     const errors: PineScriptError[] = [];
     const lines = code.split('\n');
@@ -213,6 +203,15 @@ export function PineScriptEditor({
     setErrors(errors);
     return errors.filter(e => e.severity === 'error').length === 0;
   }, []);
+
+  // Sync with external initialCode changes (e.g., AI suggestions applied)
+  useEffect(() => {
+    if (initialCode !== undefined && initialCode !== lastExternalCodeRef.current) {
+      lastExternalCodeRef.current = initialCode;
+      setCode(initialCode);
+      validateSyntax(initialCode);
+    }
+  }, [initialCode, validateSyntax]);
 
   // Handle code change
   const handleCodeChange = useCallback((newCode: string) => {
