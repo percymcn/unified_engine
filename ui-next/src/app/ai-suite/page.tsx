@@ -386,7 +386,7 @@ export default function AIStrategyPage() {
                 <Save className="h-4 w-4" />
                 <span className="hidden sm:inline ml-2">Save</span>
               </Button>
-              <Button variant="outline" size="sm" className="h-8 px-2 sm:px-3 hidden xs:flex" onClick={handleShareStrategy}>
+              <Button variant="outline" size="sm" className="h-8 px-2 sm:px-3" onClick={handleShareStrategy}>
                 <Share2 className="h-4 w-4" />
                 <span className="hidden sm:inline ml-2">Share</span>
               </Button>
@@ -876,8 +876,8 @@ export default function AIStrategyPage() {
               )}
               <p className="text-xs text-muted-foreground">
                 Don&apos;t have a webhook key?{' '}
-                <Link href="/dashboard/settings" className="text-primary hover:underline">
-                  Create one in Settings
+                <Link href="/dashboard/settings/webhooks" className="text-primary hover:underline">
+                  Create one in Webhooks Settings
                 </Link>
               </p>
             </div>

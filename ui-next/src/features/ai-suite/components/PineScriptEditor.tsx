@@ -133,6 +133,15 @@ export function PineScriptEditor({
   // Sync internal code state with external initialCode prop when it changes
   // Use a ref to track user modifications to avoid overwriting user's work
   const lastExternalCodeRef = useRef(initialCode);
+  const hasNotifiedInitialCode = useRef(false);
+
+  // Notify parent of initial code on mount (so Save/Share buttons work)
+  useEffect(() => {
+    if (!hasNotifiedInitialCode.current && onCodeChange) {
+      hasNotifiedInitialCode.current = true;
+      onCodeChange(code);
+    }
+  }, [code, onCodeChange]);
 
   // Basic syntax validation - MUST be declared before useEffect that uses it
   const validateSyntax = useCallback((code: string) => {
