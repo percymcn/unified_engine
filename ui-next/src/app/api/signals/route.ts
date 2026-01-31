@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getTokenFromCookies } from '@/lib/auth';
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8765';
+const TIMEOUT_MS = 5000; // 5 second timeout to avoid Cloudflare 524
 
 /**
  * GET /api/signals
@@ -29,14 +30,19 @@ export async function GET(request: NextRequest) {
       ? `${BACKEND_URL}/api/v1/signals/?${queryString}`
       : `${BACKEND_URL}/api/v1/signals/`;
 
-    // Fetch signals from backend
+    // Fetch signals from backend with timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
     const response = await fetch(url, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },
       // Important: don't follow redirects that might strip auth header
       redirect: 'manual',
+      signal: controller.signal,
     });
+    clearTimeout(timeoutId);
 
     // Handle redirect manually to preserve auth header
     if (response.status === 307 || response.status === 308) {
@@ -74,9 +80,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(signals);
   } catch (error) {
     console.error('Error fetching signals:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch signals' },
-      { status: 500 }
-    );
+    // Return empty array on error/timeout (graceful degradation)
+    return NextResponse.json([], { status: 200 });
   }
 }

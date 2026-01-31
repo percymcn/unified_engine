@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getTokenFromCookies } from '@/lib/auth';
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8765';
+const TIMEOUT_MS = 5000; // 5 second timeout to avoid Cloudflare 524
 
 export interface ExecutionAccountInfo {
   broker: string;
@@ -42,12 +43,17 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const limit = searchParams.get('limit') || '10';
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
     const response = await fetch(
       `${BACKEND_URL}/api/v1/dashboard/executions?limit=${limit}`,
       {
         headers: { Authorization: `Bearer ${token}` },
+        signal: controller.signal,
       }
     );
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       console.error('Failed to fetch executions:', response.status);
