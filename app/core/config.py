@@ -36,8 +36,8 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = ""
     DATABASE_PASSWORD: str = ""  # Loaded from secret for URL construction
-    DATABASE_POOL_SIZE: int = 20
-    DATABASE_MAX_OVERFLOW: int = 30
+    DATABASE_POOL_SIZE: int = 50
+    DATABASE_MAX_OVERFLOW: int = 100
     DATABASE_CONNECT_TIMEOUT_SECONDS: int = 3
     RUN_MIGRATIONS_ON_STARTUP: bool = False
     

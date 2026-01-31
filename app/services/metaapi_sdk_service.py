@@ -14,6 +14,19 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
+# MetaAPI field length limits
+# MT5 comment max: 31 chars, clientId max: 32 chars
+MAX_COMMENT_LENGTH = 31
+
+
+def _truncate_comment(comment: Optional[str]) -> Optional[str]:
+    """Truncate comment to MetaAPI max length (31 chars for MT5)."""
+    if not comment:
+        return comment
+    if len(comment) > MAX_COMMENT_LENGTH:
+        return comment[:MAX_COMMENT_LENGTH]
+    return comment
+
 # Try to import SDK - graceful fallback if not installed
 try:
     from metaapi_cloud_sdk import MetaApi
@@ -338,7 +351,7 @@ class MetaAPISDKService:
 
         options = {}
         if comment:
-            options["comment"] = comment
+            options["comment"] = _truncate_comment(comment)
         if magic is not None:
             options["magic"] = magic
 
@@ -390,7 +403,7 @@ class MetaAPISDKService:
 
         options = {}
         if comment:
-            options["comment"] = comment
+            options["comment"] = _truncate_comment(comment)
         if magic is not None:
             options["magic"] = magic
 
@@ -444,7 +457,7 @@ class MetaAPISDKService:
 
         options = {}
         if comment:
-            options["comment"] = comment
+            options["comment"] = _truncate_comment(comment)
         if magic is not None:
             options["magic"] = magic
 
@@ -485,7 +498,7 @@ class MetaAPISDKService:
 
         options = {}
         if comment:
-            options["comment"] = comment
+            options["comment"] = _truncate_comment(comment)
         if magic is not None:
             options["magic"] = magic
 
@@ -526,7 +539,7 @@ class MetaAPISDKService:
 
         options = {}
         if comment:
-            options["comment"] = comment
+            options["comment"] = _truncate_comment(comment)
         if magic is not None:
             options["magic"] = magic
 
@@ -567,7 +580,7 @@ class MetaAPISDKService:
 
         options = {}
         if comment:
-            options["comment"] = comment
+            options["comment"] = _truncate_comment(comment)
         if magic is not None:
             options["magic"] = magic
 
@@ -609,7 +622,7 @@ class MetaAPISDKService:
 
         options = {"stopLimitPrice": stop_limit_price}
         if comment:
-            options["comment"] = comment
+            options["comment"] = _truncate_comment(comment)
         if magic is not None:
             options["magic"] = magic
 
@@ -651,7 +664,7 @@ class MetaAPISDKService:
 
         options = {"stopLimitPrice": stop_limit_price}
         if comment:
-            options["comment"] = comment
+            options["comment"] = _truncate_comment(comment)
         if magic is not None:
             options["magic"] = magic
 

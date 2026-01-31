@@ -98,12 +98,13 @@ export async function POST(request: Request) {
     }
 
     // Create a test payload for the unified webhook execute endpoint
+    // Note: MT5 has 31 char limit for comments
     const testPayload = {
       webhook_key: executeWebhookKey,
       action: 'buy',
       symbol: testSymbol,
       quantity: 0.01, // Minimum size for test
-      comment: 'Test signal from dashboard (will auto-close)',
+      comment: 'Test', // Keep short for MT5 limit
       strategy_id: 'dashboard-test',
       timestamp: new Date().toISOString(),
     };
@@ -186,7 +187,7 @@ export async function POST(request: Request) {
         webhook_key: executeWebhookKey,
         action: 'close',
         symbol: testSymbol,
-        comment: 'Auto-close test position',
+        comment: 'Close', // Keep short for MT5 limit
         strategy_id: 'dashboard-test',
         timestamp: new Date().toISOString(),
       };

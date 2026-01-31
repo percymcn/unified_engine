@@ -1210,7 +1210,7 @@ class SignalProcessor:
                     stop_loss=stop_loss_price,
                     take_profit=take_profit_price,
                     magic_number=signal_request.magic_number,
-                    comment=signal_request.comment or f"Signal {signal_id}"
+                    comment=(signal_request.comment or f"Sig_{signal_id[:8]}")[:31]  # MT5 limit
                 )
 
                 # Execute order

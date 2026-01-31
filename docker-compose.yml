@@ -5,6 +5,7 @@ services:
   postgres:
     image: postgres:15
     container_name: unified_trading_db
+    command: postgres -c max_connections=200 -c shared_buffers=256MB
     environment:
       POSTGRES_DB: trading_db
       POSTGRES_USER: trading_user
