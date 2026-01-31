@@ -15,12 +15,14 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 
 # MetaAPI field length limits
-# MT5 comment max: 31 chars, clientId max: 32 chars
-MAX_COMMENT_LENGTH = 31
+# Per MetaAPI docs: comment + clientId combined must be <= 26 chars
+# Since we don't use clientId, comment alone can be up to 26 chars
+# See: https://metaapi.cloud/docs/client/clientIdUsage/
+MAX_COMMENT_LENGTH = 26
 
 
 def _truncate_comment(comment: Optional[str]) -> Optional[str]:
-    """Truncate comment to MetaAPI max length (31 chars for MT5)."""
+    """Truncate comment to MetaAPI max length (26 chars when no clientId)."""
     if not comment:
         return comment
     if len(comment) > MAX_COMMENT_LENGTH:
