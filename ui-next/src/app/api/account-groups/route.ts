@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getTokenFromCookies } from '@/lib/auth';
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8765';
+const TIMEOUT_MS = 5000; // 5 second timeout to avoid Cloudflare 524
 
 /**
  * GET /api/account-groups
@@ -18,14 +19,19 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const includeInactive = searchParams.get('include_inactive') === 'true';
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
     const response = await fetch(
       `${BACKEND_URL}/api/v1/account-groups/?include_inactive=${includeInactive}`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
+        signal: controller.signal,
       }
     );
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -39,10 +45,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(groups);
   } catch (error) {
     console.error('Error fetching account groups:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch account groups' },
-      { status: 500 }
-    );
+    // Return empty groups on error (graceful degradation)
+    return NextResponse.json([], { status: 200 });
   }
 }
 

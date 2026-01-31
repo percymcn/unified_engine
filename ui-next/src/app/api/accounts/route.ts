@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getTokenFromCookies } from '@/lib/auth';
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8765';
+const TIMEOUT_MS = 5000; // 5 second timeout to avoid Cloudflare 524
 
 /**
  * GET /api/accounts
@@ -20,13 +21,18 @@ export async function GET() {
       );
     }
 
-    // Fetch accounts from backend
+    // Fetch accounts from backend with timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
     const response = await fetch(`${BACKEND_URL}/api/v1/accounts/`, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },
       cache: 'no-store',
+      signal: controller.signal,
     });
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       throw new Error(`Backend returned ${response.status}`);
@@ -37,10 +43,8 @@ export async function GET() {
     return NextResponse.json(accounts);
   } catch (error) {
     console.error('Error fetching accounts:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch accounts' },
-      { status: 500 }
-    );
+    // Return empty accounts on error (graceful degradation)
+    return NextResponse.json({ accounts: [], total: 0 }, { status: 200 });
   }
 }
 
