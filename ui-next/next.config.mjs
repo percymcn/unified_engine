@@ -22,7 +22,7 @@ const nextConfig = {
     const cspHeader = [
       "default-src 'self'",
       // Scripts: self + TradingView + inline (needed for widget init)
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.tradingview.com https://s3.tradingview.com",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.tradingview.com https://s3.tradingview.com https://static.cloudflareinsights.com",
       // Styles: self + inline + TradingView
       "style-src 'self' 'unsafe-inline' https://*.tradingview.com",
       // Images: self + data + blob + TradingView
