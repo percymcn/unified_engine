@@ -624,8 +624,16 @@ function generateLocalAnalysis(
     });
   }
 
+  if (!code.includes('ta.sma') && !code.includes('ta.ema') && !code.includes('200')) {
+    biases.push({
+      type: 'No Trend Filter',
+      description: 'No trend confirmation detected. Trading against the trend can lead to losses.',
+      severity: 'medium',
+    });
+  }
+
   // Check for risk issues
-  if (!code.includes('stop') && !code.includes('sl')) {
+  if (!code.includes('stop') && !code.includes('sl') && !code.includes('strategy.exit')) {
     riskIssues.push({
       type: 'No Stop Loss',
       description: 'No stop loss detected in the strategy. This exposes the account to unlimited downside risk.',
@@ -643,53 +651,157 @@ function generateLocalAnalysis(
     });
   }
 
-  if (backtestResults && backtestResults.maxDrawdownPercent > 20) {
-    riskIssues.push({
-      type: 'High Drawdown',
-      description: `Max drawdown of ${backtestResults.maxDrawdownPercent}% exceeds recommended 20% threshold for prop firms.`,
-      severity: 'high',
-      recommendation: 'Reduce position size or tighten stop losses',
-    });
+  // Backtest-based weakness detection
+  if (backtestResults) {
+    // High drawdown warning
+    if (backtestResults.maxDrawdownPercent > 20) {
+      riskIssues.push({
+        type: 'High Drawdown',
+        description: `Max drawdown of ${backtestResults.maxDrawdownPercent}% exceeds recommended 20% threshold for prop firms.`,
+        severity: 'high',
+        recommendation: 'Reduce position size or tighten stop losses',
+      });
+    } else if (backtestResults.maxDrawdownPercent > 10) {
+      riskIssues.push({
+        type: 'Moderate Drawdown',
+        description: `Max drawdown of ${backtestResults.maxDrawdownPercent}% is acceptable but could be improved.`,
+        severity: 'medium',
+        recommendation: 'Consider adding trailing stops or scaling out of positions',
+      });
+    }
+
+    // Low win rate warning
+    if (backtestResults.winRate < 40) {
+      riskIssues.push({
+        type: 'Low Win Rate',
+        description: `Win rate of ${backtestResults.winRate}% is below 40%. This requires high R:R to be profitable.`,
+        severity: 'high',
+        recommendation: 'Add confirmation filters or improve entry timing',
+      });
+
+      suggestions.push({
+        type: 'Improve Entry Timing',
+        description: 'Add pullback entry or wait for momentum confirmation to improve win rate',
+        expectedImpact: '+10-15% win rate improvement',
+        codeSnippet: `// Wait for pullback before entry
+pullbackEntry = ta.crossover(fastMA, slowMA) and close < ta.highest(close, 3)
+longCondition = pullbackEntry and rsi < 60`,
+      });
+    }
+
+    // Poor profit factor
+    if (backtestResults.profitFactor < 1.0) {
+      riskIssues.push({
+        type: 'Losing Strategy',
+        description: `Profit factor of ${backtestResults.profitFactor} means the strategy is losing money.`,
+        severity: 'critical',
+        recommendation: 'Complete strategy overhaul required - review entry/exit logic',
+      });
+    } else if (backtestResults.profitFactor < 1.3) {
+      riskIssues.push({
+        type: 'Marginal Profitability',
+        description: `Profit factor of ${backtestResults.profitFactor} leaves little room for slippage/commissions.`,
+        severity: 'medium',
+        recommendation: 'Target profit factor of 1.5+ for live trading',
+      });
+    }
+
+    // Poor Sharpe ratio
+    if (backtestResults.sharpeRatio < 0.5) {
+      biases.push({
+        type: 'High Volatility Returns',
+        description: `Sharpe ratio of ${backtestResults.sharpeRatio} indicates inconsistent returns relative to risk.`,
+        severity: 'medium',
+      });
+    }
+
+    // Improvement suggestions based on backtest results
+    if (backtestResults.winRate < 50 && !code.includes('ta.rsi')) {
+      suggestions.push({
+        type: 'Add RSI Momentum Filter',
+        description: 'Filter entries with RSI to avoid trading in overbought/oversold conditions',
+        expectedImpact: '+8-12% win rate, fewer trades',
+        codeSnippet: `rsi = ta.rsi(close, 14)
+longCondition = longCondition and rsi > 30 and rsi < 70
+shortCondition = shortCondition and rsi > 30 and rsi < 70`,
+      });
+    }
+
+    if (backtestResults.maxDrawdownPercent > 15 && !code.includes('trailing')) {
+      suggestions.push({
+        type: 'Add Trailing Stop',
+        description: 'Trailing stops can lock in profits and reduce drawdown',
+        expectedImpact: '-5-10% max drawdown',
+        codeSnippet: `// Trailing stop using ATR
+trailAtr = ta.atr(14) * 2
+strategy.exit("Trail Long", "Long", trail_points=trailAtr * 10, trail_offset=trailAtr * 5)`,
+      });
+    }
+
+    if (backtestResults.profitFactor < 1.5) {
+      suggestions.push({
+        type: 'Improve Risk:Reward Ratio',
+        description: 'Increase take profit distance or tighten stops to improve R:R',
+        expectedImpact: '+0.2-0.3 profit factor',
+        codeSnippet: `// 2:1 Risk Reward using ATR
+atr = ta.atr(14)
+stopDistance = atr * 1.5
+takeProfit = close + (stopDistance * 2)  // 2:1 R:R
+stopLoss = close - stopDistance`,
+      });
+    }
   }
 
-  // Generate suggestions
+  // Generate suggestions based on code analysis
   if (!code.includes('ta.atr')) {
     suggestions.push({
       type: 'Add ATR Volatility Filter',
       description: 'Using ATR for stop loss and take profit adapts to market volatility',
       expectedImpact: '+5-10% win rate improvement',
-      codeSnippet: 'atr = ta.atr(14)\nstopLoss = close - (atr * 1.5)',
-    });
-  }
-
-  if (!code.includes('ta.rsi') && !code.includes('rsi')) {
-    suggestions.push({
-      type: 'Add RSI Filter',
-      description: 'RSI can help filter out trades in overbought/oversold conditions',
-      expectedImpact: 'Reduced false signals',
-      codeSnippet: 'rsi = ta.rsi(close, 14)\nlongCondition = longCondition and rsi < 70',
+      codeSnippet: `atr = ta.atr(14)
+stopLoss = close - (atr * 1.5)
+takeProfit = close + (atr * 3)`,
     });
   }
 
   if (!code.includes('volume')) {
     suggestions.push({
       type: 'Add Volume Confirmation',
-      description: 'Volume confirmation can improve signal quality',
-      expectedImpact: 'Higher quality trades',
-      codeSnippet: 'volFilter = volume > ta.sma(volume, 20)',
+      description: 'Volume confirmation can improve signal quality by filtering low-conviction moves',
+      expectedImpact: 'Higher quality trades, fewer false signals',
+      codeSnippet: `volSma = ta.sma(volume, 20)
+highVolume = volume > volSma * 1.2
+longCondition = longCondition and highVolume`,
+    });
+  }
+
+  if (!code.includes('session') && !code.includes('time(')) {
+    suggestions.push({
+      type: 'Add Trading Session Filter',
+      description: 'Limit trading to high-liquidity sessions (London/NY) for better execution',
+      expectedImpact: 'Better fills, reduced slippage',
+      codeSnippet: `// London and NY session filter (UTC)
+inSession = (hour >= 8 and hour < 12) or (hour >= 13 and hour < 17)
+longCondition = longCondition and inSession`,
     });
   }
 
   // Generate summary
-  const issueCount = riskIssues.filter((r) => r.severity === 'critical' || r.severity === 'high').length;
+  const criticalCount = riskIssues.filter((r) => r.severity === 'critical').length;
+  const highCount = riskIssues.filter((r) => r.severity === 'high').length;
+  const issueCount = criticalCount + highCount;
   let summary = '';
 
-  if (issueCount === 0) {
-    summary = 'Your strategy has solid fundamentals. Consider the suggestions below to further optimize performance.';
-  } else if (issueCount === 1) {
-    summary = 'Your strategy has one significant issue that should be addressed before live trading.';
+  if (criticalCount > 0) {
+    summary = `CRITICAL: ${criticalCount} critical issue(s) found. Do NOT trade this strategy live until resolved.`;
+  } else if (highCount > 0) {
+    summary = `Your strategy has ${highCount} significant issue(s) that should be addressed before live trading.`;
+  } else if (backtestResults && backtestResults.profitFactor > 1.5 && backtestResults.winRate > 45) {
+    summary = 'Good strategy! Solid metrics. Review the suggestions below for potential improvements.';
+  } else if (backtestResults) {
+    summary = 'Strategy shows promise but could use optimization. Apply the suggestions to improve performance.';
   } else {
-    summary = `Your strategy has ${issueCount} critical issues that must be resolved before deployment.`;
+    summary = 'Run a backtest to get detailed performance analysis and personalized recommendations.';
   }
 
   return { biases, riskIssues, suggestions, summary };

@@ -728,11 +728,29 @@ export default function AIStrategyPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    {/* Forex Majors */}
                     <SelectItem value="EURUSD">EUR/USD</SelectItem>
                     <SelectItem value="GBPUSD">GBP/USD</SelectItem>
                     <SelectItem value="USDJPY">USD/JPY</SelectItem>
+                    <SelectItem value="USDCHF">USD/CHF</SelectItem>
+                    <SelectItem value="AUDUSD">AUD/USD</SelectItem>
+                    <SelectItem value="USDCAD">USD/CAD</SelectItem>
+                    <SelectItem value="NZDUSD">NZD/USD</SelectItem>
+                    {/* Commodities */}
                     <SelectItem value="XAUUSD">XAU/USD (Gold)</SelectItem>
+                    <SelectItem value="XAGUSD">XAG/USD (Silver)</SelectItem>
+                    <SelectItem value="USOIL">US Oil (WTI)</SelectItem>
+                    {/* Indices */}
+                    <SelectItem value="US30">US30 (Dow)</SelectItem>
+                    <SelectItem value="US100">US100 (Nasdaq)</SelectItem>
+                    <SelectItem value="US500">US500 (S&P)</SelectItem>
+                    <SelectItem value="NAS100">NAS100</SelectItem>
+                    <SelectItem value="MES1!">MES (Micro E-mini)</SelectItem>
+                    <SelectItem value="MNQ1!">MNQ (Micro Nasdaq)</SelectItem>
+                    {/* Crypto */}
                     <SelectItem value="BTCUSD">BTC/USD</SelectItem>
+                    <SelectItem value="ETHUSD">ETH/USD</SelectItem>
+                    <SelectItem value="SOLUSD">SOL/USD</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

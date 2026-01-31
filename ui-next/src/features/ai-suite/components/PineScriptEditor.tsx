@@ -185,15 +185,50 @@ export function PineScriptEditor({
       });
     }
 
-    // Check for common issues
+    // Check for common issues - but be smart about Pine Script patterns
+    // These patterns return properly scoped values and do NOT need 'var':
+    const noVarNeededPatterns = [
+      /input\.(int|float|bool|string|source|timeframe|color|symbol|session|price)/,
+      /ta\.(sma|ema|rsi|macd|atr|crossover|crossunder|highest|lowest|stoch|bb|supertrend|wma|vwma|tr|change|mom|roc|cci|mfi|obv|vwap|pivothigh|pivotlow|valuewhen|barssince)/,
+      /math\.(abs|max|min|round|floor|ceil|sqrt|pow|log|sin|cos|tan)/,
+      /str\.(tostring|format|tonumber|contains|length|replace|split|substring|upper|lower)/,
+      /array\.(new_float|new_int|new_bool|new_string|new_color|get|set|push|pop|size|from)/,
+      /request\.(security|financial|quandl|dividends|earnings|splits)/,
+      /color\.(new|rgb|r|g|b)/,
+      /syminfo\./,
+      /close|open|high|low|volume|time|bar_index|hl2|hlc3|ohlc4|timenow/,  // Built-in series
+      /strategy\.(position_size|position_avg_price|equity|netprofit)/,  // Strategy built-ins
+      /\s+and\s+|\s+or\s+/,  // Boolean expressions
+    ];
+
     lines.forEach((line, idx) => {
-      // Undeclared variable assignment without var
-      if (line.match(/^\s*[a-zA-Z_]\w*\s*=/) && !line.includes('var ') && !line.includes(':=')) {
-        const varName = line.match(/^\s*([a-zA-Z_]\w*)\s*=/)?.[1];
-        if (varName && !PINE_KEYWORDS.includes(varName) && !code.slice(0, code.indexOf(line)).includes(`${varName} =`)) {
+      // Skip comment lines
+      if (line.trim().startsWith('//')) return;
+
+      // Check for assignments that might need var
+      const assignMatch = line.match(/^\s*([a-zA-Z_]\w*)\s*=\s*(.+)$/);
+      if (assignMatch && !line.includes('var ') && !line.includes(':=')) {
+        const varName = assignMatch[1];
+        const rightSide = assignMatch[2];
+
+        // Skip if it's a known keyword
+        if (PINE_KEYWORDS.includes(varName)) return;
+
+        // Skip if the right side uses a Pine Script function/pattern that doesn't need var
+        const usesNoVarPattern = noVarNeededPatterns.some(pattern => pattern.test(rightSide));
+        if (usesNoVarPattern) return;
+
+        // Skip if already defined earlier in the code (re-assignment is fine)
+        const codeBeforeThis = code.slice(0, code.indexOf(line));
+        if (codeBeforeThis.includes(`${varName} =`) || codeBeforeThis.includes(`var ${varName}`)) return;
+
+        // Only warn for truly naked literal assignments that might need persistence
+        // e.g., "counter = 0" at global scope (might need var to persist across bars)
+        const isLiteralAssignment = /^\s*(true|false|na|\d+\.?\d*|"[^"]*"|'[^']*')\s*$/.test(rightSide);
+        if (isLiteralAssignment) {
           errors.push({
             line: idx + 1,
-            message: `Variable '${varName}' may need 'var' declaration for persistence`,
+            message: `Variable '${varName}' assigned a literal value - consider 'var ${varName}' if it should persist across bars`,
             severity: 'warning',
           });
         }

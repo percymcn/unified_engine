@@ -52,9 +52,14 @@ const CHART_STYLES = [
 ];
 
 const POPULAR_SYMBOLS = [
-  'EURUSD', 'GBPUSD', 'USDJPY', 'XAUUSD',
-  'MES1!', 'MNQ1!', 'ES1!', 'NQ1!',
-  'BTCUSD', 'ETHUSD',
+  // Forex Majors
+  'EURUSD', 'GBPUSD', 'USDJPY', 'USDCHF', 'AUDUSD', 'USDCAD', 'NZDUSD',
+  // Commodities
+  'XAUUSD', 'XAGUSD', 'USOIL',
+  // Indices
+  'US30', 'US100', 'US500', 'NAS100', 'MES1!', 'MNQ1!',
+  // Crypto
+  'BTCUSD', 'ETHUSD', 'SOLUSD',
 ];
 
 export function TradingViewChart({
