@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getTokenFromCookies } from '@/lib/auth';
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8765';
+const TIMEOUT_MS = 5000; // 5 second timeout to avoid Cloudflare 524
 
 /**
  * GET /api/dashboard/stats
@@ -16,29 +17,53 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Helper to fetch with timeout
+    const fetchWithTimeout = async (url: string, options: RequestInit) => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+      try {
+        const response = await fetch(url, { ...options, signal: controller.signal });
+        return response;
+      } catch (error) {
+        if ((error as Error).name === 'AbortError') {
+          console.warn(`Timeout fetching ${url}`);
+        }
+        throw error;
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    };
+
     // Fetch stats from multiple backend endpoints in parallel (max limit=50 per backend validation)
-    const [signalsRes, accountsRes, liveAccountsRes, executionsRes] = await Promise.all([
-      fetch(`${BACKEND_URL}/api/v1/signals/?limit=50&status=pending`, {
+    const [signalsRes, accountsRes, liveAccountsRes, executionsRes] = await Promise.allSettled([
+      fetchWithTimeout(`${BACKEND_URL}/api/v1/signals/?limit=50&status=pending`, {
         headers: { 'Authorization': `Bearer ${token}` },
       }),
-      fetch(`${BACKEND_URL}/api/v1/accounts/`, {
+      fetchWithTimeout(`${BACKEND_URL}/api/v1/accounts/`, {
         headers: { 'Authorization': `Bearer ${token}` },
       }),
       // Fetch live account data for real-time balances
-      fetch(`${BACKEND_URL}/api/v1/dashboard/accounts/live`, {
+      fetchWithTimeout(`${BACKEND_URL}/api/v1/dashboard/accounts/live`, {
         headers: { 'Authorization': `Bearer ${token}` },
       }),
       // Fetch executions for today's trades count (max 50)
-      fetch(`${BACKEND_URL}/api/v1/dashboard/executions?limit=50`, {
+      fetchWithTimeout(`${BACKEND_URL}/api/v1/dashboard/executions?limit=50`, {
         headers: { 'Authorization': `Bearer ${token}` },
       }),
     ]);
 
-    // Parse responses (handle failures gracefully)
-    const signals = signalsRes.ok ? await signalsRes.json() : [];
-    const accountsData = accountsRes.ok ? await accountsRes.json() : [];
-    const liveAccountsData = liveAccountsRes.ok ? await liveAccountsRes.json() : null;
-    const executionsData = executionsRes.ok ? await executionsRes.json() : { executions: [] };
+    // Parse responses (handle failures gracefully with Promise.allSettled)
+    const getResult = async (result: PromiseSettledResult<Response>, fallback: unknown) => {
+      if (result.status === 'fulfilled' && result.value.ok) {
+        return result.value.json();
+      }
+      return fallback;
+    };
+
+    const signals = await getResult(signalsRes, []);
+    const accountsData = await getResult(accountsRes, []);
+    const liveAccountsData = await getResult(liveAccountsRes, null);
+    const executionsData = await getResult(executionsRes, { executions: [] });
 
     // Normalize accounts response - backend returns {accounts: [], total} or just []
     const accounts = Array.isArray(accountsData)
