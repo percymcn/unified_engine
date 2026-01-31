@@ -3,14 +3,33 @@ import { getTokenFromCookies } from '@/lib/auth';
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8765';
 
+// Default test symbols - crypto available 24/7
+const DEFAULT_SYMBOLS = ['XAUUSD', 'BTCUSD', 'ETHUSD', 'EURUSD'];
+
 /**
  * POST /api/webhooks/test
  * BFF route to send a test signal through the webhook system.
- * Uses the backend's test webhook endpoint with a sample payload.
+ * Opens a test position, waits briefly, then closes it.
+ * Accepts optional body: { symbol?: string, close_delay_ms?: number }
  */
-export async function POST() {
+export async function POST(request: Request) {
   try {
     const token = await getTokenFromCookies();
+
+    // Parse optional body for symbol selection
+    let testSymbol = 'XAUUSD';
+    let closeDelay = 3000; // 3 second delay before close
+    try {
+      const body = await request.json().catch(() => ({}));
+      if (body.symbol && typeof body.symbol === 'string') {
+        testSymbol = body.symbol.toUpperCase();
+      }
+      if (body.close_delay_ms && typeof body.close_delay_ms === 'number') {
+        closeDelay = Math.min(Math.max(body.close_delay_ms, 1000), 10000); // 1-10s
+      }
+    } catch {
+      // Use defaults if no body
+    }
 
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -82,9 +101,9 @@ export async function POST() {
     const testPayload = {
       webhook_key: executeWebhookKey,
       action: 'buy',
-      symbol: 'XAUUSD',
-      quantity: 0.1,
-      comment: 'Test signal from dashboard',
+      symbol: testSymbol,
+      quantity: 0.01, // Minimum size for test
+      comment: 'Test signal from dashboard (will auto-close)',
       strategy_id: 'dashboard-test',
       timestamp: new Date().toISOString(),
     };
@@ -155,11 +174,63 @@ export async function POST() {
     }
 
     const data = await response.json();
+    const openSignalId = data.signal_id || data.webhook_id;
+
+    // If open was successful, wait then close the position
+    if (data.success !== false && openSignalId) {
+      // Wait before closing (give broker time to execute)
+      await new Promise(resolve => setTimeout(resolve, closeDelay));
+
+      // Send close signal
+      const closePayload = {
+        webhook_key: executeWebhookKey,
+        action: 'close',
+        symbol: testSymbol,
+        comment: 'Auto-close test position',
+        strategy_id: 'dashboard-test',
+        timestamp: new Date().toISOString(),
+      };
+
+      try {
+        const closeResponse = await fetch(`${BACKEND_URL}/api/v1/webhook/execute`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(closePayload),
+        });
+
+        const closeData = await closeResponse.json().catch(() => ({}));
+        const closeSuccess = closeResponse.ok && closeData.success !== false;
+
+        return NextResponse.json({
+          success: true,
+          message: closeSuccess
+            ? 'Test complete: Position opened and closed successfully'
+            : 'Test partial: Position opened but close may have failed',
+          signal_id: openSignalId,
+          close_signal_id: closeData.signal_id || closeData.webhook_id,
+          symbol: testSymbol,
+          phases: {
+            open: { success: true, signal_id: openSignalId },
+            close: { success: closeSuccess, signal_id: closeData.signal_id },
+          },
+        });
+      } catch (closeError) {
+        console.warn('Close signal failed:', closeError);
+        return NextResponse.json({
+          success: true,
+          message: 'Test partial: Position opened but close signal failed',
+          signal_id: openSignalId,
+          symbol: testSymbol,
+          warning: 'Position may still be open - check manually',
+        });
+      }
+    }
 
     return NextResponse.json({
       success: data.success ?? true,
-      message: data.message || 'Test signal received successfully',
-      signal_id: data.signal_id || data.webhook_id,
+      message: data.message || 'Test signal received (single action)',
+      signal_id: openSignalId,
+      symbol: testSymbol,
       payload: testPayload,
     });
   } catch (error) {
