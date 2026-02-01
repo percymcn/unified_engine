@@ -152,19 +152,41 @@ class MetaApiAccountService:
         logger.info(f"Connecting existing {platform.upper()} account: login={login}, server={server}")
 
         try:
-            # Create account in MetaApi
-            account = await api.metatrader_account_api.create_account({
-                "name": name,
-                "type": "cloud",
-                "login": login,
-                "password": password,  # Sent to MetaApi only, never stored by us
-                "server": server,
-                "platform": platform,
-                "application": self.application,
-            })
+            # First check if account already exists
+            login_str = str(login)
+            existing_account = None
+            try:
+                accounts = await api.metatrader_account_api.get_accounts_with_infinite_scroll_pagination()
+                logger.info(f"Checking {len(accounts) if accounts else 0} existing MetaAPI accounts")
 
-            metaapi_account_id = account.id
-            logger.info(f"MetaApi account created: {metaapi_account_id}")
+                for acc in accounts:
+                    acc_login = str(acc.login) if acc.login else ''
+                    acc_server = acc.server if acc.server else ''
+                    if acc_login == login_str and acc_server.lower() == server.lower():
+                        existing_account = acc
+                        logger.info(f"Found existing MetaAPI account: {acc.id}")
+                        break
+            except Exception as e:
+                logger.warning(f"Could not check for existing accounts: {e}")
+
+            if existing_account:
+                account = existing_account
+                metaapi_account_id = account.id
+                logger.info(f"Using existing MetaApi account: {metaapi_account_id}")
+            else:
+                # Create account in MetaApi with required magic number
+                account = await api.metatrader_account_api.create_account({
+                    "name": name,
+                    "type": "cloud",
+                    "login": login_str,
+                    "password": password,  # Sent to MetaApi only, never stored by us
+                    "server": server,
+                    "platform": platform,
+                    "application": self.application,
+                    "magic": 123456,  # Required by MetaAPI
+                })
+                metaapi_account_id = account.id
+                logger.info(f"MetaApi account created: {metaapi_account_id}")
 
             # Deploy the account
             if account.state != "DEPLOYED":
