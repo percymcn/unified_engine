@@ -6,6 +6,7 @@ WebSocket kept for real-time updates (SDK doesn't expose WebSocket).
 import asyncio
 import json
 import logging
+import math
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 import socketio
@@ -128,6 +129,14 @@ class TradeLockerExecutor(BaseExecutor):
         except Exception as e:
             logger.error(f"SDK initialization error: {e}")
             return False
+
+    def _sanitize_string_field(self, value: Any) -> str:
+        """Sanitize field values that may be nan, None, or other non-string types."""
+        if value is None:
+            return ""
+        if isinstance(value, float) and math.isnan(value):
+            return ""
+        return str(value)
 
     async def _initialize_websocket(self) -> None:
         """Initialize WebSocket connection for real-time updates."""
@@ -393,7 +402,8 @@ class TradeLockerExecutor(BaseExecutor):
                     stop_loss=float(pos_dict.get("stopLoss", 0) or 0) or None,
                     take_profit=float(pos_dict.get("takeProfit", 0) or 0) or None,
                     magic_number=pos_dict.get("magic", pos_dict.get("magic_number", 0)),
-                    comment=pos_dict.get("comment", pos_dict.get("strategyId", "")),
+                    # Sanitize comment - TradeLocker may return nan (float) which fails Pydantic validation
+                    comment=self._sanitize_string_field(pos_dict.get("comment", pos_dict.get("strategyId", ""))),
                     open_time=datetime.now(),  # SDK may not provide parsed datetime
                     close_time=None,
                     is_active=True

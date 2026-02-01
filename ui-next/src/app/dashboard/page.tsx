@@ -307,17 +307,17 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* Welcome heading - Futuristic style */}
-      <div className="flex items-center justify-between relative">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 relative">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-primary via-cyan-400 to-primary bg-clip-text text-transparent">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight bg-gradient-to-r from-primary via-cyan-400 to-primary bg-clip-text text-transparent">
             Dashboard
           </h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-muted-foreground mt-1 text-sm sm:text-base">
             Welcome to Tradeflow. Monitor your trading signals and accounts.
           </p>
         </div>
         {/* Streak badge + WebSocket connection indicator */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
           <StreakBadge />
           <div className="flex items-center gap-2 text-sm px-3 py-1.5 rounded-full bg-card/50 backdrop-blur-sm border border-border/50">
             <div
@@ -439,8 +439,8 @@ export default function DashboardPage() {
               </Button>
             </Link>
           </div>
-          <div className="rounded-lg border border-border/50 bg-gradient-to-br from-card to-muted/20 p-4 space-y-3 backdrop-blur-sm">
-            <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="rounded-lg border border-border/50 bg-gradient-to-br from-card to-muted/20 p-3 sm:p-4 space-y-3 backdrop-blur-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2">
                   <KeyRound className="h-4 w-4 text-primary" />
@@ -455,6 +455,7 @@ export default function DashboardPage() {
                 size="sm"
                 onClick={handleGenerateWebhookKey}
                 disabled={generatingKey}
+                className="w-full sm:w-auto"
               >
                 {generatingKey ? (
                   <>

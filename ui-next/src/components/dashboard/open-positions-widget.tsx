@@ -232,10 +232,10 @@ export function OpenPositionsWidget() {
           return (
             <div
               key={position.id}
-              className="flex items-center justify-between py-1.5 border-b last:border-0 group"
+              className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-2 sm:py-1.5 border-b last:border-0 group gap-1 sm:gap-2"
             >
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-medium text-sm">{position.symbol}</span>
                   <Badge
                     variant="secondary"
@@ -251,18 +251,18 @@ export function OpenPositionsWidget() {
                     {position.volume.toFixed(2)}
                   </span>
                 </div>
-                <div className="flex items-center gap-1.5 mt-0.5">
+                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                   <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 capitalize">
                     {position.account.broker}
                   </Badge>
                   {position.account.account_name && (
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-xs text-muted-foreground truncate max-w-[120px]">
                       {position.account.account_name}
                     </span>
                   )}
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between sm:justify-end gap-2">
                 <div
                   className={`flex items-center gap-1 text-sm font-medium ${
                     isProfitable ? "text-green-600" : "text-red-600"
@@ -282,7 +282,7 @@ export function OpenPositionsWidget() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30"
+                      className="h-6 w-6 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30"
                       disabled={isClosing}
                     >
                       {isClosing ? (

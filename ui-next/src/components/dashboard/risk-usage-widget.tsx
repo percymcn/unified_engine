@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, CheckCircle, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle, XCircle, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface AccountRiskSummary {
   account_id: number;
@@ -27,20 +28,28 @@ interface RiskSummary {
 export function RiskUsageWidget() {
   const [summary, setSummary] = useState<RiskSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchData = async () => {
+    try {
+      const res = await window.fetch("/api/v1/risk/dashboard-summary");
+      if (res.ok) {
+        setSummary(await res.json());
+      }
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
 
   useEffect(() => {
-    async function fetch() {
-      try {
-        const res = await window.fetch("/api/v1/risk/dashboard-summary");
-        if (res.ok) {
-          setSummary(await res.json());
-        }
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetch();
+    fetchData();
   }, []);
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    fetchData();
+  };
 
   if (loading) {
     return (
@@ -63,19 +72,30 @@ export function RiskUsageWidget() {
   return (
     <Card className="glass glass-hover">
       <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <CardTitle className="text-lg">Risk Status</CardTitle>
-          {summary.accounts_at_limit > 0 ? (
-            <Badge variant="destructive" className="flex items-center gap-1">
-              <AlertTriangle className="h-3 w-3" />
-              {summary.accounts_at_limit} at limit
-            </Badge>
-          ) : (
-            <Badge variant="outline" className="flex items-center gap-1 text-green-600">
-              <CheckCircle className="h-3 w-3" />
-              All clear
-            </Badge>
-          )}
+          <div className="flex items-center gap-2">
+            {summary.accounts_at_limit > 0 ? (
+              <Badge variant="destructive" className="flex items-center gap-1">
+                <AlertTriangle className="h-3 w-3" />
+                {summary.accounts_at_limit} at limit
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="flex items-center gap-1 text-green-600">
+                <CheckCircle className="h-3 w-3" />
+                All clear
+              </Badge>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={handleRefresh}
+              disabled={refreshing}
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">

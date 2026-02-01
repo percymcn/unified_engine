@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Activity, Clock, ArrowRight, RefreshCw, Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { formatDistanceToNow } from "date-fns";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -57,6 +58,7 @@ export function RecentExecutionsWidget() {
   const [executions, setExecutions] = useState<Execution[]>([]);
   const [loading, setLoading] = useState(true);
   const [isPolling, setIsPolling] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [newIds, setNewIds] = useState<Set<number>>(new Set());
   const [showSparkle, setShowSparkle] = useState(false);
 
@@ -108,6 +110,12 @@ export function RecentExecutionsWidget() {
 
     return () => clearInterval(interval);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchExecutions(false);
+    setRefreshing(false);
+  };
 
   if (loading) {
     return (
@@ -170,17 +178,25 @@ export function RecentExecutionsWidget() {
             {showSparkle && (
               <Sparkles className="h-4 w-4 text-yellow-500 animate-pulse" />
             )}
-            {isPolling && !showSparkle && (
-              <RefreshCw className="h-3 w-3 text-muted-foreground animate-spin" />
-            )}
           </CardTitle>
-          <Link
-            href="/dashboard/trades"
-            className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1"
-          >
-            View All
-            <ArrowRight className="h-3 w-3" />
-          </Link>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={handleRefresh}
+              disabled={refreshing || isPolling}
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshing || isPolling ? "animate-spin" : ""}`} />
+            </Button>
+            <Link
+              href="/dashboard/trades"
+              className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1"
+            >
+              View All
+              <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -188,7 +204,7 @@ export function RecentExecutionsWidget() {
           <div
             key={execution.id}
             className={cn(
-              "flex items-center justify-between py-2 px-2 -mx-2 rounded-lg border-b last:border-0 transition-all duration-500",
+              "flex flex-col sm:flex-row sm:items-center sm:justify-between py-2 px-2 -mx-2 rounded-lg border-b last:border-0 transition-all duration-500 gap-1 sm:gap-2",
               newIds.has(execution.id) && execution.status === "success"
                 ? "bg-green-500/10 ring-2 ring-green-500/30 animate-pulse shadow-lg shadow-green-500/20"
                 : newIds.has(execution.id)
@@ -197,7 +213,7 @@ export function RecentExecutionsWidget() {
             )}
           >
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-medium text-sm">{execution.symbol}</span>
                 <Badge
                   variant="secondary"
@@ -224,17 +240,17 @@ export function RecentExecutionsWidget() {
                   </Badge>
                 )}
               </div>
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5 flex-wrap">
                 <Clock className="h-3 w-3" />
                 {formatDistanceToNow(new Date(execution.created_at), {
                   addSuffix: true,
                 })}
-                <span className="mx-1">-</span>
+                <span className="hidden sm:inline mx-1">-</span>
                 <span className="capitalize">{execution.account.broker}</span>
                 {execution.guard_reason && (
                   <>
-                    <span className="mx-1">-</span>
-                    <span className="text-amber-600 dark:text-amber-400">
+                    <span className="hidden sm:inline mx-1">-</span>
+                    <span className="text-amber-600 dark:text-amber-400 truncate max-w-[120px]">
                       {execution.guard_reason}
                     </span>
                   </>
@@ -243,7 +259,8 @@ export function RecentExecutionsWidget() {
             </div>
             <Badge
               variant="outline"
-              className={
+              className={cn(
+                "self-start sm:self-auto",
                 execution.status === "success"
                   ? "border-green-500 text-green-600"
                   : execution.status === "failed"
@@ -251,7 +268,7 @@ export function RecentExecutionsWidget() {
                   : execution.status === "skipped"
                   ? "border-gray-500 text-gray-600"
                   : "border-amber-500 text-amber-600"
-              }
+              )}
             >
               {execution.status}
             </Badge>

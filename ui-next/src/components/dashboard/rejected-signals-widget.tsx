@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, Clock } from "lucide-react";
+import { AlertCircle, Clock, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { formatDistanceToNow } from "date-fns";
 
 interface RejectedSignal {
@@ -29,23 +30,31 @@ const reasonColors: Record<string, string> = {
 export function RejectedSignalsWidget() {
   const [signals, setSignals] = useState<RejectedSignal[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchRejectedSignals = async () => {
+    try {
+      const res = await window.fetch("/api/risk/rejected-signals?limit=5", {
+        credentials: 'include',
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSignals(data.signals || []);
+      }
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
 
   useEffect(() => {
-    async function fetchRejectedSignals() {
-      try {
-        const res = await window.fetch("/api/risk/rejected-signals?limit=5", {
-          credentials: 'include',
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setSignals(data.signals || []);
-        }
-      } finally {
-        setLoading(false);
-      }
-    }
     fetchRejectedSignals();
   }, []);
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    fetchRejectedSignals();
+  };
 
   if (loading) {
     return (
@@ -66,8 +75,19 @@ export function RejectedSignalsWidget() {
   if (signals.length === 0) {
     return (
       <Card className="glass glass-hover">
-        <CardHeader>
-          <CardTitle className="text-lg">Rejected Signals</CardTitle>
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg">Rejected Signals</CardTitle>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={handleRefresh}
+              disabled={refreshing}
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground text-center py-4">
@@ -81,9 +101,20 @@ export function RejectedSignalsWidget() {
   return (
     <Card className="glass glass-hover">
       <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <CardTitle className="text-lg">Rejected Signals</CardTitle>
-          <Badge variant="outline">{signals.length} today</Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline">{signals.length} today</Badge>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={handleRefresh}
+              disabled={refreshing}
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
