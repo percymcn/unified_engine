@@ -276,7 +276,7 @@ export default function RiskSettingsPage() {
           <CardDescription>Default limits for new signals and positions</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label>Max Daily Trades</Label>
               <Input
@@ -327,7 +327,7 @@ export default function RiskSettingsPage() {
           <CardDescription>Stop trading when loss limits are hit</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label>Max Daily Loss ($)</Label>
               <Input
@@ -413,7 +413,7 @@ export default function RiskSettingsPage() {
               </SelectContent>
             </Select>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label>Default Size (Lots / Contracts)</Label>
               <Input
@@ -717,7 +717,7 @@ export default function RiskSettingsPage() {
                 <p className="text-xs text-muted-foreground">
                   Fine-tune your session times or create a custom schedule
                 </p>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label className="text-xs">Session Start</Label>
                     <Input

@@ -141,15 +141,15 @@ export function SignalsTable({ signals, onSignalUpdate }: SignalsTableProps) {
           <TableRow>
             <TableHead>Symbol</TableHead>
             <TableHead>Action</TableHead>
-            <TableHead className="text-right">Volume</TableHead>
-            <TableHead className="text-right">Price</TableHead>
-            <TableHead className="text-right">SL</TableHead>
-            <TableHead className="text-right">TP</TableHead>
+            <TableHead className="text-right hidden sm:table-cell">Volume</TableHead>
+            <TableHead className="text-right hidden md:table-cell">Price</TableHead>
+            <TableHead className="text-right hidden lg:table-cell">SL</TableHead>
+            <TableHead className="text-right hidden lg:table-cell">TP</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead>Execution</TableHead>
-            <TableHead>Source</TableHead>
-            <TableHead>Reason</TableHead>
-            <TableHead>Time</TableHead>
+            <TableHead className="hidden md:table-cell">Execution</TableHead>
+            <TableHead className="hidden lg:table-cell">Source</TableHead>
+            <TableHead className="hidden xl:table-cell">Reason</TableHead>
+            <TableHead className="hidden sm:table-cell">Time</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -179,22 +179,22 @@ export function SignalsTable({ signals, onSignalUpdate }: SignalsTableProps) {
                   {signal.action}
                 </span>
               </TableCell>
-              <TableCell className="text-right font-mono">
+              <TableCell className="text-right font-mono hidden sm:table-cell">
                 {getVolume(signal)}
               </TableCell>
-              <TableCell className="text-right font-mono">
+              <TableCell className="text-right font-mono hidden md:table-cell">
                 {signal.price ? signal.price.toFixed(2) : '-'}
               </TableCell>
-              <TableCell className="text-right font-mono text-red-400">
+              <TableCell className="text-right font-mono text-red-400 hidden lg:table-cell">
                 {signal.stop_loss ? signal.stop_loss.toFixed(2) : '-'}
               </TableCell>
-              <TableCell className="text-right font-mono text-green-400">
+              <TableCell className="text-right font-mono text-green-400 hidden lg:table-cell">
                 {signal.take_profit ? signal.take_profit.toFixed(2) : '-'}
               </TableCell>
               <TableCell>
                 <SignalStatusBadge status={signal.status} />
               </TableCell>
-              <TableCell className="text-center">
+              <TableCell className="text-center hidden md:table-cell">
                 {getExecutionSummary(signal) ? (
                   <span className="text-xs font-mono">
                     {getExecutionSummary(signal)}
@@ -203,13 +203,13 @@ export function SignalsTable({ signals, onSignalUpdate }: SignalsTableProps) {
                   <span className="text-muted-foreground">-</span>
                 )}
               </TableCell>
-              <TableCell className="text-xs">
+              <TableCell className="text-xs hidden lg:table-cell">
                 {signal.source || '-'}
               </TableCell>
-              <TableCell className="text-xs max-w-[150px] truncate" title={signal.guard_reason || signal.error_message || ''}>
+              <TableCell className="text-xs max-w-[150px] truncate hidden xl:table-cell" title={signal.guard_reason || signal.error_message || ''}>
                 {signal.guard_reason || signal.error_message || '-'}
               </TableCell>
-              <TableCell className="text-xs whitespace-nowrap">
+              <TableCell className="text-xs whitespace-nowrap hidden sm:table-cell">
                 {new Date(signal.created_at).toLocaleString()}
               </TableCell>
             </TableRow>

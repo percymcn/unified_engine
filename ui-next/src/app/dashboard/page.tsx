@@ -338,7 +338,7 @@ export default function DashboardPage() {
 
       {/* Dashboard Tabs - Futuristic style */}
       <Tabs defaultValue="overview" className="w-full relative">
-        <TabsList className="grid w-full max-w-2xl grid-cols-4 bg-card/50 backdrop-blur-sm border border-border/50 p-1">
+        <TabsList className="grid w-full max-w-2xl grid-cols-2 sm:grid-cols-4 bg-card/50 backdrop-blur-sm border border-border/50 p-1">
           <TabsTrigger value="overview" className="flex items-center gap-2">
             <LayoutDashboard className="h-4 w-4" />
             Overview

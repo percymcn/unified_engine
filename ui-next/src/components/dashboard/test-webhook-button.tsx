@@ -278,7 +278,7 @@ export function TestWebhookButton({ onSuccess }: TestWebhookButtonProps) {
   }, {} as Record<string, Account[]>);
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex flex-wrap items-center gap-1 sm:gap-1">
       {/* Broker/Account selector */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -292,7 +292,7 @@ export function TestWebhookButton({ onSuccess }: TestWebhookButtonProps) {
             <ChevronDown className="h-3 w-3 ml-1" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-[220px]">
+        <DropdownMenuContent align="start" className="w-[200px] sm:w-[220px] max-w-[90vw]">
           <DropdownMenuLabel className="text-xs">Select Account</DropdownMenuLabel>
           <DropdownMenuSeparator />
           {Object.entries(accountsByBroker).map(([broker, brokerAccounts]) => (
