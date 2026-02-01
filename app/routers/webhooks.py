@@ -751,7 +751,7 @@ async def trailhacker_webhook(request: Request, db: Session = Depends(get_db)):
 
         # Build command (TrailHacker uses "size", "entry", "stop", "target")
         command = ProcessSignalRequest(
-            source=SignalSource.TRAILHACKER,
+            source=SignalSource.CUSTOM,
             symbol=symbol,
             action=action,
             volume=Decimal(str(payload.get("size", payload.get("volume", 1)))),
@@ -790,7 +790,7 @@ async def trailhacker_webhook(request: Request, db: Session = Depends(get_db)):
         guard_response = await evaluate_guard_layer(
             db=db,
             command=command,
-            source=SignalSource.TRAILHACKER,
+            source=SignalSource.CUSTOM,
             action=action,
             user_id=user_id,
             account_ids=account_ids if account_ids else None,
@@ -918,6 +918,29 @@ async def get_webhook_logs(
                             "status": el.status,
                             "error": el.error_message,
                         })
+
+                # If no ExecutionLog records but errors in response, parse those
+                if not executions and response_data.get("errors"):
+                    for err in response_data["errors"]:
+                        # Parse error strings like "Account 57: Instrument not found: XAUUSD"
+                        if ": " in str(err):
+                            parts = str(err).split(": ", 1)
+                            account_part = parts[0]
+                            error_msg = parts[1] if len(parts) > 1 else str(err)
+                            account_id = account_part.replace("Account ", "") if "Account " in account_part else None
+                            executions.append({
+                                "account_id": account_id,
+                                "broker": "unknown",
+                                "status": "failed",
+                                "error": error_msg,
+                            })
+                        else:
+                            executions.append({
+                                "account_id": None,
+                                "broker": "unknown",
+                                "status": "failed",
+                                "error": str(err),
+                            })
             except (json.JSONDecodeError, TypeError):
                 pass
 
@@ -1234,7 +1257,7 @@ async def process_routed_signal(
         # Determine source
         source_map = {
             "tradingview": SignalSource.TRADINGVIEW,
-            "trailhacker": SignalSource.TRAILHACKER,
+            "custom": SignalSource.CUSTOM,
         }
         source = source_map.get(webhook_config.source.lower(), SignalSource.TRADINGVIEW)
 

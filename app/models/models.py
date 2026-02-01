@@ -40,9 +40,10 @@ class OrderStatus(str, enum.Enum):
 
 class SignalSource(str, enum.Enum):
     TRADINGVIEW = "tradingview"
-    TRAILHACKER = "trailhacker"
+    TRAILHACKER = "trailhacker"  # Kept for backward compatibility with existing data
     MANUAL = "manual"
     API = "api"
+    CUSTOM = "custom"
 
 class BrokerType(str, enum.Enum):
     TRADELOCKER = "tradelocker"
