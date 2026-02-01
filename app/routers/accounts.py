@@ -1517,6 +1517,8 @@ async def sync_account(
             except TypeError:
                 account_info = await executor.get_account_info()
 
+            logger.info(f"Sync account_info type={type(account_info).__name__}, value={account_info}")
+
             # Get positions count
             try:
                 try:
@@ -1543,6 +1545,7 @@ async def sync_account(
                     equity = float(getattr(account_info, 'equity', 0) or getattr(account_info, 'accountEquity', 0) or 0)
                     margin = float(getattr(account_info, 'margin', 0) or getattr(account_info, 'usedMargin', 0) or 0)
                     free_margin = float(getattr(account_info, 'free_margin', 0) or getattr(account_info, 'freeMargin', 0) or 0)
+                logger.info(f"Sync extracted: balance={balance}, equity={equity}, margin={margin}, free_margin={free_margin}")
 
             # Update account in DB
             orm_account.balance = balance

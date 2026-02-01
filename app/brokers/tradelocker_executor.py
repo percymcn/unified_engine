@@ -263,10 +263,10 @@ class TradeLockerExecutor(BaseExecutor):
                         account_type="demo",
                         currency=account_state.get("currency", "USD"),
                         balance=float(account_state.get("balance", 0)),
-                        equity=float(account_state.get("equity", 0)),
-                        margin=float(account_state.get("margin", 0)),
-                        free_margin=float(account_state.get("freeMargin", account_state.get("free_margin", 0))),
-                        margin_level=float(account_state.get("marginLevel", account_state.get("margin_level", 0))),
+                        equity=float(account_state.get("projectedBalance", account_state.get("equity", 0))),
+                        margin=float(account_state.get("initialMarginReq", account_state.get("margin", 0))),
+                        free_margin=float(account_state.get("availableFunds", account_state.get("freeMargin", 0))),
+                        margin_level=float(account_state.get("marginWarningLevel", account_state.get("marginLevel", 0))),
                         leverage=account_state.get("leverage", 100),
                         is_active=True,
                         is_live=False,
@@ -610,6 +610,7 @@ class TradeLockerExecutor(BaseExecutor):
             return None
         try:
             account_state = await self._sdk_wrapper.get_account_state()
+            logger.info(f"TradeLocker get_account_info raw state: {account_state}")
             if account_state:
                 account_number = self._sdk_wrapper.account_number
                 account_id_val = self._sdk_wrapper.account_id
@@ -620,10 +621,10 @@ class TradeLockerExecutor(BaseExecutor):
                     account_type="live",
                     currency=account_state.get("currency", "USD"),
                     balance=float(account_state.get("balance", 0)),
-                    equity=float(account_state.get("equity", 0)),
-                    margin=float(account_state.get("margin", 0)),
-                    free_margin=float(account_state.get("freeMargin", account_state.get("free_margin", 0))),
-                    margin_level=float(account_state.get("marginLevel", account_state.get("margin_level", 0))),
+                    equity=float(account_state.get("projectedBalance", account_state.get("equity", 0))),
+                    margin=float(account_state.get("initialMarginReq", account_state.get("margin", 0))),
+                    free_margin=float(account_state.get("availableFunds", account_state.get("freeMargin", 0))),
+                    margin_level=float(account_state.get("marginWarningLevel", account_state.get("marginLevel", 0))),
                     leverage=account_state.get("leverage", 100),
                     is_active=True,
                     is_live=True,

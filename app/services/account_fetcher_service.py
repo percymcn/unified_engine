@@ -170,7 +170,7 @@ class AccountFetcherService:
 
                         if account_state:
                             balance = account_state.get("balance", account_state.get("Balance"))
-                            equity = account_state.get("equity", account_state.get("Equity"))
+                            equity = account_state.get("projectedBalance", account_state.get("equity", account_state.get("Equity")))
                             currency = account_state.get("currency", "USD")
 
                         account = BrokerAccountInfo(

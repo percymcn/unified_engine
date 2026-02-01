@@ -282,6 +282,7 @@ app.include_router(funnel_router, prefix="/api/v1", tags=["funnel"])
 app.include_router(credential_router, prefix="/api/v1", tags=["credentials"])
 app.include_router(subscription_router, tags=["subscription"])
 app.include_router(webhook_signal_router, prefix="/api/v1", tags=["webhook-signals"])
+app.include_router(webhook_signal_router, tags=["webhook-signals-compat"])  # Alias: /webhooks/* for TradingView
 app.include_router(api_keys_router, prefix="/api/v1", tags=["api-keys"])
 app.include_router(strategies_router, prefix="/api", tags=["strategies"])
 app.include_router(strategy_execution_router, prefix="/api/v1", tags=["strategy-execution"])
