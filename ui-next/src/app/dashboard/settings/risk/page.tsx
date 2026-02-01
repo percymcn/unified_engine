@@ -45,7 +45,39 @@ interface MomentumSettings {
   trading_session_end: string;
   trading_session_timezone: string;
   trading_session_days: number[];
+  trading_sessions_preset?: string[]; // Selected preset sessions
 }
+
+// Predefined trading sessions
+const TRADING_SESSION_PRESETS = {
+  london: {
+    id: "london",
+    name: "London Session",
+    description: "08:00 - 16:00 GMT",
+    start: "08:00",
+    end: "16:00",
+    timezone: "Europe/London",
+    days: [1, 2, 3, 4, 5],
+  },
+  new_york: {
+    id: "new_york",
+    name: "New York Session",
+    description: "09:30 - 16:00 ET",
+    start: "09:30",
+    end: "16:00",
+    timezone: "America/New_York",
+    days: [1, 2, 3, 4, 5],
+  },
+  asian: {
+    id: "asian",
+    name: "Asian Session (Tokyo)",
+    description: "09:00 - 15:00 JST",
+    start: "09:00",
+    end: "15:00",
+    timezone: "Asia/Tokyo",
+    days: [1, 2, 3, 4, 5],
+  },
+} as const;
 
 export default function RiskSettingsPage() {
   const [settings, setSettings] = useState<GlobalRiskSettings | null>(null);
@@ -620,29 +652,96 @@ export default function RiskSettingsPage() {
 
           {momentumSettings.trading_session_enabled && (
             <>
-              {/* Time Range */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Session Start</Label>
-                  <Input
-                    type="time"
-                    value={momentumSettings.trading_session_start}
-                    onChange={(e) => setMomentumSettings({
-                      ...momentumSettings,
-                      trading_session_start: e.target.value
-                    })}
-                  />
+              {/* Predefined Session Presets - Multi-select */}
+              <div className="space-y-3">
+                <Label>Select Trading Sessions</Label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Choose one or more predefined sessions, or customize your own below
+                </p>
+                <div className="grid gap-3">
+                  {Object.values(TRADING_SESSION_PRESETS).map((preset) => {
+                    const isSelected = momentumSettings.trading_sessions_preset?.includes(preset.id);
+                    return (
+                      <div
+                        key={preset.id}
+                        className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${
+                          isSelected
+                            ? "border-primary bg-primary/5"
+                            : "border-border hover:border-primary/50"
+                        }`}
+                        onClick={() => {
+                          const current = momentumSettings.trading_sessions_preset || [];
+                          const newPresets = isSelected
+                            ? current.filter((id) => id !== preset.id)
+                            : [...current, preset.id];
+
+                          // If selecting a preset, update the time/timezone to match
+                          // Use the first selected preset's values
+                          if (!isSelected && newPresets.length === 1) {
+                            setMomentumSettings({
+                              ...momentumSettings,
+                              trading_sessions_preset: newPresets,
+                              trading_session_start: preset.start,
+                              trading_session_end: preset.end,
+                              trading_session_timezone: preset.timezone,
+                              trading_session_days: preset.days,
+                            });
+                          } else {
+                            setMomentumSettings({
+                              ...momentumSettings,
+                              trading_sessions_preset: newPresets,
+                            });
+                          }
+                        }}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Checkbox
+                            checked={isSelected}
+                            className="pointer-events-none"
+                          />
+                          <div>
+                            <p className="font-medium text-sm">{preset.name}</p>
+                            <p className="text-xs text-muted-foreground">{preset.description}</p>
+                          </div>
+                        </div>
+                        <Clock className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                    );
+                  })}
                 </div>
-                <div>
-                  <Label>Session End</Label>
-                  <Input
-                    type="time"
-                    value={momentumSettings.trading_session_end}
-                    onChange={(e) => setMomentumSettings({
-                      ...momentumSettings,
-                      trading_session_end: e.target.value
-                    })}
-                  />
+              </div>
+
+              {/* Custom Time Range (always visible for fine-tuning) */}
+              <div className="space-y-3 pt-4 border-t">
+                <Label>Custom Time Range</Label>
+                <p className="text-xs text-muted-foreground">
+                  Fine-tune your session times or create a custom schedule
+                </p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-xs">Session Start</Label>
+                    <Input
+                      type="time"
+                      value={momentumSettings.trading_session_start || "09:30"}
+                      onChange={(e) => setMomentumSettings({
+                        ...momentumSettings,
+                        trading_session_start: e.target.value,
+                        trading_sessions_preset: [], // Clear presets when customizing
+                      })}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Session End</Label>
+                    <Input
+                      type="time"
+                      value={momentumSettings.trading_session_end || "16:00"}
+                      onChange={(e) => setMomentumSettings({
+                        ...momentumSettings,
+                        trading_session_end: e.target.value,
+                        trading_sessions_preset: [], // Clear presets when customizing
+                      })}
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -650,8 +749,12 @@ export default function RiskSettingsPage() {
               <div>
                 <Label>Timezone</Label>
                 <Select
-                  value={momentumSettings.trading_session_timezone}
-                  onValueChange={(v) => setMomentumSettings({ ...momentumSettings, trading_session_timezone: v })}
+                  value={momentumSettings.trading_session_timezone || "America/New_York"}
+                  onValueChange={(v) => setMomentumSettings({
+                    ...momentumSettings,
+                    trading_session_timezone: v,
+                    trading_sessions_preset: [], // Clear presets when customizing
+                  })}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -694,7 +797,11 @@ export default function RiskSettingsPage() {
                           const newDays = checked
                             ? [...currentDays, day].sort()
                             : currentDays.filter((d) => d !== day);
-                          setMomentumSettings({ ...momentumSettings, trading_session_days: newDays });
+                          setMomentumSettings({
+                            ...momentumSettings,
+                            trading_session_days: newDays,
+                            trading_sessions_preset: [], // Clear presets when customizing
+                          });
                         }}
                       />
                       <label
@@ -706,16 +813,23 @@ export default function RiskSettingsPage() {
                     </div>
                   ))}
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Signals will only execute on selected days during the session hours
-                </p>
               </div>
 
               {/* Session Preview */}
               <Alert>
                 <Calendar className="h-4 w-4" />
-                <AlertTitle>Session Preview</AlertTitle>
+                <AlertTitle>Active Session</AlertTitle>
                 <AlertDescription>
+                  {(momentumSettings.trading_sessions_preset?.length || 0) > 0 ? (
+                    <>
+                      <span className="font-medium">
+                        {momentumSettings.trading_sessions_preset?.map(id =>
+                          TRADING_SESSION_PRESETS[id as keyof typeof TRADING_SESSION_PRESETS]?.name
+                        ).join(", ")}
+                      </span>
+                      <br />
+                    </>
+                  ) : null}
                   Trading active: {momentumSettings.trading_session_start || "09:30"} - {momentumSettings.trading_session_end || "16:00"}{" "}
                   ({(momentumSettings.trading_session_timezone || "America/New_York").split("/").pop()?.replace("_", " ")})
                   <br />

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getTokenFromCookies } from '@/lib/auth';
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8765';
-const TIMEOUT_MS = 5000; // 5 second timeout to avoid Cloudflare 524
+const TIMEOUT_MS = 30000; // 30 second timeout for broker connections
 
 export interface PositionAccountInfo {
   broker: string;
