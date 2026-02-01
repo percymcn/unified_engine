@@ -257,6 +257,9 @@ async def test_connection(
         result["symbol_map"] = response.symbol_map
     if response.sample_symbols:
         result["sample_symbols"] = response.sample_symbols
+    # Include discovered accounts (for MT4/MT5 via MetaAPI)
+    if response.discovered_accounts:
+        result["discovered_accounts"] = response.discovered_accounts
 
     return result
 
