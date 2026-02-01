@@ -385,13 +385,44 @@ async def execute_tradingview_signal(
 
     if guard_result.decision == GuardDecision.SKIP:
         # Signal discarded (stale, etc.)
+        guard_reason = guard_result.annotations.get("discard_reason") or guard_result.annotations.get("history_tag") or "guard_rejected"
         try:
             webhook_log.processed = False
             webhook_log.response_status = 200
             webhook_log.processing_time_ms = processing_time_ms
+            webhook_log.response_body = json.dumps({
+                "signal_id": signal_entity.id.value,
+                "status": "rejected",
+                "guard_decision": "skip",
+                "guard_reason": guard_reason,
+                "total_accounts": len(accounts),
+                "successful": 0,
+                "failed": len(accounts),
+            })
             db.commit()
-        except:
-            pass
+
+            # Create ExecutionLog entries for each account showing the rejection
+            for account in accounts:
+                try:
+                    broker_str = account.broker.value if hasattr(account.broker, 'value') else str(account.broker)
+                    models_broker = ModelsBrokerType(broker_str.lower())
+                    exec_log = ExecutionLog(
+                        signal_id=signal_entity.id.value,
+                        account_id=account.id,
+                        broker=models_broker,
+                        action=action_str.upper(),
+                        symbol=symbol,
+                        volume=float(quantity),
+                        status="failed",
+                        error_message=f"Guard rejected: {guard_reason}",
+                        execution_time_ms=processing_time_ms,
+                    )
+                    db.add(exec_log)
+                except Exception as e:
+                    logger.warning(f"Failed to create rejection ExecutionLog: {e}")
+            db.commit()
+        except Exception as e:
+            logger.warning(f"Failed to update webhook_log for SKIP: {e}")
 
         return ExecuteResponse(
             success=False,
@@ -472,13 +503,44 @@ async def execute_tradingview_signal(
     if guard_result.decision == GuardDecision.PAUSE_NEW_ENTRIES:
         # Paused - don't execute new entries
         if action != SignalAction.CLOSE:
+            guard_reason = guard_result.annotations.get("history_tag") or "paused_new_entries"
             try:
                 webhook_log.processed = False
                 webhook_log.response_status = 200
                 webhook_log.processing_time_ms = processing_time_ms
+                webhook_log.response_body = json.dumps({
+                    "signal_id": signal_entity.id.value,
+                    "status": "paused",
+                    "guard_decision": "pause",
+                    "guard_reason": guard_reason,
+                    "total_accounts": len(accounts),
+                    "successful": 0,
+                    "failed": len(accounts),
+                })
                 db.commit()
-            except:
-                pass
+
+                # Create ExecutionLog entries for each account showing the pause
+                for account in accounts:
+                    try:
+                        broker_str = account.broker.value if hasattr(account.broker, 'value') else str(account.broker)
+                        models_broker = ModelsBrokerType(broker_str.lower())
+                        exec_log = ExecutionLog(
+                            signal_id=signal_entity.id.value,
+                            account_id=account.id,
+                            broker=models_broker,
+                            action=action_str.upper(),
+                            symbol=symbol,
+                            volume=float(quantity),
+                            status="failed",
+                            error_message=f"Paused: {guard_reason}",
+                            execution_time_ms=processing_time_ms,
+                        )
+                        db.add(exec_log)
+                    except Exception as e:
+                        logger.warning(f"Failed to create pause ExecutionLog: {e}")
+                db.commit()
+            except Exception as e:
+                logger.warning(f"Failed to update webhook_log for PAUSE: {e}")
 
             return ExecuteResponse(
                 success=False,
@@ -491,7 +553,7 @@ async def execute_tradingview_signal(
                 account_id=first_account.id,
                 broker=first_account.broker.value if hasattr(first_account.broker, 'value') else str(first_account.broker),
                 guard_decision="pause",
-                guard_reason=guard_result.annotations.get("history_tag", "paused_new_entries"),
+                guard_reason=guard_reason,
                 modal_data=guard_result.modal_data,
                 processing_time_ms=processing_time_ms
             )
