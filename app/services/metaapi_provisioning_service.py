@@ -103,20 +103,17 @@ class MetaAPIProvisioningService:
             login_str = str(login)
             existing_account = None
             try:
-                # Use the paginated API (SDK v29+)
-                accounts_page = await api.metatrader_account_api.get_accounts_with_infinite_scroll_pagination()
-                accounts = accounts_page.get('items', []) if isinstance(accounts_page, dict) else accounts_page
-                logger.info(f"Checking {len(accounts) if accounts else 0} existing accounts for login={login}, server={server}")
+                # Use the paginated API (SDK v29+) - returns a list directly
+                accounts = await api.metatrader_account_api.get_accounts_with_infinite_scroll_pagination()
+                logger.info(f"Checking {len(accounts) if accounts else 0} existing MetaAPI accounts for login={login}, server={server}")
 
                 for acc in accounts:
-                    acc_login = str(getattr(acc, 'login', ''))
-                    acc_server = getattr(acc, 'server', '')
-                    acc_platform = getattr(acc, 'platform', '')
+                    acc_login = str(acc.login) if acc.login else ''
+                    acc_server = acc.server if acc.server else ''
 
                     # Match by login and server (case-insensitive server match)
-                    if (acc_login == login_str and
-                        acc_server.lower() == server.lower() and
-                        acc_platform == platform):
+                    # Note: SDK v29+ doesn't expose platform attribute directly
+                    if (acc_login == login_str and acc_server.lower() == server.lower()):
                         existing_account = acc
                         logger.info(f"Found existing MetaAPI account: {acc.id} for login={login}, server={server}")
                         break
