@@ -390,14 +390,12 @@ async def discover_accounts(
                     executor.sec = body.credentials.get("sec")
                 
         elif broker_type == BrokerType.MT4:
-            from app.brokers.mt4_executor import MT4Executor
-            # For test connection, provision on-the-fly to verify credentials
+            # For MT4, return account info directly from provisioning (get_accounts fails with sync issues)
             login = body.credentials.get("login")
             password = body.credentials.get("password")
             server = body.credentials.get("server")
 
             if login and password and server:
-                # Use provisioning service to test credentials
                 from app.services.metaapi_provisioning_service import get_provisioning_service
                 provisioning_service = get_provisioning_service()
                 if provisioning_service:
@@ -409,15 +407,28 @@ async def discover_accounts(
                             platform="mt4",
                             name=f"test-mt4-{login}",
                         )
-                        # Use the provisioned account for testing
-                        executor = MT4Executor(
-                            metaapi_token=settings.METAAPI_TOKEN,
-                            metaapi_account_id=result.get("account_id"),
+                        # Return account info directly from provisioning result
+                        account_info = result.get("account_info", {})
+                        return DiscoverAccountsResponse(
+                            accounts=[
+                                DiscoveredBrokerAccount(
+                                    broker_account_id=str(login),
+                                    account_number=str(login),
+                                    display_name=result.get("name", f"MT4-{login}"),
+                                    status="active",
+                                    account_type="demo" if "demo" in server.lower() else "live",
+                                    balance=account_info.get("balance", 0),
+                                    equity=account_info.get("equity", 0),
+                                    currency=account_info.get("currency", "USD"),
+                                    is_live="demo" not in server.lower(),
+                                )
+                            ],
+                            message="MT4 account discovered via MetaAPI"
                         )
                     except Exception as e:
                         return DiscoverAccountsResponse(
                             accounts=[],
-                            message=f"MT4 connection test failed: {str(e)}"
+                            message=f"MT4 connection failed: {str(e)}"
                         )
                 else:
                     return DiscoverAccountsResponse(
@@ -425,21 +436,18 @@ async def discover_accounts(
                         message="MetaAPI not configured. Set METAAPI_TOKEN environment variable."
                     )
             else:
-                # Fallback to legacy metaapi credentials if provided directly
-                executor = MT4Executor(
-                    metaapi_token=body.credentials.get("metaapi_token"),
-                    metaapi_account_id=body.credentials.get("metaapi_account_id"),
+                return DiscoverAccountsResponse(
+                    accounts=[],
+                    message="MT4 discovery requires login, password, and server credentials"
                 )
 
         elif broker_type == BrokerType.MT5:
-            from app.brokers.mt5_executor import MT5Executor
-            # For test connection, provision on-the-fly to verify credentials
+            # For MT5, return account info directly from provisioning (get_accounts fails with sync issues)
             login = body.credentials.get("login")
             password = body.credentials.get("password")
             server = body.credentials.get("server")
 
             if login and password and server:
-                # Use provisioning service to test credentials
                 from app.services.metaapi_provisioning_service import get_provisioning_service
                 provisioning_service = get_provisioning_service()
                 if provisioning_service:
@@ -451,15 +459,28 @@ async def discover_accounts(
                             platform="mt5",
                             name=f"test-mt5-{login}",
                         )
-                        # Use the provisioned account for testing
-                        executor = MT5Executor(
-                            metaapi_token=settings.METAAPI_TOKEN,
-                            metaapi_account_id=result.get("account_id"),
+                        # Return account info directly from provisioning result
+                        account_info = result.get("account_info", {})
+                        return DiscoverAccountsResponse(
+                            accounts=[
+                                DiscoveredBrokerAccount(
+                                    broker_account_id=str(login),
+                                    account_number=str(login),
+                                    display_name=result.get("name", f"MT5-{login}"),
+                                    status="active",
+                                    account_type="demo" if "demo" in server.lower() else "live",
+                                    balance=account_info.get("balance", 0),
+                                    equity=account_info.get("equity", 0),
+                                    currency=account_info.get("currency", "USD"),
+                                    is_live="demo" not in server.lower(),
+                                )
+                            ],
+                            message="MT5 account discovered via MetaAPI"
                         )
                     except Exception as e:
                         return DiscoverAccountsResponse(
                             accounts=[],
-                            message=f"MT5 connection test failed: {str(e)}"
+                            message=f"MT5 connection failed: {str(e)}"
                         )
                 else:
                     return DiscoverAccountsResponse(
@@ -467,10 +488,9 @@ async def discover_accounts(
                         message="MetaAPI not configured. Set METAAPI_TOKEN environment variable."
                     )
             else:
-                # Fallback to legacy metaapi credentials if provided directly
-                executor = MT5Executor(
-                    metaapi_token=body.credentials.get("metaapi_token"),
-                    metaapi_account_id=body.credentials.get("metaapi_account_id"),
+                return DiscoverAccountsResponse(
+                    accounts=[],
+                    message="MT5 discovery requires login, password, and server credentials"
                 )
         else:
             return DiscoverAccountsResponse(
