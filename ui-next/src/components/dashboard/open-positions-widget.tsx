@@ -44,6 +44,7 @@ export function OpenPositionsWidget() {
   const [loading, setLoading] = useState(true);
   const [closingPositionId, setClosingPositionId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [showAll, setShowAll] = useState(false);
   const { toast } = useToast();
 
   const fetchPositions = async () => {
@@ -224,7 +225,7 @@ export function OpenPositionsWidget() {
       </CardHeader>
       <CardContent className="space-y-3">
         {/* Position List */}
-        {data.positions.slice(0, 5).map((position) => {
+        {(showAll ? data.positions : data.positions.slice(0, 5)).map((position) => {
           const isProfitable = position.unrealized_pnl >= 0;
           const isClosing = closingPositionId === position.id;
 
@@ -341,11 +342,14 @@ export function OpenPositionsWidget() {
           );
         })}
 
-        {/* Show more indicator */}
+        {/* Show more/less toggle */}
         {data.positions.length > 5 && (
-          <p className="text-xs text-muted-foreground text-center">
-            +{data.positions.length - 5} more positions
-          </p>
+          <button
+            onClick={() => setShowAll(!showAll)}
+            className="w-full text-xs text-primary hover:text-primary/80 text-center py-1 transition-colors"
+          >
+            {showAll ? "Show less" : `View all ${data.positions.length} positions`}
+          </button>
         )}
 
         {/* Total P&L */}
