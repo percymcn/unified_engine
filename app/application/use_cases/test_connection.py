@@ -20,6 +20,9 @@ logger = logging.getLogger(__name__)
 # Connection test timeout in seconds
 CONNECTION_TIMEOUT = 10
 
+# Extended timeout for brokers requiring provisioning (MT4/MT5)
+PROVISIONING_TIMEOUT = 180  # 3 minutes for MetaAPI provisioning
+
 
 class TestConnectionUseCase:
     """
@@ -73,21 +76,30 @@ class TestConnectionUseCase:
             TestConnectionResponse with success status and detailed message
         """
         try:
+            # Use longer timeout for MT4/MT5 which require MetaAPI provisioning
+            broker_value = request.broker.value.lower() if hasattr(request.broker, 'value') else str(request.broker).lower()
+            if broker_value in ("mt4", "mt5"):
+                timeout = PROVISIONING_TIMEOUT
+            else:
+                timeout = CONNECTION_TIMEOUT
+
             # Add timeout to connection test
             result = await asyncio.wait_for(
                 self._test_broker_connection(request.broker, request.credentials),
-                timeout=CONNECTION_TIMEOUT
+                timeout=timeout
             )
             return result
 
         except asyncio.TimeoutError:
-            logger.warning(f"Connection test timeout for {request.broker.value}")
+            broker_value = request.broker.value if hasattr(request.broker, 'value') else str(request.broker)
+            timeout = PROVISIONING_TIMEOUT if broker_value.lower() in ("mt4", "mt5") else CONNECTION_TIMEOUT
+            logger.warning(f"Connection test timeout for {broker_value}")
             return TestConnectionResponse(
                 success=False,
                 status="timeout",
-                message=f"Connection to {request.broker.value} timed out after {CONNECTION_TIMEOUT} seconds. "
+                message=f"Connection to {broker_value} timed out after {timeout} seconds. "
                         "Please check your network connection and try again.",
-                details={"timeout_seconds": CONNECTION_TIMEOUT}
+                details={"timeout_seconds": timeout}
             )
         except Exception as e:
             logger.exception(f"Unexpected error testing {request.broker.value} connection: {e}")
@@ -825,103 +837,128 @@ class TestConnectionUseCase:
                         details={"mode": "metaapi_sdk", "error": str(e)}
                     )
 
-            # Manager API mode (fallback)
-            if manager_login and manager_password:
+            # MetaAPI provisioning mode (for standard MT credentials)
+            # This provisions a MetaAPI account on-the-fly to test the credentials
+            login = credentials.get("login")
+            password = credentials.get("password")
+            server = credentials.get("server")
+
+            if login and password and server:
                 try:
-                    import httpx
+                    from app.services.metaapi_provisioning_service import get_provisioning_service
                     from app.core.config import settings
 
-                    config = settings.get_broker_config(platform)
-                    api_url = config.get("api_url")
+                    provisioning_service = get_provisioning_service()
+                    if provisioning_service:
+                        logger.info(f"Testing {platform_upper} credentials via MetaAPI provisioning: login={login}, server={server}")
 
-                    if not api_url:
+                        try:
+                            # Provision account to test credentials
+                            result = await provisioning_service.provision_account(
+                                login=str(login),
+                                password=password,
+                                server=server,
+                                platform=platform,
+                                name=f"test-{platform}-{login}",
+                            )
+
+                            account_id = result.get("account_id")
+                            if account_id:
+                                # Get symbols for format detection from account info
+                                symbols = []
+                                try:
+                                    from app.services.metaapi_sdk_service import MetaAPISDKService
+                                    service = MetaAPISDKService(
+                                        token=settings.METAAPI_TOKEN,
+                                        account_id=account_id,
+                                        application="tradeflow",
+                                    )
+                                    success = await service.connect()
+                                    if success:
+                                        symbol_list = await service.get_symbols()
+                                        if symbol_list:
+                                            symbols = [s.get("symbol", s.get("name", "")) for s in symbol_list]
+                                        await service.disconnect()
+                                except Exception as e:
+                                    logger.warning(f"Failed to get {platform_upper} symbols after provisioning: {e}")
+
+                                # Detect symbol format
+                                detected_format, symbol_map, sample_symbols = self._detect_symbols(symbols)
+
+                                return TestConnectionResponse(
+                                    success=True,
+                                    status="connected",
+                                    message=f"Successfully connected to {platform_upper} via MetaAPI",
+                                    details={
+                                        "mode": "metaapi_provisioning",
+                                        "platform": platform,
+                                        "metaapi_account_id": account_id,
+                                    },
+                                    detected_format=detected_format,
+                                    symbol_map=symbol_map,
+                                    sample_symbols=sample_symbols,
+                                )
+                            else:
+                                return TestConnectionResponse(
+                                    success=False,
+                                    status="failed",
+                                    message=f"{platform_upper} provisioning succeeded but no account ID returned",
+                                    details={"mode": "metaapi_provisioning", "platform": platform}
+                                )
+
+                        except Exception as e:
+                            error_str = str(e)
+                            logger.warning(f"{platform_upper} MetaAPI provisioning failed: {error_str}")
+
+                            # Provide helpful error messages based on common failures
+                            if "unauthorized" in error_str.lower() or "401" in error_str:
+                                return TestConnectionResponse(
+                                    success=False,
+                                    status="failed",
+                                    message=f"Invalid {platform_upper} credentials. Please verify your login, password, and server.",
+                                    details={"mode": "metaapi_provisioning", "error": error_str}
+                                )
+                            elif "server" in error_str.lower() and "not found" in error_str.lower():
+                                return TestConnectionResponse(
+                                    success=False,
+                                    status="failed",
+                                    message=f"{platform_upper} server '{server}' not found. Please check the server name.",
+                                    details={"mode": "metaapi_provisioning", "error": error_str}
+                                )
+                            else:
+                                return TestConnectionResponse(
+                                    success=False,
+                                    status="failed",
+                                    message=f"{platform_upper} connection failed: {error_str}",
+                                    details={"mode": "metaapi_provisioning", "error": error_str}
+                                )
+                    else:
+                        logger.warning("MetaAPI provisioning service not available")
                         return TestConnectionResponse(
                             success=False,
                             status="failed",
-                            message=f"{platform_upper} Manager API URL not configured. "
-                                    "Please set up the API URL in your configuration.",
-                            details={"mode": "manager_api", "platform": platform}
+                            message=f"{platform_upper} connection requires MetaAPI provisioning service which is not configured. "
+                                    "Please set METAAPI_TOKEN environment variable.",
+                            details={"mode": "metaapi_provisioning", "error": "Provisioning service not available"}
                         )
 
-                    async with httpx.AsyncClient(
-                        base_url=api_url,
-                        timeout=10.0
-                    ) as client:
-                        response = await client.post(
-                            "/auth/login",
-                            json={
-                                "login": manager_login,
-                                "password": manager_password
-                            }
-                        )
-
-                        if response.status_code == 200:
-                            # Get auth token from response
-                            auth_token = None
-                            try:
-                                auth_data = response.json()
-                                auth_token = auth_data.get("token") or auth_data.get("access_token")
-                            except Exception:
-                                pass
-
-                            # Get symbols for format detection
-                            symbols = []
-                            if auth_token:
-                                try:
-                                    sym_response = await client.get(
-                                        "/symbols",
-                                        headers={"Authorization": f"Bearer {auth_token}"}
-                                    )
-                                    if sym_response.status_code == 200:
-                                        symbols_data = sym_response.json()
-                                        symbols = [s.get("symbol", s.get("name", "")) for s in symbols_data]
-                                except Exception as e:
-                                    logger.warning(f"Failed to get {platform_upper} symbols: {e}")
-
-                            # Detect symbol format
-                            detected_format, symbol_map, sample_symbols = self._detect_symbols(symbols)
-
-                            return TestConnectionResponse(
-                                success=True,
-                                status="connected",
-                                message=f"Successfully connected to {platform_upper} via Manager API",
-                                details={"mode": "manager_api", "platform": platform},
-                                detected_format=detected_format,
-                                symbol_map=symbol_map,
-                                sample_symbols=sample_symbols,
-                            )
-                        elif response.status_code == 401:
-                            return TestConnectionResponse(
-                                success=False,
-                                status="failed",
-                                message=f"Invalid {platform_upper} Manager credentials. "
-                                        "Please verify your login and password.",
-                                details={"mode": "manager_api", "http_status": 401}
-                            )
-                        else:
-                            return TestConnectionResponse(
-                                success=False,
-                                status="failed",
-                                message=f"{platform_upper} Manager API error: {response.status_code}",
-                                details={"mode": "manager_api", "http_status": response.status_code}
-                            )
-
+                except ImportError as e:
+                    logger.warning(f"MetaAPI provisioning imports failed: {e}")
                 except Exception as e:
+                    logger.error(f"{platform_upper} provisioning mode error: {e}")
                     return TestConnectionResponse(
                         success=False,
                         status="failed",
-                        message=f"{platform_upper} Manager API connection error: {str(e)}",
-                        details={"mode": "manager_api", "error": str(e)}
+                        message=f"{platform_upper} connection test error: {str(e)}",
+                        details={"mode": "metaapi_provisioning", "error": str(e)}
                     )
 
             return TestConnectionResponse(
                 success=False,
                 status="failed",
-                message=f"Missing {platform_upper} credentials. Provide either (metaapi_token, metaapi_account_id) "
-                        "for MetaAPI mode or (manager_login, manager_password) for Manager API mode.",
+                message=f"Missing {platform_upper} credentials. Provide login, password, and server.",
                 details={
-                    "required_metaapi": ["metaapi_token", "metaapi_account_id"],
-                    "required_manager": ["manager_login", "manager_password"],
+                    "required": ["login", "password", "server"],
                     "platform": platform
                 }
             )

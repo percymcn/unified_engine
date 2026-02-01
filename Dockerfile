@@ -1,5 +1,5 @@
-# Use the official Python 3.9 slim image
-FROM python:3.9-slim
+# Use the official Python 3.12 slim image (required for project-x-py>=3.5.0)
+FROM python:3.12-slim
 
 # Set environment variables
 ENV PYTHONDONTWRITEABLE=1
@@ -21,6 +21,9 @@ RUN apt-get update && apt-get install -y \
 # Copy requirements and install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Install SDKs with --no-deps to avoid dependency conflicts
+RUN pip install --no-cache-dir --no-deps tradelocker>=0.56.0 metaapi-cloud-sdk>=29.0.0
 
 # Copy application code
 COPY . .
