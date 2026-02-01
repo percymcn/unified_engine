@@ -260,6 +260,9 @@ async def test_connection(
     # Include discovered accounts (for MT4/MT5 via MetaAPI)
     if response.discovered_accounts:
         result["discovered_accounts"] = response.discovered_accounts
+        logger.info(f"Returning {len(response.discovered_accounts)} discovered accounts")
+    else:
+        logger.info(f"No discovered_accounts in response (type={type(response.discovered_accounts)}, value={response.discovered_accounts})")
 
     return result
 

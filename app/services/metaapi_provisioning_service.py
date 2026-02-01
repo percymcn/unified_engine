@@ -111,12 +111,21 @@ class MetaAPIProvisioningService:
                     acc_login = str(acc.login) if acc.login else ''
                     acc_server = acc.server if acc.server else ''
 
+                    # Debug: log each account being checked
+                    logger.debug(f"Checking account {acc.id}: login={acc_login}, server={acc_server}")
+
                     # Match by login and server (case-insensitive server match)
                     # Note: SDK v29+ doesn't expose platform attribute directly
                     if (acc_login == login_str and acc_server.lower() == server.lower()):
                         existing_account = acc
                         logger.info(f"Found existing MetaAPI account: {acc.id} for login={login}, server={server}")
                         break
+
+                if not existing_account and accounts:
+                    # Log why no match was found
+                    logger.info(f"No matching account found. Looking for login={login_str}, server={server.lower()}")
+                    for acc in accounts[:3]:  # Log first 3 accounts for debugging
+                        logger.info(f"  - Account {acc.id}: login={acc.login}, server={acc.server}")
             except Exception as e:
                 logger.warning(f"Could not check for existing accounts: {e}")
 
@@ -166,46 +175,51 @@ class MetaAPIProvisioningService:
 
             # Wait for account to connect to broker (with timeout)
             logger.info(f"Waiting for MetaAPI account to connect to broker...")
+            broker_connected = False
             try:
                 await asyncio.wait_for(
                     account.wait_connected(),
-                    timeout=120.0  # 2 minute timeout for initial connection
+                    timeout=60.0  # 1 minute timeout for initial connection (reduced from 2 min)
                 )
+                broker_connected = True
             except asyncio.TimeoutError:
                 logger.warning(f"Account {account_id} connection timeout - may still connect later")
 
-            # Get account info
+            # Get account info - only if broker connected (otherwise streaming will also fail)
             account_info = {}
-            try:
-                # Create a streaming connection to get account info
-                connection = account.get_streaming_connection()
-                await connection.connect()
-                await asyncio.wait_for(
-                    connection.wait_synchronized(),
-                    timeout=60.0
-                )
+            if broker_connected:
+                try:
+                    # Create a streaming connection to get account info
+                    connection = account.get_streaming_connection()
+                    await connection.connect()
+                    await asyncio.wait_for(
+                        connection.wait_synchronized(),
+                        timeout=30.0  # Reduced timeout
+                    )
 
-                terminal_state = connection.terminal_state
-                if terminal_state and terminal_state.account_information:
-                    info = terminal_state.account_information
-                    account_info = {
-                        "balance": float(info.get("balance", 0)),
-                        "equity": float(info.get("equity", 0)),
-                        "margin": float(info.get("margin", 0)),
-                        "free_margin": float(info.get("freeMargin", 0)),
-                        "leverage": int(info.get("leverage", 1)),
-                        "currency": info.get("currency", "USD"),
-                        "broker": info.get("broker", ""),
-                        "server": info.get("server", server),
-                        "trade_allowed": info.get("tradeAllowed", True),
-                    }
+                    terminal_state = connection.terminal_state
+                    if terminal_state and terminal_state.account_information:
+                        info = terminal_state.account_information
+                        account_info = {
+                            "balance": float(info.get("balance", 0)),
+                            "equity": float(info.get("equity", 0)),
+                            "margin": float(info.get("margin", 0)),
+                            "free_margin": float(info.get("freeMargin", 0)),
+                            "leverage": int(info.get("leverage", 1)),
+                            "currency": info.get("currency", "USD"),
+                            "broker": info.get("broker", ""),
+                            "server": info.get("server", server),
+                            "trade_allowed": info.get("tradeAllowed", True),
+                        }
 
-                await connection.close()
+                    await connection.close()
 
-            except asyncio.TimeoutError:
-                logger.warning(f"Account {account_id} sync timeout - basic info only")
-            except Exception as e:
-                logger.warning(f"Could not get account info: {e}")
+                except asyncio.TimeoutError:
+                    logger.warning(f"Account {account_id} sync timeout - basic info only")
+                except Exception as e:
+                    logger.warning(f"Could not get account info: {e}")
+            else:
+                logger.info(f"Skipping streaming sync - broker not connected yet")
 
             # Reload account to get latest state
             await account.reload()
