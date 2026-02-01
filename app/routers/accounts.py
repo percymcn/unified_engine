@@ -1024,27 +1024,40 @@ async def create_account(
         # Auto-connect when credentials are provided (safe, opt-in by input)
         has_credentials = bool(credentials) or bool(account.oauth_tokens)
         if has_credentials:
-            try:
-                connect_use_case = container.connect_account_use_case()
-                connect_response = await connect_use_case.execute(
-                    ConnectAccountRequest(
-                        account_id=str(orm_account.id),
-                        oauth_tokens=account.oauth_tokens,
+            # For brokers with per-user credentials, mark as connected immediately
+            # The actual connection is verified during webhook execution
+            broker_value = orm_account.broker.value if hasattr(orm_account.broker, "value") else str(orm_account.broker)
+            per_user_cred_brokers = {"tradelocker", "projectx", "topstep", "tradovate"}
+
+            if broker_value.lower() in per_user_cred_brokers:
+                # These brokers use per-user credentials stored in the credentials table
+                # Mark as connected since we just stored valid credentials
+                orm_account.is_connected = True
+                orm_account.last_sync = datetime.utcnow()
+                logger.info(f"Account {orm_account.id} ({broker_value}) marked as connected with stored credentials")
+            else:
+                # For brokers with global credentials (MT4/MT5), try the connect use case
+                try:
+                    connect_use_case = container.connect_account_use_case()
+                    connect_response = await connect_use_case.execute(
+                        ConnectAccountRequest(
+                            account_id=str(orm_account.id),
+                            oauth_tokens=account.oauth_tokens,
+                        )
                     )
-                )
-                if connect_response.is_connected:
-                    orm_account.is_connected = True
-                    if connect_response.balance is not None:
-                        orm_account.balance = float(connect_response.balance)
-                    if connect_response.equity is not None:
-                        orm_account.equity = float(connect_response.equity)
-            except Exception as exc:
-                logger.warning(
-                    "Auto-connect failed for account %s (broker=%s): %s",
-                    orm_account.id,
-                    orm_account.broker.value if hasattr(orm_account.broker, "value") else orm_account.broker,
-                    exc,
-                )
+                    if connect_response.is_connected:
+                        orm_account.is_connected = True
+                        if connect_response.balance is not None:
+                            orm_account.balance = float(connect_response.balance)
+                        if connect_response.equity is not None:
+                            orm_account.equity = float(connect_response.equity)
+                except Exception as exc:
+                    logger.warning(
+                        "Auto-connect failed for account %s (broker=%s): %s",
+                        orm_account.id,
+                        broker_value,
+                        exc,
+                    )
 
         db.commit()
 
