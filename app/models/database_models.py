@@ -471,6 +471,13 @@ class MomentumSettings(Base):
     # Discard bin settings
     discard_flush_interval = Column(String(10), nullable=False, default="24h")  # 1h, 24h, 30d
 
+    # Trading Session settings - control when webhooks are active
+    trading_session_enabled = Column(Boolean, nullable=False, default=False)  # Enable trading session restriction
+    trading_session_start = Column(String(5), nullable=True, default="09:30")  # Start time HH:MM (24h format)
+    trading_session_end = Column(String(5), nullable=True, default="16:00")  # End time HH:MM (24h format)
+    trading_session_timezone = Column(String(50), nullable=True, default="America/New_York")  # IANA timezone
+    trading_session_days = Column(JSON, nullable=True, default=[1, 2, 3, 4, 5])  # Days of week: 1=Mon, 7=Sun
+
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 

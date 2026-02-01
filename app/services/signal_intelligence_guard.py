@@ -19,6 +19,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
+import pytz
 
 from app.models.database_models import (
     MomentumSettings,
@@ -89,6 +90,12 @@ class SignalIntelligenceGuard:
         if staleness_result.decision != GuardDecision.EXECUTE:
             return staleness_result
 
+        # Trading Session Check (new entry only)
+        if signal.action != SignalAction.CLOSE:
+            session_result = self._check_trading_session(settings, user_id)
+            if session_result.decision != GuardDecision.EXECUTE:
+                return session_result
+
         # Determine session key for momentum tracking
         session_key = self._get_session_key(user_id, signal)
 
@@ -153,6 +160,101 @@ class SignalIntelligenceGuard:
         """Generate session key for momentum tracking"""
         strategy_id = signal.strategy_id or "default"
         return f"{user_id}:{signal.symbol.value}:{strategy_id}"
+
+    def _check_trading_session(
+        self,
+        settings: MomentumSettings,
+        user_id: int
+    ) -> GuardResult:
+        """
+        Check if current time is within user's trading session.
+
+        Returns SKIP decision if trading session is enabled and current time
+        is outside the configured trading hours.
+        """
+        # Check if trading session is enabled
+        if not getattr(settings, 'trading_session_enabled', False):
+            return GuardResult(
+                decision=GuardDecision.EXECUTE,
+                annotations={}
+            )
+
+        try:
+            # Get session settings
+            session_start = getattr(settings, 'trading_session_start', '09:30') or '09:30'
+            session_end = getattr(settings, 'trading_session_end', '16:00') or '16:00'
+            session_tz_str = getattr(settings, 'trading_session_timezone', 'America/New_York') or 'America/New_York'
+            session_days = getattr(settings, 'trading_session_days', [1, 2, 3, 4, 5]) or [1, 2, 3, 4, 5]
+
+            # Parse timezone
+            try:
+                session_tz = pytz.timezone(session_tz_str)
+            except Exception:
+                session_tz = pytz.timezone('America/New_York')
+
+            # Get current time in user's timezone
+            now_utc = datetime.utcnow().replace(tzinfo=pytz.UTC)
+            now_local = now_utc.astimezone(session_tz)
+
+            # Check day of week (1=Monday, 7=Sunday)
+            # Python's weekday() returns 0=Monday, 6=Sunday, so we add 1
+            current_day = now_local.weekday() + 1
+            if current_day not in session_days:
+                logger.info(f"Trading session: day {current_day} not in allowed days {session_days}")
+                return GuardResult(
+                    decision=GuardDecision.SKIP,
+                    annotations={
+                        "discard_reason": "outside_trading_session",
+                        "history_tag": f"trading_session – outside trading days",
+                        "current_day": current_day,
+                        "allowed_days": session_days,
+                    }
+                )
+
+            # Parse start and end times
+            start_hour, start_min = map(int, session_start.split(':'))
+            end_hour, end_min = map(int, session_end.split(':'))
+
+            # Create time objects for comparison
+            current_time_mins = now_local.hour * 60 + now_local.minute
+            start_time_mins = start_hour * 60 + start_min
+            end_time_mins = end_hour * 60 + end_min
+
+            # Check if current time is within session
+            if start_time_mins <= end_time_mins:
+                # Normal case: session doesn't cross midnight
+                in_session = start_time_mins <= current_time_mins <= end_time_mins
+            else:
+                # Session crosses midnight (e.g., 22:00 to 06:00)
+                in_session = current_time_mins >= start_time_mins or current_time_mins <= end_time_mins
+
+            if not in_session:
+                logger.info(f"Trading session: time {now_local.strftime('%H:%M')} outside {session_start}-{session_end}")
+                return GuardResult(
+                    decision=GuardDecision.SKIP,
+                    annotations={
+                        "discard_reason": "outside_trading_session",
+                        "history_tag": f"trading_session – outside hours ({session_start}-{session_end} {session_tz_str})",
+                        "current_time": now_local.strftime('%H:%M'),
+                        "session_start": session_start,
+                        "session_end": session_end,
+                        "session_timezone": session_tz_str,
+                    }
+                )
+
+            # Within trading session
+            return GuardResult(
+                decision=GuardDecision.EXECUTE,
+                annotations={}
+            )
+
+        except Exception as e:
+            logger.warning(f"Error checking trading session: {e}")
+            # On error, allow execution (fail open)
+            return GuardResult(
+                decision=GuardDecision.EXECUTE,
+                annotations={"trading_session_error": str(e)}
+            )
 
     async def _check_staleness(
         self,

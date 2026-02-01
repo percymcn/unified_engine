@@ -8,9 +8,12 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Shield, AlertTriangle, DollarSign, TrendingDown, Zap, Clock, Info } from "lucide-react";
+import { Shield, AlertTriangle, DollarSign, TrendingDown, Zap, Clock, Info, Calendar, Lock } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useUser } from "@/providers/user-provider";
+import Link from "next/link";
 
 interface GlobalRiskSettings {
   default_max_daily_trades: number | null;
@@ -36,6 +39,12 @@ interface MomentumSettings {
   staleness_seconds: number;
   force_old_signals: boolean;
   discard_flush_interval: string;
+  // Trading Session
+  trading_session_enabled: boolean;
+  trading_session_start: string;
+  trading_session_end: string;
+  trading_session_timezone: string;
+  trading_session_days: number[];
 }
 
 export default function RiskSettingsPage() {
@@ -43,6 +52,10 @@ export default function RiskSettingsPage() {
   const [momentumSettings, setMomentumSettings] = useState<MomentumSettings | null>(null);
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
+  const { user } = useUser();
+
+  // Check if user is on free tier (trading session not available for free users)
+  const isFreeTier = user?.subscription_tier === "free" || !user?.subscription_tier;
 
   useEffect(() => {
     fetchSettings();
@@ -69,6 +82,11 @@ export default function RiskSettingsPage() {
           staleness_seconds: 5,
           force_old_signals: false,
           discard_flush_interval: "24h",
+          trading_session_enabled: false,
+          trading_session_start: "09:30",
+          trading_session_end: "16:00",
+          trading_session_timezone: "America/New_York",
+          trading_session_days: [1, 2, 3, 4, 5],
         });
       }
     } catch (error) {
@@ -84,6 +102,11 @@ export default function RiskSettingsPage() {
         staleness_seconds: 5,
         force_old_signals: false,
         discard_flush_interval: "24h",
+        trading_session_enabled: false,
+        trading_session_start: "09:30",
+        trading_session_end: "16:00",
+        trading_session_timezone: "America/New_York",
+        trading_session_days: [1, 2, 3, 4, 5],
       });
     }
   }
@@ -550,6 +573,167 @@ export default function RiskSettingsPage() {
               </Select>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Trading Session */}
+      <Card className={isFreeTier ? "opacity-75" : ""}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="h-5 w-5" />
+            Trading Session
+            {isFreeTier && (
+              <span className="ml-2 inline-flex items-center gap-1 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                <Lock className="h-3 w-3" />
+                Paid Feature
+              </span>
+            )}
+          </CardTitle>
+          <CardDescription>
+            Control when webhooks are active. Signals received outside your trading hours will be rejected.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {isFreeTier ? (
+            <Alert>
+              <Lock className="h-4 w-4" />
+              <AlertTitle>Upgrade Required</AlertTitle>
+              <AlertDescription>
+                Trading Session control is available on Starter plan and above.
+                <Link href="/dashboard/settings/billing" className="ml-1 text-primary underline hover:no-underline">
+                  Upgrade now
+                </Link>
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <>
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Enable Trading Session</Label>
+                  <p className="text-xs text-muted-foreground">Only execute signals during defined trading hours</p>
+                </div>
+                <Switch
+                  checked={momentumSettings.trading_session_enabled}
+                  onCheckedChange={(v) => setMomentumSettings({ ...momentumSettings, trading_session_enabled: v })}
+                />
+              </div>
+
+          {momentumSettings.trading_session_enabled && (
+            <>
+              {/* Time Range */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Session Start</Label>
+                  <Input
+                    type="time"
+                    value={momentumSettings.trading_session_start}
+                    onChange={(e) => setMomentumSettings({
+                      ...momentumSettings,
+                      trading_session_start: e.target.value
+                    })}
+                  />
+                </div>
+                <div>
+                  <Label>Session End</Label>
+                  <Input
+                    type="time"
+                    value={momentumSettings.trading_session_end}
+                    onChange={(e) => setMomentumSettings({
+                      ...momentumSettings,
+                      trading_session_end: e.target.value
+                    })}
+                  />
+                </div>
+              </div>
+
+              {/* Timezone */}
+              <div>
+                <Label>Timezone</Label>
+                <Select
+                  value={momentumSettings.trading_session_timezone}
+                  onValueChange={(v) => setMomentumSettings({ ...momentumSettings, trading_session_timezone: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="America/New_York">Eastern Time (ET)</SelectItem>
+                    <SelectItem value="America/Chicago">Central Time (CT)</SelectItem>
+                    <SelectItem value="America/Denver">Mountain Time (MT)</SelectItem>
+                    <SelectItem value="America/Los_Angeles">Pacific Time (PT)</SelectItem>
+                    <SelectItem value="Europe/London">London (GMT/BST)</SelectItem>
+                    <SelectItem value="Europe/Paris">Central European (CET)</SelectItem>
+                    <SelectItem value="Asia/Tokyo">Tokyo (JST)</SelectItem>
+                    <SelectItem value="Asia/Hong_Kong">Hong Kong (HKT)</SelectItem>
+                    <SelectItem value="Asia/Singapore">Singapore (SGT)</SelectItem>
+                    <SelectItem value="Australia/Sydney">Sydney (AEST)</SelectItem>
+                    <SelectItem value="UTC">UTC</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Trading Days */}
+              <div className="space-y-3">
+                <Label>Trading Days</Label>
+                <div className="flex flex-wrap gap-3">
+                  {[
+                    { day: 1, label: "Mon" },
+                    { day: 2, label: "Tue" },
+                    { day: 3, label: "Wed" },
+                    { day: 4, label: "Thu" },
+                    { day: 5, label: "Fri" },
+                    { day: 6, label: "Sat" },
+                    { day: 7, label: "Sun" },
+                  ].map(({ day, label }) => (
+                    <div key={day} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`day-${day}`}
+                        checked={momentumSettings.trading_session_days?.includes(day)}
+                        onCheckedChange={(checked) => {
+                          const currentDays = momentumSettings.trading_session_days || [];
+                          const newDays = checked
+                            ? [...currentDays, day].sort()
+                            : currentDays.filter((d) => d !== day);
+                          setMomentumSettings({ ...momentumSettings, trading_session_days: newDays });
+                        }}
+                      />
+                      <label
+                        htmlFor={`day-${day}`}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                      >
+                        {label}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Signals will only execute on selected days during the session hours
+                </p>
+              </div>
+
+              {/* Session Preview */}
+              <Alert>
+                <Calendar className="h-4 w-4" />
+                <AlertTitle>Session Preview</AlertTitle>
+                <AlertDescription>
+                  Trading active: {momentumSettings.trading_session_start} - {momentumSettings.trading_session_end}{" "}
+                  ({momentumSettings.trading_session_timezone.split("/").pop()?.replace("_", " ")})
+                  <br />
+                  Days: {momentumSettings.trading_session_days?.length === 7
+                    ? "Every day"
+                    : momentumSettings.trading_session_days?.length === 5 &&
+                      [1, 2, 3, 4, 5].every(d => momentumSettings.trading_session_days?.includes(d))
+                    ? "Weekdays only"
+                    : momentumSettings.trading_session_days?.map(d =>
+                        ["", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][d]
+                      ).join(", ") || "None selected"
+                  }
+                </AlertDescription>
+              </Alert>
+            </>
+          )}
+            </>
+          )}
         </CardContent>
       </Card>
 

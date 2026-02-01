@@ -10,6 +10,10 @@ import {
   Users,
   Sparkles,
   Brain,
+  Clock,
+  TrendingDown,
+  RefreshCw,
+  Target,
 } from "lucide-react";
 
 const features = [
@@ -23,7 +27,7 @@ const features = [
     icon: Zap,
     title: "Instant Execution",
     description:
-      "Sub-second signal processing. Your trades execute before you blink.",
+      "Sub-55ms signal processing. Your trades execute before you blink.",
   },
   {
     icon: Shield,
@@ -48,6 +52,30 @@ const features = [
     title: "Multi-Account Routing",
     description:
       "Route one signal to multiple accounts across different brokers simultaneously.",
+  },
+  {
+    icon: Clock,
+    title: "Trading Session Control",
+    description:
+      "Define your active trading hours and days. Signals outside your session are automatically paused.",
+  },
+  {
+    icon: TrendingDown,
+    title: "Risk Management",
+    description:
+      "Set daily loss limits, max drawdown, position limits, and trade cooldowns to protect your capital.",
+  },
+  {
+    icon: RefreshCw,
+    title: "Symbol Mapping",
+    description:
+      "Map TradingView symbols to broker-specific formats automatically. BTCUSD → BTC/USD per broker.",
+  },
+  {
+    icon: Target,
+    title: "Position Management",
+    description:
+      "View and close positions from any broker directly in your dashboard with one click.",
   },
   {
     icon: Sparkles,

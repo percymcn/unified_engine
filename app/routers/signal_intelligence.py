@@ -45,6 +45,12 @@ class MomentumSettingsUpdate(BaseModel):
     staleness_seconds: Optional[int] = None
     force_old_signals: Optional[bool] = None
     discard_flush_interval: Optional[str] = None  # "1h", "24h", "30d"
+    # Trading Session settings
+    trading_session_enabled: Optional[bool] = None
+    trading_session_start: Optional[str] = None  # HH:MM format
+    trading_session_end: Optional[str] = None  # HH:MM format
+    trading_session_timezone: Optional[str] = None  # IANA timezone
+    trading_session_days: Optional[List[int]] = None  # Days of week: 1=Mon, 7=Sun
 
 
 class MomentumSettingsResponse(BaseModel):
@@ -60,6 +66,12 @@ class MomentumSettingsResponse(BaseModel):
     staleness_seconds: int
     force_old_signals: bool
     discard_flush_interval: str
+    # Trading Session settings
+    trading_session_enabled: bool = False
+    trading_session_start: Optional[str] = "09:30"
+    trading_session_end: Optional[str] = "16:00"
+    trading_session_timezone: Optional[str] = "America/New_York"
+    trading_session_days: Optional[List[int]] = [1, 2, 3, 4, 5]
     created_at: datetime
     updated_at: datetime
 
