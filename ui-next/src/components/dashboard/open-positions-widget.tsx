@@ -250,8 +250,15 @@ export function OpenPositionsWidget() {
                     {position.volume.toFixed(2)}
                   </span>
                 </div>
-                <div className="text-xs text-muted-foreground mt-0.5 capitalize">
-                  {position.account.account_name || position.account.broker}
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 capitalize">
+                    {position.account.broker}
+                  </Badge>
+                  {position.account.account_name && (
+                    <span className="text-xs text-muted-foreground">
+                      {position.account.account_name}
+                    </span>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-2">

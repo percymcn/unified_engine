@@ -10,7 +10,7 @@ Single API for both MT4 and MT5 platforms via cloud service.
 import asyncio
 import logging
 from typing import Optional, List, Dict, Any
-from datetime import datetime
+from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -154,14 +154,15 @@ class MetaAPISDKService:
 
     @property
     def terminal_state(self) -> Optional[Any]:
-        """Get terminal state for direct access to positions/orders/quotes."""
-        if self._connection:
+        """Get terminal state for direct access to positions/orders/quotes.
+        Note: Only available on streaming connections, not RPC."""
+        if self._connection and hasattr(self._connection, 'terminal_state'):
             return self._connection.terminal_state
         return None
 
     async def get_account_info(self) -> Dict[str, Any]:
         """
-        Get account information from terminal state.
+        Get account information via RPC call.
 
         Returns:
             Dict with account details (balance, equity, margin, etc.)
@@ -172,7 +173,8 @@ class MetaAPISDKService:
         if not self._connection:
             raise RuntimeError("Not connected")
 
-        account_info = self._connection.terminal_state.account_information
+        # Use RPC method directly instead of terminal_state
+        account_info = await self._connection.get_account_information()
         return {
             "broker": account_info.get("broker", ""),
             "currency": account_info.get("currency", "USD"),
@@ -192,7 +194,7 @@ class MetaAPISDKService:
 
     async def get_positions(self) -> List[Dict[str, Any]]:
         """
-        Get open positions from terminal state.
+        Get open positions via RPC call.
 
         Returns:
             List of position dicts
@@ -200,7 +202,8 @@ class MetaAPISDKService:
         if not self._connection:
             raise RuntimeError("Not connected")
 
-        positions = self._connection.terminal_state.positions
+        # Use RPC method directly instead of terminal_state
+        positions = await self._connection.get_positions()
         return [
             {
                 "id": str(pos.get("id", "")),
@@ -231,22 +234,33 @@ class MetaAPISDKService:
         end_time: Optional[datetime] = None
     ) -> List[Dict[str, Any]]:
         """
-        Get deal history (closed trades).
-        
+        Get deal history (closed trades) via RPC call.
+
         Args:
-            start_time: Optional start time filter
-            end_time: Optional end time filter
-            
+            start_time: Optional start time filter (defaults to 30 days ago)
+            end_time: Optional end time filter (defaults to now)
+
         Returns:
             List of deal dictionaries
         """
         if not self._connection:
             raise RuntimeError("Not connected")
-        
-        # MetaAPI SDK provides deal history through terminal state
-        deals = self._connection.terminal_state.deals
-        
-        deal_list = [
+
+        # Use RPC method to get deals by time range
+        # Default to last 30 days if no time specified
+        if not start_time:
+            start_time = datetime.now() - timedelta(days=30)
+        if not end_time:
+            end_time = datetime.now()
+
+        try:
+            # RPC method for getting deals by time range
+            deals = await self._connection.get_deals_by_time_range(start_time, end_time)
+        except Exception as e:
+            logger.warning(f"Failed to get deals by time range: {e}")
+            return []
+
+        return [
             {
                 "id": str(deal.get("id", "")),
                 "order_id": str(deal.get("orderId", "")),
@@ -264,42 +278,10 @@ class MetaAPISDKService:
             }
             for deal in deals
         ]
-        
-        # Filter by time if provided
-        if start_time or end_time:
-            filtered_deals = []
-            for deal in deal_list:
-                deal_time_str = deal.get("time", deal.get("broker_time", ""))
-                if not deal_time_str:
-                    continue
-                
-                try:
-                    # Parse deal time
-                    if isinstance(deal_time_str, (int, float)):
-                        deal_time = datetime.fromtimestamp(deal_time_str)
-                    elif 'T' in str(deal_time_str) or 'Z' in str(deal_time_str):
-                        deal_time_str_clean = str(deal_time_str).replace('Z', '+00:00')
-                        deal_time = datetime.fromisoformat(deal_time_str_clean)
-                    else:
-                        continue
-                    
-                    # Apply filters
-                    if start_time and deal_time < start_time:
-                        continue
-                    if end_time and deal_time > end_time:
-                        continue
-                    
-                    filtered_deals.append(deal)
-                except Exception:
-                    continue
-            
-            return filtered_deals
-        
-        return deal_list
 
     async def get_orders(self) -> List[Dict[str, Any]]:
         """
-        Get pending orders from terminal state.
+        Get pending orders via RPC call.
 
         Returns:
             List of order dicts
@@ -307,7 +289,8 @@ class MetaAPISDKService:
         if not self._connection:
             raise RuntimeError("Not connected")
 
-        orders = self._connection.terminal_state.orders
+        # Use RPC method directly instead of terminal_state
+        orders = await self._connection.get_orders()
         return [
             {
                 "id": str(order.get("id", "")),
@@ -1121,13 +1104,16 @@ class MetaAPISDKService:
         Returns:
             List of symbol names with active subscriptions
         """
-        if not self._connection or not self._connection.terminal_state:
+        if not self._connection:
             return []
 
         try:
-            # Get symbols with price data in terminal state
-            # This indicates an active subscription
-            return list(self._connection.terminal_state.prices.keys())
+            # Check if terminal_state is available (streaming connections only)
+            if hasattr(self._connection, 'terminal_state') and self._connection.terminal_state:
+                # Get symbols with price data in terminal state
+                return list(self._connection.terminal_state.prices.keys())
+            # RPC connections don't track subscriptions the same way
+            return []
         except Exception as e:
             logger.error(f"Error getting subscribed symbols: {e}")
             return []
