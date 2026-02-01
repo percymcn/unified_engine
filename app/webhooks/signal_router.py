@@ -1,6 +1,10 @@
 """
 Webhook Signal Router
 Handles TradingView, TrailHacker, and custom webhook signals
+
+This router now integrates with WebhookConfig for multi-account routing.
+If a webhook_key matches a WebhookConfig, it uses the AccountRoutingService.
+Otherwise, it falls back to the legacy signal_processor flow.
 """
 import asyncio
 import json
@@ -12,6 +16,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from app.services.signal_processor import signal_processor
 from app.models.pydantic_schemas import WebhookRequest, WebhookResponse
+from app.models.database_models import WebhookConfig
 from app.db.database import get_db
 from app.core.config import settings
 from app.routers.auth import verify_api_key
@@ -120,27 +125,60 @@ async def tradingview_webhook(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
-    """Handle TradingView webhook signals"""
+    """Handle TradingView webhook signals
+
+    This endpoint now supports both:
+    1. WebhookConfig routing (multi-account) - if key matches a WebhookConfig
+    2. Legacy signal_processor routing - fallback for direct account keys
+    """
     try:
-        # Validate webhook key (in production, this would be more sophisticated)
+        # Validate webhook key
         if not webhook_key or len(webhook_key) < 10:
             raise HTTPException(status_code=401, detail="Invalid webhook key")
-        
-        # Parse and validate payload
+
+        # Parse payload
         try:
             payload = await request.json()
         except Exception:
             raise HTTPException(status_code=400, detail="Invalid JSON payload")
-        
+
+        # Check if this webhook_key matches a WebhookConfig (multi-account routing)
+        webhook_config = db.query(WebhookConfig).filter(
+            WebhookConfig.webhook_key == webhook_key,
+            WebhookConfig.is_active == True
+        ).first()
+
+        if webhook_config:
+            # Use the new webhook_execute router for proper multi-account routing
+            logger.info(f"WebhookConfig found for key {webhook_key[:12]}..., using multi-account routing")
+
+            # Import here to avoid circular imports
+            from app.routers.webhook_execute import execute_tradingview_signal
+
+            # Inject webhook_key into payload if not present
+            if "webhook_key" not in payload:
+                payload["webhook_key"] = webhook_key
+
+            # Create a new request-like object with the modified payload
+            # We'll use a simple approach: store the payload and let execute_tradingview_signal read it
+            request._json = payload
+            request._body = json.dumps(payload).encode()
+
+            # Call the execute endpoint directly
+            return await execute_tradingview_signal(request, db)
+
+        # Fallback to legacy signal_processor for direct account keys
+        logger.info(f"No WebhookConfig for key {webhook_key[:12]}..., using legacy routing")
+
         # Validate TradingView specific format
         if not webhook_router.validate_webhook_payload("tradingview", payload):
             raise HTTPException(status_code=400, detail="Invalid TradingView webhook format")
-        
-        # Process webhook
+
+        # Process webhook via legacy signal_processor
         return await webhook_router.process_webhook_request(
             request, "tradingview", background_tasks, db
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:

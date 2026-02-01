@@ -186,6 +186,22 @@ export function WebhookConfigCard({
         <div className="space-y-2 pt-2 border-t border-border">
           <div className="text-xs font-medium">Configuration</div>
           <div className="space-y-1 text-xs text-muted-foreground">
+            <div className="flex items-center gap-1">
+              <span className="font-medium text-foreground">Strategy:</span>{' '}
+              {config.routing_strategy === 'all_accounts' && 'All Accounts'}
+              {config.routing_strategy === 'specific_accounts' && 'Specific Accounts'}
+              {config.routing_strategy === 'rules_based' && 'Rules Based'}
+              {config.routing_strategy === 'default_only' && 'Default Only'}
+              {!config.routing_strategy && 'Default Only'}
+            </div>
+            {config.specific_account_ids && config.specific_account_ids.length > 0 && (
+              <div>
+                Target accounts: {config.specific_account_ids.map(id => `#${id}`).join(', ')}
+              </div>
+            )}
+            {config.default_account_id && (
+              <div>Default account: #{config.default_account_id}</div>
+            )}
             {(config.routing_rules?.length || 0) > 0 && (
               <div>
                 {config.routing_rules?.length || 0} routing rule
@@ -199,9 +215,6 @@ export function WebhookConfigCard({
               <div>
                 Action filter: {config.action_filter.map((a) => a.toUpperCase()).join(', ')}
               </div>
-            )}
-            {config.default_account_id && (
-              <div>Default account: #{config.default_account_id}</div>
             )}
           </div>
         </div>
