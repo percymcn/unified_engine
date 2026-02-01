@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Zap, Loader2, CheckCircle, XCircle, ChevronDown } from 'lucide-react';
+import { Zap, Loader2, CheckCircle, XCircle, ChevronDown, Server } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
@@ -16,27 +16,77 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
   DropdownMenuLabel,
+  DropdownMenuGroup,
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/providers/user-provider';
 
-// Test symbols - crypto available 24/7 for when forex is closed
-const TEST_SYMBOLS = [
+// Broker-specific symbols configuration
+const BROKER_SYMBOLS: Record<string, { value: string; label: string; category: string }[]> = {
+  mt5: [
+    { value: 'XAUUSD', label: 'Gold (XAUUSD)', category: 'Commodity' },
+    { value: 'EURUSD', label: 'EUR/USD', category: 'Forex' },
+    { value: 'BTCUSD', label: 'Bitcoin (BTCUSD)', category: 'Crypto 24/7' },
+    { value: 'ETHUSD', label: 'Ethereum (ETHUSD)', category: 'Crypto 24/7' },
+  ],
+  mt4: [
+    { value: 'XAUUSD', label: 'Gold (XAUUSD)', category: 'Commodity' },
+    { value: 'EURUSD', label: 'EUR/USD', category: 'Forex' },
+    { value: 'GBPUSD', label: 'GBP/USD', category: 'Forex' },
+  ],
+  tradelocker: [
+    { value: 'BTCUSD', label: 'Bitcoin (BTCUSD)', category: 'Crypto 24/7' },
+    { value: 'XAUUSD', label: 'Gold (XAUUSD)', category: 'Commodity' },
+    { value: 'EURUSD', label: 'EUR/USD', category: 'Forex' },
+    { value: 'ETHUSD', label: 'Ethereum (ETHUSD)', category: 'Crypto 24/7' },
+  ],
+  projectx: [
+    { value: 'MNQ', label: 'Micro Nasdaq (MNQ)', category: 'Futures' },
+    { value: 'MES', label: 'Micro S&P (MES)', category: 'Futures' },
+    { value: 'ES', label: 'E-mini S&P (ES)', category: 'Futures' },
+    { value: 'NQ', label: 'E-mini Nasdaq (NQ)', category: 'Futures' },
+  ],
+  tradovate: [
+    { value: 'MNQ', label: 'Micro Nasdaq (MNQ)', category: 'Futures' },
+    { value: 'MES', label: 'Micro S&P (MES)', category: 'Futures' },
+    { value: 'ES', label: 'E-mini S&P (ES)', category: 'Futures' },
+  ],
+};
+
+// Default symbols for unknown brokers
+const DEFAULT_SYMBOLS = [
   { value: 'XAUUSD', label: 'Gold (XAUUSD)', category: 'Commodity' },
   { value: 'EURUSD', label: 'EUR/USD', category: 'Forex' },
   { value: 'BTCUSD', label: 'Bitcoin (BTCUSD)', category: 'Crypto 24/7' },
-  { value: 'ETHUSD', label: 'Ethereum (ETHUSD)', category: 'Crypto 24/7' },
 ];
+
+// Broker display names
+const BROKER_NAMES: Record<string, string> = {
+  mt5: 'MetaTrader 5',
+  mt4: 'MetaTrader 4',
+  tradelocker: 'TradeLocker',
+  projectx: 'ProjectX/TopStep',
+  tradovate: 'Tradovate',
+};
 
 interface TestResult {
   success: boolean;
   message: string;
   signal_id?: string;
   symbol?: string;
+  broker?: string;
   phases?: {
     open: { success: boolean; signal_id?: string };
     close: { success: boolean; signal_id?: string };
   };
+}
+
+interface Account {
+  id: number;
+  broker: string;
+  account_name?: string;
+  account_number?: string;
+  is_active: boolean;
 }
 
 interface TestWebhookButtonProps {
@@ -46,9 +96,56 @@ interface TestWebhookButtonProps {
 export function TestWebhookButton({ onSuccess }: TestWebhookButtonProps) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<TestResult | null>(null);
-  const [selectedSymbol, setSelectedSymbol] = useState('XAUUSD');
+  const [selectedSymbol, setSelectedSymbol] = useState('BTCUSD');
+  const [selectedBroker, setSelectedBroker] = useState<string | null>(null);
+  const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const { toast } = useToast();
   const { user } = useUser();
+
+  // Fetch accounts on mount
+  useEffect(() => {
+    const fetchAccounts = async () => {
+      try {
+        const response = await fetch('/api/accounts', {
+          credentials: 'include',
+        });
+        if (response.ok) {
+          const data = await response.json();
+          const activeAccounts = (data.accounts || []).filter((a: Account) => a.is_active);
+          setAccounts(activeAccounts);
+
+          // Auto-select first account if available
+          if (activeAccounts.length > 0 && !selectedAccountId) {
+            setSelectedAccountId(activeAccounts[0].id);
+            setSelectedBroker(activeAccounts[0].broker?.toLowerCase() || null);
+            // Set default symbol based on broker
+            const brokerSymbols = BROKER_SYMBOLS[activeAccounts[0].broker?.toLowerCase() || ''] || DEFAULT_SYMBOLS;
+            setSelectedSymbol(brokerSymbols[0]?.value || 'BTCUSD');
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch accounts:', error);
+      }
+    };
+    fetchAccounts();
+  }, []);
+
+  // Get symbols for selected broker
+  const availableSymbols = selectedBroker
+    ? BROKER_SYMBOLS[selectedBroker] || DEFAULT_SYMBOLS
+    : DEFAULT_SYMBOLS;
+
+  // Handle broker/account change
+  const handleAccountChange = (accountId: number, broker: string) => {
+    setSelectedAccountId(accountId);
+    setSelectedBroker(broker.toLowerCase());
+    // Reset symbol to first available for new broker
+    const brokerSymbols = BROKER_SYMBOLS[broker.toLowerCase()] || DEFAULT_SYMBOLS;
+    if (!brokerSymbols.find(s => s.value === selectedSymbol)) {
+      setSelectedSymbol(brokerSymbols[0]?.value || 'BTCUSD');
+    }
+  };
 
   const handleTest = async () => {
     setLoading(true);
@@ -60,9 +157,9 @@ export function TestWebhookButton({ onSuccess }: TestWebhookButtonProps) {
         title: 'No webhook key',
         description: 'Generate a webhook key first in the Webhook settings.',
         action: (
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => window.location.href = '/dashboard/settings/webhooks'}
             className="ml-2 mt-2"
           >
@@ -76,6 +173,17 @@ export function TestWebhookButton({ onSuccess }: TestWebhookButtonProps) {
       return;
     }
 
+    // Safety check: Ensure account is selected
+    if (!selectedAccountId) {
+      toast({
+        title: 'No account selected',
+        description: 'Select a broker account to test.',
+        variant: 'destructive',
+      });
+      setLoading(false);
+      return;
+    }
+
     try {
       const response = await fetch('/api/webhooks/test', {
         method: 'POST',
@@ -83,7 +191,11 @@ export function TestWebhookButton({ onSuccess }: TestWebhookButtonProps) {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify({ symbol: selectedSymbol }),
+        body: JSON.stringify({
+          symbol: selectedSymbol,
+          account_id: selectedAccountId,
+          broker: selectedBroker,
+        }),
       });
 
       const data = await response.json();
@@ -93,6 +205,7 @@ export function TestWebhookButton({ onSuccess }: TestWebhookButtonProps) {
         message: data.message || (data.success ? 'Test signal sent successfully' : 'Failed to send test signal'),
         signal_id: data.signal_id,
         symbol: data.symbol || selectedSymbol,
+        broker: selectedBroker || undefined,
         phases: data.phases,
       };
 
@@ -101,7 +214,7 @@ export function TestWebhookButton({ onSuccess }: TestWebhookButtonProps) {
       // Show toast notification
       if (testResult.success) {
         const phaseInfo = testResult.phases
-          ? `Opened & closed ${testResult.symbol}`
+          ? `Opened & closed ${testResult.symbol} on ${BROKER_NAMES[selectedBroker || ''] || selectedBroker}`
           : `Signal ID: ${testResult.signal_id}`;
         toast({
           title: 'Test Complete!',
@@ -122,6 +235,9 @@ export function TestWebhookButton({ onSuccess }: TestWebhookButtonProps) {
         } else if (testResult.message?.toLowerCase().includes('invalid')) {
           errorTitle = 'Invalid Webhook Key';
           errorDescription = 'Your webhook key may be invalid. Try generating a new one.';
+        } else if (testResult.message?.toLowerCase().includes('market closed')) {
+          errorTitle = 'Market Closed';
+          errorDescription = 'Try using a crypto symbol (BTCUSD) which is available 24/7.';
         }
 
         toast({
@@ -150,10 +266,64 @@ export function TestWebhookButton({ onSuccess }: TestWebhookButtonProps) {
     }
   };
 
-  const selectedSymbolData = TEST_SYMBOLS.find(s => s.value === selectedSymbol);
+  const selectedSymbolData = availableSymbols.find(s => s.value === selectedSymbol);
+  const selectedAccount = accounts.find(a => a.id === selectedAccountId);
+
+  // Group accounts by broker
+  const accountsByBroker = accounts.reduce((acc, account) => {
+    const broker = account.broker?.toLowerCase() || 'unknown';
+    if (!acc[broker]) acc[broker] = [];
+    acc[broker].push(account);
+    return acc;
+  }, {} as Record<string, Account[]>);
 
   return (
     <div className="flex items-center gap-1">
+      {/* Broker/Account selector */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" size="sm" className="h-9 px-2" disabled={loading}>
+            <Server className="h-3 w-3 mr-1" />
+            <span className="text-xs">
+              {selectedAccount
+                ? `${BROKER_NAMES[selectedBroker || ''] || selectedBroker}`
+                : 'Select Broker'}
+            </span>
+            <ChevronDown className="h-3 w-3 ml-1" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-[220px]">
+          <DropdownMenuLabel className="text-xs">Select Account</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          {Object.entries(accountsByBroker).map(([broker, brokerAccounts]) => (
+            <DropdownMenuGroup key={broker}>
+              <DropdownMenuLabel className="text-xs text-muted-foreground">
+                {BROKER_NAMES[broker] || broker.toUpperCase()}
+              </DropdownMenuLabel>
+              {brokerAccounts.map((account) => (
+                <DropdownMenuItem
+                  key={account.id}
+                  onClick={() => handleAccountChange(account.id, account.broker)}
+                  className="flex justify-between"
+                >
+                  <span className="text-sm truncate">
+                    {account.account_name || account.account_number || `Account ${account.id}`}
+                  </span>
+                  {selectedAccountId === account.id && (
+                    <CheckCircle className="h-3 w-3 text-green-500 ml-2" />
+                  )}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuGroup>
+          ))}
+          {accounts.length === 0 && (
+            <DropdownMenuItem disabled>
+              <span className="text-xs text-muted-foreground">No accounts found</span>
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+
       {/* Symbol selector dropdown */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -163,9 +333,11 @@ export function TestWebhookButton({ onSuccess }: TestWebhookButtonProps) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
-          <DropdownMenuLabel className="text-xs">Test Symbol</DropdownMenuLabel>
+          <DropdownMenuLabel className="text-xs">
+            Test Symbol {selectedBroker && `(${BROKER_NAMES[selectedBroker] || selectedBroker})`}
+          </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          {TEST_SYMBOLS.map((symbol) => (
+          {availableSymbols.map((symbol) => (
             <DropdownMenuItem
               key={symbol.value}
               onClick={() => setSelectedSymbol(symbol.value)}
@@ -188,7 +360,7 @@ export function TestWebhookButton({ onSuccess }: TestWebhookButtonProps) {
               variant={result ? (result.success ? 'outline' : 'destructive') : 'default'}
               size="sm"
               onClick={handleTest}
-              disabled={loading}
+              disabled={loading || !selectedAccountId}
               className="min-w-[120px]"
             >
               {loading ? (
@@ -218,6 +390,9 @@ export function TestWebhookButton({ onSuccess }: TestWebhookButtonProps) {
               <div className="space-y-1">
                 <p className="font-medium">{result.success ? 'Test Successful' : 'Test Failed'}</p>
                 <p className="text-xs text-muted-foreground">{result.message}</p>
+                {result.broker && (
+                  <p className="text-xs">Broker: {BROKER_NAMES[result.broker] || result.broker}</p>
+                )}
                 {result.phases && (
                   <div className="text-xs mt-1 space-y-0.5">
                     <p className="flex items-center gap-1">
@@ -237,6 +412,9 @@ export function TestWebhookButton({ onSuccess }: TestWebhookButtonProps) {
             ) : (
               <div className="space-y-1">
                 <p>Opens a test position on {selectedSymbol}, then closes it</p>
+                {selectedBroker && (
+                  <p className="text-xs font-medium">Broker: {BROKER_NAMES[selectedBroker] || selectedBroker}</p>
+                )}
                 <p className="text-xs text-muted-foreground">
                   {selectedSymbolData?.category.includes('24/7')
                     ? 'Crypto is available 24/7 for weekend testing'

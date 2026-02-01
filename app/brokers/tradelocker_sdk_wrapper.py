@@ -304,6 +304,7 @@ class TradeLockerSDKWrapper:
         side: str,
         order_type: str = "market",
         price: Optional[float] = None,
+        stop_price: Optional[float] = None,
         stop_loss: Optional[float] = None,
         take_profit: Optional[float] = None,
         stop_loss_type: str = "absolute",
@@ -318,7 +319,8 @@ class TradeLockerSDKWrapper:
             quantity: Order quantity (lots)
             side: 'buy' or 'sell'
             order_type: 'market', 'limit', 'stop'
-            price: Limit/stop price (required for limit/stop orders)
+            price: Limit price (required for limit orders)
+            stop_price: Stop price (required for stop orders)
             stop_loss: Stop loss price/distance
             take_profit: Take profit price/distance
             stop_loss_type: 'absolute', 'offset', or 'trailingOffset' (trailing stop)
@@ -337,21 +339,32 @@ class TradeLockerSDKWrapper:
         try:
             loop = asyncio.get_event_loop()
 
-            # The SDK uses 'type_' parameter for order type
+            # Build order params based on order type
+            # SDK uses 'price' for limit and 'stop_price' for stop orders
+            order_params = {
+                "instrument_id": instrument_id,
+                "quantity": quantity,
+                "side": side,
+                "type_": order_type,
+                "stop_loss": stop_loss,
+                "take_profit": take_profit,
+                "stop_loss_type": stop_loss_type,
+                "take_profit_type": take_profit_type,
+                "validity": validity,
+            }
+
+            # Handle price vs stop_price based on order type
+            if order_type == "stop":
+                # Stop orders require stop_price, not price
+                order_params["stop_price"] = stop_price or price
+            elif order_type == "limit":
+                # Limit orders use price
+                order_params["price"] = price
+            # Market orders don't need price
+
             result = await loop.run_in_executor(
                 self._executor,
-                lambda: self._tl.create_order(
-                    instrument_id=instrument_id,
-                    quantity=quantity,
-                    side=side,
-                    type_=order_type,
-                    price=price,
-                    stop_loss=stop_loss,
-                    take_profit=take_profit,
-                    stop_loss_type=stop_loss_type,
-                    take_profit_type=take_profit_type,
-                    validity=validity
-                )
+                lambda: self._tl.create_order(**order_params)
             )
 
             logger.info(f"Order created: {result}")
