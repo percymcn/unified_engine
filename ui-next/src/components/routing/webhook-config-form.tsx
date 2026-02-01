@@ -41,7 +41,6 @@ interface WebhookConfigFormProps {
 
 const SOURCE_OPTIONS: { value: WebhookSource; label: string }[] = [
   { value: 'tradingview', label: 'TradingView' },
-  { value: 'trailhacker', label: 'TrailHacker' },
   { value: 'custom', label: 'Custom' },
 ];
 

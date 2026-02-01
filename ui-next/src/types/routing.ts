@@ -18,7 +18,7 @@ export interface RoutingRule {
   priority: number;
 }
 
-export type WebhookSource = 'tradingview' | 'trailhacker' | 'custom';
+export type WebhookSource = 'tradingview' | 'custom';
 export type SignalAction = 'buy' | 'sell' | 'close';
 
 // Routing strategies for signal distribution

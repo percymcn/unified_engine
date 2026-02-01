@@ -26,7 +26,7 @@ const faqs = [
   },
   {
     question: "How fast are trades executed?",
-    answer: "Average execution time is under 100ms from when we receive your TradingView webhook to when the order is sent to your broker."
+    answer: "Average execution time is under 55ms from when we receive your TradingView webhook to when the order is sent to your broker."
   },
   {
     question: "Is there a free plan?",

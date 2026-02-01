@@ -48,9 +48,9 @@ class SignalSource(str, Enum):
     Identifies where a trading signal originated from for tracking and routing.
     """
     TRADINGVIEW = "tradingview"
-    TRAILHACKER = "trailhacker"
     MANUAL = "manual"
     API = "api"
+    CUSTOM = "custom"
 
 
 class SignalAction(str, Enum):
