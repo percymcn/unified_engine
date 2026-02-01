@@ -110,6 +110,7 @@ class MT5Executor(BaseExecutor):
         try:
             self._rest_client = httpx.AsyncClient(
                 timeout=30.0,
+                verify=False,  # Disable SSL verification for MetaAPI endpoints
                 headers={
                     "auth-token": self._metaapi_token,
                     "Content-Type": "application/json"
@@ -117,12 +118,12 @@ class MT5Executor(BaseExecutor):
             )
 
             # Try multiple API endpoints to find one that resolves
-            # MetaAPI has region-specific domains - try metaapi.cloud first (most reliable)
+            # MetaAPI has region-specific domains - use agiliumtrade.agiliumtrade.ai pattern which works
             provisioning_urls = [
+                f"https://mt-provisioning-api-v1.agiliumtrade.agiliumtrade.ai/users/current/accounts/{self._metaapi_account_id}",
                 f"https://metaapi.cloud/users/current/accounts/{self._metaapi_account_id}",
-                f"https://mt-provisioning-api-v1.london.agiliumtrade.ai/users/current/accounts/{self._metaapi_account_id}",
-                f"https://mt-provisioning-api-v1.new-york.agiliumtrade.ai/users/current/accounts/{self._metaapi_account_id}",
-                f"https://mt-provisioning-api-v1.agiliumtrade.ai/users/current/accounts/{self._metaapi_account_id}",
+                f"https://mt-provisioning-api-v1.london.agiliumtrade.agiliumtrade.ai/users/current/accounts/{self._metaapi_account_id}",
+                f"https://mt-provisioning-api-v1.new-york.agiliumtrade.agiliumtrade.ai/users/current/accounts/{self._metaapi_account_id}",
             ]
 
             account_data = None
@@ -131,7 +132,7 @@ class MT5Executor(BaseExecutor):
             for url in provisioning_urls:
                 try:
                     logger.info(f"MetaAPI REST: Trying {url}")
-                    response = await self._rest_client.get(url, timeout=10.0)
+                    response = await self._rest_client.get(url, timeout=3.0)  # Short timeout, fail fast
                     if response.status_code == 200:
                         account_data = response.json()
                         working_provisioning_url = url.rsplit('/users', 1)[0]
@@ -156,8 +157,9 @@ class MT5Executor(BaseExecutor):
             logger.info(f"MetaAPI REST: Account {self._metaapi_account_id} state={state}, region={region}")
 
             # Update client API URL based on detected region
+            # Use metaapi.cloud for client API (more reliable with SSL)
             self._metaapi_client_api = f"https://mt-client-api-v1.{region}.agiliumtrade.ai"
-            self._metaapi_provisioning_api = working_provisioning_url or f"https://mt-provisioning-api-v1.{region}.agiliumtrade.ai"
+            self._metaapi_provisioning_api = working_provisioning_url or f"https://mt-provisioning-api-v1.agiliumtrade.agiliumtrade.ai"
             logger.info(f"MetaAPI REST: Using client API: {self._metaapi_client_api}")
 
             if state != "DEPLOYED":
@@ -218,8 +220,9 @@ class MT5Executor(BaseExecutor):
 
             # Execute trade via REST API using region-specific URL
             url = f"{self._metaapi_client_api}/users/current/accounts/{self._metaapi_account_id}/trade"
-            logger.info(f"MetaAPI REST: Placing order via {url}")
+            logger.info(f"MetaAPI REST: Placing order via {url} with data: {trade_data}")
             response = await self._rest_client.post(url, json=trade_data)
+            logger.info(f"MetaAPI REST: Order response: {response.status_code} - {response.text[:500] if response.text else 'empty'}")
 
             if response.status_code in (200, 201):
                 result = response.json()
@@ -344,9 +347,51 @@ class MT5Executor(BaseExecutor):
 
     async def get_accounts(self) -> List[Account]:
         """Get all MT5 accounts."""
+        # Try REST API first (most reliable)
+        if self.is_using_rest_api:
+            return await self._get_accounts_rest()
         if self.is_using_sdk:
             return await self._get_accounts_sdk()
         return await self._get_accounts_httpx()
+
+    async def _get_accounts_rest(self) -> List[Account]:
+        """Get account info via MetaAPI REST API."""
+        logger.info(f"_get_accounts_rest called, rest_client={self._rest_client is not None}, account_id={self._metaapi_account_id}")
+        if not self._rest_client:
+            logger.warning("_get_accounts_rest: no REST client available")
+            return []
+
+        try:
+            # Per MetaAPI docs: GET /users/current/accounts/:accountId/account-information
+            url = f"{self._metaapi_client_api}/users/current/accounts/{self._metaapi_account_id}/account-information"
+            logger.info(f"_get_accounts_rest: fetching from {url}")
+            response = await self._rest_client.get(url, timeout=15.0)
+
+            if response.status_code == 200:
+                info = response.json()
+                logger.info(f"_get_accounts_rest SUCCESS: balance={info.get('balance')}, equity={info.get('equity')}, margin={info.get('margin')}, freeMargin={info.get('freeMargin')}")
+                return [Account(
+                    id=str(info.get("login", self._metaapi_account_id)),
+                    broker="mt5",
+                    account_type="demo" if info.get("type", "").upper() == "DEMO" else "live",
+                    currency=info.get("currency", "USD"),
+                    balance=float(info.get("balance", 0)),
+                    equity=float(info.get("equity", 0)),
+                    margin=float(info.get("margin", 0)),
+                    free_margin=float(info.get("freeMargin", 0)),
+                    margin_level=float(info.get("marginLevel", 0) or 0),
+                    leverage=int(info.get("leverage", 100)),
+                    is_active=True,
+                    is_live=info.get("type", "").upper() != "DEMO",
+                    created_at=datetime.now(),
+                    updated_at=datetime.now()
+                )]
+            else:
+                logger.warning(f"MetaAPI REST get_accounts failed: {response.status_code} - {response.text[:200]}")
+                return []
+        except Exception as e:
+            logger.error(f"Error getting MT5 accounts via REST: {e}")
+            return []
 
     async def _get_accounts_sdk(self) -> List[Account]:
         """Get accounts via MetaAPI SDK."""
@@ -410,9 +455,53 @@ class MT5Executor(BaseExecutor):
 
     async def get_positions(self, account_id: Optional[str] = None) -> List[Position]:
         """Get open positions from MT5."""
+        # Try REST API first (most reliable)
+        if self.is_using_rest_api:
+            return await self._get_positions_rest(account_id)
         if self.is_using_sdk:
             return await self._get_positions_sdk(account_id)
         return await self._get_positions_httpx(account_id)
+
+    async def _get_positions_rest(self, account_id: Optional[str] = None) -> List[Position]:
+        """Get positions via MetaAPI REST API."""
+        if not self._rest_client:
+            return []
+
+        try:
+            # Per MetaAPI docs: GET /users/current/accounts/:accountId/positions
+            url = f"{self._metaapi_client_api}/users/current/accounts/{self._metaapi_account_id}/positions"
+            response = await self._rest_client.get(url, timeout=15.0)
+
+            if response.status_code == 200:
+                positions_data = response.json()
+                positions = []
+                for pos in positions_data:
+                    position = Position(
+                        id=str(pos.get("id", "")),
+                        broker="mt5",
+                        account_id=account_id or self._metaapi_account_id or "",
+                        symbol=pos.get("symbol", ""),
+                        side="buy" if pos.get("type", "").upper() in ("POSITION_TYPE_BUY", "BUY") else "sell",
+                        size=float(pos.get("volume", 0)),
+                        entry_price=float(pos.get("openPrice", 0)),
+                        current_price=float(pos.get("currentPrice", pos.get("openPrice", 0))),
+                        unrealized_pnl=float(pos.get("profit", pos.get("unrealizedProfit", 0))),
+                        realized_pnl=0.0,
+                        margin=float(pos.get("margin", 0)),
+                        magic_number=pos.get("magic", 0),
+                        comment=pos.get("comment", ""),
+                        open_time=self._parse_sdk_datetime(pos.get("time", pos.get("openTime", ""))),
+                        close_time=None,
+                        is_active=True
+                    )
+                    positions.append(position)
+                return positions
+            else:
+                logger.warning(f"MetaAPI REST get_positions failed: {response.status_code} - {response.text[:200]}")
+                return []
+        except Exception as e:
+            logger.error(f"Error getting MT5 positions via REST: {e}")
+            return []
 
     def _parse_sdk_datetime(self, time_str: Optional[str]) -> datetime:
         """Parse MetaAPI datetime string to datetime object."""
@@ -820,9 +909,76 @@ class MT5Executor(BaseExecutor):
 
     async def close_position(self, position_id: str, quantity: Optional[float] = None) -> TradeResponse:
         """Close position in MT5."""
+        # Try REST API first (most reliable)
+        if self.is_using_rest_api:
+            return await self._close_position_rest(position_id, quantity)
         if self.is_using_sdk:
             return await self._close_position_sdk(position_id, quantity)
         return await self._close_position_httpx(position_id, quantity)
+
+    async def _close_position_rest(self, position_id: str, quantity: Optional[float] = None) -> TradeResponse:
+        """Close position via MetaAPI REST API."""
+        if not self._rest_client:
+            return TradeResponse(success=False, error="REST client not initialized")
+
+        try:
+            # Get position info first
+            positions = await self._get_positions_rest()
+            position = None
+            for pos in positions:
+                if str(pos.id) == str(position_id):
+                    position = pos
+                    break
+
+            if not position:
+                return TradeResponse(success=False, error=f"Position {position_id} not found")
+
+            # Close via REST API
+            # Use POSITION_PARTIAL for partial close, POSITION_CLOSE_ID for full close
+            if quantity and quantity < position.size:
+                # Partial close
+                trade_data = {
+                    "actionType": "POSITION_PARTIAL",
+                    "positionId": str(position_id),
+                    "volume": float(quantity),
+                }
+            else:
+                # Full close - POSITION_CLOSE_ID doesn't accept volume
+                trade_data = {
+                    "actionType": "POSITION_CLOSE_ID",
+                    "positionId": str(position_id),
+                }
+
+            url = f"{self._metaapi_client_api}/users/current/accounts/{self._metaapi_account_id}/trade"
+            logger.info(f"MetaAPI REST: Closing position {position_id} with data: {trade_data}")
+            response = await self._rest_client.post(url, json=trade_data, timeout=15.0)
+            logger.info(f"MetaAPI REST: Close response: {response.status_code} - {response.text[:500] if response.text else 'empty'}")
+
+            if response.status_code in (200, 201):
+                result = response.json()
+                return TradeResponse(
+                    success=True,
+                    trade_id=str(result.get("orderId", position_id)),
+                    broker="mt5",
+                    symbol=position.symbol,
+                    side="sell" if position.side == "buy" else "buy",
+                    quantity=quantity or position.size,
+                    price=position.current_price,
+                    pnl=position.unrealized_pnl,
+                    commission=0.0,
+                    timestamp=datetime.now(),
+                )
+            else:
+                error_msg = response.text
+                try:
+                    error_data = response.json()
+                    error_msg = error_data.get("message", error_data.get("error", response.text))
+                except:
+                    pass
+                return TradeResponse(success=False, error=f"REST close failed: {error_msg}")
+        except Exception as e:
+            logger.error(f"REST close_position failed: {e}")
+            return TradeResponse(success=False, error=str(e))
 
     async def _close_position_sdk(self, position_id: str, quantity: Optional[float] = None) -> TradeResponse:
         """Close position via MetaAPI SDK."""
@@ -921,9 +1077,17 @@ class MT5Executor(BaseExecutor):
 
     async def get_account_info(self, account_id: str) -> Optional[Account]:
         """Get specific account information."""
+        logger.info(f"get_account_info called: is_using_rest_api={self.is_using_rest_api}, is_using_sdk={self.is_using_sdk}")
+        # Try REST API first (most reliable)
+        if self.is_using_rest_api:
+            logger.info("get_account_info: using REST API path")
+            accounts = await self._get_accounts_rest()
+            return accounts[0] if accounts else None
         if self.is_using_sdk:
+            logger.info("get_account_info: using SDK path")
             accounts = await self._get_accounts_sdk()
             return accounts[0] if accounts else None
+        logger.info("get_account_info: using httpx fallback path")
         return await self._get_account_info_httpx(account_id)
 
     async def _get_account_info_httpx(self, account_id: str) -> Optional[Account]:
