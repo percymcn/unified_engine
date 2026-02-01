@@ -716,8 +716,8 @@ export default function RiskSettingsPage() {
                 <Calendar className="h-4 w-4" />
                 <AlertTitle>Session Preview</AlertTitle>
                 <AlertDescription>
-                  Trading active: {momentumSettings.trading_session_start} - {momentumSettings.trading_session_end}{" "}
-                  ({momentumSettings.trading_session_timezone.split("/").pop()?.replace("_", " ")})
+                  Trading active: {momentumSettings.trading_session_start || "09:30"} - {momentumSettings.trading_session_end || "16:00"}{" "}
+                  ({(momentumSettings.trading_session_timezone || "America/New_York").split("/").pop()?.replace("_", " ")})
                   <br />
                   Days: {momentumSettings.trading_session_days?.length === 7
                     ? "Every day"
