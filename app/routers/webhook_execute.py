@@ -38,7 +38,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 
 from app.db.database import get_db
-from app.models.models import WebhookLog, ExecutionLog, BrokerType as ModelsBrokerType, Signal as SignalORM, SignalSource as ModelsSignalSource
+from app.models.models import WebhookLog, ExecutionLog, BrokerType as ModelsBrokerType, Signal as SignalORM, SignalSource as ModelsSignalSource, SymbolAlias
 from app.models.database_models import TradingAccount, DiscardBin, WebhookConfig
 from app.models.schemas import WebhookLogCreate
 from app.dependencies import get_container
@@ -50,6 +50,46 @@ from app.domain.value_objects import SignalId, Symbol, Volume, Price, StopLoss, 
 from app.domain.services.account_routing_service import AccountRoutingService
 
 logger = logging.getLogger(__name__)
+
+
+def resolve_symbol_for_broker(
+    db: Session,
+    user_id: int,
+    source_symbol: str,
+    broker_type: str
+) -> str:
+    """
+    Resolve a source symbol to the broker-specific format using symbol aliases.
+
+    Looks up user's symbol alias table to map TradingView symbols to broker-specific formats.
+    E.g., "BTCUSD" -> "BTC/USD" for TradeLocker, or "BTCUSD" -> "BTCUSD.ecn" for MT5.
+
+    Args:
+        db: Database session
+        user_id: User ID to look up aliases for
+        source_symbol: The incoming symbol (e.g., from TradingView)
+        broker_type: The broker type (e.g., "tradelocker", "mt5", "projectx")
+
+    Returns:
+        The mapped symbol for the broker, or the original symbol if no mapping found.
+    """
+    source_upper = source_symbol.upper().strip()
+    broker_lower = broker_type.lower().strip()
+
+    # Look up alias for this user/symbol/broker combination
+    alias = db.query(SymbolAlias).filter(
+        SymbolAlias.user_id == user_id,
+        SymbolAlias.source_symbol == source_upper,
+        SymbolAlias.broker_type == broker_lower
+    ).first()
+
+    if alias and alias.target_symbol:
+        logger.info(f"Symbol mapped: {source_symbol} -> {alias.target_symbol} for {broker_type}")
+        return alias.target_symbol
+
+    # No alias found - return original symbol
+    return source_symbol
+
 
 router = APIRouter()
 
@@ -573,6 +613,15 @@ async def execute_tradingview_signal(
         account_start = datetime.utcnow()
         broker_str = account.broker.value if hasattr(account.broker, 'value') else str(account.broker)
 
+        # Resolve symbol for this specific broker (symbol mapping)
+        # Do this early so it's available for both execution and logging
+        mapped_symbol = resolve_symbol_for_broker(
+            db=db,
+            user_id=account.user_id,
+            source_symbol=symbol,
+            broker_type=broker_str
+        )
+
         try:
             # Create account-specific executor with credentials
             executor, needs_cleanup = await _create_account_executor(account, db)
@@ -595,12 +644,13 @@ async def execute_tradingview_signal(
                         return obj.get(key, default)
                     return getattr(obj, key, default)
 
-                # Get positions and close matching ones
+                # Get positions and close matching ones (check both original and mapped symbol)
                 try:
                     positions = await executor.get_positions()
                     matching_positions = [
                         p for p in (positions or [])
                         if symbol.upper() in (get_attr(p, 'symbol', '') or '').upper()
+                        or mapped_symbol.upper() in (get_attr(p, 'symbol', '') or '').upper()
                     ]
 
                     if not matching_positions:
@@ -642,7 +692,7 @@ async def execute_tradingview_signal(
                 effective_order_type = f"{order_type_payload}_{action_str}"  # e.g., "market_buy", "limit_sell"
                 order_request = OrderRequest(
                     account_id=account.id,
-                    symbol=symbol,
+                    symbol=mapped_symbol,  # Use broker-specific symbol
                     order_type=effective_order_type,
                     quantity=quantity,
                     price=limit_price,  # For limit orders
@@ -688,7 +738,7 @@ async def execute_tradingview_signal(
                 errors=use_case_result.errors
             )
 
-            # Persist execution log for this account
+            # Persist execution log for this account (use mapped_symbol to show what was actually sent)
             try:
                 models_broker = ModelsBrokerType(broker_str.lower())
                 exec_log = ExecutionLog(
@@ -696,11 +746,11 @@ async def execute_tradingview_signal(
                     account_id=account.id,
                     broker=models_broker,
                     action=action_str.upper(),
-                    symbol=symbol,
+                    symbol=mapped_symbol,  # Use the broker-specific mapped symbol
                     volume=quantity,
                     price=None,
                     status="success" if execution_success else "failed",
-                    broker_response={"executions": use_case_result.executions} if execution_success else None,
+                    broker_response={"executions": use_case_result.executions, "original_symbol": symbol} if execution_success else None,
                     error_message="; ".join(use_case_result.errors) if use_case_result.errors else None,
                     execution_time_ms=int((datetime.utcnow() - account_start).total_seconds() * 1000)
                 )
@@ -737,7 +787,7 @@ async def execute_tradingview_signal(
             error_msg = str(e)
             all_errors.append(f"Account {account.id}: {error_msg}")
 
-            # Persist failed execution log
+            # Persist failed execution log (use mapped_symbol to show what was attempted)
             try:
                 db.rollback()
                 models_broker = ModelsBrokerType(broker_str.lower())
@@ -746,7 +796,7 @@ async def execute_tradingview_signal(
                     account_id=account.id,
                     broker=models_broker,
                     action=action_str.upper(),
-                    symbol=symbol,
+                    symbol=mapped_symbol,  # Use the broker-specific mapped symbol
                     volume=quantity,
                     status="failed",
                     error_message=error_msg,
