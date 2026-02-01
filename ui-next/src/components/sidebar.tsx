@@ -20,6 +20,7 @@ import {
   Wrench,
   Crown,
   Sparkles,
+  HelpCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUser } from '@/providers/user-provider';
@@ -44,6 +45,7 @@ const settingsNavigation = [
   { name: 'Webhooks', href: '/settings/webhooks', icon: Webhook },
   { name: 'Webhook Logs', href: '/settings/webhook-logs', icon: History },
   { name: 'Billing', href: '/settings/billing', icon: CreditCard },
+  { name: 'Help & Support', href: '/settings/help', icon: HelpCircle },
 ];
 
 interface SidebarProps {

@@ -42,6 +42,8 @@ async def execute_metaapi_trade(
     volume: float,
     stop_loss: Optional[float] = None,
     take_profit: Optional[float] = None,
+    price: Optional[float] = None,
+    trailing_stop: Optional[float] = None,
     comment: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
@@ -50,10 +52,18 @@ async def execute_metaapi_trade(
     Args:
         metaapi_account_id: The MetaAPI account ID
         symbol: Trading symbol (e.g., "EURUSD")
-        action: Trade action ("buy", "sell", "close")
+        action: Trade action - supports:
+            - "buy" / "sell": Market orders
+            - "limit_buy" / "limit_sell": Limit orders (requires price)
+            - "stop_buy" / "stop_sell": Stop orders (requires price)
+            - "close": Close positions by symbol
+            - "close_all": Close all positions
+            - "modify": Modify existing positions (SL/TP/trailing stop)
         volume: Trade volume in lots
         stop_loss: Optional stop loss price
         take_profit: Optional take profit price
+        price: Entry price for limit/stop orders
+        trailing_stop: Trailing stop distance in points
         comment: Optional trade comment
 
     Returns:
@@ -62,6 +72,7 @@ async def execute_metaapi_trade(
     try:
         from app.core.config import settings
         from metaapi_cloud_sdk import MetaApi
+        import asyncio
 
         token = settings.METAAPI_TOKEN
         if not token:
@@ -76,7 +87,6 @@ async def execute_metaapi_trade(
             await account.deploy()
 
         # Wait for connection
-        import asyncio
         try:
             await asyncio.wait_for(account.wait_connected(), timeout=30)
         except asyncio.TimeoutError:
@@ -89,56 +99,130 @@ async def execute_metaapi_trade(
         await connection.connect()
         await asyncio.wait_for(connection.wait_synchronized(), timeout=30)
 
-        # Execute trade based on action
-        if action.lower() in ("buy", "sell"):
-            order_type = "ORDER_TYPE_BUY" if action.lower() == "buy" else "ORDER_TYPE_SELL"
+        action_lower = action.lower()
 
-            # Build trade options (note: MetaAPI SDK v29+ doesn't support comment in market orders)
+        # Market orders: buy/sell
+        if action_lower in ("buy", "sell"):
             options = {}
             if stop_loss:
                 options["stopLoss"] = stop_loss
             if take_profit:
                 options["takeProfit"] = take_profit
 
-            # Place market order
-            if action.lower() == "buy":
+            if action_lower == "buy":
                 result = await connection.create_market_buy_order(
-                    symbol=symbol,
-                    volume=volume,
-                    **options
+                    symbol=symbol, volume=volume, **options
                 )
             else:
                 result = await connection.create_market_sell_order(
-                    symbol=symbol,
-                    volume=volume,
-                    **options
+                    symbol=symbol, volume=volume, **options
                 )
 
             await connection.close()
-
             if result.get("stringCode") == "TRADE_RETCODE_DONE" or result.get("orderId"):
                 return {
                     "success": True,
                     "order_id": result.get("orderId") or result.get("positionId"),
                     "position_id": result.get("positionId"),
                 }
-            else:
-                return {
-                    "success": False,
-                    "error": result.get("message") or result.get("stringCode") or "Trade failed",
-                }
+            return {"success": False, "error": result.get("message") or "Trade failed"}
 
-        elif action.lower() == "close":
-            # Close all positions for symbol
+        # Limit orders: limit_buy/limit_sell
+        elif action_lower in ("limit_buy", "limit_sell"):
+            if not price:
+                await connection.close()
+                return {"success": False, "error": "Price required for limit orders"}
+
+            options = {}
+            if stop_loss:
+                options["stopLoss"] = stop_loss
+            if take_profit:
+                options["takeProfit"] = take_profit
+
+            if action_lower == "limit_buy":
+                result = await connection.create_limit_buy_order(
+                    symbol=symbol, volume=volume, open_price=price, **options
+                )
+            else:
+                result = await connection.create_limit_sell_order(
+                    symbol=symbol, volume=volume, open_price=price, **options
+                )
+
+            await connection.close()
+            if result.get("stringCode") == "TRADE_RETCODE_DONE" or result.get("orderId"):
+                return {"success": True, "order_id": result.get("orderId")}
+            return {"success": False, "error": result.get("message") or "Limit order failed"}
+
+        # Stop orders: stop_buy/stop_sell
+        elif action_lower in ("stop_buy", "stop_sell"):
+            if not price:
+                await connection.close()
+                return {"success": False, "error": "Price required for stop orders"}
+
+            options = {}
+            if stop_loss:
+                options["stopLoss"] = stop_loss
+            if take_profit:
+                options["takeProfit"] = take_profit
+
+            if action_lower == "stop_buy":
+                result = await connection.create_stop_buy_order(
+                    symbol=symbol, volume=volume, open_price=price, **options
+                )
+            else:
+                result = await connection.create_stop_sell_order(
+                    symbol=symbol, volume=volume, open_price=price, **options
+                )
+
+            await connection.close()
+            if result.get("stringCode") == "TRADE_RETCODE_DONE" or result.get("orderId"):
+                return {"success": True, "order_id": result.get("orderId")}
+            return {"success": False, "error": result.get("message") or "Stop order failed"}
+
+        # Close positions by symbol
+        elif action_lower == "close":
             positions = await connection.get_positions()
             closed = 0
             for pos in positions:
                 if pos.get("symbol", "").upper() == symbol.upper():
                     await connection.close_position(pos["id"])
                     closed += 1
-
             await connection.close()
             return {"success": True, "closed_positions": closed}
+
+        # Close all positions
+        elif action_lower == "close_all":
+            positions = await connection.get_positions()
+            closed = 0
+            for pos in positions:
+                await connection.close_position(pos["id"])
+                closed += 1
+            await connection.close()
+            return {"success": True, "closed_positions": closed}
+
+        # Modify existing positions (SL/TP/trailing stop)
+        elif action_lower == "modify":
+            positions = await connection.get_positions()
+            modified = 0
+            for pos in positions:
+                if pos.get("symbol", "").upper() == symbol.upper():
+                    modify_kwargs = {"position_id": pos["id"]}
+                    if stop_loss:
+                        modify_kwargs["stop_loss"] = stop_loss
+                    if take_profit:
+                        modify_kwargs["take_profit"] = take_profit
+                    if trailing_stop:
+                        # MetaAPI trailing stop format
+                        modify_kwargs["trailing_stop_loss"] = {
+                            "distance": {
+                                "distance": int(trailing_stop),
+                                "units": "RELATIVE_POINTS"
+                            }
+                        }
+                    await connection.modify_position(**modify_kwargs)
+                    modified += 1
+            await connection.close()
+            return {"success": True, "modified_positions": modified}
 
         else:
             await connection.close()
@@ -1160,6 +1244,12 @@ async def process_routed_signal(
             "buy": SignalAction.BUY,
             "sell": SignalAction.SELL,
             "close": SignalAction.CLOSE,
+            "close_all": SignalAction.CLOSE,
+            "limit_buy": SignalAction.BUY,
+            "limit_sell": SignalAction.SELL,
+            "stop_buy": SignalAction.BUY,
+            "stop_sell": SignalAction.SELL,
+            "modify": SignalAction.MODIFY,
         }
         action = action_map.get(action_str, SignalAction.BUY)
 
@@ -1222,8 +1312,10 @@ async def process_routed_signal(
                             symbol=signal_data.get("symbol", "UNKNOWN"),
                             action=action_str,
                             volume=float(signal_data.get("quantity", 0.01) or 0.01),
-                            stop_loss=float(payload.get("stop_loss") or payload.get("stop") or 0) if payload.get("stop_loss") or payload.get("stop") else None,
-                            take_profit=float(payload.get("take_profit") or payload.get("target") or 0) if payload.get("take_profit") or payload.get("target") else None,
+                            stop_loss=float(payload.get("stop_loss") or payload.get("sl") or payload.get("stop") or 0) if payload.get("stop_loss") or payload.get("sl") or payload.get("stop") else None,
+                            take_profit=float(payload.get("take_profit") or payload.get("tp") or payload.get("target") or 0) if payload.get("take_profit") or payload.get("tp") or payload.get("target") else None,
+                            price=float(payload.get("price") or 0) if payload.get("price") else None,
+                            trailing_stop=float(payload.get("trailing_stop") or payload.get("trailing") or 0) if payload.get("trailing_stop") or payload.get("trailing") else None,
                             comment=payload.get("comment"),
                         )
                         execution_results.append({
