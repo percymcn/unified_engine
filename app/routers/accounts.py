@@ -1419,7 +1419,7 @@ async def delete_account(
     db: Session = Depends(get_db),
 ):
     """Delete account, MetaAPI account, and soft-delete credentials"""
-    from app.models.database_models import TradingAccount
+    from app.models.database_models import TradingAccount, BrokerType as DBBrokerType
     from app.services.metaapi_provisioning_service import get_provisioning_service
 
     # First, check if this is an MT4/MT5 account with MetaAPI and delete from MetaAPI
@@ -1429,22 +1429,25 @@ async def delete_account(
             TradingAccount.user_id == current_user.id
         ).first()
 
-        if orm_account and orm_account.broker in (BrokerType.MT4, BrokerType.MT5):
+        if orm_account and orm_account.broker in (DBBrokerType.MT4, DBBrokerType.MT5):
             metaapi_account_id = None
             if orm_account.extra_metadata:
                 metaapi_account_id = orm_account.extra_metadata.get("metaapi_account_id")
 
             if metaapi_account_id:
+                logger.info(f"Deleting MetaAPI account {metaapi_account_id} for account {account_id}")
                 provisioning_service = get_provisioning_service()
                 if provisioning_service:
                     try:
                         removed = await provisioning_service.remove_account(metaapi_account_id)
                         if removed:
-                            logger.info(f"MetaAPI account {metaapi_account_id} removed for account {account_id}")
+                            logger.info(f"MetaAPI account {metaapi_account_id} removed successfully")
                         else:
                             logger.warning(f"Failed to remove MetaAPI account {metaapi_account_id}")
                     except Exception as e:
                         logger.warning(f"Error removing MetaAPI account {metaapi_account_id}: {e}")
+            else:
+                logger.info(f"No metaapi_account_id found in extra_metadata for account {account_id}")
     except Exception as e:
         logger.warning(f"Error checking MetaAPI account for deletion: {e}")
 
