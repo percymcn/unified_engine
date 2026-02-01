@@ -10,12 +10,12 @@ import logging
 
 from app.db.database import get_db
 from app.models.models import WebhookLog, User, Position, Signal as SignalORM, SignalSource as ModelsSignalSource
-from app.models.database_models import WebhookConfig, TradingAccount, RejectedSignal, RejectedSignalReason
+from app.models.database_models import WebhookConfig, TradingAccount, RejectedSignal, RejectedSignalReason, BrokerType as DBBrokerType
 from app.models.schemas import WebhookLog as WebhookLogSchema, WebhookLogCreate
 from app.routers.auth import get_current_user
 from app.dependencies import get_container
 from app.application.dto.signal_dto import ProcessSignalRequest
-from app.domain.enums import SignalSource, SignalAction
+from app.domain.enums import SignalSource, SignalAction, SignalStatus, BrokerType
 from app.domain.services.routing_service import (
     RoutingEngine,
     RoutingConfig,
@@ -33,6 +33,120 @@ from app.infrastructure.adapters.position_counter_adapter import PositionCounter
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+async def execute_metaapi_trade(
+    metaapi_account_id: str,
+    symbol: str,
+    action: str,
+    volume: float,
+    stop_loss: Optional[float] = None,
+    take_profit: Optional[float] = None,
+    comment: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Execute a trade via MetaAPI for MT4/MT5 accounts.
+
+    Args:
+        metaapi_account_id: The MetaAPI account ID
+        symbol: Trading symbol (e.g., "EURUSD")
+        action: Trade action ("buy", "sell", "close")
+        volume: Trade volume in lots
+        stop_loss: Optional stop loss price
+        take_profit: Optional take profit price
+        comment: Optional trade comment
+
+    Returns:
+        Dict with success status, order_id, and error if any
+    """
+    try:
+        from app.core.config import settings
+        from metaapi_cloud_sdk import MetaApi
+
+        token = settings.METAAPI_TOKEN
+        if not token:
+            return {"success": False, "error": "METAAPI_TOKEN not configured"}
+
+        api = MetaApi(token=token)
+        account = await api.metatrader_account_api.get_account(metaapi_account_id)
+
+        # Ensure account is deployed and connected
+        if account.state != "DEPLOYED":
+            logger.info(f"Deploying MetaAPI account {metaapi_account_id}...")
+            await account.deploy()
+
+        # Wait for connection
+        import asyncio
+        try:
+            await asyncio.wait_for(account.wait_connected(), timeout=30)
+        except asyncio.TimeoutError:
+            return {"success": False, "error": "Account connection timeout"}
+        except Exception as e:
+            return {"success": False, "error": f"Account not connected: {e}"}
+
+        # Get RPC connection for trading
+        connection = account.get_rpc_connection()
+        await connection.connect()
+        await asyncio.wait_for(connection.wait_synchronized(), timeout=30)
+
+        # Execute trade based on action
+        if action.lower() in ("buy", "sell"):
+            order_type = "ORDER_TYPE_BUY" if action.lower() == "buy" else "ORDER_TYPE_SELL"
+
+            # Build trade options
+            options = {}
+            if stop_loss:
+                options["stopLoss"] = stop_loss
+            if take_profit:
+                options["takeProfit"] = take_profit
+            if comment:
+                # MetaAPI comment limit is 26 chars
+                options["comment"] = comment[:26] if len(comment) > 26 else comment
+
+            # Place market order
+            result = await connection.create_market_buy_order(
+                symbol=symbol,
+                volume=volume,
+                **options
+            ) if action.lower() == "buy" else await connection.create_market_sell_order(
+                symbol=symbol,
+                volume=volume,
+                **options
+            )
+
+            await connection.close()
+
+            if result.get("stringCode") == "TRADE_RETCODE_DONE" or result.get("orderId"):
+                return {
+                    "success": True,
+                    "order_id": result.get("orderId") or result.get("positionId"),
+                    "position_id": result.get("positionId"),
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": result.get("message") or result.get("stringCode") or "Trade failed",
+                }
+
+        elif action.lower() == "close":
+            # Close all positions for symbol
+            positions = await connection.get_positions()
+            closed = 0
+            for pos in positions:
+                if pos.get("symbol", "").upper() == symbol.upper():
+                    await connection.close_position(pos["id"])
+                    closed += 1
+
+            await connection.close()
+            return {"success": True, "closed_positions": closed}
+
+        else:
+            await connection.close()
+            return {"success": False, "error": f"Unknown action: {action}"}
+
+    except Exception as e:
+        logger.error(f"MetaAPI trade execution error: {e}")
+        return {"success": False, "error": str(e)}
 
 
 def _persist_pending_guard_signal(
@@ -1077,7 +1191,7 @@ async def process_routed_signal(
             start_time=start_time,
             webhook_id=webhook_id
         )
-        
+
         if guard_response:
             # Guard blocked/paused/warned - return early
             webhook_config.failed_signals = (webhook_config.failed_signals or 0) + 1
@@ -1088,8 +1202,91 @@ async def process_routed_signal(
             db.commit()
             return guard_response
 
-        # Execute use case
-        use_case_result = await use_case.execute(command)
+        # Execute signal on accounts - handle MetaAPI (MT4/MT5) accounts directly
+        execution_results = []
+        non_metaapi_account_ids = []
+
+        for account_id in target_account_ids:
+            account = accounts_by_id.get(account_id)
+            if not account:
+                continue
+
+            # Check if this is an MT5/MT4 account with MetaAPI
+            if account.broker in (DBBrokerType.MT5, DBBrokerType.MT4):
+                metaapi_account_id = (account.extra_metadata or {}).get("metaapi_account_id")
+                if metaapi_account_id:
+                    # Execute directly via MetaAPI
+                    try:
+                        exec_result = await execute_metaapi_trade(
+                            metaapi_account_id=metaapi_account_id,
+                            symbol=signal_data.get("symbol", "UNKNOWN"),
+                            action=action_str,
+                            volume=float(signal_data.get("quantity", 0.01) or 0.01),
+                            stop_loss=float(payload.get("stop_loss") or payload.get("stop") or 0) if payload.get("stop_loss") or payload.get("stop") else None,
+                            take_profit=float(payload.get("take_profit") or payload.get("target") or 0) if payload.get("take_profit") or payload.get("target") else None,
+                            comment=payload.get("comment"),
+                        )
+                        execution_results.append({
+                            "account_id": account_id,
+                            "broker": account.broker.value,
+                            "success": exec_result.get("success", False),
+                            "order_id": exec_result.get("order_id"),
+                            "error": exec_result.get("error"),
+                        })
+                    except Exception as e:
+                        logger.error(f"MetaAPI execution failed for account {account_id}: {e}")
+                        execution_results.append({
+                            "account_id": account_id,
+                            "broker": account.broker.value,
+                            "success": False,
+                            "error": str(e),
+                        })
+                    continue
+
+            # Non-MetaAPI accounts go through regular use case
+            non_metaapi_account_ids.append(account_id)
+
+        # Execute regular use case for non-MetaAPI accounts
+        if non_metaapi_account_ids:
+            command_for_non_metaapi = ProcessSignalRequest(
+                source=source,
+                symbol=signal_data.get("symbol", "UNKNOWN"),
+                action=action,
+                volume=Decimal(str(signal_data.get("quantity", 1) or 1)),
+                price=Decimal(str(payload["price"])) if payload.get("price") else None,
+                stop_loss=Decimal(str(payload.get("stop_loss") or payload.get("stop", 0))) if payload.get("stop_loss") or payload.get("stop") else None,
+                take_profit=Decimal(str(payload.get("take_profit") or payload.get("target", 0))) if payload.get("take_profit") or payload.get("target") else None,
+                target_account_ids=[str(aid) for aid in non_metaapi_account_ids],
+                comment=payload.get("comment"),
+                strategy_id=payload.get("strategy_id"),
+                strategy_name=payload.get("strategy_name"),
+                raw_payload=payload,
+            )
+            use_case_result = await use_case.execute(command_for_non_metaapi)
+            # Merge results
+            for detail in use_case_result.execution_details or []:
+                execution_results.append(detail)
+
+        # Build combined result
+        successes = [r for r in execution_results if r.get("success")]
+        errors = [r.get("error") for r in execution_results if r.get("error")]
+
+        # Create a mock use_case_result for compatibility
+        class MockResult:
+            def __init__(self, signal_id, status, executions, errors, execution_details):
+                self.signal_id = signal_id
+                self.status = status
+                self.executions = executions
+                self.errors = errors
+                self.execution_details = execution_details
+
+        use_case_result = MockResult(
+            signal_id=str(uuid.uuid4()),
+            status=SignalStatus.PROCESSED if successes else SignalStatus.FAILED,
+            executions=len(successes),
+            errors=errors,
+            execution_details=execution_results,
+        )
 
         # Update stats
         success = use_case_result.status.value not in ["failed", "rejected"]
