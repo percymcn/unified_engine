@@ -1027,7 +1027,8 @@ async def create_account(
             # For brokers with per-user credentials, mark as connected immediately
             # The actual connection is verified during webhook execution
             broker_value = orm_account.broker.value if hasattr(orm_account.broker, "value") else str(orm_account.broker)
-            per_user_cred_brokers = {"tradelocker", "projectx", "topstep", "tradovate"}
+            # All brokers use per-user credentials stored in credentials table or extra_metadata
+            per_user_cred_brokers = {"tradelocker", "projectx", "topstep", "tradovate", "mt4", "mt5"}
 
             if broker_value.lower() in per_user_cred_brokers:
                 # These brokers use per-user credentials stored in the credentials table
