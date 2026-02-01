@@ -6,7 +6,7 @@ Handles CRUD operations and queries for Account entities.
 """
 
 from typing import Optional, List
-from sqlalchemy import select, and_, update
+from sqlalchemy import select, and_, update, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.ports.repository_port import AccountRepository
@@ -153,6 +153,33 @@ class SQLAlchemyAccountRepository(AccountRepository):
 
                 if changed:
                     self._session.add(config)
+
+            # Delete all related records before deleting the account
+            # This handles foreign key constraints from various tables
+            related_tables = [
+                "account_equity_history",
+                "account_strategies",
+                "alerts",
+                "broker_symbol_formats",
+                "daily_pnl",
+                "execution_logs",
+                "orders",
+                "performance_metrics",
+                "positions",
+                "provisioning_jobs",
+                "rejected_signals",
+                "trades",
+                "user_contract_positions",
+            ]
+
+            for table in related_tables:
+                # Use raw SQL to delete from each table
+                # account_id column name varies by table
+                column = "trading_account_id" if table == "provisioning_jobs" else "account_id"
+                await self._session.execute(
+                    text(f"DELETE FROM {table} WHERE {column} = :account_id"),
+                    {"account_id": orm_model.id}
+                )
 
             # Actually delete the record from the database
             await self._session.delete(orm_model)
