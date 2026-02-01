@@ -93,26 +93,26 @@ async def execute_metaapi_trade(
         if action.lower() in ("buy", "sell"):
             order_type = "ORDER_TYPE_BUY" if action.lower() == "buy" else "ORDER_TYPE_SELL"
 
-            # Build trade options
+            # Build trade options (note: MetaAPI SDK v29+ doesn't support comment in market orders)
             options = {}
             if stop_loss:
                 options["stopLoss"] = stop_loss
             if take_profit:
                 options["takeProfit"] = take_profit
-            if comment:
-                # MetaAPI comment limit is 26 chars
-                options["comment"] = comment[:26] if len(comment) > 26 else comment
 
             # Place market order
-            result = await connection.create_market_buy_order(
-                symbol=symbol,
-                volume=volume,
-                **options
-            ) if action.lower() == "buy" else await connection.create_market_sell_order(
-                symbol=symbol,
-                volume=volume,
-                **options
-            )
+            if action.lower() == "buy":
+                result = await connection.create_market_buy_order(
+                    symbol=symbol,
+                    volume=volume,
+                    **options
+                )
+            else:
+                result = await connection.create_market_sell_order(
+                    symbol=symbol,
+                    volume=volume,
+                    **options
+                )
 
             await connection.close()
 
