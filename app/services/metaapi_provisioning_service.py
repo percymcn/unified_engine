@@ -130,6 +130,9 @@ class MetaAPIProvisioningService:
             else:
                 # Create new account in MetaAPI
                 # Note: login MUST be a string, not integer
+                # Magic number is required - use provided or generate default
+                magic_number = magic if magic else 123456  # Default magic number for Tradeflow
+
                 account_config = {
                     "name": name,
                     "type": "cloud",  # Cloud account (MetaAPI manages connection)
@@ -138,11 +141,10 @@ class MetaAPIProvisioningService:
                     "server": server,
                     "platform": platform,
                     "application": self.application,
+                    "magic": magic_number,  # Required by MetaAPI
                 }
 
                 # Add optional fields
-                if magic:
-                    account_config["magic"] = magic
                 if copy_factory_roles:
                     account_config["copyFactoryRoles"] = copy_factory_roles
 
