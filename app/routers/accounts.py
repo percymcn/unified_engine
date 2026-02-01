@@ -411,12 +411,13 @@ async def discover_accounts(
                         account_info = result.get("account_info", {})
                         return DiscoverAccountsResponse(
                             accounts=[
-                                DiscoveredBrokerAccount(
+                                DiscoveredAccount(
                                     broker_account_id=str(login),
                                     account_number=str(login),
                                     display_name=result.get("name", f"MT4-{login}"),
                                     status="active",
                                     account_type="demo" if "demo" in server.lower() else "live",
+                                    broker="mt4",
                                     balance=account_info.get("balance", 0),
                                     equity=account_info.get("equity", 0),
                                     currency=account_info.get("currency", "USD"),
@@ -463,12 +464,13 @@ async def discover_accounts(
                         account_info = result.get("account_info", {})
                         return DiscoverAccountsResponse(
                             accounts=[
-                                DiscoveredBrokerAccount(
+                                DiscoveredAccount(
                                     broker_account_id=str(login),
                                     account_number=str(login),
                                     display_name=result.get("name", f"MT5-{login}"),
                                     status="active",
                                     account_type="demo" if "demo" in server.lower() else "live",
+                                    broker="mt5",
                                     balance=account_info.get("balance", 0),
                                     equity=account_info.get("equity", 0),
                                     currency=account_info.get("currency", "USD"),
