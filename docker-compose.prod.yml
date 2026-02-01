@@ -57,7 +57,7 @@ services:
     volumes:
       - ./logs:/app/logs
     ports:
-      - "${API_PORT:-8000}:8000"
+      - "${API_PORT:-8765}:8000"
     networks:
       - trading_network
     depends_on:
@@ -72,26 +72,28 @@ services:
       timeout: 10s
       retries: 3
 
-  # Frontend (Nginx)
+  # Frontend (Next.js)
   ui:
     build:
-      context: ./ui
+      context: ./ui-next
       dockerfile: Dockerfile
     container_name: unified_trading_ui
     environment:
-      - VITE_API_BASE_URL=${VITE_API_BASE_URL:-http://localhost:8000}
+      - BACKEND_URL=${BACKEND_URL:-http://api:8000}
+      - NEXT_PUBLIC_BACKEND_URL=${NEXT_PUBLIC_BACKEND_URL:-https://api.mytradeflow.app}
     ports:
-      - "${UI_PORT:-3000}:80"
+      - "${UI_PORT:-3456}:3456"
     networks:
       - trading_network
     depends_on:
       - api
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3456/api/health"]
       interval: 30s
-      timeout: 3s
+      timeout: 10s
       retries: 3
+      start_period: 30s
 
   # Celery Worker (Optional)
   celery:

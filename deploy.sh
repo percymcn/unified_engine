@@ -1,190 +1,169 @@
 #!/bin/bash
-# TradeFlow MVP - Automated Deployment Script
-# Generated: 2026-01-01
-# This script automates the deployment of TradeFlow unified trading engine
+# =============================================================================
+# Unified Trading Engine - Swarm Stack Deployment Script
+# Stops local services, builds images, and deploys to Docker Swarm
+# =============================================================================
 
-set -e  # Exit on error
+set -e
 
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+echo -e "${BLUE}========================================${NC}"
+echo -e "${BLUE}  Unified Trading Engine - Swarm Deploy${NC}"
+echo -e "${BLUE}========================================${NC}"
+
 # Configuration
-STACK_NAME="unified_engine_stack"
-DOCKER_STACK_FILE="docker-stack.yml"
-PROJECT_ROOT="/home/pharma5/unified_engine"
+STACK_NAME="unified_engine"
+STACK_FILE="docker-stack.yml"
+PROJECT_DIR="/home/pharma5/unified_engine"
+REGISTRY="192.168.1.254:5000"
+API_PORT=8765
+UI_PORT=3456
 LAN_IP="192.168.1.254"
 
-echo -e "${GREEN}================================================${NC}"
-echo -e "${GREEN}TradeFlow MVP - Automated Deployment${NC}"
-echo -e "${GREEN}================================================${NC}"
-echo ""
-
-# Function to print status
-print_status() {
-    echo -e "${GREEN}[✓]${NC} $1"
-}
-
-print_error() {
-    echo -e "${RED}[✗]${NC} $1"
-}
-
-print_warning() {
-    echo -e "${YELLOW}[!]${NC} $1"
-}
+cd "$PROJECT_DIR"
 
 # Check if running from correct directory
-if [ ! -f "$DOCKER_STACK_FILE" ]; then
-    print_error "docker-stack.yml not found. Please run this script from the project root."
+if [ ! -f "$STACK_FILE" ]; then
+    echo -e "${RED}Error: $STACK_FILE not found. Run from project root.${NC}"
     exit 1
 fi
 
-# Step 1: Check Docker Swarm
-echo -e "\n${YELLOW}Step 1: Checking Docker Swarm status...${NC}"
-if docker info | grep -q "Swarm: active"; then
-    print_status "Docker Swarm is active"
+echo -e "\n${YELLOW}[1/7] Stopping local services...${NC}"
+
+# Kill local uvicorn/backend processes
+echo -e "  Stopping uvicorn processes..."
+pkill -f "uvicorn app.main:app" 2>/dev/null || true
+pkill -f "uvicorn" 2>/dev/null || true
+sleep 1
+
+# Kill any process on API port
+echo -e "  Freeing port $API_PORT..."
+fuser -k ${API_PORT}/tcp 2>/dev/null || true
+
+# Kill local Next.js processes
+echo -e "  Stopping Next.js processes..."
+pkill -f "next-server" 2>/dev/null || true
+pkill -f "node.*server.js" 2>/dev/null || true
+sleep 1
+
+# Kill any process on UI port
+echo -e "  Freeing port $UI_PORT..."
+fuser -k ${UI_PORT}/tcp 2>/dev/null || true
+
+echo -e "${GREEN}  Local services stopped.${NC}"
+
+echo -e "\n${YELLOW}[2/7] Checking Docker Swarm...${NC}"
+
+if docker info 2>/dev/null | grep -q "Swarm: active"; then
+    echo -e "${GREEN}  Docker Swarm is active.${NC}"
 else
-    print_error "Docker Swarm is not active. Please initialize Swarm first."
+    echo -e "${RED}  Docker Swarm is not active!${NC}"
+    echo -e "  Initialize with: docker swarm init"
     exit 1
 fi
 
-# Step 2: Check required images
-echo -e "\n${YELLOW}Step 2: Checking Docker images...${NC}"
-if docker images | grep -q "unified-engine/api"; then
-    print_status "API image found"
-else
-    print_warning "API image not found. Building..."
-    docker build -t unified-engine/api:latest -f Dockerfile.stack .
-fi
+echo -e "\n${YELLOW}[3/7] Building API image...${NC}"
 
-if docker images | grep -q "unified-engine/ui"; then
-    print_status "UI image found"
-else
-    print_error "UI image not found. Please build it first:"
-    echo "  cd ui && npm install --legacy-peer-deps && cd .."
-    echo "  docker build -t unified-engine/ui:latest ./ui"
-    exit 1
-fi
+docker build -t ${REGISTRY}/unified-engine/api:latest -f Dockerfile.stack .
+echo -e "${GREEN}  API image built.${NC}"
 
-# Step 3: Check nginx config
-echo -e "\n${YELLOW}Step 3: Checking nginx configuration...${NC}"
-if docker config ls | grep -q "unified_nginx_conf"; then
-    print_status "Nginx config already exists"
-else
-    print_warning "Creating nginx config..."
-    if [ -f "nginx-reverse-proxy.conf" ]; then
-        docker config create unified_nginx_conf nginx-reverse-proxy.conf
-        print_status "Nginx config created"
-    else
-        print_error "nginx-reverse-proxy.conf not found"
-        exit 1
-    fi
-fi
+echo -e "\n${YELLOW}[4/7] Building UI image...${NC}"
 
-# Step 4: Check directories
-echo -e "\n${YELLOW}Step 4: Checking required directories...${NC}"
-mkdir -p data logs
-print_status "Directories verified"
+docker build -t ${REGISTRY}/unified-engine/ui:latest ./ui-next
+echo -e "${GREEN}  UI image built.${NC}"
 
-# Step 5: Check environment file
-echo -e "\n${YELLOW}Step 5: Checking environment configuration...${NC}"
-if [ -f ".env" ]; then
-    print_status ".env file found"
-else
-    print_warning ".env file not found, using docker-stack.yml defaults"
-fi
+echo -e "\n${YELLOW}[5/7] Pushing images to registry...${NC}"
 
-if [ -f "ui/.env" ]; then
-    print_status "UI .env file found"
-else
-    print_warning "Creating UI .env file..."
-    echo "VITE_API_BASE_URL=http://${LAN_IP}:3012" > ui/.env
-    print_status "UI .env created"
-fi
+docker push ${REGISTRY}/unified-engine/api:latest
+docker push ${REGISTRY}/unified-engine/ui:latest
+echo -e "${GREEN}  Images pushed to registry.${NC}"
 
-# Step 6: Apply database migrations
-echo -e "\n${YELLOW}Step 6: Checking database migrations...${NC}"
-print_status "Migrations will be applied automatically when API starts"
+echo -e "\n${YELLOW}[6/7] Deploying stack...${NC}"
 
-# Step 7: Deploy/Update stack
-echo -e "\n${YELLOW}Step 7: Deploying stack...${NC}"
+# Check if stack exists and update, otherwise deploy new
 if docker stack ls | grep -q "$STACK_NAME"; then
-    print_warning "Stack already exists. Updating..."
-    docker stack deploy -c $DOCKER_STACK_FILE $STACK_NAME
+    echo -e "  Updating existing stack..."
 else
-    print_warning "Deploying new stack..."
-    docker stack deploy -c $DOCKER_STACK_FILE $STACK_NAME
+    echo -e "  Deploying new stack..."
 fi
-print_status "Stack deployed"
 
-# Step 8: Wait for services to start
-echo -e "\n${YELLOW}Step 8: Waiting for services to start...${NC}"
-echo "This may take a minute..."
+docker stack deploy -c $STACK_FILE $STACK_NAME --with-registry-auth
+
+echo -e "${GREEN}  Stack deployed.${NC}"
+
+echo -e "\n${YELLOW}[7/7] Waiting for services to be healthy...${NC}"
+
+# Wait for services to start
 sleep 10
 
-# Step 9: Check service status
-echo -e "\n${YELLOW}Step 9: Checking service status...${NC}"
-docker service ls | grep $STACK_NAME
-
-# Step 10: Health checks
-echo -e "\n${YELLOW}Step 10: Running health checks...${NC}"
-echo "Waiting for API to be ready..."
-sleep 5
-
-MAX_RETRIES=12
-RETRY_COUNT=0
+# Check API health
+echo -e "  Waiting for API (port $API_PORT)..."
 API_HEALTHY=false
-
-while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-    if curl -s http://${LAN_IP}:3012/health > /dev/null 2>&1; then
+for i in {1..60}; do
+    if curl -sf http://localhost:$API_PORT/health > /dev/null 2>&1; then
+        echo -e "\n${GREEN}  API is healthy!${NC}"
         API_HEALTHY=true
         break
     fi
-    RETRY_COUNT=$((RETRY_COUNT + 1))
-    echo "Waiting for API... ($RETRY_COUNT/$MAX_RETRIES)"
-    sleep 5
+    sleep 3
+    echo -n "."
 done
 
-if [ "$API_HEALTHY" = true ]; then
-    print_status "API is healthy"
-    echo ""
-    curl -s http://${LAN_IP}:3012/health | python3 -m json.tool
-else
-    print_error "API failed to become healthy after $MAX_RETRIES retries"
-    print_warning "Check logs with: docker service logs ${STACK_NAME}_api"
+if [ "$API_HEALTHY" = false ]; then
+    echo -e "\n${YELLOW}  API not ready yet. Check logs:${NC}"
+    echo -e "  docker service logs ${STACK_NAME}_api"
 fi
 
-# Step 11: Display summary
-echo -e "\n${GREEN}================================================${NC}"
-echo -e "${GREEN}Deployment Summary${NC}"
-echo -e "${GREEN}================================================${NC}"
-echo ""
-echo "Stack Name: $STACK_NAME"
-echo "Project Root: $PROJECT_ROOT"
-echo "LAN IP: $LAN_IP"
-echo ""
-echo -e "${YELLOW}Service Endpoints:${NC}"
-echo "  API:    http://${LAN_IP}:3012"
-echo "  Docs:   http://${LAN_IP}:3012/docs"
-echo "  Health: http://${LAN_IP}:3012/health"
-echo "  UI:     http://${LAN_IP}:3411"
-echo "  Nginx:  http://${LAN_IP}:3013"
-echo "  Flower: http://${LAN_IP}:5558"
-echo ""
+# Check UI health
+echo -e "  Waiting for UI (port $UI_PORT)..."
+UI_HEALTHY=false
+for i in {1..30}; do
+    if curl -sf http://localhost:$UI_PORT > /dev/null 2>&1; then
+        echo -e "\n${GREEN}  UI is ready!${NC}"
+        UI_HEALTHY=true
+        break
+    fi
+    sleep 3
+    echo -n "."
+done
+
+if [ "$UI_HEALTHY" = false ]; then
+    echo -e "\n${YELLOW}  UI not ready yet. Check logs:${NC}"
+    echo -e "  docker service logs ${STACK_NAME}_ui"
+fi
+
+# Show service status
+echo -e "\n${YELLOW}Service Status:${NC}"
+docker service ls | grep $STACK_NAME
+
+echo -e "\n${BLUE}========================================${NC}"
+if [ "$API_HEALTHY" = true ] && [ "$UI_HEALTHY" = true ]; then
+    echo -e "${GREEN}  Deployment Complete!${NC}"
+else
+    echo -e "${YELLOW}  Deployment finished (services starting)${NC}"
+fi
+echo -e "${BLUE}========================================${NC}"
+echo -e ""
+echo -e "${YELLOW}Public URLs (via Cloudflare):${NC}"
+echo -e "  UI:     https://mytradeflow.app"
+echo -e "  API:    https://api.mytradeflow.app"
+echo -e "  Docs:   https://api.mytradeflow.app/docs"
+echo -e ""
+echo -e "${YELLOW}Local URLs (internal):${NC}"
+echo -e "  API:    http://localhost:$API_PORT"
+echo -e "  UI:     http://localhost:$UI_PORT"
+echo -e "  Flower: http://${LAN_IP}:5558"
+echo -e ""
 echo -e "${YELLOW}Useful Commands:${NC}"
-echo "  View services:    docker service ls | grep $STACK_NAME"
-echo "  View logs:        docker service logs -f ${STACK_NAME}_api"
-echo "  Scale service:    docker service scale ${STACK_NAME}_celery-worker=4"
-echo "  Update stack:     docker stack deploy -c $DOCKER_STACK_FILE $STACK_NAME"
-echo "  Remove stack:     docker stack rm $STACK_NAME"
-echo ""
-echo -e "${YELLOW}Next Steps:${NC}"
-echo "  1. Verify all services are running: docker service ls | grep $STACK_NAME"
-echo "  2. Check API health: curl http://${LAN_IP}:3012/health"
-echo "  3. Access UI: http://${LAN_IP}:3411"
-echo "  4. Review MANUAL_STEPS_REQUIRED.md for any remaining setup"
-echo ""
-echo -e "${GREEN}Deployment complete!${NC}"
-echo ""
+echo -e "  Service status:  docker service ls | grep $STACK_NAME"
+echo -e "  API logs:        docker service logs -f ${STACK_NAME}_api"
+echo -e "  UI logs:         docker service logs -f ${STACK_NAME}_ui"
+echo -e "  Scale workers:   docker service scale ${STACK_NAME}_celery-worker=2"
+echo -e "  Remove stack:    docker stack rm $STACK_NAME"
+echo -e ""

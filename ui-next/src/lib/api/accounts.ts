@@ -9,6 +9,7 @@ import {
   CreateAccountGroupRequest,
   UpdateAccountGroupRequest,
   PositionSizingMode,
+  PropPhase,
 } from '@/types/account';
 
 export class ApiError extends Error {
@@ -73,66 +74,108 @@ const buildApiError = async (response: Response, fallback: string) => {
   return new ApiError(message, response.status, payload as Record<string, unknown>);
 };
 
+// Backend now returns camelCase format
 interface ApiAccountSettingsData {
-  account_id: number;
-  position_sizing: {
+  accountId: number;
+  positionSizing: {
     mode: string;
-    fixed_lot_size: number | null;
-    percent_of_balance: number | null;
-    percent_of_equity: number | null;
-    risk_percent_per_trade: number | null;
+    fixedLotSize: number | null;
+    percentOfBalance: number | null;
+    percentOfEquity: number | null;
+    riskPercentPerTrade: number | null;
   };
-  risk_limits: {
-    max_position_size: number | null;
-    max_daily_loss: number | null;
-    max_daily_loss_pct: number | null;
-    max_drawdown_pct: number | null;
-    max_open_positions: number | null;
-    max_daily_trades: number | null;
-    trade_cooldown_seconds: number | null;
-    default_stop_loss?: number | null;
-    default_take_profit?: number | null;
+  riskLimits: {
+    maxPositionSize: number | null;
+    maxDailyLoss: number | null;
+    maxDailyLossPct: number | null;
+    maxDrawdownPct: number | null;
+    maxOpenPositions: number | null;
+    maxDailyTrades: number | null;
+    tradeCooldownSeconds: number | null;
+    defaultStopLoss?: number | null;
+    defaultTakeProfit?: number | null;
   };
   grouping: {
-    group_id: number | null;
-    group_name: string | null;
-    group_color: string | null;
+    groupId: number | null;
+    groupName: string | null;
+    groupColor: string | null;
   };
   routing: {
-    is_signal_enabled: boolean;
-    signal_priority: number;
+    isSignalEnabled: boolean;
+    signalPriority: number;
+  };
+  propRules?: {
+    isEnabled: boolean;
+    provider: string | null;
+    phase: string;
+    profitTargetPct: number | null;
+    profitTargetAmount: number | null;
+    maxDailyLossPct: number | null;
+    maxDailyLossAmount: number | null;
+    maxDrawdownPct: number | null;
+    maxDrawdownAmount: number | null;
+    trailingDrawdown: boolean;
+    challengeStartDate: string | null;
+    challengeEndDate: string | null;
   };
   account?: Account;
 }
 
 const mapAccountSettingsResponse = (data: ApiAccountSettingsData): AccountSettingsResponse => ({
-  accountId: data.account_id,
+  accountId: data.accountId,
   positionSizing: {
-    mode: data.position_sizing.mode as PositionSizingMode,
-    fixedLotSize: data.position_sizing.fixed_lot_size ?? 0,
-    percentOfBalance: data.position_sizing.percent_of_balance ?? 0,
-    percentOfEquity: data.position_sizing.percent_of_equity ?? 0,
-    riskPercentPerTrade: data.position_sizing.risk_percent_per_trade ?? 0,
+    mode: data.positionSizing.mode as PositionSizingMode,
+    fixedLotSize: data.positionSizing.fixedLotSize ?? 0,
+    percentOfBalance: data.positionSizing.percentOfBalance ?? 0,
+    percentOfEquity: data.positionSizing.percentOfEquity ?? 0,
+    riskPercentPerTrade: data.positionSizing.riskPercentPerTrade ?? 0,
   },
   riskLimits: {
-    maxPositionSize: data.risk_limits.max_position_size,
-    maxDailyLoss: data.risk_limits.max_daily_loss,
-    maxDailyLossPct: data.risk_limits.max_daily_loss_pct,
-    maxDrawdownPct: data.risk_limits.max_drawdown_pct,
-    maxOpenPositions: data.risk_limits.max_open_positions,
-    maxDailyTrades: data.risk_limits.max_daily_trades,
-    tradeCooldownSeconds: data.risk_limits.trade_cooldown_seconds,
-    defaultStopLoss: data.risk_limits.default_stop_loss ?? null,
-    defaultTakeProfit: data.risk_limits.default_take_profit ?? null,
+    maxPositionSize: data.riskLimits.maxPositionSize,
+    maxDailyLoss: data.riskLimits.maxDailyLoss,
+    maxDailyLossPct: data.riskLimits.maxDailyLossPct,
+    maxDrawdownPct: data.riskLimits.maxDrawdownPct,
+    maxOpenPositions: data.riskLimits.maxOpenPositions,
+    maxDailyTrades: data.riskLimits.maxDailyTrades,
+    tradeCooldownSeconds: data.riskLimits.tradeCooldownSeconds,
+    defaultStopLoss: data.riskLimits.defaultStopLoss ?? null,
+    defaultTakeProfit: data.riskLimits.defaultTakeProfit ?? null,
   },
   grouping: {
-    groupId: data.grouping.group_id,
-    groupName: data.grouping.group_name,
-    groupColor: data.grouping.group_color,
+    groupId: data.grouping.groupId,
+    groupName: data.grouping.groupName,
+    groupColor: data.grouping.groupColor,
   },
   routing: {
-    isSignalEnabled: data.routing.is_signal_enabled,
-    signalPriority: data.routing.signal_priority,
+    isSignalEnabled: data.routing.isSignalEnabled,
+    signalPriority: data.routing.signalPriority,
+  },
+  propRules: data.propRules ? {
+    isEnabled: data.propRules.isEnabled,
+    provider: data.propRules.provider,
+    phase: (data.propRules.phase || 'none') as PropPhase,
+    profitTargetPct: data.propRules.profitTargetPct,
+    profitTargetAmount: data.propRules.profitTargetAmount,
+    maxDailyLossPct: data.propRules.maxDailyLossPct,
+    maxDailyLossAmount: data.propRules.maxDailyLossAmount,
+    maxDrawdownPct: data.propRules.maxDrawdownPct,
+    maxDrawdownAmount: data.propRules.maxDrawdownAmount,
+    trailingDrawdown: data.propRules.trailingDrawdown,
+    challengeStartDate: data.propRules.challengeStartDate,
+    challengeEndDate: data.propRules.challengeEndDate,
+  } : {
+    isEnabled: false,
+    provider: null,
+    phase: 'none' as PropPhase,
+    profitTargetPct: null,
+    profitTargetAmount: null,
+    maxDailyLossPct: null,
+    maxDailyLossAmount: null,
+    maxDrawdownPct: null,
+    maxDrawdownAmount: null,
+    trailingDrawdown: false,
+    challengeStartDate: null,
+    challengeEndDate: null,
   },
   account: data.account,
 });
@@ -393,6 +436,43 @@ export async function updateAccountSettings(
   }
   if (settings.signalPriority !== undefined) {
     payload.signal_priority = settings.signalPriority;
+  }
+  // Prop rules
+  if (settings.propRulesEnabled !== undefined) {
+    payload.prop_rules_enabled = settings.propRulesEnabled;
+  }
+  if (settings.propProvider !== undefined) {
+    payload.prop_provider = settings.propProvider;
+  }
+  if (settings.propPhase !== undefined) {
+    payload.prop_phase = settings.propPhase;
+  }
+  if (settings.propProfitTargetPct !== undefined) {
+    payload.prop_profit_target_pct = settings.propProfitTargetPct;
+  }
+  if (settings.propProfitTargetAmount !== undefined) {
+    payload.prop_profit_target_amount = settings.propProfitTargetAmount;
+  }
+  if (settings.propMaxDailyLossPct !== undefined) {
+    payload.prop_max_daily_loss_pct = settings.propMaxDailyLossPct;
+  }
+  if (settings.propMaxDailyLossAmount !== undefined) {
+    payload.prop_max_daily_loss_amount = settings.propMaxDailyLossAmount;
+  }
+  if (settings.propMaxDrawdownPct !== undefined) {
+    payload.prop_max_drawdown_pct = settings.propMaxDrawdownPct;
+  }
+  if (settings.propMaxDrawdownAmount !== undefined) {
+    payload.prop_max_drawdown_amount = settings.propMaxDrawdownAmount;
+  }
+  if (settings.propTrailingDrawdown !== undefined) {
+    payload.prop_trailing_drawdown = settings.propTrailingDrawdown;
+  }
+  if (settings.propChallengeStartDate !== undefined) {
+    payload.prop_challenge_start_date = settings.propChallengeStartDate;
+  }
+  if (settings.propChallengeEndDate !== undefined) {
+    payload.prop_challenge_end_date = settings.propChallengeEndDate;
   }
 
   const response = await fetch(`/api/accounts/${accountId}/settings`, {

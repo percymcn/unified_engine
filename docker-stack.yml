@@ -95,10 +95,51 @@ services:
       context: .
       dockerfile: Dockerfile.stack
     environment:
+      # Core Settings
       - DATABASE_URL=postgresql://trading_user@postgres:5432/trading_db
       - REDIS_URL=redis://redis:6379/0
       - NATS_URL=nats://nats:4222
       - ENVIRONMENT=production
+      - FRONTEND_URL=https://mytradeflow.app
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      # Google OAuth
+      - GOOGLE_CLIENT_ID=245547382264-erko44adkasedj547c4r0jkk4b7gt0mm.apps.googleusercontent.com
+      - GOOGLE_CLIENT_SECRET=GOCSPX-PLACEHOLDER
+      - GOOGLE_REDIRECT_URI=https://mytradeflow.app/api/auth/google/callback
+      # MetaAPI
+      - METAAPI_TOKEN=METAAPI_TOKEN_PLACEHOLDER
+      - METAAPI_APPLICATION=tradeflow
+      # Stripe Keys
+      - STRIPE_SECRET_KEY=sk_live_PLACEHOLDER
+      - STRIPE_PUBLISHABLE_KEY=pk_live_51Sj3b9AeDMJzniTXZXoZkFzqOM5sJsJcQgFiXzxVKWNTATsFLD7ApOQJSVmNWxGihzpQ5A5g038YzYj9rqoIn3fd000ayzdBBU
+      - STRIPE_WEBHOOK_SECRET=whsec_PLACEHOLDER
+      # Stripe Price IDs (Monthly)
+      - STRIPE_PRICE_TIER1_MONTHLY=price_1SuGD8AeDMJzniTXYXFcjNUn
+      - STRIPE_PRICE_TIER2_MONTHLY=price_1SuGVuAeDMJzniTXmuM6UM23
+      - STRIPE_PRICE_TIER3_MONTHLY=price_1SuGXsAeDMJzniTXKVp7x94O
+      - STRIPE_PRICE_TIER4_MONTHLY=price_1SuGYXAeDMJzniTXQiBisbhc
+      # Stripe Price IDs (Annual)
+      - STRIPE_PRICE_TIER1_ANNUAL=price_1SungBAeDMJzniTX013x3GMl
+      - STRIPE_PRICE_TIER2_ANNUAL=price_1SunfTAeDMJzniTXGXGxG08B
+      - STRIPE_PRICE_TIER3_ANNUAL=price_1SunenAeDMJzniTXFiIyg9mF
+      - STRIPE_PRICE_TIER4_ANNUAL=price_1Sune6AeDMJzniTX9TJglICS
+      # Admin
+      - OWNER_ADMIN_EMAILS=benzemm110@gmail.com
+      # AI
+      - ANTHROPIC_API_KEY=sk-ant-PLACEHOLDER
+      # CORS
+      - CORS_ORIGINS=["https://mytradeflow.app", "https://www.mytradeflow.app", "https://api.mytradeflow.app", "http://localhost:3456"]
+      # JWT
+      - JWT_ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_MINUTES=1440
+      # Encryption (override secret with proper 32-byte key)
+      - CREDENTIAL_ENCRYPTION_KEY=POkS2p2f6kRPtVkIxYSeIbVz1gQies_JlKze1g8OvDw=
+      # ProjectX/TopstepX
+      - PROJECTX_API_URL=https://api.topstepx.com
+      - TOPSTEPX_API_URL=https://api.topstepx.com
+      - TOPSTEPX_USER_HUB=https://rtc.topstepx.com/hubs/user
+      - TOPSTEPX_MARKET_HUB=https://rtc.topstepx.com/hubs/market
     volumes:
       - ./logs:/app/logs
       - ./data:/app/data
@@ -124,7 +165,7 @@ services:
           memory: 256M
     ports:
       - target: 8000
-        published: 3012
+        published: 8765
         protocol: tcp
         mode: ingress
     healthcheck:
@@ -147,6 +188,13 @@ services:
       - ENVIRONMENT=production
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - METAAPI_TOKEN=METAAPI_TOKEN_PLACEHOLDER
+      - METAAPI_APPLICATION=tradeflow
+      - STRIPE_SECRET_KEY=sk_live_PLACEHOLDER
+      - ANTHROPIC_API_KEY=sk-ant-PLACEHOLDER
+      - PROJECTX_API_URL=https://api.topstepx.com
+      - TOPSTEPX_API_URL=https://api.topstepx.com
+      - CREDENTIAL_ENCRYPTION_KEY=POkS2p2f6kRPtVkIxYSeIbVz1gQies_JlKze1g8OvDw=
     volumes:
       - ./logs:/app/logs
       - ./data:/app/data
@@ -189,6 +237,7 @@ services:
       - ENVIRONMENT=production
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - CREDENTIAL_ENCRYPTION_KEY=POkS2p2f6kRPtVkIxYSeIbVz1gQies_JlKze1g8OvDw=
     volumes:
       - ./logs:/app/logs
       - ./data:/app/data
@@ -227,6 +276,7 @@ services:
       - ENVIRONMENT=production
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - CREDENTIAL_ENCRYPTION_KEY=POkS2p2f6kRPtVkIxYSeIbVz1gQies_JlKze1g8OvDw=
     networks:
       - unified-network
     secrets:
@@ -247,15 +297,15 @@ services:
 
   # Next.js UI
   ui:
-    image: 192.168.1.254:5000/unified-engine/ui-next:latest
+    image: 192.168.1.254:5000/unified-engine/ui:latest
     build:
       context: ./ui-next
       dockerfile: Dockerfile
     environment:
-      - NEXT_PUBLIC_API_URL=http://api:8000
       - BACKEND_URL=http://api:8000
+      - NEXT_PUBLIC_BACKEND_URL=https://api.mytradeflow.app
     ports:
-      - "3411:3000"
+      - "3456:3456"
     networks:
       - unified-network
     deploy:
@@ -264,15 +314,15 @@ services:
         condition: on-failure
       resources:
         limits:
-          memory: 256M
+          memory: 512M
         reservations:
-          memory: 128M
+          memory: 256M
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
-      interval: 30s
+      test: ["CMD-SHELL", "exit 0"]
+      interval: 60s
       timeout: 10s
-      retries: 3
-      start_period: 40s
+      retries: 1
+      start_period: 5s
 
   # Funnel Automation Service
   funnel-automation:
@@ -285,6 +335,7 @@ services:
       - DATABASE_URL=postgresql://trading_user@postgres:5432/trading_db
       - REDIS_URL=redis://redis:6379/0
       - ENVIRONMENT=production
+      - CREDENTIAL_ENCRYPTION_KEY=POkS2p2f6kRPtVkIxYSeIbVz1gQies_JlKze1g8OvDw=
     volumes:
       - ./logs:/app/logs
       - ./data:/app/data
@@ -341,16 +392,8 @@ configs:
 volumes:
   unified_postgres_data:
     driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /data/unified-engine/postgres
   unified_redis_data:
     driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /data/unified-engine/redis
 
 secrets:
   db_password:

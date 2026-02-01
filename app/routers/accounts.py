@@ -1563,12 +1563,30 @@ class AccountSettingsBody(BaseModel):
     max_daily_trades: Optional[int] = Field(None, ge=1, le=1000)
     trade_cooldown_seconds: Optional[int] = Field(None, ge=0, le=3600)
 
+    # Default SL/TP (broker-specific units)
+    default_stop_loss: Optional[float] = Field(None, ge=0)
+    default_take_profit: Optional[float] = Field(None, ge=0)
+
     # Grouping
     group_id: Optional[int] = None
 
     # Routing
     is_signal_enabled: Optional[bool] = None
     signal_priority: Optional[int] = Field(None, ge=0, le=100)
+
+    # Prop firm settings (stored in extra_metadata)
+    prop_rules_enabled: Optional[bool] = None
+    prop_provider: Optional[str] = None
+    prop_phase: Optional[str] = Field(None, description="none, evaluation_1, evaluation_2, funded, payout")
+    prop_profit_target_pct: Optional[float] = Field(None, ge=0, le=100)
+    prop_profit_target_amount: Optional[float] = Field(None, ge=0)
+    prop_max_daily_loss_pct: Optional[float] = Field(None, ge=0, le=100)
+    prop_max_daily_loss_amount: Optional[float] = Field(None, ge=0)
+    prop_max_drawdown_pct: Optional[float] = Field(None, ge=0, le=100)
+    prop_max_drawdown_amount: Optional[float] = Field(None, ge=0)
+    prop_trailing_drawdown: Optional[bool] = None
+    prop_challenge_start_date: Optional[str] = None
+    prop_challenge_end_date: Optional[str] = None
 
 
 @router.get("/{account_id}/settings")
@@ -1616,34 +1634,54 @@ async def get_account_settings(
 
     try:
         response = await use_case.execute(dto_request)
+
+        # Get prop rules from extra_metadata
+        prop_rules = None
+        if orm_account.extra_metadata:
+            prop_rules = orm_account.extra_metadata.get("prop_rules")
+
         return {
-            "account_id": response.account_id,
-            "position_sizing": {
+            "accountId": response.account_id,
+            "positionSizing": {
                 "mode": response.position_sizing_mode,
-                "fixed_lot_size": response.fixed_lot_size,
-                "percent_of_balance": response.percent_of_balance,
-                "percent_of_equity": response.percent_of_equity,
-                "risk_percent_per_trade": response.risk_percent_per_trade,
+                "fixedLotSize": response.fixed_lot_size,
+                "percentOfBalance": response.percent_of_balance,
+                "percentOfEquity": response.percent_of_equity,
+                "riskPercentPerTrade": response.risk_percent_per_trade,
             },
-            "risk_limits": {
-                "max_position_size": response.max_position_size,
-                "max_daily_loss": response.max_daily_loss,
-                "max_daily_loss_pct": response.max_daily_loss_pct,
-                "max_drawdown_pct": response.max_drawdown_pct,
-                "max_open_positions": response.max_open_positions,
-                "max_daily_trades": response.max_daily_trades,
-                "trade_cooldown_seconds": response.trade_cooldown_seconds,
-                "default_stop_loss": getattr(response, 'default_stop_loss', None),
-                "default_take_profit": getattr(response, 'default_take_profit', None),
+            "riskLimits": {
+                "maxPositionSize": response.max_position_size,
+                "maxDailyLoss": response.max_daily_loss,
+                "maxDailyLossPct": response.max_daily_loss_pct,
+                "maxDrawdownPct": response.max_drawdown_pct,
+                "maxOpenPositions": response.max_open_positions,
+                "maxDailyTrades": response.max_daily_trades,
+                "tradeCooldownSeconds": response.trade_cooldown_seconds,
+                "defaultStopLoss": getattr(response, 'default_stop_loss', None),
+                "defaultTakeProfit": getattr(response, 'default_take_profit', None),
             },
             "grouping": {
-                "group_id": response.group_id,
-                "group_name": response.group_name,
-                "group_color": response.group_color,
+                "groupId": response.group_id,
+                "groupName": response.group_name,
+                "groupColor": response.group_color,
             },
             "routing": {
-                "is_signal_enabled": response.is_signal_enabled,
-                "signal_priority": response.signal_priority,
+                "isSignalEnabled": response.is_signal_enabled,
+                "signalPriority": response.signal_priority,
+            },
+            "propRules": {
+                "isEnabled": prop_rules.get("is_enabled", False) if prop_rules else False,
+                "provider": prop_rules.get("provider") if prop_rules else None,
+                "phase": prop_rules.get("phase", "none") if prop_rules else "none",
+                "profitTargetPct": prop_rules.get("profit_target_pct") if prop_rules else None,
+                "profitTargetAmount": prop_rules.get("profit_target_amount") if prop_rules else None,
+                "maxDailyLossPct": prop_rules.get("max_daily_loss_pct") if prop_rules else None,
+                "maxDailyLossAmount": prop_rules.get("max_daily_loss_amount") if prop_rules else None,
+                "maxDrawdownPct": prop_rules.get("max_drawdown_pct") if prop_rules else None,
+                "maxDrawdownAmount": prop_rules.get("max_drawdown_amount") if prop_rules else None,
+                "trailingDrawdown": prop_rules.get("trailing_drawdown", False) if prop_rules else False,
+                "challengeStartDate": prop_rules.get("challenge_start_date") if prop_rules else None,
+                "challengeEndDate": prop_rules.get("challenge_end_date") if prop_rules else None,
             },
             "account": {
                 "id": orm_account.id,
@@ -1680,9 +1718,10 @@ async def update_account_settings(
     account_id: int,
     settings: AccountSettingsBody,
     current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     """
-    Update account settings (position sizing, risk limits, routing).
+    Update account settings (position sizing, risk limits, routing, prop rules).
 
     Only provided fields will be updated. Omit fields to keep current values.
     """
@@ -1724,35 +1763,118 @@ async def update_account_settings(
 
     try:
         response = await use_case.execute(dto_request, user_id=current_user.id)
+
+        # Handle prop rules - store in extra_metadata
+        prop_rules = None
+        has_prop_update = any([
+            settings.prop_rules_enabled is not None,
+            settings.prop_provider is not None,
+            settings.prop_phase is not None,
+            settings.prop_profit_target_pct is not None,
+            settings.prop_profit_target_amount is not None,
+            settings.prop_max_daily_loss_pct is not None,
+            settings.prop_max_daily_loss_amount is not None,
+            settings.prop_max_drawdown_pct is not None,
+            settings.prop_max_drawdown_amount is not None,
+            settings.prop_trailing_drawdown is not None,
+            settings.prop_challenge_start_date is not None,
+            settings.prop_challenge_end_date is not None,
+        ])
+
+        if has_prop_update:
+            # Get current account
+            account = db.query(TradingAccount).filter(
+                TradingAccount.id == account_id,
+                TradingAccount.user_id == current_user.id
+            ).first()
+
+            if account:
+                # Get existing extra_metadata or create new
+                extra_metadata = account.extra_metadata or {}
+                prop_rules = extra_metadata.get("prop_rules", {})
+
+                # Update only provided fields
+                if settings.prop_rules_enabled is not None:
+                    prop_rules["is_enabled"] = settings.prop_rules_enabled
+                if settings.prop_provider is not None:
+                    prop_rules["provider"] = settings.prop_provider
+                if settings.prop_phase is not None:
+                    prop_rules["phase"] = settings.prop_phase
+                if settings.prop_profit_target_pct is not None:
+                    prop_rules["profit_target_pct"] = settings.prop_profit_target_pct
+                if settings.prop_profit_target_amount is not None:
+                    prop_rules["profit_target_amount"] = settings.prop_profit_target_amount
+                if settings.prop_max_daily_loss_pct is not None:
+                    prop_rules["max_daily_loss_pct"] = settings.prop_max_daily_loss_pct
+                if settings.prop_max_daily_loss_amount is not None:
+                    prop_rules["max_daily_loss_amount"] = settings.prop_max_daily_loss_amount
+                if settings.prop_max_drawdown_pct is not None:
+                    prop_rules["max_drawdown_pct"] = settings.prop_max_drawdown_pct
+                if settings.prop_max_drawdown_amount is not None:
+                    prop_rules["max_drawdown_amount"] = settings.prop_max_drawdown_amount
+                if settings.prop_trailing_drawdown is not None:
+                    prop_rules["trailing_drawdown"] = settings.prop_trailing_drawdown
+                if settings.prop_challenge_start_date is not None:
+                    prop_rules["challenge_start_date"] = settings.prop_challenge_start_date
+                if settings.prop_challenge_end_date is not None:
+                    prop_rules["challenge_end_date"] = settings.prop_challenge_end_date
+
+                # Save to extra_metadata
+                extra_metadata["prop_rules"] = prop_rules
+                account.extra_metadata = extra_metadata
+                db.commit()
+        else:
+            # Get current prop rules from database
+            account = db.query(TradingAccount).filter(
+                TradingAccount.id == account_id,
+                TradingAccount.user_id == current_user.id
+            ).first()
+            if account and account.extra_metadata:
+                prop_rules = account.extra_metadata.get("prop_rules")
+
         return {
             "message": "Settings updated successfully",
             "account_id": response.account_id,
-            "position_sizing": {
+            "positionSizing": {
                 "mode": response.position_sizing_mode,
-                "fixed_lot_size": response.fixed_lot_size,
-                "percent_of_balance": response.percent_of_balance,
-                "percent_of_equity": response.percent_of_equity,
-                "risk_percent_per_trade": response.risk_percent_per_trade,
+                "fixedLotSize": response.fixed_lot_size,
+                "percentOfBalance": response.percent_of_balance,
+                "percentOfEquity": response.percent_of_equity,
+                "riskPercentPerTrade": response.risk_percent_per_trade,
             },
-            "risk_limits": {
-                "max_position_size": response.max_position_size,
-                "max_daily_loss": response.max_daily_loss,
-                "max_daily_loss_pct": response.max_daily_loss_pct,
-                "max_drawdown_pct": response.max_drawdown_pct,
-                "max_open_positions": response.max_open_positions,
-                "max_daily_trades": response.max_daily_trades,
-                "trade_cooldown_seconds": response.trade_cooldown_seconds,
-                "default_stop_loss": getattr(response, 'default_stop_loss', None),
-                "default_take_profit": getattr(response, 'default_take_profit', None),
+            "riskLimits": {
+                "maxPositionSize": response.max_position_size,
+                "maxDailyLoss": response.max_daily_loss,
+                "maxDailyLossPct": response.max_daily_loss_pct,
+                "maxDrawdownPct": response.max_drawdown_pct,
+                "maxOpenPositions": response.max_open_positions,
+                "maxDailyTrades": response.max_daily_trades,
+                "tradeCooldownSeconds": response.trade_cooldown_seconds,
+                "defaultStopLoss": getattr(response, 'default_stop_loss', None),
+                "defaultTakeProfit": getattr(response, 'default_take_profit', None),
             },
             "grouping": {
-                "group_id": response.group_id,
-                "group_name": response.group_name,
-                "group_color": response.group_color,
+                "groupId": response.group_id,
+                "groupName": response.group_name,
+                "groupColor": response.group_color,
             },
             "routing": {
-                "is_signal_enabled": response.is_signal_enabled,
-                "signal_priority": response.signal_priority,
+                "isSignalEnabled": response.is_signal_enabled,
+                "signalPriority": response.signal_priority,
+            },
+            "propRules": {
+                "isEnabled": prop_rules.get("is_enabled", False) if prop_rules else False,
+                "provider": prop_rules.get("provider") if prop_rules else None,
+                "phase": prop_rules.get("phase", "none") if prop_rules else "none",
+                "profitTargetPct": prop_rules.get("profit_target_pct") if prop_rules else None,
+                "profitTargetAmount": prop_rules.get("profit_target_amount") if prop_rules else None,
+                "maxDailyLossPct": prop_rules.get("max_daily_loss_pct") if prop_rules else None,
+                "maxDailyLossAmount": prop_rules.get("max_daily_loss_amount") if prop_rules else None,
+                "maxDrawdownPct": prop_rules.get("max_drawdown_pct") if prop_rules else None,
+                "maxDrawdownAmount": prop_rules.get("max_drawdown_amount") if prop_rules else None,
+                "trailingDrawdown": prop_rules.get("trailing_drawdown", False) if prop_rules else False,
+                "challengeStartDate": prop_rules.get("challenge_start_date") if prop_rules else None,
+                "challengeEndDate": prop_rules.get("challenge_end_date") if prop_rules else None,
             },
         }
     except ValueError as e:

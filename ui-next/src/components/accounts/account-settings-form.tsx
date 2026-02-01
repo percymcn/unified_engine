@@ -16,9 +16,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { TabsContent } from '@/components/ui/tabs';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Slider } from '@/components/ui/slider';
-import { Loader2 } from 'lucide-react';
-import { AccountSettings, AccountGroup, PositionSizingMode, BrokerType } from '@/types/account';
+import { Loader2, Trophy, Calendar, Target, TrendingDown, Info } from 'lucide-react';
+import { AccountSettings, AccountGroup, PositionSizingMode, BrokerType, PropPhase, PROP_PROVIDERS } from '@/types/account';
 import { getBrokerRiskProfile, formatBrokerValue, validateBrokerValue } from '@/lib/brokers/riskCapabilities';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface AccountSettingsFormProps {
   settings: AccountSettings;
@@ -91,6 +92,38 @@ export function AccountSettingsForm({
   const [isSignalEnabled, setIsSignalEnabled] = useState(settings.routing.isSignalEnabled);
   const [signalPriority, setSignalPriority] = useState(settings.routing.signalPriority.toString());
 
+  // Prop rules state
+  const [propEnabled, setPropEnabled] = useState(settings.propRules?.isEnabled || false);
+  const [propProvider, setPropProvider] = useState(settings.propRules?.provider || '');
+  const [propPhase, setPropPhase] = useState<PropPhase>(settings.propRules?.phase || 'none');
+  const [propProfitTargetPct, setPropProfitTargetPct] = useState(
+    settings.propRules?.profitTargetPct?.toString() || ''
+  );
+  const [propProfitTargetAmount, setPropProfitTargetAmount] = useState(
+    settings.propRules?.profitTargetAmount?.toString() || ''
+  );
+  const [propMaxDailyLossPct, setPropMaxDailyLossPct] = useState(
+    settings.propRules?.maxDailyLossPct?.toString() || ''
+  );
+  const [propMaxDailyLossAmount, setPropMaxDailyLossAmount] = useState(
+    settings.propRules?.maxDailyLossAmount?.toString() || ''
+  );
+  const [propMaxDrawdownPct, setPropMaxDrawdownPct] = useState(
+    settings.propRules?.maxDrawdownPct?.toString() || ''
+  );
+  const [propMaxDrawdownAmount, setPropMaxDrawdownAmount] = useState(
+    settings.propRules?.maxDrawdownAmount?.toString() || ''
+  );
+  const [propTrailingDrawdown, setPropTrailingDrawdown] = useState(
+    settings.propRules?.trailingDrawdown || false
+  );
+  const [propChallengeStartDate, setPropChallengeStartDate] = useState(
+    settings.propRules?.challengeStartDate || ''
+  );
+  const [propChallengeEndDate, setPropChallengeEndDate] = useState(
+    settings.propRules?.challengeEndDate || ''
+  );
+
   // Reset form when settings change
   useEffect(() => {
     setPositionSizingMode(settings.positionSizing.mode);
@@ -110,6 +143,19 @@ export function AccountSettingsForm({
     setGroupId(settings.grouping.groupId);
     setIsSignalEnabled(settings.routing.isSignalEnabled);
     setSignalPriority(settings.routing.signalPriority.toString());
+    // Prop rules
+    setPropEnabled(settings.propRules?.isEnabled || false);
+    setPropProvider(settings.propRules?.provider || '');
+    setPropPhase(settings.propRules?.phase || 'none');
+    setPropProfitTargetPct(settings.propRules?.profitTargetPct?.toString() || '');
+    setPropProfitTargetAmount(settings.propRules?.profitTargetAmount?.toString() || '');
+    setPropMaxDailyLossPct(settings.propRules?.maxDailyLossPct?.toString() || '');
+    setPropMaxDailyLossAmount(settings.propRules?.maxDailyLossAmount?.toString() || '');
+    setPropMaxDrawdownPct(settings.propRules?.maxDrawdownPct?.toString() || '');
+    setPropMaxDrawdownAmount(settings.propRules?.maxDrawdownAmount?.toString() || '');
+    setPropTrailingDrawdown(settings.propRules?.trailingDrawdown || false);
+    setPropChallengeStartDate(settings.propRules?.challengeStartDate || '');
+    setPropChallengeEndDate(settings.propRules?.challengeEndDate || '');
   }, [settings]);
 
   const handleSave = () => {
@@ -145,6 +191,20 @@ export function AccountSettingsForm({
       routing: {
         isSignalEnabled: isSignalEnabled,
         signalPriority: parseInt(signalPriority) || 0,
+      },
+      propRules: {
+        isEnabled: propEnabled,
+        provider: propProvider || null,
+        phase: propPhase,
+        profitTargetPct: propProfitTargetPct ? parseFloat(propProfitTargetPct) : null,
+        profitTargetAmount: propProfitTargetAmount ? parseFloat(propProfitTargetAmount) : null,
+        maxDailyLossPct: propMaxDailyLossPct ? parseFloat(propMaxDailyLossPct) : null,
+        maxDailyLossAmount: propMaxDailyLossAmount ? parseFloat(propMaxDailyLossAmount) : null,
+        maxDrawdownPct: propMaxDrawdownPct ? parseFloat(propMaxDrawdownPct) : null,
+        maxDrawdownAmount: propMaxDrawdownAmount ? parseFloat(propMaxDrawdownAmount) : null,
+        trailingDrawdown: propTrailingDrawdown,
+        challengeStartDate: propChallengeStartDate || null,
+        challengeEndDate: propChallengeEndDate || null,
       },
     };
 
@@ -645,6 +705,261 @@ export function AccountSettingsForm({
                 Organize accounts into groups for easier management
               </p>
             </div>
+          </CardContent>
+        </Card>
+
+        <div className="flex justify-end mt-6">
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              'Save Settings'
+            )}
+          </Button>
+        </div>
+      </TabsContent>
+
+      {/* Prop Rules Tab */}
+      <TabsContent value="prop-rules">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Trophy className="h-5 w-5" />
+              Prop Firm Rules
+            </CardTitle>
+            <CardDescription>
+              Configure prop firm challenge rules and limits. The system will help you stay compliant with your prop firm&apos;s requirements.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Enable Prop Rules */}
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <div className="space-y-0.5">
+                <Label htmlFor="prop-enabled" className="font-medium">Enable Prop Rules</Label>
+                <p className="text-sm text-muted-foreground">
+                  Track and enforce prop firm compliance for this account
+                </p>
+              </div>
+              <Switch
+                id="prop-enabled"
+                checked={propEnabled}
+                onCheckedChange={setPropEnabled}
+              />
+            </div>
+
+            {propEnabled && (
+              <>
+                {/* Provider and Phase */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="propProvider">Prop Firm Provider</Label>
+                    <Select
+                      value={propProvider}
+                      onValueChange={setPropProvider}
+                    >
+                      <SelectTrigger id="propProvider">
+                        <SelectValue placeholder="Select provider" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PROP_PROVIDERS.map((provider) => (
+                          <SelectItem key={provider} value={provider}>
+                            {provider}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="propPhase">Challenge Phase</Label>
+                    <Select
+                      value={propPhase}
+                      onValueChange={(value) => setPropPhase(value as PropPhase)}
+                    >
+                      <SelectTrigger id="propPhase">
+                        <SelectValue placeholder="Select phase" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Not Set</SelectItem>
+                        <SelectItem value="evaluation_1">Evaluation Phase 1</SelectItem>
+                        <SelectItem value="evaluation_2">Evaluation Phase 2</SelectItem>
+                        <SelectItem value="funded">Funded Account</SelectItem>
+                        <SelectItem value="payout">Payout Eligible</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Challenge Dates */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="challengeStartDate" className="flex items-center gap-1">
+                      <Calendar className="h-4 w-4" />
+                      Challenge Start Date
+                    </Label>
+                    <Input
+                      id="challengeStartDate"
+                      type="date"
+                      value={propChallengeStartDate}
+                      onChange={(e) => setPropChallengeStartDate(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="challengeEndDate" className="flex items-center gap-1">
+                      <Calendar className="h-4 w-4" />
+                      Challenge End Date
+                    </Label>
+                    <Input
+                      id="challengeEndDate"
+                      type="date"
+                      value={propChallengeEndDate}
+                      onChange={(e) => setPropChallengeEndDate(e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Leave empty for unlimited time challenges
+                    </p>
+                  </div>
+                </div>
+
+                {/* Profit Target */}
+                <div className="space-y-4 border-t pt-4">
+                  <h3 className="text-sm font-semibold flex items-center gap-2">
+                    <Target className="h-4 w-4" />
+                    Profit Target
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="profitTargetPct">Profit Target (%)</Label>
+                      <Input
+                        id="profitTargetPct"
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        max="100"
+                        value={propProfitTargetPct}
+                        onChange={(e) => setPropProfitTargetPct(e.target.value)}
+                        placeholder="e.g., 10"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Target profit as percentage of starting balance
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="profitTargetAmount">Profit Target ($)</Label>
+                      <Input
+                        id="profitTargetAmount"
+                        type="number"
+                        step="1"
+                        min="0"
+                        value={propProfitTargetAmount}
+                        onChange={(e) => setPropProfitTargetAmount(e.target.value)}
+                        placeholder="e.g., 10000"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Target profit in account currency
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Daily Loss Limit */}
+                <div className="space-y-4 border-t pt-4">
+                  <h3 className="text-sm font-semibold flex items-center gap-2">
+                    <TrendingDown className="h-4 w-4" />
+                    Daily Loss Limit
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="propDailyLossPct">Daily Loss Limit (%)</Label>
+                      <Input
+                        id="propDailyLossPct"
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        max="100"
+                        value={propMaxDailyLossPct}
+                        onChange={(e) => setPropMaxDailyLossPct(e.target.value)}
+                        placeholder="e.g., 5"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Maximum daily loss as percentage of starting balance
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="propDailyLossAmount">Daily Loss Limit ($)</Label>
+                      <Input
+                        id="propDailyLossAmount"
+                        type="number"
+                        step="1"
+                        min="0"
+                        value={propMaxDailyLossAmount}
+                        onChange={(e) => setPropMaxDailyLossAmount(e.target.value)}
+                        placeholder="e.g., 5000"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Maximum Drawdown */}
+                <div className="space-y-4 border-t pt-4">
+                  <h3 className="text-sm font-semibold flex items-center gap-2">
+                    <TrendingDown className="h-4 w-4" />
+                    Maximum Drawdown
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="propDrawdownPct">Max Drawdown (%)</Label>
+                      <Input
+                        id="propDrawdownPct"
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        max="100"
+                        value={propMaxDrawdownPct}
+                        onChange={(e) => setPropMaxDrawdownPct(e.target.value)}
+                        placeholder="e.g., 10"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Maximum overall drawdown as percentage
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="propDrawdownAmount">Max Drawdown ($)</Label>
+                      <Input
+                        id="propDrawdownAmount"
+                        type="number"
+                        step="1"
+                        min="0"
+                        value={propMaxDrawdownAmount}
+                        onChange={(e) => setPropMaxDrawdownAmount(e.target.value)}
+                        placeholder="e.g., 10000"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/50">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="trailingDrawdown" className="font-medium">Trailing Drawdown</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Drawdown limit follows high water mark (equity high)
+                      </p>
+                    </div>
+                    <Switch
+                      id="trailingDrawdown"
+                      checked={propTrailingDrawdown}
+                      onCheckedChange={setPropTrailingDrawdown}
+                    />
+                  </div>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
 

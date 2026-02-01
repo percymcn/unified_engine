@@ -100,9 +100,19 @@ export interface BrokerCredentialConfig {
 // Position sizing modes for trade size calculation
 export type PositionSizingMode = 'fixed' | 'percent_balance' | 'percent_equity' | 'risk_based';
 
+// Prop firm challenge phases
+export type PropPhase = 'evaluation_1' | 'evaluation_2' | 'funded' | 'payout' | 'none';
+
+// Common prop firm providers
+export const PROP_PROVIDERS = [
+  'FTMO', 'Topstep', 'Apex Trader', 'MyFundedFX', 'The5%ers', 'E8 Funding',
+  'True Forex Funds', 'Funded Next', 'SurgeTrader', 'Lux Trading', 'Other'
+] as const;
+
 // Account settings for position sizing and risk management
 export interface AccountSettings {
   accountId: number;
+  account?: Account; // Account details from backend
   positionSizing: {
     mode: PositionSizingMode;
     fixedLotSize: number;
@@ -135,6 +145,21 @@ export interface AccountSettings {
     isSignalEnabled: boolean;
     signalPriority: number;
   };
+  // Prop firm specific settings (stored in extra_metadata)
+  propRules: {
+    isEnabled: boolean;
+    provider: string | null;
+    phase: PropPhase;
+    profitTargetPct: number | null;
+    profitTargetAmount: number | null;
+    maxDailyLossPct: number | null;
+    maxDailyLossAmount: number | null;
+    maxDrawdownPct: number | null;
+    maxDrawdownAmount: number | null;
+    trailingDrawdown: boolean;
+    challengeStartDate: string | null;
+    challengeEndDate: string | null;
+  };
 }
 
 // Request to update account settings
@@ -158,6 +183,19 @@ export interface AccountSettingsUpdate {
   groupId?: number | null;
   isSignalEnabled?: boolean;
   signalPriority?: number;
+  // Prop firm settings (stored in extra_metadata)
+  propRulesEnabled?: boolean;
+  propProvider?: string | null;
+  propPhase?: PropPhase;
+  propProfitTargetPct?: number | null;
+  propProfitTargetAmount?: number | null;
+  propMaxDailyLossPct?: number | null;
+  propMaxDailyLossAmount?: number | null;
+  propMaxDrawdownPct?: number | null;
+  propMaxDrawdownAmount?: number | null;
+  propTrailingDrawdown?: boolean;
+  propChallengeStartDate?: string | null;
+  propChallengeEndDate?: string | null;
 }
 
 // Account group for organizing trading accounts

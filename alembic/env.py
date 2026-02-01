@@ -29,7 +29,44 @@ target_metadata = Base.metadata
 
 
 def get_url():
-    return os.getenv("DATABASE_URL", "postgresql://trading_user:trading_password@localhost:5432/trading_db")
+    from urllib.parse import urlparse, urlunparse
+
+    url = os.getenv("DATABASE_URL", "postgresql://trading_user:trading_password@localhost:5432/trading_db")
+
+    # If URL already has a password or is SQLite, return as-is
+    if url.startswith("sqlite") or "@" not in url:
+        return url
+
+    parsed = urlparse(url)
+
+    # If password is already in URL, return as-is
+    if parsed.password:
+        return url
+
+    # Try to read password from Docker secret
+    db_password = None
+    try:
+        with open("/run/secrets/db_password", "r") as f:
+            db_password = f.read().strip()
+    except FileNotFoundError:
+        # Not in Docker Swarm, try environment variable
+        db_password = os.getenv("DATABASE_PASSWORD", "")
+
+    if db_password:
+        # Inject password into URL
+        netloc = f"{parsed.username}:{db_password}@{parsed.hostname}"
+        if parsed.port:
+            netloc += f":{parsed.port}"
+        return urlunparse((
+            parsed.scheme,
+            netloc,
+            parsed.path,
+            parsed.params,
+            parsed.query,
+            parsed.fragment
+        ))
+
+    return url
 
 
 def run_migrations_offline():

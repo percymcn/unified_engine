@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Removed standalone output - use standard production mode
-  // For Docker deployment, uncomment: output: 'standalone',
+  // Enable standalone output for Docker deployment
+  output: 'standalone',
   eslint: {
     // Disable ESLint during production builds for faster deployment
     ignoreDuringBuilds: true,

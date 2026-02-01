@@ -17,6 +17,11 @@ COPY . .
 # Disable telemetry during build
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# Set build-time environment variables for production
+# These are baked into the client-side code
+ARG NEXT_PUBLIC_BACKEND_URL=https://api.mytradeflow.app
+ENV NEXT_PUBLIC_BACKEND_URL=$NEXT_PUBLIC_BACKEND_URL
+
 # Build the application
 RUN npm run build
 

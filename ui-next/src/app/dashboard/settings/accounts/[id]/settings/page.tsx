@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { Loader2, ArrowLeft, Settings, Shield, GitBranch, RefreshCw } from 'lucide-react';
+import { Loader2, ArrowLeft, Settings, Shield, GitBranch, RefreshCw, Trophy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -218,6 +218,7 @@ export default function AccountSettingsPage() {
     riskLimits?: Partial<AccountSettings['riskLimits']>;
     grouping?: Partial<AccountSettings['grouping']>;
     routing?: Partial<AccountSettings['routing']>;
+    propRules?: Partial<AccountSettings['propRules']>;
   }) => {
     try {
       setSaving(true);
@@ -244,6 +245,19 @@ export default function AccountSettingsPage() {
         groupId: updates.grouping?.groupId,
         isSignalEnabled: updates.routing?.isSignalEnabled,
         signalPriority: updates.routing?.signalPriority,
+        // Prop firm settings
+        propRulesEnabled: updates.propRules?.isEnabled,
+        propProvider: updates.propRules?.provider,
+        propPhase: updates.propRules?.phase,
+        propProfitTargetPct: updates.propRules?.profitTargetPct,
+        propProfitTargetAmount: updates.propRules?.profitTargetAmount,
+        propMaxDailyLossPct: updates.propRules?.maxDailyLossPct,
+        propMaxDailyLossAmount: updates.propRules?.maxDailyLossAmount,
+        propMaxDrawdownPct: updates.propRules?.maxDrawdownPct,
+        propMaxDrawdownAmount: updates.propRules?.maxDrawdownAmount,
+        propTrailingDrawdown: updates.propRules?.trailingDrawdown,
+        propChallengeStartDate: updates.propRules?.challengeStartDate,
+        propChallengeEndDate: updates.propRules?.challengeEndDate,
       };
 
       const updated = await updateAccountSettings(accountId, updatePayload);
@@ -513,7 +527,7 @@ export default function AccountSettingsPage() {
 
       {/* Settings Tabs */}
       <Tabs defaultValue="position-sizing" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 lg:w-[400px]">
+        <TabsList className="grid w-full grid-cols-4 lg:w-[520px]">
           <TabsTrigger value="position-sizing" className="gap-2">
             <Settings className="h-4 w-4" />
             <span className="hidden sm:inline">Position Sizing</span>
@@ -523,6 +537,11 @@ export default function AccountSettingsPage() {
             <Shield className="h-4 w-4" />
             <span className="hidden sm:inline">Risk Limits</span>
             <span className="sm:hidden">Risk</span>
+          </TabsTrigger>
+          <TabsTrigger value="prop-rules" className="gap-2">
+            <Trophy className="h-4 w-4" />
+            <span className="hidden sm:inline">Prop Rules</span>
+            <span className="sm:hidden">Prop</span>
           </TabsTrigger>
           <TabsTrigger value="routing" className="gap-2">
             <GitBranch className="h-4 w-4" />

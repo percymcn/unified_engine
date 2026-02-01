@@ -1,6 +1,6 @@
 # Core Framework
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
 
 # Database
 sqlalchemy==2.0.23
@@ -17,14 +17,16 @@ python-multipart==0.0.6
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 python-dotenv==1.0.0
+cryptography>=42.0.0
+slowapi>=0.1.9
 
 # Data Validation & Serialization
-pydantic==2.5.0
-pydantic-settings==2.1.0
+pydantic>=2.11.7
+pydantic-settings>=2.3.0
 email-validator==2.1.0
 
 # HTTP Client & WebSockets
-httpx==0.25.2
+httpx>=0.27.0
 aiohttp==3.9.1
 websockets==12.0
 python-socketio==5.10.0
@@ -39,11 +41,10 @@ flower==2.0.1
 # Development & Testing
 pytest==7.4.3
 pytest-asyncio==0.21.1
-httpx==0.25.2
 
 # Additional Utilities
-python-dateutil==2.8.2
-pytz==2023.3
+python-dateutil>=2.8.2
+pytz>=2025.2
 
 # NATS Integration (Optional - falls back to logging if not available)
 nats-py==2.6.0
@@ -51,14 +52,14 @@ nats-py==2.6.0
 # Stripe Payments
 stripe>=7.0.0
 
-# TradeLocker Official SDK
-tradelocker>=0.56.0
+# TradeLocker Official SDK (installed separately with --no-deps due to requests conflict)
+# tradelocker>=0.56.0
 
 # ProjectX Official SDK (TopStep)
 project-x-py>=3.5.0
 
-# MetaAPI Cloud SDK (MT4/MT5)
-metaapi-cloud-sdk>=29.0.0
+# MetaAPI Cloud SDK (MT4/MT5) - installed separately with --no-deps due to python-engineio conflict
+# metaapi-cloud-sdk>=29.0.0
 
 # Test Dependencies (ensure these are installed for running tests)
 # pytest==7.4.3 (already listed)

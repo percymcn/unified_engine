@@ -17,6 +17,7 @@ from app.models.pydantic_schemas import (
     OrderRequest, ExecutorOrderResponse as OrderResponse, ExecutorPosition as Position, Account,
     TradeRequest, ExecutorTradeResponse as TradeResponse
 )
+from app.utils.broker_field_limits import truncate_comment
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +72,14 @@ class MT5Executor(BaseExecutor):
         self._sdk_service: Optional[Any] = None
         self._use_sdk = use_sdk and SDK_AVAILABLE
 
+        # REST API mode (most reliable, no WebSocket issues)
+        self._using_rest_api = False
+        self._rest_client: Optional[httpx.AsyncClient] = None
+        # MetaAPI REST API base URLs - use metaapi.cloud which resolves reliably
+        self._metaapi_provisioning_api = "https://mt-provisioning-api-v1.agiliumtrade.ai"
+        self._metaapi_client_api = "https://mt-client-api-v1.agiliumtrade.ai"
+        self._account_region: Optional[str] = None
+
         # Check for required credentials (either SDK or Manager API)
         has_sdk_credentials = bool(self._metaapi_token and self._metaapi_account_id)
         has_manager_credentials = bool(self.manager_login and self.manager_password)
@@ -84,9 +93,156 @@ class MT5Executor(BaseExecutor):
         """Check if using official MetaAPI SDK."""
         return self._use_sdk and self._sdk_service is not None and self._sdk_service.is_connected
 
+    @property
+    def is_using_rest_api(self) -> bool:
+        """Check if using MetaAPI REST API mode."""
+        return self._using_rest_api and self._rest_client is not None
+
     def _has_metaapi_credentials(self) -> bool:
         """Check if MetaAPI credentials are available."""
         return bool(self._metaapi_token and self._metaapi_account_id)
+
+    async def _initialize_metaapi_rest(self) -> bool:
+        """Initialize MetaAPI REST API mode (bypasses WebSocket issues)."""
+        if not self._has_metaapi_credentials():
+            return False
+
+        try:
+            self._rest_client = httpx.AsyncClient(
+                timeout=30.0,
+                headers={
+                    "auth-token": self._metaapi_token,
+                    "Content-Type": "application/json"
+                }
+            )
+
+            # Try multiple API endpoints to find one that resolves
+            # MetaAPI has region-specific domains - try metaapi.cloud first (most reliable)
+            provisioning_urls = [
+                f"https://metaapi.cloud/users/current/accounts/{self._metaapi_account_id}",
+                f"https://mt-provisioning-api-v1.london.agiliumtrade.ai/users/current/accounts/{self._metaapi_account_id}",
+                f"https://mt-provisioning-api-v1.new-york.agiliumtrade.ai/users/current/accounts/{self._metaapi_account_id}",
+                f"https://mt-provisioning-api-v1.agiliumtrade.ai/users/current/accounts/{self._metaapi_account_id}",
+            ]
+
+            account_data = None
+            working_provisioning_url = None
+
+            for url in provisioning_urls:
+                try:
+                    logger.info(f"MetaAPI REST: Trying {url}")
+                    response = await self._rest_client.get(url, timeout=10.0)
+                    if response.status_code == 200:
+                        account_data = response.json()
+                        working_provisioning_url = url.rsplit('/users', 1)[0]
+                        logger.info(f"MetaAPI REST: Success with {working_provisioning_url}")
+                        break
+                    elif response.status_code == 401:
+                        logger.error("MetaAPI REST: Invalid token (401 Unauthorized)")
+                        return False
+                    elif response.status_code == 404:
+                        logger.warning(f"MetaAPI REST: Account not found at {url}")
+                except Exception as e:
+                    logger.warning(f"MetaAPI REST: Failed to reach {url}: {e}")
+                    continue
+
+            if not account_data:
+                logger.error("MetaAPI REST: Could not reach any API endpoint")
+                return False
+
+            state = account_data.get("state", "UNKNOWN")
+            region = account_data.get("region", "london")
+            self._account_region = region
+            logger.info(f"MetaAPI REST: Account {self._metaapi_account_id} state={state}, region={region}")
+
+            # Update client API URL based on detected region
+            self._metaapi_client_api = f"https://mt-client-api-v1.{region}.agiliumtrade.ai"
+            self._metaapi_provisioning_api = working_provisioning_url or f"https://mt-provisioning-api-v1.{region}.agiliumtrade.ai"
+            logger.info(f"MetaAPI REST: Using client API: {self._metaapi_client_api}")
+
+            if state != "DEPLOYED":
+                # Try to deploy the account
+                deploy_url = f"{self._metaapi_provisioning_api}/users/current/accounts/{self._metaapi_account_id}/deploy"
+                try:
+                    deploy_response = await self._rest_client.post(deploy_url)
+                    if deploy_response.status_code in (200, 204):
+                        logger.info("MetaAPI REST: Account deployment initiated")
+                        # Wait a bit for deployment
+                        await asyncio.sleep(2)
+                except Exception as e:
+                    logger.warning(f"MetaAPI REST: Deploy request failed: {e}")
+
+            self._using_rest_api = True
+            return True
+
+        except Exception as e:
+            logger.error(f"MetaAPI REST API initialization error: {e}")
+            if self._rest_client:
+                await self._rest_client.aclose()
+                self._rest_client = None
+            return False
+
+    async def _place_order_rest(self, order: OrderRequest) -> OrderResponse:
+        """Place order via MetaAPI REST API."""
+        if not self._rest_client:
+            return OrderResponse(success=False, error="REST client not initialized")
+
+        try:
+            # Determine action type from order_type field
+            # order_type can be: 'buy', 'sell', 'buy_limit', 'sell_limit', 'buy_stop', 'sell_stop', 'market'
+            order_type_str = str(order.order_type).lower()
+            if "buy" in order_type_str:
+                action_type = "ORDER_TYPE_BUY"
+            elif "sell" in order_type_str:
+                action_type = "ORDER_TYPE_SELL"
+            else:
+                # Default to buy for 'market' type
+                action_type = "ORDER_TYPE_BUY"
+
+            # Build trade request
+            trade_data = {
+                "actionType": action_type,
+                "symbol": order.symbol,
+                "volume": float(order.quantity),
+            }
+
+            # Add optional fields
+            if order.comment:
+                trade_data["comment"] = truncate_comment(order.comment, "mt5")
+
+            if order.stop_loss:
+                trade_data["stopLoss"] = float(order.stop_loss)
+
+            if order.take_profit:
+                trade_data["takeProfit"] = float(order.take_profit)
+
+            # Execute trade via REST API using region-specific URL
+            url = f"{self._metaapi_client_api}/users/current/accounts/{self._metaapi_account_id}/trade"
+            logger.info(f"MetaAPI REST: Placing order via {url}")
+            response = await self._rest_client.post(url, json=trade_data)
+
+            if response.status_code in (200, 201):
+                result = response.json()
+                return OrderResponse(
+                    success=True,
+                    order_id=str(result.get("orderId", result.get("positionId", ""))),
+                    broker_order_id=str(result.get("orderId", "")),
+                    filled_quantity=float(order.quantity),
+                    status="filled",
+                    message=result.get("stringCode", "Order executed via REST API")
+                )
+            else:
+                error_msg = response.text
+                try:
+                    error_data = response.json()
+                    error_msg = error_data.get("message", error_data.get("error", response.text))
+                except:
+                    pass
+                return OrderResponse(success=False, error=f"REST API error: {error_msg}")
+
+        except Exception as e:
+            logger.error(f"MetaAPI REST order error: {e}")
+            return OrderResponse(success=False, error=str(e))
 
     async def initialize(self) -> bool:
         """Initialize MT5 connection."""
@@ -94,7 +250,18 @@ class MT5Executor(BaseExecutor):
             logger.info("MT5 skipped: credentials not configured")
             return False
 
-        # Try SDK first if enabled and credentials available
+        # First try direct REST API (most reliable, no WebSocket issues)
+        if self._has_metaapi_credentials():
+            try:
+                success = await self._initialize_metaapi_rest()
+                if success:
+                    logger.info("MT5 initialized via MetaAPI REST API")
+                    self._is_connected = True
+                    return True
+            except Exception as e:
+                logger.warning(f"MetaAPI REST API initialization failed: {e}")
+
+        # Try SDK if enabled and credentials available (may have WebSocket issues)
         if self._use_sdk and SDK_AVAILABLE and self._has_metaapi_credentials() and MetaAPISDKService is not None:
             try:
                 self._sdk_service = MetaAPISDKService(
@@ -343,8 +510,26 @@ class MT5Executor(BaseExecutor):
 
     async def place_order(self, order: OrderRequest) -> OrderResponse:
         """Place order with MT5."""
+        # Try REST API first (most reliable)
+        if self.is_using_rest_api:
+            return await self._place_order_rest(order)
+
+        # Try SDK mode
         if self.is_using_sdk:
             return await self._place_order_sdk(order)
+
+        # Check if httpx session is available before trying httpx mode
+        if self.session is None:
+            # If MetaAPI credentials exist but neither REST nor SDK worked, give helpful error
+            if self._has_metaapi_credentials():
+                return OrderResponse(
+                    success=False,
+                    error="MetaAPI connection failed. Please check your MetaAPI account status."
+                )
+            return OrderResponse(
+                success=False,
+                error="MT5 executor not initialized - no valid credentials"
+            )
         return await self._place_order_httpx(order)
 
     async def _place_order_sdk(self, order: OrderRequest) -> OrderResponse:
@@ -483,7 +668,7 @@ class MT5Executor(BaseExecutor):
                 "price": order.price or 0,
                 "sl": order.stop_loss or 0,
                 "tp": order.take_profit or 0,
-                "comment": order.comment or "",
+                "comment": truncate_comment(order.comment, "mt5") or "",
                 "magic": order.magic_number or 0
             }
 
@@ -699,7 +884,7 @@ class MT5Executor(BaseExecutor):
                 "cmd": close_cmd,
                 "volume": quantity or position["volume"],
                 "price": 0,  # Market close
-                "comment": f"Close position {position_id}",
+                "comment": truncate_comment(f"C_{position_id[:8]}", "mt5") or "",
                 "magic": position.get("magic", 0)
             }
 

@@ -30,6 +30,12 @@ from app.services.signal_deduplication_service import (
 from app.models.database_models import RejectedSignal, RejectedSignalReason, TradingAccount, Credential
 from app.services.trial_service import TrialService, TrialStatus
 from app.core.encryption import get_encryption_service
+from app.domain.services.risk_enforcement_service import (
+    RiskEnforcementService, AccountRiskSettings, RiskEvaluation
+)
+from app.domain.services.daily_counter_service import DailyCounterService
+from app.infrastructure.adapters.position_counter_adapter import PositionCounterAdapter
+from app.utils.broker_field_limits import truncate_comment, generate_short_comment
 
 logger = logging.getLogger(__name__)
 
@@ -696,6 +702,139 @@ class SignalProcessor:
             logger.error(f"Failed to log trial rejection: {e}")
             db.rollback()
 
+    async def _check_risk_limits(
+        self,
+        signal_request: SignalRequest,
+        account,
+        signal_id: str
+    ) -> Dict[str, Any]:
+        """
+        Check all risk management limits before execution.
+
+        Enforces:
+        - Daily trade limit
+        - Max concurrent positions
+        - Per-symbol position limit
+        - Trade cooldown
+        - Daily loss limit
+        - Maximum drawdown
+
+        Args:
+            signal_request: The signal request
+            account: TradingAccount to check
+            signal_id: Signal ID for logging
+
+        Returns:
+            Dict with 'passed' bool and violation details if blocked
+        """
+        try:
+            db = next(get_db())
+
+            # Create risk settings from account
+            risk_settings = AccountRiskSettings.from_account(account)
+
+            # Check if risk management is enabled for this account
+            if not getattr(account, 'risk_management_enabled', True):
+                logger.debug(f"Risk management disabled for account {account.id}")
+                return {"passed": True}
+
+            # Skip risk checks for close actions
+            if signal_request.action.lower() in ('close', 'close_all', 'flatten', 'close_long', 'close_short'):
+                return {"passed": True}
+
+            # Create risk service dependencies
+            counter_service = DailyCounterService(db)
+            position_counter = PositionCounterAdapter(db)
+
+            # Create risk enforcement service
+            risk_service = RiskEnforcementService(
+                counter_service=counter_service,
+                position_counter=position_counter
+            )
+
+            # Evaluate risk limits
+            evaluation = await risk_service.evaluate(
+                account_id=account.id,
+                symbol=signal_request.symbol,
+                action=signal_request.action,
+                settings=risk_settings,
+                entry_price=signal_request.price,
+                stop_loss=signal_request.stop_loss,
+                take_profit=signal_request.take_profit
+            )
+
+            if evaluation.blocked:
+                violation = evaluation.first_violation
+                if violation:
+                    # Log rejection to database
+                    self._log_risk_rejection(
+                        db=db,
+                        user_id=account.user_id,
+                        account_id=account.id,
+                        signal_request=signal_request,
+                        violation=violation
+                    )
+
+                    return {
+                        "passed": False,
+                        "error": violation.reason,
+                        "reason": violation.reason,
+                        "detail": violation.detail,
+                        "limit_value": violation.limit_value,
+                        "current_value": violation.current_value
+                    }
+
+            return {"passed": True}
+
+        except Exception as e:
+            logger.error(f"Error checking risk limits: {e}")
+            return {"passed": True}  # Fail open on error
+        finally:
+            if 'db' in locals():
+                db.close()
+
+    def _log_risk_rejection(
+        self,
+        db: Session,
+        user_id: int,
+        account_id: int,
+        signal_request: SignalRequest,
+        violation
+    ):
+        """Log a risk limit rejection to the database"""
+        try:
+            # Map violation reason to enum
+            reason_map = {
+                "daily_limit": RejectedSignalReason.DAILY_LIMIT,
+                "concurrent_limit": RejectedSignalReason.CONCURRENT_LIMIT,
+                "symbol_limit": RejectedSignalReason.SYMBOL_LIMIT,
+                "cooldown": RejectedSignalReason.COOLDOWN,
+                "daily_loss": RejectedSignalReason.DAILY_LOSS,
+                "drawdown": RejectedSignalReason.DRAWDOWN,
+                "risk_reward": RejectedSignalReason.RISK_REWARD,
+            }
+            reason_enum = reason_map.get(violation.reason, RejectedSignalReason.DISABLED)
+
+            rejection = RejectedSignal(
+                user_id=user_id,
+                account_id=account_id,
+                symbol=signal_request.symbol,
+                action=signal_request.action,
+                quantity=signal_request.quantity,
+                source=getattr(signal_request, 'source', 'unknown'),
+                reason=reason_enum,
+                reason_detail=violation.detail,
+                limit_value=violation.limit_value,
+                current_value=violation.current_value,
+                original_payload=signal_request.dict() if hasattr(signal_request, 'dict') else None
+            )
+            db.add(rejection)
+            db.commit()
+            logger.info(f"Logged risk rejection for account {account_id}: {violation.reason}")
+        except Exception as e:
+            logger.error(f"Failed to log risk rejection: {e}")
+            db.rollback()
+
     async def _increment_trial_trade_count(self, user_id: int):
         """Increment trial trade count after successful execution."""
         try:
@@ -1170,6 +1309,23 @@ class SignalProcessor:
                     "status": "rejected"
                 }
 
+            # Risk management enforcement check
+            risk_check = await self._check_risk_limits(
+                signal_request=signal_request,
+                account=account,
+                signal_id=signal_id
+            )
+            if not risk_check["passed"]:
+                return {
+                    "success": False,
+                    "account_id": account.id,
+                    "account_number": account.account_number,
+                    "error": risk_check.get("error", "risk_limit_exceeded"),
+                    "reason": risk_check.get("reason"),
+                    "detail": risk_check.get("detail"),
+                    "status": "rejected"
+                }
+
             # Calculate position size if account uses dynamic sizing
             quantity = signal_request.quantity
             if account.position_sizing_mode and account.position_sizing_mode != "fixed":
@@ -1201,6 +1357,10 @@ class SignalProcessor:
                 )
             else:
                 # Convert signal to order
+                # Use broker-specific comment truncation
+                raw_comment = signal_request.comment or generate_short_comment(signal_id)
+                order_comment = truncate_comment(raw_comment, broker_type)
+
                 order_request = OrderRequest(
                     account_id=account.account_number,
                     symbol=signal_request.symbol,
@@ -1210,7 +1370,7 @@ class SignalProcessor:
                     stop_loss=stop_loss_price,
                     take_profit=take_profit_price,
                     magic_number=signal_request.magic_number,
-                    comment=(signal_request.comment or f"S_{signal_id[:6]}")[:26]  # MetaAPI limit
+                    comment=order_comment
                 )
 
                 # Execute order

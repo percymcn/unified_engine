@@ -98,8 +98,8 @@ class MetaAPISDKService:
             logger.info(f"Waiting for MetaAPI account to connect to broker...")
             await self._account.wait_connected()
 
-            # Get streaming connection
-            self._connection = self._account.get_streaming_connection()
+            # Use RPC connection instead of streaming (more reliable, doesn't require websocket)
+            self._connection = self._account.get_rpc_connection()
             await self._connection.connect()
 
             # Wait for synchronization
@@ -107,7 +107,7 @@ class MetaAPISDKService:
             await self._connection.wait_synchronized()
 
             self._is_connected = True
-            logger.info(f"MetaAPI SDK connected: account {self.account_id}")
+            logger.info(f"MetaAPI SDK connected via RPC: account {self.account_id}")
             return True
 
         except Exception as e:

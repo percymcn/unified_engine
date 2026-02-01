@@ -17,6 +17,7 @@ from app.models.pydantic_schemas import (
     OrderRequest, ExecutorOrderResponse as OrderResponse, ExecutorPosition as Position, Account,
     TradeRequest, ExecutorTradeResponse as TradeResponse
 )
+from app.utils.broker_field_limits import truncate_comment
 
 logger = logging.getLogger(__name__)
 
@@ -458,7 +459,7 @@ class MT4Executor(BaseExecutor):
                 "price": order.price or 0,
                 "sl": order.stop_loss or 0,
                 "tp": order.take_profit or 0,
-                "comment": order.comment or "",
+                "comment": truncate_comment(order.comment, "mt4") or "",
                 "magic": order.magic_number or 0
             }
 
@@ -674,7 +675,7 @@ class MT4Executor(BaseExecutor):
                 "cmd": close_cmd,
                 "volume": quantity or position["volume"],
                 "price": 0,  # Market close
-                "comment": f"Close position {position_id}",
+                "comment": truncate_comment(f"C_{position_id[:8]}", "mt4") or "",
                 "magic": position.get("magic", 0)
             }
 
