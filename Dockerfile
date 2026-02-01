@@ -22,8 +22,9 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Install SDKs with --no-deps to avoid dependency conflicts
-RUN pip install --no-cache-dir --no-deps tradelocker>=0.56.0 metaapi-cloud-sdk>=29.0.0
+# Install metaapi-cloud-sdk and its dependencies (install fully for all MetaAPI functionality)
+# Note: python-socketio/python-engineio versions already compatible in requirements.txt
+RUN pip install --no-cache-dir metaapi-cloud-sdk>=29.0.0 tradelocker>=0.56.0
 
 # Copy application code
 COPY . .
