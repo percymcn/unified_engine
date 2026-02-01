@@ -100,17 +100,26 @@ class MetaAPIProvisioningService:
 
         try:
             # Create the account in MetaAPI
-            account = await api.metatrader_account_api.create_account({
+            # Note: login MUST be a string, not integer
+            account_config = {
                 "name": name,
                 "type": "cloud",  # Cloud account (MetaAPI manages connection)
-                "login": login,
+                "login": str(login),  # Must be string
                 "password": password,
                 "server": server,
                 "platform": platform,
                 "application": self.application,
-                **({"magic": magic} if magic else {}),
-                **({"copyFactoryRoles": copy_factory_roles} if copy_factory_roles else {}),
-            })
+            }
+
+            # Add optional fields
+            if magic:
+                account_config["magic"] = magic
+            if copy_factory_roles:
+                account_config["copyFactoryRoles"] = copy_factory_roles
+
+            logger.info(f"Creating MetaAPI account with config: name={name}, type=cloud, login={login}, server={server}, platform={platform}")
+
+            account = await api.metatrader_account_api.create_account(account_config)
 
             account_id = account.id
             logger.info(f"MetaAPI account created: {account_id}")
@@ -184,6 +193,14 @@ class MetaAPIProvisioningService:
         except Exception as e:
             error_msg = str(e)
 
+            # Try to extract error details if available
+            error_details = None
+            if hasattr(e, 'details'):
+                error_details = e.details
+                logger.error(f"MetaAPI validation error details: {error_details}")
+            if hasattr(e, 'stringCode'):
+                logger.error(f"MetaAPI error code: {e.stringCode}")
+
             # Parse common errors for better messages
             if "E_AUTH" in error_msg or "401" in error_msg:
                 raise RuntimeError(f"Invalid MetaAPI master token. Check METAAPI_TOKEN configuration.")
@@ -193,6 +210,10 @@ class MetaAPIProvisioningService:
                 raise RuntimeError(f"Invalid MT{platform[-1]} credentials. Please check login and password.")
             elif "E_TIMEOUT" in error_msg or "timeout" in error_msg.lower():
                 raise RuntimeError(f"Connection timeout. The broker server may be unavailable.")
+            elif "Validation failed" in error_msg:
+                details_str = f" Details: {error_details}" if error_details else ""
+                logger.error(f"MetaAPI validation failed for account config: login={login}, server={server}, platform={platform}.{details_str}")
+                raise RuntimeError(f"Account configuration validation failed. Check login, password, and server name.{details_str}")
             else:
                 logger.error(f"MetaAPI provisioning failed: {e}")
                 raise RuntimeError(f"Failed to provision account: {error_msg}")
