@@ -77,6 +77,7 @@ class EquityResponse(BaseModel):
 class PositionAccountInfo(BaseModel):
     broker: str
     account_name: Optional[str] = None
+    account_id: Optional[int] = None
 
 
 class PositionItem(BaseModel):
@@ -86,6 +87,19 @@ class PositionItem(BaseModel):
     volume: float
     unrealized_pnl: float
     account: PositionAccountInfo
+
+
+class ClosePositionRequest(BaseModel):
+    position_id: str
+    account_id: int
+    volume: Optional[float] = None  # Optional: partial close
+
+
+class ClosePositionResponse(BaseModel):
+    success: bool
+    message: str
+    position_id: str
+    closed_volume: Optional[float] = None
 
 
 class PositionsResponse(BaseModel):
@@ -268,7 +282,8 @@ async def get_open_positions(
                                 unrealized_pnl=pnl,
                                 account=PositionAccountInfo(
                                     broker=account.broker.value if account.broker else "unknown",
-                                    account_name=account.account_name
+                                    account_name=account.account_name,
+                                    account_id=account.id
                                 )
                             ))
                         else:
@@ -281,7 +296,8 @@ async def get_open_positions(
                                 unrealized_pnl=pnl,
                                 account=PositionAccountInfo(
                                     broker=account.broker.value if account.broker else "unknown",
-                                    account_name=account.account_name
+                                    account_name=account.account_name,
+                                    account_id=account.id
                                 )
                             ))
                 finally:
@@ -312,6 +328,124 @@ async def get_open_positions(
         total_pnl=round(total_pnl, 2),
         total_positions=len(items)
     )
+
+
+@router.post("/positions/close", response_model=ClosePositionResponse)
+async def close_position(
+    request: ClosePositionRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Close an open position on any connected broker.
+    Supports full close or partial close (if volume specified).
+    """
+    # Verify the account belongs to the user
+    account = db.query(TradingAccount).filter(
+        TradingAccount.id == request.account_id,
+        TradingAccount.user_id == current_user.id,
+        TradingAccount.is_active == True
+    ).first()
+
+    if not account:
+        return ClosePositionResponse(
+            success=False,
+            message="Account not found or not authorized",
+            position_id=request.position_id
+        )
+
+    try:
+        # Create executor for this account
+        executor, needs_cleanup = await _create_account_executor(account, db)
+        if not executor:
+            return ClosePositionResponse(
+                success=False,
+                message=f"Failed to connect to {account.broker.value if account.broker else 'broker'}",
+                position_id=request.position_id
+            )
+
+        try:
+            # Try to close the position
+            # Different brokers have different close methods
+            if hasattr(executor, 'close_position'):
+                if request.volume:
+                    result = await executor.close_position(request.position_id, volume=request.volume)
+                else:
+                    result = await executor.close_position(request.position_id)
+            elif hasattr(executor, 'close_position_by_id'):
+                result = await executor.close_position_by_id(request.position_id, request.volume)
+            else:
+                # Fallback: try market order to close
+                # First get the position details to know the side and volume
+                positions = await executor.get_positions()
+                target_pos = None
+                for pos in positions:
+                    pos_id = str(pos.get('id', '')) if isinstance(pos, dict) else str(getattr(pos, 'id', ''))
+                    if pos_id == request.position_id:
+                        target_pos = pos
+                        break
+
+                if not target_pos:
+                    return ClosePositionResponse(
+                        success=False,
+                        message="Position not found on broker",
+                        position_id=request.position_id
+                    )
+
+                # Determine close action (opposite of position side)
+                if isinstance(target_pos, dict):
+                    side = target_pos.get('side', 'buy').lower()
+                    symbol = target_pos.get('symbol', '')
+                    volume = request.volume or float(target_pos.get('size', 0) or target_pos.get('qty', 0))
+                else:
+                    side = getattr(target_pos, 'side', 'buy').lower()
+                    symbol = getattr(target_pos, 'symbol', '')
+                    volume = request.volume or float(getattr(target_pos, 'size', 0))
+
+                close_action = 'sell' if 'buy' in side or 'long' in side else 'buy'
+
+                # Execute closing order
+                result = await executor.execute_order(
+                    symbol=symbol,
+                    action=close_action,
+                    volume=volume,
+                    order_type='market'
+                )
+
+            # Check result
+            if isinstance(result, dict):
+                success = result.get('success', False)
+                message = result.get('message', 'Position closed') if success else result.get('error', 'Failed to close')
+            elif hasattr(result, 'success'):
+                success = result.success
+                message = getattr(result, 'message', 'Position closed') if success else getattr(result, 'error', 'Failed to close')
+            else:
+                success = bool(result)
+                message = 'Position closed' if success else 'Failed to close position'
+
+            logger.info(f"Close position {request.position_id} for user {current_user.id}: success={success}")
+
+            return ClosePositionResponse(
+                success=success,
+                message=message,
+                position_id=request.position_id,
+                closed_volume=request.volume
+            )
+
+        finally:
+            if needs_cleanup and executor:
+                try:
+                    await executor.disconnect()
+                except Exception:
+                    pass
+
+    except Exception as e:
+        logger.error(f"Error closing position {request.position_id}: {e}")
+        return ClosePositionResponse(
+            success=False,
+            message=f"Error: {str(e)}",
+            position_id=request.position_id
+        )
 
 
 # --------------------

@@ -53,6 +53,7 @@ from app.routers.account_groups import router as account_groups_router
 from app.routers.risk import router as risk_router
 from app.routers.users import router as users_router
 from app.routers.dashboard import router as dashboard_router
+from app.routers.dashboard_stats import router as dashboard_stats_router
 from app.routers.trial import router as trial_router
 from app.routers.signal_intelligence import router as signal_intelligence_router
 from app.routers.webhooks_secure import router as webhooks_secure_router
@@ -299,6 +300,7 @@ app.include_router(account_groups_router, prefix="/api/v1/account-groups", tags=
 app.include_router(risk_router, tags=["risk"])
 app.include_router(users_router, prefix="/api/v1/users", tags=["users"])
 app.include_router(dashboard_router, tags=["dashboard"])
+app.include_router(dashboard_stats_router, tags=["dashboard"])
 app.include_router(trial_router, prefix="/api/trial", tags=["trial"])
 app.include_router(signal_intelligence_router, tags=["signal-intelligence"])
 app.include_router(webhooks_secure_router, prefix="/api/v1/webhooks", tags=["webhooks-secure"])

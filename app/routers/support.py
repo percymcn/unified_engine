@@ -12,7 +12,7 @@ from datetime import datetime
 
 from app.db.database import get_db
 from app.models.models import User
-from app.core.security import get_current_user
+from app.routers.auth import get_current_user
 from app.services.resend_email_service import (
     send_support_ticket_confirmation,
     send_account_alert_email,
