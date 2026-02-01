@@ -166,3 +166,5 @@ class TestConnectionResponse:
     detected_format: Optional[dict] = None  # {"suffix": ".pro", "case": "upper", "confidence": 0.9}
     symbol_map: Optional[dict] = None  # {"EURUSD": "EURUSD.pro", "US30": "US30.pro"}
     sample_symbols: Optional[List[str]] = None  # First 20 symbols for UI preview
+    # Discovered accounts (for MT4/MT5 via MetaAPI)
+    discovered_accounts: Optional[List[dict]] = None  # List of discovered accounts with balance, etc.

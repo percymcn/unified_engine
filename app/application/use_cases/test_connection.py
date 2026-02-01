@@ -864,6 +864,9 @@ class TestConnectionUseCase:
 
                             account_id = result.get("account_id")
                             if account_id:
+                                # Get account info from provisioning result
+                                account_info = result.get("account_info", {})
+
                                 # Get symbols for format detection from account info
                                 symbols = []
                                 try:
@@ -885,6 +888,21 @@ class TestConnectionUseCase:
                                 # Detect symbol format
                                 detected_format, symbol_map, sample_symbols = self._detect_symbols(symbols)
 
+                                # Build discovered account for frontend
+                                discovered_account = {
+                                    "account_id": str(login),  # MT login as account ID
+                                    "account_number": str(login),
+                                    "name": result.get("name", f"{platform_upper}-{login}"),
+                                    "broker": account_info.get("broker", server),
+                                    "server": server,
+                                    "balance": account_info.get("balance", 0),
+                                    "equity": account_info.get("equity", 0),
+                                    "currency": account_info.get("currency", "USD"),
+                                    "leverage": account_info.get("leverage", 1),
+                                    "platform": platform,
+                                    "metaapi_account_id": account_id,
+                                }
+
                                 return TestConnectionResponse(
                                     success=True,
                                     status="connected",
@@ -893,10 +911,12 @@ class TestConnectionUseCase:
                                         "mode": "metaapi_provisioning",
                                         "platform": platform,
                                         "metaapi_account_id": account_id,
+                                        "account_info": account_info,
                                     },
                                     detected_format=detected_format,
                                     symbol_map=symbol_map,
                                     sample_symbols=sample_symbols,
+                                    discovered_accounts=[discovered_account],
                                 )
                             else:
                                 return TestConnectionResponse(
