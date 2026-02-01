@@ -158,12 +158,20 @@ class ConnectAccountUseCase:
                 # Get broker adapter from pre-configured pool
                 broker = self._brokers.get(account.broker)
                 if broker is None:
-                    raise BrokerConnectionError(f"No adapter for broker: {account.broker}")
+                    raise BrokerConnectionError(
+                        broker=str(account.broker.value) if hasattr(account.broker, 'value') else str(account.broker),
+                        message=f"No adapter for broker: {account.broker}",
+                        account_id=request.account_id
+                    )
 
             # Connect to broker
             connected = await broker.connect()
             if not connected:
-                raise BrokerConnectionError("Failed to connect to broker")
+                raise BrokerConnectionError(
+                    broker=str(account.broker.value) if hasattr(account.broker, 'value') else str(account.broker),
+                    message="Failed to connect to broker",
+                    account_id=request.account_id
+                )
 
             # Update account state
             account.connect()
@@ -260,7 +268,11 @@ class SyncAccountUseCase:
         # Get broker adapter
         broker = self._brokers.get(account.broker)
         if broker is None:
-            raise BrokerConnectionError(f"No adapter for broker: {account.broker}")
+            raise BrokerConnectionError(
+                broker=str(account.broker.value) if hasattr(account.broker, 'value') else str(account.broker),
+                message=f"No adapter for broker: {account.broker}",
+                account_id=str(request.account_id)
+            )
 
         logger.info(f"Broker type: {type(broker).__name__}, account: {account.broker}")
 
