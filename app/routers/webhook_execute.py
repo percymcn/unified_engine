@@ -228,6 +228,65 @@ async def execute_tradingview_signal(
     except Exception as e:
         logger.error(f"Failed to create webhook log: {e}")
 
+    # Global try/except to ensure errors are always saved to webhook_log
+    try:
+        return await _execute_tradingview_signal_inner(
+            request=request,
+            db=db,
+            webhook_id=webhook_id,
+            webhook_log=webhook_log,
+            raw_payload=raw_payload,
+            webhook_key=webhook_key,
+            action_str=action_str,
+            symbol=symbol,
+            start_time=start_time
+        )
+    except HTTPException:
+        # Re-raise HTTP exceptions (they have their own error handling)
+        raise
+    except Exception as e:
+        # Catch-all: save error to webhook_log
+        logger.exception(f"Unhandled error in webhook execution: {e}")
+        processing_time_ms = int((datetime.utcnow() - start_time).total_seconds() * 1000)
+        try:
+            if 'webhook_log' in locals() and webhook_log:
+                webhook_log.processed = False
+                webhook_log.error_message = str(e)[:500]
+                webhook_log.response_status = 500
+                webhook_log.processing_time_ms = processing_time_ms
+                webhook_log.response_body = json.dumps({
+                    "success": False,
+                    "error": str(e)[:200],
+                    "errors": [f"Internal error: {str(e)[:200]}"],
+                    "processing_time_ms": processing_time_ms
+                })
+                db.commit()
+        except Exception as log_err:
+            logger.error(f"Failed to save error to webhook_log: {log_err}")
+            db.rollback()
+
+        return ExecuteResponse(
+            success=False,
+            signal_id=None,
+            status="error",
+            webhook_id=webhook_id,
+            errors=[str(e)[:200]],
+            processing_time_ms=processing_time_ms
+        )
+
+
+async def _execute_tradingview_signal_inner(
+    request: Request,
+    db: Session,
+    webhook_id: str,
+    webhook_log: WebhookLog,
+    raw_payload: dict,
+    webhook_key: str,
+    action_str: str,
+    symbol: str,
+    start_time: datetime
+):
+    """Inner implementation of webhook execution with all the main logic."""
     # === MULTI-ACCOUNT ROUTING ===
     routing_service = AccountRoutingService(db)
     strategy_id = raw_payload.get("strategy_id")
@@ -289,10 +348,18 @@ async def execute_tradingview_signal(
             logger.error(f"Failed to log discard: {e}")
 
         # Update webhook log
+        processing_time_ms = int((datetime.utcnow() - start_time).total_seconds() * 1000)
         try:
             webhook_log.processed = False
             webhook_log.response_status = 403
-            webhook_log.response_body = json.dumps({"error": "Invalid webhook_key"})
+            webhook_log.error_message = "Invalid webhook_key - no accounts found"
+            webhook_log.processing_time_ms = processing_time_ms
+            webhook_log.response_body = json.dumps({
+                "success": False,
+                "error": "Invalid webhook_key",
+                "errors": ["Invalid webhook_key - no accounts found for routing"],
+                "processing_time_ms": processing_time_ms
+            })
             db.commit()
         except:
             pass

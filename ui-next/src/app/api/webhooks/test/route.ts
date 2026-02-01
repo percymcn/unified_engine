@@ -16,9 +16,11 @@ export async function POST(request: Request) {
   try {
     const token = await getTokenFromCookies();
 
-    // Parse optional body for symbol selection
+    // Parse optional body for symbol selection and account targeting
     let testSymbol = 'XAUUSD';
     let closeDelay = 3000; // 3 second delay before close
+    let selectedAccountId: number | undefined;
+    let selectedBroker: string | undefined;
     try {
       const body = await request.json().catch(() => ({}));
       if (body.symbol && typeof body.symbol === 'string') {
@@ -26,6 +28,12 @@ export async function POST(request: Request) {
       }
       if (body.close_delay_ms && typeof body.close_delay_ms === 'number') {
         closeDelay = Math.min(Math.max(body.close_delay_ms, 1000), 10000); // 1-10s
+      }
+      if (body.account_id && typeof body.account_id === 'number') {
+        selectedAccountId = body.account_id;
+      }
+      if (body.broker && typeof body.broker === 'string') {
+        selectedBroker = body.broker.toLowerCase();
       }
     } catch {
       // Use defaults if no body
@@ -61,15 +69,24 @@ export async function POST(request: Request) {
     });
 
     let accountWebhookKey: string | undefined;
+    let selectedAccountWebhookKey: string | undefined;
     let hasAccounts = false;
+    let accounts: any[] = [];
     if (accountsResponse.ok) {
       const accountsPayload = await accountsResponse.json();
-      const accounts = Array.isArray(accountsPayload)
+      accounts = Array.isArray(accountsPayload)
         ? accountsPayload
         : accountsPayload.accounts || [];
       if (Array.isArray(accounts)) {
         hasAccounts = accounts.length > 0;
-        // Prioritize: 1) signal-enabled accounts, 2) any account with webhook_key
+
+        // If specific account selected, find its webhook key
+        if (selectedAccountId) {
+          const selectedAccount = accounts.find((a) => a.id === selectedAccountId);
+          selectedAccountWebhookKey = selectedAccount?.webhook_key;
+        }
+
+        // Fallback: Prioritize signal-enabled accounts, then any account with webhook_key
         const signalEnabledAccount = accounts.find(
           (account) => account.webhook_key && account.is_signal_enabled
         );
@@ -79,9 +96,8 @@ export async function POST(request: Request) {
     }
 
     const profileWebhookKey = profile?.primary_webhook_key;
-    // Prefer profile webhook key (uses WebhookConfig routing with default_account_id)
-    // Fall back to account-specific key if profile key not available
-    const executeWebhookKey = profileWebhookKey || accountWebhookKey;
+    // Priority: 1) Selected account's webhook key, 2) Profile webhook key, 3) Any account webhook key
+    const executeWebhookKey = selectedAccountWebhookKey || profileWebhookKey || accountWebhookKey;
 
     if (!executeWebhookKey && !profileWebhookKey) {
       return NextResponse.json(
@@ -99,7 +115,8 @@ export async function POST(request: Request) {
 
     // Create a test payload for the unified webhook execute endpoint
     // Note: MT5 has 31 char limit for comments
-    const testPayload = {
+    // Use target_account_ids for direct routing when a specific account is selected
+    const testPayload: Record<string, unknown> = {
       webhook_key: executeWebhookKey,
       action: 'buy',
       symbol: testSymbol,
@@ -108,6 +125,12 @@ export async function POST(request: Request) {
       strategy_id: 'dashboard-test',
       timestamp: new Date().toISOString(),
     };
+
+    // If a specific account is selected, use direct routing via target_account_ids
+    // This allows testing accounts that don't have their own webhook_key
+    if (selectedAccountId) {
+      testPayload.target_account_ids = [selectedAccountId];
+    }
 
     // Send to backend execute endpoint (note: v1 prefix required)
     const response = await fetch(`${BACKEND_URL}/api/v1/webhook/execute`, {
@@ -183,7 +206,7 @@ export async function POST(request: Request) {
       await new Promise(resolve => setTimeout(resolve, closeDelay));
 
       // Send close signal
-      const closePayload = {
+      const closePayload: Record<string, unknown> = {
         webhook_key: executeWebhookKey,
         action: 'close',
         symbol: testSymbol,
@@ -191,6 +214,11 @@ export async function POST(request: Request) {
         strategy_id: 'dashboard-test',
         timestamp: new Date().toISOString(),
       };
+
+      // Use same routing as open
+      if (selectedAccountId) {
+        closePayload.target_account_ids = [selectedAccountId];
+      }
 
       try {
         const closeResponse = await fetch(`${BACKEND_URL}/api/v1/webhook/execute`, {
