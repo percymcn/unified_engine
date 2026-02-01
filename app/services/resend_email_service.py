@@ -370,3 +370,362 @@ async def send_trade_notification_email(
         html_body=get_base_template(content),
         text_body=f"Trade {status}: {trade_action.upper()} {quantity} {symbol} @ ${price}",
     )
+
+
+# ============================================================================
+# Billing & Subscription Notification Emails
+# ============================================================================
+
+async def send_payment_success_email(
+    to_email: str,
+    username: str,
+    tier_name: str,
+    amount: float,
+    next_billing_date: str,
+) -> bool:
+    """Send payment success confirmation email"""
+    content = f"""
+    <div style="padding: 20px 0;">
+        <h2 style="margin-top: 0; color: {BRAND_SUCCESS};">Payment Successful!</h2>
+        <p>Hi {username},</p>
+        <p>Thank you for your payment. Your subscription is now active.</p>
+
+        <div style="background: #f0fdf4; border-radius: 8px; padding: 20px; margin: 20px 0; border-left: 4px solid {BRAND_SUCCESS};">
+            <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                    <td style="padding: 8px 0; color: #6b7280;">Plan:</td>
+                    <td style="padding: 8px 0; font-weight: 600; text-align: right;">{tier_name}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px 0; color: #6b7280;">Amount:</td>
+                    <td style="padding: 8px 0; font-weight: 600; text-align: right;">${amount:.2f}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px 0; color: #6b7280;">Next billing:</td>
+                    <td style="padding: 8px 0; font-weight: 600; text-align: right;">{next_billing_date}</td>
+                </tr>
+            </table>
+        </div>
+
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="{settings.FRONTEND_URL}/dashboard/settings/billing" style="background: {BRAND_PRIMARY}; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block;">
+                View Billing Details
+            </a>
+        </div>
+
+        <p style="font-size: 14px; color: #6b7280;">
+            You can manage your subscription anytime from your dashboard settings.
+        </p>
+    </div>
+    """
+
+    return await send_email_resend(
+        to_email=to_email,
+        subject=f"Payment Successful - {tier_name} Plan",
+        html_body=get_base_template(content),
+        text_body=f"Hi {username}, your payment of ${amount:.2f} for {tier_name} was successful. Next billing: {next_billing_date}",
+    )
+
+
+async def send_payment_failed_email(
+    to_email: str,
+    username: str,
+    tier_name: str,
+    amount: float,
+    retry_date: Optional[str] = None,
+) -> bool:
+    """Send payment failed notification email"""
+    retry_info = f"We'll automatically retry on {retry_date}." if retry_date else "Please update your payment method."
+
+    content = f"""
+    <div style="padding: 20px 0;">
+        <h2 style="margin-top: 0; color: #ef4444;">Payment Failed</h2>
+        <p>Hi {username},</p>
+        <p>We were unable to process your payment for your {tier_name} subscription.</p>
+
+        <div style="background: #fef2f2; border-radius: 8px; padding: 20px; margin: 20px 0; border-left: 4px solid #ef4444;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                    <td style="padding: 8px 0; color: #6b7280;">Plan:</td>
+                    <td style="padding: 8px 0; font-weight: 600; text-align: right;">{tier_name}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px 0; color: #6b7280;">Amount:</td>
+                    <td style="padding: 8px 0; font-weight: 600; text-align: right;">${amount:.2f}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px 0; color: #6b7280;">Status:</td>
+                    <td style="padding: 8px 0; font-weight: 600; text-align: right; color: #ef4444;">Payment Failed</td>
+                </tr>
+            </table>
+        </div>
+
+        <p>{retry_info}</p>
+
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="{settings.FRONTEND_URL}/dashboard/settings/billing" style="background: #ef4444; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block;">
+                Update Payment Method
+            </a>
+        </div>
+
+        <div style="background: #fef3c7; border-radius: 8px; padding: 15px; border-left: 4px solid {BRAND_WARNING}; margin-top: 20px;">
+            <p style="margin: 0; font-size: 14px;">
+                <strong>Important:</strong> If your payment continues to fail, your account will be downgraded to the Free plan and some features may become unavailable.
+            </p>
+        </div>
+    </div>
+    """
+
+    return await send_email_resend(
+        to_email=to_email,
+        subject=f"Action Required: Payment Failed for {tier_name}",
+        html_body=get_base_template(content),
+        text_body=f"Hi {username}, your payment of ${amount:.2f} for {tier_name} failed. Please update your payment method at {settings.FRONTEND_URL}/dashboard/settings/billing",
+    )
+
+
+async def send_subscription_canceled_email(
+    to_email: str,
+    username: str,
+    tier_name: str,
+    end_date: str,
+) -> bool:
+    """Send subscription cancellation confirmation email"""
+    content = f"""
+    <div style="padding: 20px 0;">
+        <h2 style="margin-top: 0;">Subscription Canceled</h2>
+        <p>Hi {username},</p>
+        <p>Your {tier_name} subscription has been canceled as requested.</p>
+
+        <div style="background: #f3f4f6; border-radius: 8px; padding: 20px; margin: 20px 0; border-left: 4px solid #6b7280;">
+            <p style="margin: 0;">
+                <strong>Your subscription remains active until:</strong><br>
+                <span style="font-size: 18px; color: {BRAND_PRIMARY};">{end_date}</span>
+            </p>
+            <p style="margin: 15px 0 0 0; font-size: 14px; color: #6b7280;">
+                After this date, your account will be downgraded to the Free plan.
+            </p>
+        </div>
+
+        <p>We're sorry to see you go! If you change your mind, you can resubscribe anytime:</p>
+
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="{settings.FRONTEND_URL}/dashboard/settings/billing" style="background: {BRAND_PRIMARY}; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block;">
+                Reactivate Subscription
+            </a>
+        </div>
+
+        <p style="font-size: 14px; color: #6b7280;">
+            Have feedback? We'd love to hear from you - reply to this email or contact us at support@mytradeflow.app
+        </p>
+    </div>
+    """
+
+    return await send_email_resend(
+        to_email=to_email,
+        subject=f"Subscription Canceled - Access until {end_date}",
+        html_body=get_base_template(content),
+        text_body=f"Hi {username}, your {tier_name} subscription has been canceled. Access continues until {end_date}.",
+    )
+
+
+async def send_subscription_expiring_email(
+    to_email: str,
+    username: str,
+    tier_name: str,
+    days_remaining: int,
+) -> bool:
+    """Send subscription expiring warning email"""
+    urgency_color = "#ef4444" if days_remaining <= 3 else BRAND_WARNING
+
+    content = f"""
+    <div style="padding: 20px 0;">
+        <h2 style="margin-top: 0; color: {urgency_color};">Subscription Expiring Soon</h2>
+        <p>Hi {username},</p>
+        <p>Your {tier_name} subscription will expire in <strong>{days_remaining} days</strong>.</p>
+
+        <div style="background: #fef3c7; border-radius: 8px; padding: 20px; margin: 20px 0; border-left: 4px solid {urgency_color};">
+            <p style="margin: 0; font-weight: 600;">What happens after expiration:</p>
+            <ul style="margin: 10px 0 0 0; padding-left: 20px;">
+                <li>Account downgraded to Free plan</li>
+                <li>Additional broker connections disabled</li>
+                <li>Premium features unavailable</li>
+                <li>Signal limits reduced</li>
+            </ul>
+        </div>
+
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="{settings.FRONTEND_URL}/dashboard/settings/billing" style="background: {BRAND_PRIMARY}; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block;">
+                Renew Subscription
+            </a>
+        </div>
+
+        <p style="font-size: 14px; color: #6b7280;">
+            Questions? Contact us at support@mytradeflow.app
+        </p>
+    </div>
+    """
+
+    return await send_email_resend(
+        to_email=to_email,
+        subject=f"Action Required: {tier_name} expires in {days_remaining} days",
+        html_body=get_base_template(content),
+        text_body=f"Hi {username}, your {tier_name} subscription expires in {days_remaining} days. Renew at {settings.FRONTEND_URL}/dashboard/settings/billing",
+    )
+
+
+# ============================================================================
+# Support & Communication Emails
+# ============================================================================
+
+async def send_support_ticket_confirmation(
+    to_email: str,
+    username: str,
+    ticket_id: str,
+    subject: str,
+    message_preview: str,
+) -> bool:
+    """Send support ticket confirmation email"""
+    content = f"""
+    <div style="padding: 20px 0;">
+        <h2 style="margin-top: 0; color: {BRAND_PRIMARY};">Support Request Received</h2>
+        <p>Hi {username},</p>
+        <p>Thank you for contacting MyTradeFlow support. We've received your request and will respond as soon as possible.</p>
+
+        <div style="background: #f3f4f6; border-radius: 8px; padding: 20px; margin: 20px 0;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                    <td style="padding: 8px 0; color: #6b7280;">Ticket ID:</td>
+                    <td style="padding: 8px 0; font-weight: 600; text-align: right; font-family: monospace;">{ticket_id}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px 0; color: #6b7280;">Subject:</td>
+                    <td style="padding: 8px 0; font-weight: 600; text-align: right;">{subject}</td>
+                </tr>
+            </table>
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 15px 0;">
+            <p style="margin: 0; font-size: 14px; color: #6b7280; font-style: italic;">
+                "{message_preview[:200]}{'...' if len(message_preview) > 200 else ''}"
+            </p>
+        </div>
+
+        <div style="background: #f0fdf4; border-radius: 8px; padding: 15px; border-left: 4px solid {BRAND_SUCCESS};">
+            <p style="margin: 0; font-size: 14px;">
+                <strong>Response times:</strong><br>
+                Free & Starter: 48 hours<br>
+                Trader: 24 hours<br>
+                Pro: 12 hours<br>
+                Enterprise: Priority support
+            </p>
+        </div>
+
+        <p style="font-size: 14px; color: #6b7280; margin-top: 20px;">
+            Reply to this email to add more information to your ticket.
+        </p>
+    </div>
+    """
+
+    return await send_email_resend(
+        to_email=to_email,
+        subject=f"Support Request #{ticket_id}: {subject}",
+        html_body=get_base_template(content),
+        text_body=f"Hi {username}, we received your support request (Ticket #{ticket_id}): {subject}. We'll respond as soon as possible.",
+    )
+
+
+async def send_support_response_notification(
+    to_email: str,
+    username: str,
+    ticket_id: str,
+    subject: str,
+    response_preview: str,
+) -> bool:
+    """Send notification when support responds to a ticket"""
+    content = f"""
+    <div style="padding: 20px 0;">
+        <h2 style="margin-top: 0; color: {BRAND_PRIMARY};">New Response to Your Support Request</h2>
+        <p>Hi {username},</p>
+        <p>Our support team has responded to your request:</p>
+
+        <div style="background: #f0f9ff; border-radius: 8px; padding: 20px; margin: 20px 0; border-left: 4px solid {BRAND_PRIMARY};">
+            <p style="margin: 0 0 10px 0; font-weight: 600; color: #1e40af;">
+                Ticket #{ticket_id}: {subject}
+            </p>
+            <p style="margin: 0; font-size: 14px; color: #374151;">
+                {response_preview[:300]}{'...' if len(response_preview) > 300 else ''}
+            </p>
+        </div>
+
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="{settings.FRONTEND_URL}/dashboard/settings/help" style="background: {BRAND_PRIMARY}; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block;">
+                View Full Response
+            </a>
+        </div>
+
+        <p style="font-size: 14px; color: #6b7280;">
+            Reply to this email to continue the conversation.
+        </p>
+    </div>
+    """
+
+    return await send_email_resend(
+        to_email=to_email,
+        subject=f"Re: Support Request #{ticket_id}: {subject}",
+        html_body=get_base_template(content),
+        text_body=f"Hi {username}, our support team responded to your request (Ticket #{ticket_id}). View at {settings.FRONTEND_URL}/dashboard/settings/help",
+    )
+
+
+async def send_account_alert_email(
+    to_email: str,
+    username: str,
+    alert_type: str,
+    alert_title: str,
+    alert_message: str,
+    action_url: Optional[str] = None,
+    action_text: Optional[str] = None,
+) -> bool:
+    """Send account alert/notification email (connection issues, risk warnings, etc.)"""
+    type_colors = {
+        "warning": ("#fef3c7", BRAND_WARNING),
+        "error": ("#fef2f2", "#ef4444"),
+        "info": ("#f0f9ff", BRAND_PRIMARY),
+        "success": ("#f0fdf4", BRAND_SUCCESS),
+    }
+    bg_color, border_color = type_colors.get(alert_type, type_colors["info"])
+
+    action_button = ""
+    if action_url and action_text:
+        action_button = f"""
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="{action_url}" style="background: {BRAND_PRIMARY}; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block;">
+                {action_text}
+            </a>
+        </div>
+        """
+
+    content = f"""
+    <div style="padding: 20px 0;">
+        <h2 style="margin-top: 0; color: {border_color};">{alert_title}</h2>
+        <p>Hi {username},</p>
+
+        <div style="background: {bg_color}; border-radius: 8px; padding: 20px; margin: 20px 0; border-left: 4px solid {border_color};">
+            <p style="margin: 0; font-size: 14px;">
+                {alert_message}
+            </p>
+        </div>
+
+        {action_button}
+
+        <p style="font-size: 14px; color: #6b7280;">
+            If you have questions, contact us at support@mytradeflow.app
+        </p>
+    </div>
+    """
+
+    return await send_email_resend(
+        to_email=to_email,
+        subject=f"MyTradeFlow Alert: {alert_title}",
+        html_body=get_base_template(content),
+        text_body=f"Hi {username}, {alert_title}: {alert_message}",
+    )

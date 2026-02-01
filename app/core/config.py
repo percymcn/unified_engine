@@ -223,6 +223,8 @@ class Settings(BaseSettings):
     RESEND_API_KEY: Optional[str] = None
     RESEND_FROM_EMAIL: str = "noreply@mytradeflow.app"
     RESEND_FROM_NAME: str = "MyTradeFlow"
+    RESEND_DOMAIN: str = "mytradeflow.app"
+    SUPPORT_EMAIL: str = "support@mytradeflow.app"
 
     # Telegram Bot Configuration
     TELEGRAM_BOT_TOKEN: Optional[str] = None
