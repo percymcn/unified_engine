@@ -19,6 +19,11 @@ const geistMono = localFont({
 export const metadata: Metadata = {
   title: "Tradeflow - Auto-Execute TradingView Signals",
   description: "Route your TradingView alerts to TradeLocker, Tradovate, TopStep, and MetaTrader in <50ms. Trade while you sleep.",
+  icons: {
+    icon: "/logo.png",
+    shortcut: "/logo.png",
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({
