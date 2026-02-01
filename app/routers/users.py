@@ -176,6 +176,7 @@ async def get_preferences(
 
     return PreferencesResponse(
         timezone=current_user.timezone or "UTC",
+        theme=getattr(current_user, 'theme', 'dark') or 'dark',
         notification_preferences=NotificationPreferences(**notification_prefs),
         deduplication=dedup_settings
     )
