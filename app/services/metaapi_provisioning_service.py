@@ -99,30 +99,58 @@ class MetaAPIProvisioningService:
         logger.info(f"Provisioning MetaAPI account: {name} (login={login}, server={server}, platform={platform})")
 
         try:
-            # Create the account in MetaAPI
-            # Note: login MUST be a string, not integer
-            account_config = {
-                "name": name,
-                "type": "cloud",  # Cloud account (MetaAPI manages connection)
-                "login": str(login),  # Must be string
-                "password": password,
-                "server": server,
-                "platform": platform,
-                "application": self.application,
-            }
+            # First, check if an account already exists for this login/server
+            login_str = str(login)
+            existing_account = None
+            try:
+                accounts = await api.metatrader_account_api.get_accounts()
+                for acc in accounts:
+                    # Match by login and server (case-insensitive server match)
+                    if (str(acc.login) == login_str and
+                        acc.server.lower() == server.lower() and
+                        acc.platform == platform):
+                        existing_account = acc
+                        logger.info(f"Found existing MetaAPI account: {acc.id} for login={login}, server={server}")
+                        break
+            except Exception as e:
+                logger.warning(f"Could not check for existing accounts: {e}")
 
-            # Add optional fields
-            if magic:
-                account_config["magic"] = magic
-            if copy_factory_roles:
-                account_config["copyFactoryRoles"] = copy_factory_roles
+            if existing_account:
+                # Use existing account - ensure it's deployed
+                account = existing_account
+                account_id = account.id
 
-            logger.info(f"Creating MetaAPI account with config: name={name}, type=cloud, login={login}, server={server}, platform={platform}")
+                if account.state != 'DEPLOYED':
+                    logger.info(f"Deploying existing MetaAPI account {account_id}...")
+                    await account.deploy()
+                    await asyncio.sleep(2)  # Brief wait for deployment
+                    await account.reload()
 
-            account = await api.metatrader_account_api.create_account(account_config)
+                logger.info(f"Using existing MetaAPI account: {account_id}")
+            else:
+                # Create new account in MetaAPI
+                # Note: login MUST be a string, not integer
+                account_config = {
+                    "name": name,
+                    "type": "cloud",  # Cloud account (MetaAPI manages connection)
+                    "login": login_str,  # Must be string
+                    "password": password,
+                    "server": server,
+                    "platform": platform,
+                    "application": self.application,
+                }
 
-            account_id = account.id
-            logger.info(f"MetaAPI account created: {account_id}")
+                # Add optional fields
+                if magic:
+                    account_config["magic"] = magic
+                if copy_factory_roles:
+                    account_config["copyFactoryRoles"] = copy_factory_roles
+
+                logger.info(f"Creating new MetaAPI account with config: name={name}, type=cloud, login={login}, server={server}, platform={platform}")
+
+                account = await api.metatrader_account_api.create_account(account_config)
+                account_id = account.id
+                logger.info(f"MetaAPI account created: {account_id}")
 
             # Deploy the account (starts the cloud connection)
             if account.state != 'DEPLOYED':
