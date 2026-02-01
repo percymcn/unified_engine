@@ -1416,12 +1416,42 @@ async def delete_account(
     request: Request,
     account_id: str,
     current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
-    """Delete account and soft-delete its credentials"""
+    """Delete account, MetaAPI account, and soft-delete credentials"""
+    from app.models.database_models import TradingAccount
+    from app.services.metaapi_provisioning_service import get_provisioning_service
+
+    # First, check if this is an MT4/MT5 account with MetaAPI and delete from MetaAPI
+    try:
+        orm_account = db.query(TradingAccount).filter(
+            TradingAccount.id == int(account_id),
+            TradingAccount.user_id == current_user.id
+        ).first()
+
+        if orm_account and orm_account.broker in (BrokerType.MT4, BrokerType.MT5):
+            metaapi_account_id = None
+            if orm_account.extra_metadata:
+                metaapi_account_id = orm_account.extra_metadata.get("metaapi_account_id")
+
+            if metaapi_account_id:
+                provisioning_service = get_provisioning_service()
+                if provisioning_service:
+                    try:
+                        removed = await provisioning_service.remove_account(metaapi_account_id)
+                        if removed:
+                            logger.info(f"MetaAPI account {metaapi_account_id} removed for account {account_id}")
+                        else:
+                            logger.warning(f"Failed to remove MetaAPI account {metaapi_account_id}")
+                    except Exception as e:
+                        logger.warning(f"Error removing MetaAPI account {metaapi_account_id}: {e}")
+    except Exception as e:
+        logger.warning(f"Error checking MetaAPI account for deletion: {e}")
+
+    # Now delete from our database
     container = get_container(request)
     use_case = container.delete_account_use_case()
 
-    # Execute use case
     dto_request = DeleteAccountRequest(
         account_id=account_id,
         user_id=current_user.id,
