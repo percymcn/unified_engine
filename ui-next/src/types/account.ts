@@ -144,6 +144,7 @@ export interface AccountSettings {
   routing: {
     isSignalEnabled: boolean;
     signalPriority: number;
+    autoConfirm: boolean;
   };
   // Prop firm specific settings (stored in extra_metadata)
   propRules: {
@@ -183,6 +184,7 @@ export interface AccountSettingsUpdate {
   groupId?: number | null;
   isSignalEnabled?: boolean;
   signalPriority?: number;
+  autoConfirm?: boolean;
   // Prop firm settings (stored in extra_metadata)
   propRulesEnabled?: boolean;
   propProvider?: string | null;

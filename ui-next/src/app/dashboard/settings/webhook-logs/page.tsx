@@ -39,6 +39,9 @@ interface WebhookLog {
   successful_accounts?: number;
   failed_accounts?: number;
   executions?: WebhookExecution[];
+  // NEW: Human-readable rejection reason
+  rejection_reason?: string;
+  result_status?: string;
 }
 
 export default function WebhookLogsPage() {
@@ -86,6 +89,15 @@ export default function WebhookLogsPage() {
   };
 
   const getStatusBadge = (log: WebhookLog) => {
+    // Check for pending confirmation first
+    if (log.result_status === 'pending_confirmation') {
+      return (
+        <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20">
+          <Clock className="h-3 w-3 mr-1" />
+          Pending
+        </Badge>
+      );
+    }
     if (log.processed && log.successful_accounts === log.total_accounts) {
       return (
         <Badge className="bg-green-500/10 text-green-500 border-green-500/20">
@@ -280,7 +292,20 @@ export default function WebhookLogsPage() {
                     </div>
                   )}
 
-                  {log.error_message && (
+                  {/* Prominent rejection reason display */}
+                  {log.rejection_reason && (
+                    <div className="mt-3 pt-3 border-t border-border">
+                      <div className="flex items-start gap-2 p-2 rounded-md bg-amber-500/10 border border-amber-500/20">
+                        <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="text-amber-600 dark:text-amber-400 text-xs font-medium">Reason</p>
+                          <p className="text-amber-700 dark:text-amber-300 text-sm">{log.rejection_reason}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {log.error_message && !log.rejection_reason && (
                     <div className="mt-3 pt-3 border-t border-border">
                       <p className="text-muted-foreground text-xs">Error</p>
                       <p className="text-destructive text-xs">{log.error_message}</p>

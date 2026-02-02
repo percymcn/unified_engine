@@ -944,6 +944,57 @@ async def get_webhook_logs(
             except (json.JSONDecodeError, TypeError):
                 pass
 
+        # Extract rejection reason from response data
+        rejection_reason = None
+        result_status = response_data.get("status", "") if response_data else ""
+
+        if result_status == "pending_confirmation":
+            rejection_reason = "Awaiting manual confirmation (auto-confirm disabled)"
+        elif result_status == "failed":
+            # Get first error as reason
+            errors = response_data.get("errors", []) if response_data else []
+            if errors:
+                first_error = errors[0]
+                # Clean up error message
+                if ": " in str(first_error):
+                    rejection_reason = str(first_error).split(": ", 1)[-1]
+                else:
+                    rejection_reason = str(first_error)
+        elif response_data.get("guard_decision"):
+            guard_decision = response_data.get("guard_decision")
+            guard_reason = response_data.get("guard_reason", "")
+            if guard_decision == "skip":
+                rejection_reason = f"Signal Guard: {guard_reason}" if guard_reason else "Rejected by Signal Guard"
+            elif guard_decision == "pause_new_entries":
+                rejection_reason = "Paused: Risk limit exceeded"
+            elif guard_decision == "warn_modal_required":
+                rejection_reason = "Warning: Confirmation required (market flip detected)"
+
+        # Check for specific error patterns in execution logs
+        if not rejection_reason and executions:
+            for exec_item in executions:
+                if exec_item.get("error"):
+                    error = exec_item["error"]
+                    if "Invalid order size" in error:
+                        rejection_reason = "Invalid order size (quantity too small for broker)"
+                    elif "Not enough margin" in error:
+                        rejection_reason = "Insufficient margin in broker account"
+                    elif "Market is closed" in error:
+                        rejection_reason = "Market closed (outside trading hours)"
+                    elif "Instrument not found" in error or "symbol not found" in error.lower():
+                        rejection_reason = "Symbol not found (check symbol mapping)"
+                    elif "exposure_limit" in error:
+                        rejection_reason = "Daily exposure limit reached"
+                    elif "stale" in error.lower():
+                        rejection_reason = "Signal too old (staleness guard)"
+                    elif "MetaAPI connection failed" in error:
+                        rejection_reason = "Broker connection failed (check credentials)"
+                    elif "Could not create executor" in error:
+                        rejection_reason = "Missing broker credentials"
+                    elif error:
+                        rejection_reason = error[:100]  # Truncate long errors
+                    break
+
         enriched_logs.append({
             "id": log.id,
             "webhook_id": log.webhook_id,
@@ -963,6 +1014,9 @@ async def get_webhook_logs(
             "successful_accounts": response_data.get("successful", 1 if log.processed else 0) if response_data else (1 if log.processed else 0),
             "failed_accounts": response_data.get("failed", 0 if log.processed else 1) if response_data else (0 if log.processed else 1),
             "executions": executions,
+            # NEW: Human-readable rejection reason
+            "rejection_reason": rejection_reason,
+            "result_status": result_status,
         })
 
     return enriched_logs

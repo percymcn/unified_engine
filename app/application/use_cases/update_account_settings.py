@@ -129,6 +129,8 @@ class UpdateAccountSettingsUseCase:
         if request.signal_priority is not None:
             self._validate_range(request.signal_priority, 0, 100, "signal_priority")
             updates['signal_priority'] = request.signal_priority
+        if request.auto_confirm is not None:
+            updates['auto_confirm'] = request.auto_confirm
 
         # Apply updates
         for field, value in updates.items():
@@ -173,6 +175,7 @@ class UpdateAccountSettingsUseCase:
             group_color=account.group_color,
             is_signal_enabled=account.is_signal_enabled if account.is_signal_enabled is not None else True,
             signal_priority=account.signal_priority or 0,
+            auto_confirm=account.auto_confirm if account.auto_confirm is not None else True,
         )
 
 
@@ -221,4 +224,5 @@ class GetAccountSettingsUseCase:
             group_color=account.group_color,
             is_signal_enabled=account.is_signal_enabled if account.is_signal_enabled is not None else True,
             signal_priority=account.signal_priority or 0,
+            auto_confirm=account.auto_confirm if account.auto_confirm is not None else True,
         )

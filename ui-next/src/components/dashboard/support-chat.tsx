@@ -125,7 +125,7 @@ const KNOWLEDGE_BASE = {
     url_format: 'https://api.mytradeflow.app/api/v1/webhook/signal/{YOUR_WEBHOOK_KEY}',
     payload_format: {
       required: ['action', 'symbol'],
-      optional: ['quantity', 'price', 'stop_loss', 'take_profit', 'account_id', 'comment', 'order_type'],
+      optional: ['quantity', 'price', 'stop_loss', 'take_profit', 'account_id', 'comment', 'order_type', 'trailing_stop', 'sl', 'tp'],
       actions: ['buy', 'sell', 'close', 'close_all', 'cancel'],
       order_types: ['market', 'limit', 'stop', 'stop_limit', 'bracket', 'trailing_stop'],
     },
@@ -133,9 +133,45 @@ const KNOWLEDGE_BASE = {
       buy: '{"action": "buy", "symbol": "EURUSD", "quantity": 0.1}',
       sell: '{"action": "sell", "symbol": "XAUUSD", "quantity": 0.05, "stop_loss": 2050, "take_profit": 2100}',
       close: '{"action": "close", "symbol": "EURUSD"}',
-      bracket: '{"action": "buy", "symbol": "MNQ", "quantity": 1, "order_type": "bracket", "stop_loss": 50, "take_profit": 100}',
+      bracket: '{"action": "buy", "symbol": "MNQ", "quantity": 1, "stop_loss": 50, "take_profit": 100}',
       trailing: '{"action": "buy", "symbol": "BTCUSD", "quantity": 0.01, "trailing_stop": 200}',
+      futures: '{"action": "buy", "symbol": "MNQ", "quantity": 1}',
+      with_sl_tp: '{"action": "buy", "symbol": "EURUSD", "quantity": 0.1, "sl": 1.0850, "tp": 1.0950}',
     },
+  },
+
+  // Signal Routing Configuration
+  signal_routing: {
+    description: 'Route signals to specific accounts based on source, symbol, or custom rules',
+    features: [
+      'Route by signal source (TradingView, custom)',
+      'Route by symbol (forex, crypto, futures)',
+      'Route by account (specific broker accounts)',
+      'Multi-account broadcasting (same signal to multiple accounts)',
+      'Webhook configs for advanced routing',
+    ],
+    examples: {
+      single_account: {
+        description: 'Send signal to one specific account',
+        payload: '{"action": "buy", "symbol": "EURUSD", "quantity": 0.1, "account_id": 123}',
+      },
+      multi_account: {
+        description: 'Send to all accounts subscribed to the webhook key',
+        payload: '{"action": "buy", "symbol": "BTCUSD", "quantity": 0.01}',
+      },
+      by_broker: {
+        description: 'Use different webhook keys for different brokers',
+        note: 'Create separate webhook configs for MT5, TradeLocker, etc.',
+      },
+    },
+    setup_steps: [
+      '1. Go to Settings > Signal Routing',
+      '2. Create a new Webhook Config',
+      '3. Set source filter (e.g., "tradingview")',
+      '4. Select target accounts',
+      '5. Optionally set symbol filters',
+      '6. Save and use the generated webhook URL',
+    ],
   },
 
   // AI Guards (FlowGuard AI)
@@ -167,6 +203,53 @@ const KNOWLEDGE_BASE = {
         description: 'Limits number of trades per time period',
         configurable: true,
       },
+      momentum: {
+        name: 'Momentum Guard (Chop Detector)',
+        description: 'Detects choppy markets by tracking opposite signals - pauses trading when threshold exceeded',
+        configurable: true,
+      },
+      exposure: {
+        name: 'Exposure Guard',
+        description: 'Limits total exposure across all positions to prevent over-leveraging',
+        configurable: true,
+      },
+    },
+  },
+
+  // Risk Management Features
+  risk_management: {
+    description: 'Comprehensive risk management enforced per broker',
+    features: {
+      stop_loss: {
+        name: 'Stop Loss (SL)',
+        description: 'Automatic stop loss on every trade',
+        supported_brokers: ['MT5', 'MT4', 'TradeLocker', 'ProjectX', 'Tradovate'],
+        webhook_field: 'stop_loss or sl',
+        example: '{"action": "buy", "symbol": "EURUSD", "sl": 1.0850}',
+      },
+      take_profit: {
+        name: 'Take Profit (TP)',
+        description: 'Automatic take profit on every trade',
+        supported_brokers: ['MT5', 'MT4', 'TradeLocker', 'ProjectX', 'Tradovate'],
+        webhook_field: 'take_profit or tp',
+        example: '{"action": "buy", "symbol": "EURUSD", "tp": 1.0950}',
+      },
+      trailing_stop: {
+        name: 'Trailing Stop',
+        description: 'Dynamic stop that follows price movement',
+        supported_brokers: ['MT5', 'TradeLocker', 'ProjectX'],
+        webhook_field: 'trailing_stop',
+        example: '{"action": "buy", "symbol": "BTCUSD", "trailing_stop": 50}',
+      },
+      account_defaults: {
+        name: 'Account Risk Defaults',
+        description: 'Set default SL/TP per account if not provided in webhook',
+        location: 'Settings > Accounts > Edit > Risk Settings',
+      },
+    },
+    broker_specifics: {
+      futures: 'ProjectX, TopStep, Tradovate use bracket orders for SL/TP (whole contracts only)',
+      forex: 'MT5, MT4, TradeLocker use standard SL/TP (fractional lots like 0.01)',
     },
   },
 
@@ -206,7 +289,7 @@ const KNOWLEDGE_BASE = {
     'signal_rejected': {
       problem: 'Signal rejected by AI Guards',
       solutions: [
-        'Check Rejected Signals widget for reason',
+        'Check Webhook Logs for the rejection reason',
         'Adjust guard thresholds if too strict',
         'Verify signal timestamp is current',
         'Check daily loss limits',
@@ -228,6 +311,68 @@ const KNOWLEDGE_BASE = {
         'Check holiday schedules',
       ],
     },
+    'pending_confirmation': {
+      problem: 'Signal shows "Pending Confirmation"',
+      solutions: [
+        'Enable auto-confirm in account settings',
+        'Or manually approve signals in the dashboard',
+        'Settings > Accounts > Edit > Enable Auto-Execute',
+      ],
+    },
+    'invalid_order_size': {
+      problem: 'Invalid order size error',
+      solutions: [
+        'Futures brokers require whole contracts (1, 2, 3...)',
+        'Set quantity to at least 1 for ProjectX/Tradovate',
+        'Forex brokers accept fractional lots (0.01, 0.1)',
+      ],
+    },
+    'not_enough_margin': {
+      problem: 'Not enough margin error',
+      solutions: [
+        'Reduce position size',
+        'Add funds to broker account',
+        'Close existing positions to free margin',
+      ],
+    },
+    'exposure_limit': {
+      problem: 'Exposure limit reached',
+      solutions: [
+        'Close some existing positions',
+        'Increase exposure limit in Settings > AI Guards',
+        'Wait for positions to close',
+      ],
+    },
+    'chop_mode': {
+      problem: 'Trading paused due to chop detection',
+      solutions: [
+        'Wait for market to trend (clear direction)',
+        'Reduce opposite signal threshold in AI Guards',
+        'Check signal_counters table for momentum status',
+      ],
+    },
+    'missing_credentials': {
+      problem: 'Could not create executor / Missing credentials',
+      solutions: [
+        'Go to Settings > Accounts',
+        'Edit the account and re-enter credentials',
+        'Verify API keys are correct',
+      ],
+    },
+  },
+
+  // Common Rejection Reasons Reference
+  rejection_reasons: {
+    'Awaiting manual confirmation': 'Auto-execute is disabled. Enable in account settings or approve manually.',
+    'Invalid order size': 'Quantity too small for broker. Futures need whole contracts (1+).',
+    'Insufficient margin': 'Not enough funds in broker account for this trade size.',
+    'Market closed': 'Trading hours have ended. Check market schedule.',
+    'Symbol not found': 'Broker does not recognize this symbol. Set up symbol mapping.',
+    'Daily exposure limit reached': 'Risk limit hit. Close positions or increase limit.',
+    'Signal too old': 'Signal delayed in transit. Check network/TradingView latency.',
+    'Broker connection failed': 'Cannot connect to broker. Verify credentials.',
+    'Missing broker credentials': 'No API keys configured for this account.',
+    'Chop mode active': 'Market is choppy (alternating buy/sell). Trading paused.',
   },
 
   // AI Strategy Suite
@@ -447,11 +592,65 @@ function generateAIResponse(question: string): { response: string; needsHuman: b
     };
   }
 
+  // Signal routing
+  if (q.includes('routing') || q.includes('route signal') || q.includes('multi account') || q.includes('multiple account')) {
+    const routing = KNOWLEDGE_BASE.signal_routing;
+    return {
+      response: `**Signal Routing**\n\n${routing.description}\n\n**Features:**\n${routing.features.map(f => `• ${f}`).join('\n')}\n\n**Setup Steps:**\n${routing.setup_steps.join('\n')}\n\n**Examples:**\n\n**Single account:**\n\`${routing.examples.single_account.payload}\`\n\n**All accounts:**\n\`${routing.examples.multi_account.payload}\`\n\n**Tip:** Use account_id in payload to target specific accounts!`,
+      needsHuman: false,
+    };
+  }
+
+  // Stop loss / Take profit / Risk management
+  if (q.includes('stop loss') || q.includes('take profit') || q.includes('sl') || q.includes('tp') || q.includes('trailing stop') || q.includes('risk management')) {
+    const rm = KNOWLEDGE_BASE.risk_management;
+    return {
+      response: `**Risk Management**\n\n${rm.description}\n\n**Stop Loss (SL):**\n• Field: \`stop_loss\` or \`sl\`\n• Example: \`${rm.features.stop_loss.example}\`\n\n**Take Profit (TP):**\n• Field: \`take_profit\` or \`tp\`\n• Example: \`${rm.features.take_profit.example}\`\n\n**Trailing Stop:**\n• Field: \`trailing_stop\`\n• Supported: ${rm.features.trailing_stop.supported_brokers.join(', ')}\n• Example: \`${rm.features.trailing_stop.example}\`\n\n**Account Defaults:**\nSet default SL/TP per account in **${rm.features.account_defaults.location}**\n\n**Broker Notes:**\n• ${rm.broker_specifics.futures}\n• ${rm.broker_specifics.forex}`,
+      needsHuman: false,
+    };
+  }
+
+  // Pending confirmation
+  if (q.includes('pending') || q.includes('confirmation') || q.includes('auto confirm') || q.includes('auto-confirm') || q.includes('auto execute')) {
+    const solutions = KNOWLEDGE_BASE.troubleshooting.pending_confirmation.solutions;
+    return {
+      response: `**Pending Confirmation**\n\nSignals show "Pending" when auto-execute is disabled.\n\n**Solutions:**\n${solutions.map((s, i) => `${i + 1}. ${s}`).join('\n')}\n\n**To enable auto-execute:**\n1. Go to Settings > Accounts\n2. Edit the account\n3. Enable "Auto-Execute Trades"\n4. Save changes\n\nWith auto-execute enabled, signals will execute immediately.`,
+      needsHuman: false,
+    };
+  }
+
+  // Invalid order size / quantity
+  if (q.includes('invalid order') || q.includes('order size') || q.includes('quantity') && (q.includes('error') || q.includes('invalid'))) {
+    const solutions = KNOWLEDGE_BASE.troubleshooting.invalid_order_size.solutions;
+    return {
+      response: `**Invalid Order Size Error**\n\n${solutions.map((s, i) => `${i + 1}. ${s}`).join('\n')}\n\n**Broker Requirements:**\n• **Futures (ProjectX, TopStep, Tradovate):** Whole contracts only (1, 2, 3...)\n• **Forex (MT5, TradeLocker):** Fractional lots allowed (0.01, 0.1, 1.0)\n\n**Fix:** Change quantity to 1 or higher for futures brokers.`,
+      needsHuman: false,
+    };
+  }
+
+  // Margin / not enough margin
+  if (q.includes('margin') || q.includes('insufficient')) {
+    const solutions = KNOWLEDGE_BASE.troubleshooting.not_enough_margin.solutions;
+    return {
+      response: `**Insufficient Margin Error**\n\n${solutions.map((s, i) => `${i + 1}. ${s}`).join('\n')}\n\n**What causes this:**\n• Position size too large for account balance\n• Too many open positions\n• High leverage requirements\n\n**Solution:** Reduce quantity in your webhook payload or add funds to your broker account.`,
+      needsHuman: false,
+    };
+  }
+
+  // Chop mode / momentum
+  if (q.includes('chop') || q.includes('choppy') || q.includes('momentum') || q.includes('opposite signal')) {
+    const solutions = KNOWLEDGE_BASE.troubleshooting.chop_mode.solutions;
+    return {
+      response: `**Chop Mode (Momentum Guard)**\n\nThe system detects choppy markets by tracking alternating buy/sell signals.\n\n**How it works:**\n• Counts opposite signals (buy when biased sell, etc.)\n• When threshold is exceeded, trading pauses\n• Prevents losses in ranging/choppy conditions\n\n**Solutions:**\n${solutions.map((s, i) => `${i + 1}. ${s}`).join('\n')}\n\n**Configure:** Settings > AI Guards > Momentum Guard`,
+      needsHuman: false,
+    };
+  }
+
   // Signal rejected
   if (q.includes('rejected') || q.includes('blocked')) {
     const solutions = KNOWLEDGE_BASE.troubleshooting.signal_rejected.solutions;
     return {
-      response: `**Signal Rejected by AI Guards**\n\n${solutions.map((s, i) => `${i + 1}. ${s}`).join('\n')}\n\n**Common reasons:**\n• Signal too old (Staleness Guard)\n• Duplicate signal detected\n• Daily loss limit exceeded (Drawdown Guard)\n• Position size too large\n\n**View details:** Dashboard > Rejected Signals widget`,
+      response: `**Signal Rejected by AI Guards**\n\n${solutions.map((s, i) => `${i + 1}. ${s}`).join('\n')}\n\n**Common reasons:**\n${Object.entries(KNOWLEDGE_BASE.rejection_reasons).slice(0, 5).map(([reason, fix]) => `• **${reason}:** ${fix}`).join('\n')}\n\n**View details:** Settings > Webhook Logs (shows rejection reason)`,
       needsHuman: false,
     };
   }

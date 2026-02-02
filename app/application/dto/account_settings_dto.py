@@ -50,6 +50,7 @@ class AccountSettingsRequest:
     # Routing
     is_signal_enabled: Optional[bool] = None
     signal_priority: Optional[int] = None  # 0 - 100
+    auto_confirm: Optional[bool] = None
 
 
 @dataclass(frozen=True)
@@ -84,6 +85,7 @@ class AccountSettingsResponse:
     # Routing
     is_signal_enabled: bool
     signal_priority: int
+    auto_confirm: bool
 
 
 @dataclass(frozen=True)

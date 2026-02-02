@@ -103,6 +103,7 @@ interface ApiAccountSettingsData {
   routing: {
     isSignalEnabled: boolean;
     signalPriority: number;
+    autoConfirm: boolean;
   };
   propRules?: {
     isEnabled: boolean;
@@ -149,6 +150,7 @@ const mapAccountSettingsResponse = (data: ApiAccountSettingsData): AccountSettin
   routing: {
     isSignalEnabled: data.routing.isSignalEnabled,
     signalPriority: data.routing.signalPriority,
+    autoConfirm: data.routing.autoConfirm ?? true,
   },
   propRules: data.propRules ? {
     isEnabled: data.propRules.isEnabled,
@@ -436,6 +438,9 @@ export async function updateAccountSettings(
   }
   if (settings.signalPriority !== undefined) {
     payload.signal_priority = settings.signalPriority;
+  }
+  if (settings.autoConfirm !== undefined) {
+    payload.auto_confirm = settings.autoConfirm;
   }
   // Prop rules
   if (settings.propRulesEnabled !== undefined) {

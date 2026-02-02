@@ -548,65 +548,75 @@ async def _execute_tradingview_signal_inner(
         )
 
     if guard_result.decision == GuardDecision.WARN_MODAL_REQUIRED:
-        # Needs user confirmation
-        try:
-            webhook_log.processed = False
-            webhook_log.response_status = 202
-            webhook_log.response_body = json.dumps({"status": "pending_confirmation"})
-            webhook_log.processing_time_ms = processing_time_ms
-            db.commit()
-        except:
-            pass
-
-        # Persist signal for UI confirmation flow
-        try:
-            existing_signal = db.query(SignalORM).filter(
-                SignalORM.signal_id == signal_entity.id.value
-            ).first()
-            if not existing_signal:
-                db_signal = SignalORM(
-                    signal_id=signal_entity.id.value,
-                    user_id=first_account.user_id,
-                    source=ModelsSignalSource.TRADINGVIEW,
-                    symbol=symbol,
-                    action=action_str,
-                    volume=float(quantity),
-                    price=None,
-                    stop_loss=float(sl_price) if sl_price else None,
-                    take_profit=float(tp_price) if tp_price else None,
-                    comment=raw_payload.get("comment"),
-                    status="pending_confirmation",
-                    target_accounts=[a.id for a in accounts],
-                    raw_payload=raw_payload,
-                    signal_data={
-                        "guard_decision": "warn",
-                        "guard_reason": guard_result.annotations.get("history_tag", "momentum_warning"),
-                        "annotations": guard_result.annotations,
-                        "modal_data": guard_result.modal_data,
-                        "routing_strategy": routing_strategy,
-                    },
-                    strategy_id=raw_payload.get("strategy_id"),
-                )
-                db.add(db_signal)
+        # Check if any account has auto_confirm enabled - if so, skip the modal
+        all_auto_confirm = all(getattr(a, 'auto_confirm', True) for a in accounts)
+        if all_auto_confirm:
+            # Auto-confirm enabled, proceed without modal
+            logger.info(f"Auto-confirm enabled for all accounts, bypassing guard modal")
+            guard_result = type(guard_result)(
+                decision=GuardDecision.ALLOW,
+                annotations=guard_result.annotations
+            )
+        else:
+            # Needs user confirmation
+            try:
+                webhook_log.processed = False
+                webhook_log.response_status = 202
+                webhook_log.response_body = json.dumps({"status": "pending_confirmation"})
+                webhook_log.processing_time_ms = processing_time_ms
                 db.commit()
-        except Exception as e:
-            logger.warning(f"Failed to persist pending confirmation signal: {e}")
+            except:
+                pass
 
-        return ExecuteResponse(
-            success=False,
-            signal_id=signal_entity.id.value,
-            status="pending_confirmation",
-            webhook_id=webhook_id,
-            routing_strategy=routing_strategy,
-            routing_reason=routing_reason,
-            total_accounts=len(accounts),
-            account_id=first_account.id,
-            broker=first_account.broker.value if hasattr(first_account.broker, 'value') else str(first_account.broker),
-            guard_decision="warn",
-            guard_reason=guard_result.annotations.get("history_tag", "momentum_warning"),
-            modal_data=guard_result.modal_data,
-            processing_time_ms=processing_time_ms
-        )
+            # Persist signal for UI confirmation flow
+            try:
+                existing_signal = db.query(SignalORM).filter(
+                    SignalORM.signal_id == signal_entity.id.value
+                ).first()
+                if not existing_signal:
+                    db_signal = SignalORM(
+                        signal_id=signal_entity.id.value,
+                        user_id=first_account.user_id,
+                        source=ModelsSignalSource.TRADINGVIEW,
+                        symbol=symbol,
+                        action=action_str,
+                        volume=float(quantity),
+                        price=None,
+                        stop_loss=float(sl_price) if sl_price else None,
+                        take_profit=float(tp_price) if tp_price else None,
+                        comment=raw_payload.get("comment"),
+                        status="pending_confirmation",
+                        target_accounts=[a.id for a in accounts],
+                        raw_payload=raw_payload,
+                        signal_data={
+                            "guard_decision": "warn",
+                            "guard_reason": guard_result.annotations.get("history_tag", "momentum_warning"),
+                            "annotations": guard_result.annotations,
+                            "modal_data": guard_result.modal_data,
+                            "routing_strategy": routing_strategy,
+                        },
+                        strategy_id=raw_payload.get("strategy_id"),
+                    )
+                    db.add(db_signal)
+                    db.commit()
+            except Exception as e:
+                logger.warning(f"Failed to persist pending confirmation signal: {e}")
+
+            return ExecuteResponse(
+                success=False,
+                signal_id=signal_entity.id.value,
+                status="pending_confirmation",
+                webhook_id=webhook_id,
+                routing_strategy=routing_strategy,
+                routing_reason=routing_reason,
+                total_accounts=len(accounts),
+                account_id=first_account.id,
+                broker=first_account.broker.value if hasattr(first_account.broker, 'value') else str(first_account.broker),
+                guard_decision="warn",
+                guard_reason=guard_result.annotations.get("history_tag", "momentum_warning"),
+                modal_data=guard_result.modal_data,
+                processing_time_ms=processing_time_ms
+            )
 
     if guard_result.decision == GuardDecision.PAUSE_NEW_ENTRIES:
         # Paused - don't execute new entries
@@ -843,21 +853,34 @@ async def _execute_tradingview_signal_inner(
                     account_trailing_stop = account.trailing_stop_pips
                     logger.info(f"Account {account.id}: Using trailing stop {account_trailing_stop} pips from settings")
 
+                # === Position sizing enforcement ===
+                # Account profile overrides webhook quantity based on position_sizing_mode
+                order_quantity = quantity
+                sizing_mode = getattr(account, 'position_sizing_mode', 'fixed') or 'fixed'
+
+                if sizing_mode == 'fixed' and account.fixed_lot_size:
+                    # Always use account's fixed lot size
+                    order_quantity = account.fixed_lot_size
+                    logger.info(f"Account {account.id}: Using fixed lot size {order_quantity} from profile")
+                elif sizing_mode == 'percent_balance' and account.percent_of_balance and account.balance:
+                    # Calculate lot size as % of balance (simplified: balance * pct / 100000 for forex)
+                    order_quantity = round(account.balance * (account.percent_of_balance / 100) / 100000, 2)
+                    if order_quantity < 0.01:
+                        order_quantity = 0.01
+                    logger.info(f"Account {account.id}: Calculated {order_quantity} lots from {account.percent_of_balance}% of balance ${account.balance}")
+                elif sizing_mode == 'percent_equity' and account.percent_of_equity and account.equity:
+                    order_quantity = round(account.equity * (account.percent_of_equity / 100) / 100000, 2)
+                    if order_quantity < 0.01:
+                        order_quantity = 0.01
+                    logger.info(f"Account {account.id}: Calculated {order_quantity} lots from {account.percent_of_equity}% of equity ${account.equity}")
+
                 # === Broker-specific quantity normalization ===
                 # Futures brokers (projectx, topstep, tradovate) use whole contracts (1, 2, 3...)
                 # Forex brokers (mt4, mt5, tradelocker) use lot sizes (0.01, 0.1, 1.0...)
-                order_quantity = quantity
                 if broker_str.lower() in ("projectx", "topstep", "tradovate"):
                     # For futures: ensure minimum 1 contract, round to integer
-                    if quantity < 1:
-                        # Use account's fixed_lot_size if set and >= 1, otherwise default to 1
-                        if account.fixed_lot_size and account.fixed_lot_size >= 1:
-                            order_quantity = int(account.fixed_lot_size)
-                        else:
-                            order_quantity = 1
-                        logger.info(f"Account {account.id}: Adjusted quantity from {quantity} to {order_quantity} contracts (futures broker)")
-                    else:
-                        order_quantity = int(quantity)  # Round down to whole contracts
+                    order_quantity = max(1, int(order_quantity))
+                    logger.info(f"Account {account.id}: Normalized to {order_quantity} contracts (futures broker)")
 
                 order_request = OrderRequest(
                     account_id=account.id,

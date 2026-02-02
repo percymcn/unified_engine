@@ -159,6 +159,7 @@ class TradingAccount(Base):
     # Routing preference
     is_signal_enabled = Column(Boolean, default=True)  # Whether this account receives signals
     signal_priority = Column(Integer, default=0)  # Priority when routing (higher = first)
+    auto_confirm = Column(Boolean, default=True)  # Auto-execute trades without manual confirmation
 
     # Status
     is_active = Column(Boolean, default=True)

@@ -91,6 +91,7 @@ export function AccountSettingsForm({
   const [groupId, setGroupId] = useState<number | null>(settings.grouping.groupId);
   const [isSignalEnabled, setIsSignalEnabled] = useState(settings.routing.isSignalEnabled);
   const [signalPriority, setSignalPriority] = useState(settings.routing.signalPriority.toString());
+  const [autoConfirm, setAutoConfirm] = useState(settings.routing.autoConfirm ?? true);
 
   // Prop rules state
   const [propEnabled, setPropEnabled] = useState(settings.propRules?.isEnabled || false);
@@ -191,6 +192,7 @@ export function AccountSettingsForm({
       routing: {
         isSignalEnabled: isSignalEnabled,
         signalPriority: parseInt(signalPriority) || 0,
+        autoConfirm: autoConfirm,
       },
       propRules: {
         isEnabled: propEnabled,
@@ -654,6 +656,23 @@ export function AccountSettingsForm({
                 id="signal-enabled"
                 checked={isSignalEnabled}
                 onCheckedChange={setIsSignalEnabled}
+              />
+            </div>
+
+            {/* Auto-Confirm Trades */}
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="auto-confirm">Auto-Execute Trades</Label>
+                <p className="text-sm text-muted-foreground">
+                  Automatically execute trades without manual confirmation. When off, signals that trigger
+                  risk warnings (e.g., momentum flip) will require manual approval.
+                </p>
+              </div>
+              <Switch
+                id="auto-confirm"
+                checked={autoConfirm}
+                onCheckedChange={setAutoConfirm}
+                disabled={!isSignalEnabled}
               />
             </div>
 

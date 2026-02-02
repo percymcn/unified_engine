@@ -1651,6 +1651,7 @@ class AccountSettingsBody(BaseModel):
     # Routing
     is_signal_enabled: Optional[bool] = None
     signal_priority: Optional[int] = Field(None, ge=0, le=100)
+    auto_confirm: Optional[bool] = None
 
     # Prop firm settings (stored in extra_metadata)
     prop_rules_enabled: Optional[bool] = None
@@ -1746,6 +1747,7 @@ async def get_account_settings(
             "routing": {
                 "isSignalEnabled": response.is_signal_enabled,
                 "signalPriority": response.signal_priority,
+                "autoConfirm": getattr(response, 'auto_confirm', True),
             },
             "propRules": {
                 "isEnabled": prop_rules.get("is_enabled", False) if prop_rules else False,
@@ -1837,6 +1839,7 @@ async def update_account_settings(
         group_id=settings.group_id,
         is_signal_enabled=settings.is_signal_enabled,
         signal_priority=settings.signal_priority,
+        auto_confirm=settings.auto_confirm,
     )
 
     try:
@@ -1939,6 +1942,7 @@ async def update_account_settings(
             "routing": {
                 "isSignalEnabled": response.is_signal_enabled,
                 "signalPriority": response.signal_priority,
+                "autoConfirm": getattr(response, 'auto_confirm', True),
             },
             "propRules": {
                 "isEnabled": prop_rules.get("is_enabled", False) if prop_rules else False,

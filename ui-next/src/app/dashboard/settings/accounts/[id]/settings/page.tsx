@@ -245,6 +245,7 @@ export default function AccountSettingsPage() {
         groupId: updates.grouping?.groupId,
         isSignalEnabled: updates.routing?.isSignalEnabled,
         signalPriority: updates.routing?.signalPriority,
+        autoConfirm: updates.routing?.autoConfirm,
         // Prop firm settings
         propRulesEnabled: updates.propRules?.isEnabled,
         propProvider: updates.propRules?.provider,
