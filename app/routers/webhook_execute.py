@@ -725,43 +725,61 @@ async def _execute_tradingview_signal_inner(
         account_start = datetime.utcnow()
         broker_str = account.broker.value if hasattr(account.broker, 'value') else str(account.broker)
 
-        # === MAX DAILY TRADES CHECK ===
-        # Skip this account if max_daily_trades limit is exceeded (only for non-close actions)
-        if action_str != "close" and account.max_daily_trades:
+        # === RISK MANAGEMENT ENFORCEMENT (only for non-close actions) ===
+        if action_str != "close":
+            rejection_reason = None
+
             try:
+                # Get daily counters for this account
                 counters = await counter_service.get_counters(account.id)
-                if counters.trades_executed >= account.max_daily_trades:
+
+                # 1. MAX DAILY TRADES CHECK
+                if account.max_daily_trades and counters.trades_executed >= account.max_daily_trades:
                     rejection_reason = f"Max daily trades exceeded ({counters.trades_executed}/{account.max_daily_trades})"
-                    logger.warning(f"Account {account.id}: {rejection_reason}")
 
-                    # Log the rejection
-                    execution_log = ExecutionLog(
-                        account_id=account.id,
-                        signal_id=signal_entity.id.value,
-                        symbol=symbol,
-                        action=action_str,
-                        volume=quantity,
-                        status="rejected",
-                        error_message=rejection_reason,
-                        execution_time_ms=int((datetime.utcnow() - account_start).total_seconds() * 1000),
-                    )
-                    db.add(execution_log)
-                    db.commit()
+                # 2. TRADE COOLDOWN CHECK
+                if not rejection_reason and account.trade_cooldown_seconds and counters.last_trade_at:
+                    elapsed = (datetime.utcnow() - counters.last_trade_at).total_seconds()
+                    if elapsed < account.trade_cooldown_seconds:
+                        remaining = int(account.trade_cooldown_seconds - elapsed)
+                        rejection_reason = f"Trade cooldown active ({remaining}s remaining of {account.trade_cooldown_seconds}s)"
 
-                    # Add to results
-                    account_results.append(AccountExecutionResult(
-                        account_id=account.id,
-                        broker=broker_str,
-                        success=False,
-                        status="rejected",
-                        executions=0,
-                        errors=[rejection_reason]
-                    ))
-                    failed_count += 1
-                    all_errors.append(rejection_reason)
-                    continue  # Skip to next account
+                # 3. MAX OPEN POSITIONS CHECK (requires executor to get live positions)
+                # Note: We'll check this after executor initialization below
+
             except Exception as e:
-                logger.warning(f"Failed to check daily trades for account {account.id}: {e}")
+                logger.warning(f"Failed to check risk counters for account {account.id}: {e}")
+
+            # If rejected by counter-based checks, skip this account
+            if rejection_reason:
+                logger.warning(f"Account {account.id}: {rejection_reason}")
+
+                # Log the rejection
+                execution_log = ExecutionLog(
+                    account_id=account.id,
+                    signal_id=signal_entity.id.value,
+                    symbol=symbol,
+                    action=action_str,
+                    volume=quantity,
+                    status="rejected",
+                    error_message=rejection_reason,
+                    execution_time_ms=int((datetime.utcnow() - account_start).total_seconds() * 1000),
+                )
+                db.add(execution_log)
+                db.commit()
+
+                # Add to results
+                account_results.append(AccountExecutionResult(
+                    account_id=account.id,
+                    broker=broker_str,
+                    success=False,
+                    status="rejected",
+                    executions=0,
+                    errors=[rejection_reason]
+                ))
+                failed_count += 1
+                all_errors.append(rejection_reason)
+                continue  # Skip to next account
 
         # Resolve symbol for this specific broker (symbol mapping)
         # Do this early so it's available for both execution and logging
@@ -792,6 +810,73 @@ async def _execute_tradingview_signal_inner(
                     await executor.initialize()
                 except Exception as init_err:
                     logger.warning(f"Executor init warning for account {account.id}: {init_err}")
+
+            # === POSITION-BASED RISK CHECKS (only for non-close actions) ===
+            if action_str != "close":
+                position_rejection = None
+                try:
+                    # Get current open positions from broker
+                    current_positions = await executor.get_positions()
+                    total_positions = len(current_positions) if current_positions else 0
+
+                    # Helper to get attribute from dict or object
+                    def get_pos_attr(obj, key, default=''):
+                        if isinstance(obj, dict):
+                            return obj.get(key, default)
+                        return getattr(obj, key, default)
+
+                    # 3. MAX OPEN POSITIONS CHECK
+                    if account.max_open_positions and total_positions >= account.max_open_positions:
+                        position_rejection = f"Max open positions exceeded ({total_positions}/{account.max_open_positions})"
+
+                    # 4. MAX POSITIONS PER SYMBOL CHECK
+                    if not position_rejection and account.max_positions_per_symbol:
+                        symbol_positions = [
+                            p for p in (current_positions or [])
+                            if symbol.upper() in (get_pos_attr(p, 'symbol', '') or '').upper()
+                            or mapped_symbol.upper() in (get_pos_attr(p, 'symbol', '') or '').upper()
+                        ]
+                        if len(symbol_positions) >= account.max_positions_per_symbol:
+                            position_rejection = f"Max positions for {symbol} exceeded ({len(symbol_positions)}/{account.max_positions_per_symbol})"
+
+                except Exception as pos_err:
+                    logger.warning(f"Failed to check positions for account {account.id}: {pos_err}")
+
+                # If rejected by position checks, skip this account
+                if position_rejection:
+                    logger.warning(f"Account {account.id}: {position_rejection}")
+
+                    # Cleanup executor
+                    if needs_cleanup and hasattr(executor, 'disconnect'):
+                        try:
+                            await executor.disconnect()
+                        except:
+                            pass
+
+                    execution_log = ExecutionLog(
+                        account_id=account.id,
+                        signal_id=signal_entity.id.value,
+                        symbol=symbol,
+                        action=action_str,
+                        volume=quantity,
+                        status="rejected",
+                        error_message=position_rejection,
+                        execution_time_ms=int((datetime.utcnow() - account_start).total_seconds() * 1000),
+                    )
+                    db.add(execution_log)
+                    db.commit()
+
+                    account_results.append(AccountExecutionResult(
+                        account_id=account.id,
+                        broker=broker_str,
+                        success=False,
+                        status="rejected",
+                        executions=0,
+                        errors=[position_rejection]
+                    ))
+                    failed_count += 1
+                    all_errors.append(position_rejection)
+                    continue  # Skip to next account
 
             # Handle close action separately - need to find and close positions
             if action_str == "close":
@@ -953,6 +1038,12 @@ async def _execute_tradingview_signal_inner(
                     # For futures: ensure minimum 1 contract, round to integer
                     order_quantity = max(1, int(order_quantity))
                     logger.info(f"Account {account.id}: Normalized to {order_quantity} contracts (futures broker)")
+
+                # === MAX POSITION SIZE ENFORCEMENT ===
+                # Cap order quantity to account's max_position_size if set
+                if account.max_position_size and order_quantity > account.max_position_size:
+                    logger.warning(f"Account {account.id}: Capping order quantity from {order_quantity} to max_position_size {account.max_position_size}")
+                    order_quantity = account.max_position_size
 
                 order_request = OrderRequest(
                     account_id=account.id,
