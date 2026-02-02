@@ -55,6 +55,94 @@ from app.infrastructure.repositories import get_daily_counter_repository
 logger = logging.getLogger(__name__)
 
 
+def validate_sl_tp_distance(
+    sl_price: float,
+    tp_price: float,
+    entry_price: float,
+    symbol: str,
+    is_buy: bool,
+    min_percent_distance: float = 0.01  # 0.01% minimum distance
+) -> tuple[float | None, float | None, list[str]]:
+    """
+    Validate SL/TP prices have minimum distance from entry.
+
+    Rejects SL/TP values that are too close to entry price (likely tick values
+    mistakenly sent as absolute prices).
+
+    Args:
+        sl_price: Stop loss price (or None)
+        tp_price: Take profit price (or None)
+        entry_price: Entry/current price
+        symbol: Symbol for logging
+        is_buy: True for buy orders
+        min_percent_distance: Minimum distance as percentage (default 0.01%)
+
+    Returns:
+        Tuple of (validated_sl, validated_tp, warnings)
+        Invalid values are set to None with warnings logged
+    """
+    warnings = []
+    validated_sl = sl_price
+    validated_tp = tp_price
+
+    if not entry_price or entry_price <= 0:
+        return validated_sl, validated_tp, warnings
+
+    min_distance = entry_price * (min_percent_distance / 100)
+
+    # Validate SL distance
+    if sl_price is not None:
+        sl_distance = abs(float(sl_price) - entry_price)
+        sl_percent = (sl_distance / entry_price) * 100
+
+        if sl_distance < min_distance:
+            warnings.append(
+                f"SL {sl_price} too close to entry {entry_price} "
+                f"({sl_percent:.6f}% < {min_percent_distance}% min). "
+                f"Ignoring signal SL - will use account default if set."
+            )
+            validated_sl = None
+
+        # Also validate SL direction (should be below entry for buy, above for sell)
+        elif is_buy and float(sl_price) >= entry_price:
+            warnings.append(
+                f"SL {sl_price} invalid for BUY (should be below entry {entry_price}). Ignoring."
+            )
+            validated_sl = None
+        elif not is_buy and float(sl_price) <= entry_price:
+            warnings.append(
+                f"SL {sl_price} invalid for SELL (should be above entry {entry_price}). Ignoring."
+            )
+            validated_sl = None
+
+    # Validate TP distance
+    if tp_price is not None:
+        tp_distance = abs(float(tp_price) - entry_price)
+        tp_percent = (tp_distance / entry_price) * 100
+
+        if tp_distance < min_distance:
+            warnings.append(
+                f"TP {tp_price} too close to entry {entry_price} "
+                f"({tp_percent:.6f}% < {min_percent_distance}% min). "
+                f"Ignoring signal TP - will use account default if set."
+            )
+            validated_tp = None
+
+        # Also validate TP direction (should be above entry for buy, below for sell)
+        elif is_buy and float(tp_price) <= entry_price:
+            warnings.append(
+                f"TP {tp_price} invalid for BUY (should be above entry {entry_price}). Ignoring."
+            )
+            validated_tp = None
+        elif not is_buy and float(tp_price) >= entry_price:
+            warnings.append(
+                f"TP {tp_price} invalid for SELL (should be below entry {entry_price}). Ignoring."
+            )
+            validated_tp = None
+
+    return validated_sl, validated_tp, warnings
+
+
 def resolve_symbol_for_broker(
     db: Session,
     user_id: int,
@@ -399,11 +487,80 @@ async def _execute_tradingview_signal_inner(
         0.01
     )
     # Support both short (sl, tp) and long (stop_loss, take_profit) field names
-    sl_price = raw_payload.get("sl") or raw_payload.get("stop_loss")
-    tp_price = raw_payload.get("tp") or raw_payload.get("take_profit")
+    sl_price_raw = raw_payload.get("sl") or raw_payload.get("stop_loss")
+    tp_price_raw = raw_payload.get("tp") or raw_payload.get("take_profit")
     trailing_stop = raw_payload.get("trailing_stop")  # Trailing stop distance
     order_type_payload = raw_payload.get("order_type", "market").lower()
     limit_price = raw_payload.get("limit_price")
+
+    # Signal-level SL/TP type parsing (pips, points, percent, price)
+    # If not specified, defaults to "price" (absolute price value)
+    signal_sl_type = raw_payload.get("sl_type", "price").lower()
+    signal_tp_type = raw_payload.get("tp_type", "price").lower()
+
+    # Convert SL/TP from signal type to absolute price if needed
+    # This handles signals sending values in ticks/pips/percent format
+    sl_price = sl_price_raw
+    tp_price = tp_price_raw
+
+    # Get entry price hint for conversion (if available from payload or symbol lookup)
+    entry_price_hint = float(raw_payload.get("price") or raw_payload.get("entry_price") or 0)
+    is_buy_action = action_str.lower() == "buy"
+
+    if sl_price_raw and entry_price_hint and signal_sl_type != "price":
+        try:
+            sl_unit_mode = RiskUnitMode(signal_sl_type)
+            sl_price = RiskUnitConverter.convert_risk_unit_to_price(
+                value=float(sl_price_raw),
+                mode=sl_unit_mode,
+                entry_price=entry_price_hint,
+                is_buy=is_buy_action,
+                is_stop_loss=True,
+                digits=5,  # Default 5 digits for forex
+                tick_size=0.25  # Default tick size for futures
+            )
+            logger.info(f"Signal SL converted: {sl_price_raw} {signal_sl_type} -> {sl_price} (entry: {entry_price_hint})")
+        except Exception as sl_conv_err:
+            logger.warning(f"Failed to convert signal SL: {sl_conv_err}, using raw value")
+            sl_price = sl_price_raw
+
+    if tp_price_raw and entry_price_hint and signal_tp_type != "price":
+        try:
+            tp_unit_mode = RiskUnitMode(signal_tp_type)
+            tp_price = RiskUnitConverter.convert_risk_unit_to_price(
+                value=float(tp_price_raw),
+                mode=tp_unit_mode,
+                entry_price=entry_price_hint,
+                is_buy=is_buy_action,
+                is_stop_loss=False,
+                digits=5,
+                tick_size=0.25
+            )
+            logger.info(f"Signal TP converted: {tp_price_raw} {signal_tp_type} -> {tp_price} (entry: {entry_price_hint})")
+        except Exception as tp_conv_err:
+            logger.warning(f"Failed to convert signal TP: {tp_conv_err}, using raw value")
+            tp_price = tp_price_raw
+
+    # === VALIDATE SL/TP DISTANCE FROM ENTRY ===
+    # Reject values too close to entry (likely tick values sent as prices)
+    if entry_price_hint and entry_price_hint > 0:
+        validated_sl, validated_tp, sl_tp_warnings = validate_sl_tp_distance(
+            sl_price=float(sl_price) if sl_price else None,
+            tp_price=float(tp_price) if tp_price else None,
+            entry_price=entry_price_hint,
+            symbol=symbol,
+            is_buy=is_buy_action,
+            min_percent_distance=0.01  # 0.01% minimum (e.g., $0.05 for $500 entry)
+        )
+
+        # Log any validation warnings
+        for warning in sl_tp_warnings:
+            logger.warning(f"Signal {symbol}: {warning}")
+
+        # Use validated values (None if invalid - will fall back to account defaults)
+        sl_price = validated_sl
+        tp_price = validated_tp
+
     signal_uuid = str(uuid.uuid4())
 
     signal_entity = Signal(
