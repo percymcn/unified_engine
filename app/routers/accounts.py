@@ -1814,6 +1814,11 @@ async def update_account_settings(
     container = get_container(request)
     use_case = container.update_account_settings_use_case()
 
+    # Debug log to track SL/TP type values
+    logger.info(f"[DEBUG] update_account_settings received - account_id={account_id}")
+    logger.info(f"[DEBUG] sl_type={settings.sl_type}, tp_type={settings.tp_type}")
+    logger.info(f"[DEBUG] defaultStopLoss={settings.default_stop_loss}, defaultTakeProfit={settings.default_take_profit}")
+
     # Convert string mode to enum if provided
     position_sizing_mode = None
     if settings.position_sizing_mode:

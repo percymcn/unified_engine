@@ -434,6 +434,12 @@ export async function updateAccountSettings(
   if (settings.defaultTakeProfit !== undefined) {
     payload.default_take_profit = settings.defaultTakeProfit;
   }
+  if (settings.slType !== undefined) {
+    payload.sl_type = settings.slType;
+  }
+  if (settings.tpType !== undefined) {
+    payload.tp_type = settings.tpType;
+  }
   if (settings.groupId !== undefined) {
     payload.group_id = settings.groupId;
   }

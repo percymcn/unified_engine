@@ -97,14 +97,17 @@ class UpdateAccountSettingsUseCase:
         if request.default_take_profit is not None:
             updates['default_take_profit'] = request.default_take_profit
         # SL/TP unit types
+        logger.info(f"[DEBUG] UseCase received sl_type={request.sl_type}, tp_type={request.tp_type}")
         if request.sl_type is not None:
             if request.sl_type not in ('pips', 'points', 'percent', 'price'):
                 raise ValueError(f"Invalid sl_type: {request.sl_type}")
             updates['sl_type'] = request.sl_type
+            logger.info(f"[DEBUG] Adding sl_type to updates: {request.sl_type}")
         if request.tp_type is not None:
             if request.tp_type not in ('pips', 'points', 'percent', 'price'):
                 raise ValueError(f"Invalid tp_type: {request.tp_type}")
             updates['tp_type'] = request.tp_type
+            logger.info(f"[DEBUG] Adding tp_type to updates: {request.tp_type}")
 
         # Grouping - validate group exists and belongs to user
         if request.group_id is not None:
@@ -153,6 +156,7 @@ class UpdateAccountSettingsUseCase:
             self._session.refresh(account)
 
         logger.info(f"Updated settings for account {request.account_id}: {list(updates.keys())}")
+        logger.info(f"[DEBUG] After commit - account.sl_type={account.sl_type}, account.tp_type={account.tp_type}")
 
         return self._to_response(account)
 
