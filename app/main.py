@@ -633,6 +633,11 @@ async def tradovate_token_refresh_loop():
     # Token refresh interval: 5 minutes
     REFRESH_INTERVAL_SECONDS = 300
 
+    # CRITICAL: Initial delay to allow startup to complete
+    # The refresh_expiring_tokens() uses synchronous DB operations that block
+    # the event loop. Without this delay, uvicorn cannot bind to the port.
+    await asyncio.sleep(10)
+
     while True:
         try:
             await refresh_expiring_tokens()

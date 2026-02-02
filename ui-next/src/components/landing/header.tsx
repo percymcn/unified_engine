@@ -2,7 +2,8 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Menu, Zap } from "lucide-react";
+import Image from "next/image";
+import { Menu } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -45,9 +46,13 @@ export function LandingHeader() {
       <nav className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-            <Zap className="h-5 w-5 text-primary-foreground" />
-          </div>
+          <Image
+            src="/logo.png"
+            alt="Tradeflow"
+            width={36}
+            height={36}
+            className="rounded-lg"
+          />
           <span className="text-xl font-bold">Tradeflow</span>
         </Link>
 
@@ -85,9 +90,13 @@ export function LandingHeader() {
           <SheetContent side="right" className="w-[300px]">
             <SheetHeader>
               <SheetTitle className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-                  <Zap className="h-5 w-5 text-primary-foreground" />
-                </div>
+                <Image
+                  src="/logo.png"
+                  alt="Tradeflow"
+                  width={32}
+                  height={32}
+                  className="rounded-lg"
+                />
                 <span>Tradeflow</span>
               </SheetTitle>
             </SheetHeader>

@@ -12,9 +12,6 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Logo URL for emails (hosted publicly)
-LOGO_URL = "https://mytradeflow.app/logo.png"
-
 # Brand colors
 BRAND_PRIMARY = "#6366f1"  # Indigo
 BRAND_SUCCESS = "#10b981"  # Emerald
@@ -22,12 +19,13 @@ BRAND_WARNING = "#f59e0b"  # Amber
 
 
 def get_email_header() -> str:
-    """Standard email header with logo"""
+    """Standard email header with logo image"""
+    logo_url = f"{settings.FRONTEND_URL}/logo.png"
     return f"""
     <div style="text-align: center; margin-bottom: 30px; padding: 20px 0; border-bottom: 1px solid #e5e7eb;">
-        <img src="{LOGO_URL}" alt="MyTradeFlow" style="height: 40px; width: auto;" onerror="this.style.display='none'">
-        <h1 style="color: {BRAND_PRIMARY}; margin: 10px 0 0 0; font-size: 24px;">MyTradeFlow</h1>
-        <p style="color: #6b7280; margin: 5px 0 0 0; font-size: 14px;">Automated Trading Signal Router</p>
+        <img src="{logo_url}" alt="Tradeflow" width="56" height="56" style="border-radius: 12px; margin-bottom: 12px;" />
+        <h1 style="color: {BRAND_PRIMARY}; margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -0.5px;">Tradeflow</h1>
+        <p style="color: #6b7280; margin: 6px 0 0 0; font-size: 14px;">Automated Trading Signal Router</p>
     </div>
     """
 
@@ -36,13 +34,13 @@ def get_email_footer() -> str:
     """Standard email footer"""
     return f"""
     <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center; font-size: 12px; color: #9ca3af;">
-        <p style="margin: 0;">MyTradeFlow - Route trading signals to your broker accounts</p>
+        <p style="margin: 0;">Tradeflow - Route trading signals to your broker accounts</p>
         <p style="margin: 5px 0 0 0;">
             <a href="{settings.FRONTEND_URL}" style="color: {BRAND_PRIMARY}; text-decoration: none;">mytradeflow.app</a> |
             <a href="mailto:support@mytradeflow.app" style="color: {BRAND_PRIMARY}; text-decoration: none;">support@mytradeflow.app</a>
         </p>
         <p style="margin: 10px 0 0 0; font-size: 11px;">
-            You're receiving this because you have an account with MyTradeFlow.
+            You're receiving this because you have an account with Tradeflow.
         </p>
     </div>
     """

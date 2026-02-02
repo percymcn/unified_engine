@@ -29,8 +29,8 @@ const nextConfig = {
       "img-src 'self' data: blob: https://*.tradingview.com https://s3.tradingview.com",
       // Fonts: self + data + TradingView
       "font-src 'self' data: https://*.tradingview.com",
-      // Connect: self + backend + TradingView endpoints
-      "connect-src 'self' http://localhost:* ws://localhost:* https://*.tradingview.com https://s3.tradingview.com wss://*.tradingview.com https://*.mytradeflow.app wss://*.mytradeflow.app",
+      // Connect: self + backend + TradingView endpoints + ipapi.co for geolocation
+      "connect-src 'self' http://localhost:* ws://localhost:* https://*.tradingview.com https://s3.tradingview.com wss://*.tradingview.com https://*.mytradeflow.app wss://*.mytradeflow.app https://ipapi.co",
       // Frames: TradingView widget iframes
       "frame-src 'self' https://*.tradingview.com https://*.tradingview-widget.com",
       // Workers: self + blob (for TradingView)

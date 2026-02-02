@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
@@ -88,7 +89,13 @@ export function Sidebar({ className }: SidebarProps) {
     >
       {/* Logo / App Name */}
       <div className="flex h-16 items-center gap-2 border-b border-border px-6">
-        <Activity className="h-6 w-6 text-primary" />
+        <Image
+          src="/logo.png"
+          alt="Tradeflow"
+          width={28}
+          height={28}
+          className="rounded-md"
+        />
         <span className="text-lg font-semibold text-foreground">
           Tradeflow
         </span>

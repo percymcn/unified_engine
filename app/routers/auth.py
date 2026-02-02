@@ -14,6 +14,8 @@ from app.core.event_emitter import emit_user_event
 from app.services.email_service import (
     generate_verification_token,
     verify_email_token,
+)
+from app.services.resend_email_service import (
     send_verification_email,
     send_welcome_email,
     send_password_reset_email
@@ -185,7 +187,7 @@ async def register(user: UserCreate, db: Session = Depends(get_db)):
     # Send verification email (non-blocking)
     try:
         token = generate_verification_token(db_user.email, db_user.id)
-        email_sent = send_verification_email(db_user.email, db_user.username, token)
+        email_sent = await send_verification_email(db_user.email, db_user.username, token)
         if email_sent:
             logger.info(f"Verification email sent to {db_user.email}")
         else:
@@ -393,7 +395,7 @@ async def verify_email(token: str = Body(..., embed=True), db: Session = Depends
 
     # Send welcome email
     try:
-        send_welcome_email(user.email, user.username)
+        await send_welcome_email(user.email, user.username)
     except Exception as e:
         logger.error(f"Failed to send welcome email: {e}")
 
@@ -423,7 +425,7 @@ async def resend_verification_email(
     # Generate and send new verification email
     try:
         token = generate_verification_token(user.email, user.id)
-        email_sent = send_verification_email(user.email, user.username, token)
+        email_sent = await send_verification_email(user.email, user.username, token)
         if email_sent:
             logger.info(f"Verification email resent to {user.email}")
         else:
@@ -475,7 +477,7 @@ async def forgot_password(
     if user:
         try:
             token = generate_password_reset_token(user.email, user.id)
-            email_sent = send_password_reset_email(user.email, user.username, token)
+            email_sent = await send_password_reset_email(user.email, user.username, token)
             if email_sent:
                 logger.info(f"Password reset email sent to {user.email}")
             else:

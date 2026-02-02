@@ -21,6 +21,7 @@
 
 import { useState, useEffect, FormEvent, Suspense } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import {
@@ -30,7 +31,6 @@ import {
   Eye,
   EyeOff,
   Check,
-  Zap,
   ArrowRight,
   Loader2,
   Home,
@@ -210,9 +210,13 @@ function LoginPageContent() {
         {/* Logo & Header */}
         <motion.div variants={itemVariants} className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 mb-6">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-emerald-500 flex items-center justify-center">
-              <Zap className="w-6 h-6 text-white" />
-            </div>
+            <Image
+              src="/logo.png"
+              alt="Tradeflow"
+              width={40}
+              height={40}
+              className="rounded-lg"
+            />
             <span className="text-2xl font-bold text-white">Tradeflow</span>
           </Link>
           <h1 className="text-2xl md:text-3xl font-bold text-gray-100 mb-2">

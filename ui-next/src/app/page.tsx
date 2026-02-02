@@ -4,6 +4,7 @@ import { LandingHeader } from "@/components/landing/header";
 import { Hero } from "@/components/landing/hero";
 import { PainPoints } from "@/components/landing/pain-points";
 import { SocialProof } from "@/components/landing/social-proof";
+import { SocialProofToast } from "@/components/landing/social-proof-toast";
 import { Features } from "@/components/landing/features";
 import { Stats } from "@/components/landing/stats";
 import { HowItWorks } from "@/components/landing/how-it-works";
@@ -78,6 +79,8 @@ export default function Home() {
       <Footer />
       {/* Sales chatbot for visitor questions */}
       <SalesChat />
+      {/* Social proof purchase notifications */}
+      <SocialProofToast />
     </>
   );
 }

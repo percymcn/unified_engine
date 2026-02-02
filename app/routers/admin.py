@@ -676,7 +676,7 @@ CONFIG_CATEGORIES = {
     "email": {
         "name": "Email Service",
         "icon": "mail",
-        "keys": ["SENDGRID_API_KEY", "EMAIL_FROM_ADDRESS"]
+        "keys": ["RESEND_API_KEY", "RESEND_FROM_EMAIL", "RESEND_FROM_NAME", "SENDGRID_API_KEY", "EMAIL_FROM_ADDRESS"]
     },
     "brokers": {
         "name": "Broker APIs",
@@ -690,7 +690,7 @@ SECRET_KEYS = {
     "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET",
     "JWT_SECRET_KEY", "DATABASE_URL",
     "GOOGLE_CLIENT_SECRET", "GITHUB_CLIENT_SECRET", "MICROSOFT_CLIENT_SECRET",
-    "SENDGRID_API_KEY", "METAAPI_TOKEN",
+    "SENDGRID_API_KEY", "RESEND_API_KEY", "METAAPI_TOKEN",
     "TRADELOCKER_CLIENT_SECRET", "TRADOVATE_APP_SECRET",
 }
 
@@ -943,6 +943,8 @@ async def get_system_logs(
             logger.info(f"[ADMIN LOGS] Found {len(signals)} signals")
             for sig in signals:
                 user = db.query(User).filter(User.id == sig.user_id).first() if sig.user_id else None
+                # Build message from available fields
+                msg = sig.error_message or sig.comment or f"Signal {sig.action} {sig.symbol}"
                 logs.append({
                     "id": sig.id,
                     "type": "signal",
@@ -951,11 +953,11 @@ async def get_system_logs(
                     "action": sig.action,
                     "symbol": sig.symbol,
                     "status": sig.status,
-                    "message": sig.message or f"Signal {sig.action} {sig.symbol}",
+                    "message": msg,
                     "details": {
-                        "quantity": sig.quantity,
+                        "quantity": sig.volume,
                         "strategy": sig.strategy_id,
-                        "source": sig.source,
+                        "source": sig.source.value if sig.source else None,
                     }
                 })
 
