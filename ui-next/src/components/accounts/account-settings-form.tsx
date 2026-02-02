@@ -410,8 +410,8 @@ export function AccountSettingsForm({
                         <Input
                           id="defaultStopLoss"
                           type="number"
-                          step={slType === 'percent' ? 0.1 : riskProfile.stopLoss.step}
-                          min={slType === 'percent' ? 0.1 : riskProfile.stopLoss.min}
+                          step={slType === 'percent' ? 0.001 : riskProfile.stopLoss.step}
+                          min={slType === 'percent' ? 0.001 : riskProfile.stopLoss.min}
                           max={slType === 'percent' ? 50 : riskProfile.stopLoss.max}
                           value={defaultStopLoss}
                           onChange={(e) => {
@@ -467,8 +467,8 @@ export function AccountSettingsForm({
                         <Input
                           id="defaultTakeProfit"
                           type="number"
-                          step={tpType === 'percent' ? 0.1 : riskProfile.takeProfit.step}
-                          min={tpType === 'percent' ? 0.1 : riskProfile.takeProfit.min}
+                          step={tpType === 'percent' ? 0.001 : riskProfile.takeProfit.step}
+                          min={tpType === 'percent' ? 0.001 : riskProfile.takeProfit.min}
                           max={tpType === 'percent' ? 100 : riskProfile.takeProfit.max}
                           value={defaultTakeProfit}
                           onChange={(e) => {

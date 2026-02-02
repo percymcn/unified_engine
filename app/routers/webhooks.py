@@ -1005,10 +1005,10 @@ async def get_webhook_logs(
             "processing_time_ms": log.processing_time_ms,
             "response_status": log.response_status,
             "error_message": log.error_message,
-            # Extracted from payload
+            # Extracted from payload (check all aliases: quantity, contracts, volume)
             "action": payload_data.get("action"),
             "symbol": payload_data.get("symbol"),
-            "quantity": payload_data.get("quantity"),
+            "quantity": payload_data.get("quantity") or payload_data.get("contracts") or payload_data.get("volume") or 0.01,
             # Execution details
             "total_accounts": response_data.get("total_accounts", 1) if response_data else 1,
             "successful_accounts": response_data.get("successful", 1 if log.processed else 0) if response_data else (1 if log.processed else 0),

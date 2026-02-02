@@ -49,6 +49,8 @@ from app.domain.entities.signal import Signal
 from app.domain.value_objects import SignalId, Symbol, Volume, Price, StopLoss, TakeProfit, AccountId
 from app.domain.services.account_routing_service import AccountRoutingService
 from app.domain.services.risk_unit_converter import RiskUnitConverter, RiskUnitMode
+from app.domain.services.daily_counter_service import DailyCounterService
+from app.infrastructure.repositories import get_daily_counter_repository
 
 logger = logging.getLogger(__name__)
 
@@ -715,9 +717,51 @@ async def _execute_tradingview_signal_inner(
     from app.services.signal_processor import _create_account_executor
     from app.models.pydantic_schemas import OrderRequest
 
+    # Initialize counter service for max_daily_trades enforcement
+    counter_repo = get_daily_counter_repository()
+    counter_service = DailyCounterService(counter_repo)
+
     for account in accounts:
         account_start = datetime.utcnow()
         broker_str = account.broker.value if hasattr(account.broker, 'value') else str(account.broker)
+
+        # === MAX DAILY TRADES CHECK ===
+        # Skip this account if max_daily_trades limit is exceeded (only for non-close actions)
+        if action_str != "close" and account.max_daily_trades:
+            try:
+                counters = await counter_service.get_counters(account.id)
+                if counters.trades_executed >= account.max_daily_trades:
+                    rejection_reason = f"Max daily trades exceeded ({counters.trades_executed}/{account.max_daily_trades})"
+                    logger.warning(f"Account {account.id}: {rejection_reason}")
+
+                    # Log the rejection
+                    execution_log = ExecutionLog(
+                        account_id=account.id,
+                        signal_id=signal_entity.id.value,
+                        symbol=symbol,
+                        action=action_str,
+                        volume=quantity,
+                        status="rejected",
+                        error_message=rejection_reason,
+                        execution_time_ms=int((datetime.utcnow() - account_start).total_seconds() * 1000),
+                    )
+                    db.add(execution_log)
+                    db.commit()
+
+                    # Add to results
+                    account_results.append(AccountExecutionResult(
+                        account_id=account.id,
+                        broker=broker_str,
+                        success=False,
+                        status="rejected",
+                        executions=0,
+                        errors=[rejection_reason]
+                    ))
+                    failed_count += 1
+                    all_errors.append(rejection_reason)
+                    continue  # Skip to next account
+            except Exception as e:
+                logger.warning(f"Failed to check daily trades for account {account.id}: {e}")
 
         # Resolve symbol for this specific broker (symbol mapping)
         # Do this early so it's available for both execution and logging
@@ -989,6 +1033,15 @@ async def _execute_tradingview_signal_inner(
 
             if execution_success:
                 successful_count += 1
+
+                # Increment daily trade counter (only for non-close actions)
+                if action_str != "close":
+                    try:
+                        await counter_service.increment_trades(account.id, symbol)
+                        logger.debug(f"Incremented trade counter for account {account.id}, symbol {symbol}")
+                    except Exception as e:
+                        logger.warning(f"Failed to increment trade counter for account {account.id}: {e}")
+
                 account_results.append(AccountExecutionResult(
                     account_id=account.id,
                     broker=broker_str,
