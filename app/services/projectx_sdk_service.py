@@ -593,10 +593,27 @@ class ProjectXSDKService:
             for pos in positions:
                 if not pos:
                     continue
-                # Handle pnl which might be a method or property
-                pnl_val = getattr(pos, 'pnl', getattr(pos, 'unrealized_pnl', 0))
-                if callable(pnl_val):
-                    pnl_val = 0.0
+
+                # Get current price for PnL calculation
+                current_price = float(getattr(pos, 'currentPrice', getattr(pos, 'current_price', 0)) or 0)
+                entry_price = float(getattr(pos, 'avgPrice', getattr(pos, 'averagePrice', getattr(pos, 'entry_price', 0))) or 0)
+
+                # Handle pnl - SDK Position.unrealized_pnl() is a method requiring current_price
+                pnl_val = 0.0
+                pnl_attr = getattr(pos, 'unrealized_pnl', None)
+                if pnl_attr is not None:
+                    if callable(pnl_attr):
+                        # Call the method with current_price (tick_value defaults to 1.0)
+                        try:
+                            pnl_val = float(pnl_attr(current_price))
+                        except Exception as pnl_err:
+                            logger.debug(f"Error calculating PnL: {pnl_err}")
+                            pnl_val = 0.0
+                    else:
+                        pnl_val = float(pnl_attr)
+                # Fallback: check for unrealizedPnl or pnl attributes (camelCase from API)
+                if pnl_val == 0.0:
+                    pnl_val = float(getattr(pos, 'unrealizedPnl', getattr(pos, 'pnl', 0)) or 0)
 
                 # Determine side from 'type' attribute or size sign
                 # Position type: 2 = long (buy), 0 = short (sell)
@@ -614,9 +631,9 @@ class ProjectXSDKService:
                     "symbol": getattr(pos, 'contractName', getattr(pos, 'symbol', '')),
                     "side": side,
                     "size": abs(float(pos_size)),
-                    "entry_price": float(getattr(pos, 'avgPrice', getattr(pos, 'averagePrice', getattr(pos, 'entry_price', 0))) or 0),
-                    "current_price": float(getattr(pos, 'currentPrice', getattr(pos, 'current_price', 0)) or 0),
-                    "unrealized_pnl": float(pnl_val) if not callable(pnl_val) else 0.0,
+                    "entry_price": entry_price,
+                    "current_price": current_price,
+                    "unrealized_pnl": pnl_val,
                 })
             return result
         except Exception as e:

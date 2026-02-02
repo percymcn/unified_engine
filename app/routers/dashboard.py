@@ -57,6 +57,7 @@ class ExecutionItem(BaseModel):
 class ExecutionsResponse(BaseModel):
     executions: List[ExecutionItem]
     total: int
+    today_count: int = 0  # Count of today's executions
 
 
 # --------------------
@@ -120,7 +121,7 @@ class PositionsResponse(BaseModel):
 
 @router.get("/executions", response_model=ExecutionsResponse)
 async def get_recent_executions(
-    limit: int = Query(10, ge=1, le=50),
+    limit: int = Query(10, ge=1, le=500),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -137,9 +138,21 @@ async def get_recent_executions(
     account_broker_map = {a.id: a.broker.value if a.broker else "unknown" for a in user_accounts}
 
     if not account_ids:
-        return ExecutionsResponse(executions=[], total=0)
+        return ExecutionsResponse(executions=[], total=0, today_count=0)
 
-    # Query execution logs
+    # Get actual total count (not limited)
+    total_count = db.query(func.count(ExecutionLog.id)).filter(
+        ExecutionLog.account_id.in_(account_ids)
+    ).scalar() or 0
+
+    # Get today's count
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_count = db.query(func.count(ExecutionLog.id)).filter(
+        ExecutionLog.account_id.in_(account_ids),
+        ExecutionLog.created_at >= today_start
+    ).scalar() or 0
+
+    # Query execution logs (limited for display)
     executions = db.query(ExecutionLog).filter(
         ExecutionLog.account_id.in_(account_ids)
     ).order_by(
@@ -175,7 +188,7 @@ async def get_recent_executions(
             order_id=ex.order_id,
         ))
 
-    return ExecutionsResponse(executions=items, total=len(items))
+    return ExecutionsResponse(executions=items, total=total_count, today_count=today_count)
 
 
 @router.get("/equity", response_model=EquityResponse)

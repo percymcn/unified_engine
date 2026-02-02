@@ -415,12 +415,13 @@ export function AccountSettingsForm({
                           max={slType === 'percent' ? 50 : riskProfile.stopLoss.max}
                           value={defaultStopLoss}
                           onChange={(e) => {
-                            const value = parseFloat(e.target.value) || 0;
-                            if (value === 0) {
+                            const raw = e.target.value;
+                            if (raw === '') {
                               setDefaultStopLoss('');
                               return;
                             }
-                            setDefaultStopLoss(value.toString());
+                            // Keep raw string to allow typing decimals like 0.0, 0.00, 0.001
+                            setDefaultStopLoss(raw);
                           }}
                           placeholder="Enter value"
                           className="flex-1"
@@ -472,12 +473,13 @@ export function AccountSettingsForm({
                           max={tpType === 'percent' ? 100 : riskProfile.takeProfit.max}
                           value={defaultTakeProfit}
                           onChange={(e) => {
-                            const value = parseFloat(e.target.value) || 0;
-                            if (value === 0) {
+                            const raw = e.target.value;
+                            if (raw === '') {
                               setDefaultTakeProfit('');
                               return;
                             }
-                            setDefaultTakeProfit(value.toString());
+                            // Keep raw string to allow typing decimals like 0.0, 0.00, 0.001
+                            setDefaultTakeProfit(raw);
                           }}
                           placeholder="Enter value"
                           className="flex-1"

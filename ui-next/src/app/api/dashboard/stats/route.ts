@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getTokenFromCookies } from '@/lib/auth';
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8765';
-const TIMEOUT_MS = 5000; // 5 second timeout to avoid Cloudflare 524
+const TIMEOUT_MS = 8000; // 8 second timeout
 
 /**
  * GET /api/dashboard/stats
@@ -34,9 +34,9 @@ export async function GET() {
       }
     };
 
-    // Fetch stats from multiple backend endpoints in parallel (max limit=50 per backend validation)
+    // Fetch stats from multiple backend endpoints in parallel
     const [signalsRes, accountsRes, liveAccountsRes, executionsRes] = await Promise.allSettled([
-      fetchWithTimeout(`${BACKEND_URL}/api/v1/signals/?limit=50&status=pending`, {
+      fetchWithTimeout(`${BACKEND_URL}/api/v1/signals/?limit=1`, {
         headers: { 'Authorization': `Bearer ${token}` },
       }),
       fetchWithTimeout(`${BACKEND_URL}/api/v1/accounts/`, {
@@ -46,8 +46,8 @@ export async function GET() {
       fetchWithTimeout(`${BACKEND_URL}/api/v1/dashboard/accounts/live`, {
         headers: { 'Authorization': `Bearer ${token}` },
       }),
-      // Fetch executions for today's trades count (max 50)
-      fetchWithTimeout(`${BACKEND_URL}/api/v1/dashboard/executions?limit=50`, {
+      // Fetch executions with higher limit for accurate today count
+      fetchWithTimeout(`${BACKEND_URL}/api/v1/dashboard/executions?limit=500`, {
         headers: { 'Authorization': `Bearer ${token}` },
       }),
     ]);
@@ -60,22 +60,21 @@ export async function GET() {
       return fallback;
     };
 
-    const signals = await getResult(signalsRes, []);
+    const signalsData = await getResult(signalsRes, { signals: [], total: 0, pending_count: 0 });
     const accountsData = await getResult(accountsRes, []);
     const liveAccountsData = await getResult(liveAccountsRes, null);
-    const executionsData = await getResult(executionsRes, { executions: [] });
+    const executionsData = await getResult(executionsRes, { executions: [], total: 0 });
 
     // Normalize accounts response - backend returns {accounts: [], total} or just []
     const accounts = Array.isArray(accountsData)
       ? accountsData
       : (accountsData?.accounts || []);
 
-    // Calculate today's trades from executions
-    const today = new Date().toISOString().split('T')[0];
-    const executions = executionsData?.executions || [];
-    const todaysTrades = executions.filter(
-      (e: { created_at?: string }) => e.created_at?.startsWith(today)
-    ).length;
+    // Use today_count from backend (accurate database count, not client-side filtering)
+    const todaysTrades = executionsData?.today_count || 0;
+
+    // Use the total from backend response (accurate count from database)
+    const totalExecutions = executionsData?.total || 0;
 
     // Use live account data for balance if available, otherwise fallback to DB cached
     let totalBalance = 0;
@@ -93,13 +92,14 @@ export async function GET() {
       (acc: { is_active?: boolean }) => acc.is_active
     ).length;
 
-    // Count pending signals
-    const activeSignals = Array.isArray(signals) ? signals.length : 0;
+    // Count pending signals (use pending_count from backend for accurate count)
+    const activeSignals = signalsData?.pending_count || 0;
 
     return NextResponse.json({
       activeSignals,
       connectedBrokers,
       todaysTrades,
+      totalExecutions,
       totalBalance,
     });
   } catch (error) {

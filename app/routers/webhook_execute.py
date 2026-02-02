@@ -755,9 +755,11 @@ async def _execute_tradingview_signal_inner(
                 logger.warning(f"Account {account.id}: {rejection_reason}")
 
                 # Log the rejection
+                models_broker = ModelsBrokerType(broker_str.lower())
                 execution_log = ExecutionLog(
                     account_id=account.id,
                     signal_id=signal_entity.id.value,
+                    broker=models_broker,
                     symbol=symbol,
                     action=action_str,
                     volume=quantity,
@@ -853,9 +855,11 @@ async def _execute_tradingview_signal_inner(
                         except:
                             pass
 
+                    models_broker = ModelsBrokerType(broker_str.lower())
                     execution_log = ExecutionLog(
                         account_id=account.id,
                         signal_id=signal_entity.id.value,
+                        broker=models_broker,
                         symbol=symbol,
                         action=action_str,
                         volume=quantity,

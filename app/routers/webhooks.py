@@ -950,8 +950,8 @@ async def get_webhook_logs(
 
         if result_status == "pending_confirmation":
             rejection_reason = "Awaiting manual confirmation (auto-confirm disabled)"
-        elif result_status == "failed":
-            # Get first error as reason
+        elif result_status in ("failed", "partial", "error"):
+            # Get errors from response for failed/partial results
             errors = response_data.get("errors", []) if response_data else []
             if errors:
                 first_error = errors[0]
@@ -960,7 +960,11 @@ async def get_webhook_logs(
                     rejection_reason = str(first_error).split(": ", 1)[-1]
                 else:
                     rejection_reason = str(first_error)
-        elif response_data.get("guard_decision"):
+            elif response_data.get("error"):
+                rejection_reason = str(response_data["error"])[:200]
+
+        # Check guard decisions
+        if not rejection_reason and response_data and response_data.get("guard_decision"):
             guard_decision = response_data.get("guard_decision")
             guard_reason = response_data.get("guard_reason", "")
             if guard_decision == "skip":
@@ -991,9 +995,28 @@ async def get_webhook_logs(
                         rejection_reason = "Broker connection failed (check credentials)"
                     elif "Could not create executor" in error:
                         rejection_reason = "Missing broker credentials"
+                    elif "Max daily trades" in error:
+                        rejection_reason = error[:150]
+                    elif "Trade cooldown" in error:
+                        rejection_reason = error[:150]
+                    elif "Max open positions" in error:
+                        rejection_reason = error[:150]
+                    elif "Max positions for" in error:
+                        rejection_reason = error[:150]
                     elif error:
-                        rejection_reason = error[:100]  # Truncate long errors
+                        rejection_reason = error[:200]
                     break
+
+        # Fallback: use webhook log error_message if no reason found yet
+        if not rejection_reason and log.error_message:
+            rejection_reason = log.error_message[:200]
+
+        # Last resort: if processed=False and still no reason, indicate unknown
+        if not rejection_reason and not log.processed and log.response_status:
+            if log.response_status >= 400:
+                rejection_reason = f"HTTP {log.response_status} error from broker/execution"
+            elif log.response_status == 0 or log.response_status is None:
+                rejection_reason = "Execution failed (no response received)"
 
         enriched_logs.append({
             "id": log.id,

@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List
+from sqlalchemy import func
+from typing import List, Optional
+from pydantic import BaseModel
 import uuid
 import json
 
@@ -11,6 +13,13 @@ from app.routers.auth import get_current_user
 from app.services.signal_processor import SignalProcessor
 
 router = APIRouter()
+
+
+class SignalsResponse(BaseModel):
+    """Response model with signals list and total count"""
+    signals: List[dict]
+    total: int
+    pending_count: int = 0  # Count of pending signals
 
 def _build_signal_payload(signal: Signal) -> dict:
     """Normalize signal payload and expose guard metadata when present."""
@@ -41,7 +50,7 @@ def _build_signal_payload(signal: Signal) -> dict:
         "updated_at": signal.updated_at,
     }
 
-@router.get("/", response_model=List[SignalSchema])
+@router.get("/", response_model=SignalsResponse)
 async def get_signals(
     skip: int = 0,
     limit: int = 100,
@@ -50,13 +59,25 @@ async def get_signals(
     db: Session = Depends(get_db)
 ):
     """Get all signals for current user, optionally filtered by status"""
-    query = db.query(Signal).filter(Signal.user_id == current_user.id)
-    
+    base_query = db.query(Signal).filter(Signal.user_id == current_user.id)
+
+    # Get total count (before status filter for overall count)
+    total_count = base_query.count()
+
+    # Get pending count specifically
+    pending_count = base_query.filter(Signal.status == "pending").count()
+
+    # Apply status filter if provided
+    query = base_query
     if status:
         query = query.filter(Signal.status == status)
-        
-    signals = query.offset(skip).limit(limit).all()
-    return [_build_signal_payload(signal) for signal in signals]
+
+    signals = query.order_by(Signal.created_at.desc()).offset(skip).limit(limit).all()
+    return SignalsResponse(
+        signals=[_build_signal_payload(signal) for signal in signals],
+        total=total_count,
+        pending_count=pending_count
+    )
 
 @router.post("/", response_model=SignalSchema)
 async def create_signal(
