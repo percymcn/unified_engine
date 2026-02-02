@@ -37,12 +37,11 @@ class AccountSettingsRequest:
     max_daily_trades: Optional[int] = None  # 1 - 1000
     trade_cooldown_seconds: Optional[int] = None  # 0 - 3600
     # Default stop loss/take profit in broker-specific units (pips/points/percent)
-    # NOTE: These are stored in broker-specific units because they cannot be converted
-    # to absolute prices without an entry price. When used with a signal, the backend
-    # should convert them using the signal's entry price. Backend conversion is not
-    # yet implemented, so these are stored as metadata for future enhancement.
-    default_stop_loss: Optional[float] = None  # Broker-specific units (pips/points/percent)
-    default_take_profit: Optional[float] = None  # Broker-specific units (pips/points/percent)
+    # Backend converts to absolute prices using signal's entry price
+    default_stop_loss: Optional[float] = None  # Value in units specified by sl_type
+    default_take_profit: Optional[float] = None  # Value in units specified by tp_type
+    sl_type: Optional[str] = None  # 'pips', 'points', 'percent', or 'price'
+    tp_type: Optional[str] = None  # 'pips', 'points', 'percent', or 'price'
 
     # Grouping
     group_id: Optional[int] = None
@@ -76,6 +75,8 @@ class AccountSettingsResponse:
     # Default stop loss/take profit in broker-specific units (pips/points/percent)
     default_stop_loss: Optional[float]
     default_take_profit: Optional[float]
+    sl_type: str  # 'pips', 'points', 'percent', or 'price'
+    tp_type: str  # 'pips', 'points', 'percent', or 'price'
 
     # Grouping
     group_id: Optional[int]

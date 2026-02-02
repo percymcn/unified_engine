@@ -94,6 +94,8 @@ interface ApiAccountSettingsData {
     tradeCooldownSeconds: number | null;
     defaultStopLoss?: number | null;
     defaultTakeProfit?: number | null;
+    slType?: string | null;
+    tpType?: string | null;
   };
   grouping: {
     groupId: number | null;
@@ -141,6 +143,8 @@ const mapAccountSettingsResponse = (data: ApiAccountSettingsData): AccountSettin
     tradeCooldownSeconds: data.riskLimits.tradeCooldownSeconds,
     defaultStopLoss: data.riskLimits.defaultStopLoss ?? null,
     defaultTakeProfit: data.riskLimits.defaultTakeProfit ?? null,
+    slType: (data.riskLimits.slType as 'pips' | 'points' | 'percent' | 'price') || 'pips',
+    tpType: (data.riskLimits.tpType as 'pips' | 'points' | 'percent' | 'price') || 'pips',
   },
   grouping: {
     groupId: data.grouping.groupId,

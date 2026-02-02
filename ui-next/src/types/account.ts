@@ -100,6 +100,9 @@ export interface BrokerCredentialConfig {
 // Position sizing modes for trade size calculation
 export type PositionSizingMode = 'fixed' | 'percent_balance' | 'percent_equity' | 'risk_based';
 
+// Stop loss/take profit unit types
+export type RiskUnitType = 'pips' | 'points' | 'percent' | 'price';
+
 // Prop firm challenge phases
 export type PropPhase = 'evaluation_1' | 'evaluation_2' | 'funded' | 'payout' | 'none';
 
@@ -131,10 +134,12 @@ export interface AccountSettings {
     // Default stop loss/take profit in broker-specific units (pips/points/percent)
     // NOTE: These are stored in broker-specific units because they cannot be converted
     // to absolute prices without an entry price. When used with a signal, the backend
-    // should convert them using the signal's entry price. Backend conversion is not
-    // yet implemented, so these are stored as metadata for future enhancement.
+    // should convert them using the signal's entry price.
     defaultStopLoss: number | null;
     defaultTakeProfit: number | null;
+    // Unit types for SL/TP (pips, points, percent, price)
+    slType: RiskUnitType;
+    tpType: RiskUnitType;
   };
   grouping: {
     groupId: number | null;
@@ -181,6 +186,9 @@ export interface AccountSettingsUpdate {
   // Stored as metadata - backend should convert to absolute prices when used with signals
   defaultStopLoss?: number | null;
   defaultTakeProfit?: number | null;
+  // Unit types for SL/TP (pips, points, percent, price)
+  slType?: RiskUnitType;
+  tpType?: RiskUnitType;
   groupId?: number | null;
   isSignalEnabled?: boolean;
   signalPriority?: number;

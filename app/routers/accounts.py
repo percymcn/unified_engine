@@ -1625,47 +1625,51 @@ async def get_account_balance(
 # Pydantic models for account settings API
 class AccountSettingsBody(BaseModel):
     """Request body for updating account settings"""
+    model_config = {"populate_by_name": True}  # Allow both snake_case and camelCase
+
     # Position sizing
-    position_sizing_mode: Optional[str] = Field(None, description="fixed, percent_balance, percent_equity, risk_based")
-    fixed_lot_size: Optional[float] = Field(None, ge=0.01, le=100)
-    percent_of_balance: Optional[float] = Field(None, ge=0.1, le=100)
-    percent_of_equity: Optional[float] = Field(None, ge=0.1, le=100)
-    risk_percent_per_trade: Optional[float] = Field(None, ge=0.1, le=10)
+    position_sizing_mode: Optional[str] = Field(None, alias="positionSizingMode", description="fixed, percent_balance, percent_equity, risk_based")
+    fixed_lot_size: Optional[float] = Field(None, alias="fixedLotSize", ge=0.01, le=100)
+    percent_of_balance: Optional[float] = Field(None, alias="percentOfBalance", ge=0.1, le=100)
+    percent_of_equity: Optional[float] = Field(None, alias="percentOfEquity", ge=0.1, le=100)
+    risk_percent_per_trade: Optional[float] = Field(None, alias="riskPercentPerTrade", ge=0.1, le=10)
 
     # Risk limits
-    max_position_size: Optional[float] = Field(None, ge=0.01)
-    max_daily_loss: Optional[float] = Field(None, ge=0)
-    max_daily_loss_pct: Optional[float] = Field(None, ge=0, le=100)
-    max_drawdown_pct: Optional[float] = Field(None, ge=0, le=100)
-    max_open_positions: Optional[int] = Field(None, ge=1, le=100)
-    max_daily_trades: Optional[int] = Field(None, ge=1, le=1000)
-    trade_cooldown_seconds: Optional[int] = Field(None, ge=0, le=3600)
+    max_position_size: Optional[float] = Field(None, alias="maxPositionSize", ge=0.01)
+    max_daily_loss: Optional[float] = Field(None, alias="maxDailyLoss", ge=0)
+    max_daily_loss_pct: Optional[float] = Field(None, alias="maxDailyLossPct", ge=0, le=100)
+    max_drawdown_pct: Optional[float] = Field(None, alias="maxDrawdownPct", ge=0, le=100)
+    max_open_positions: Optional[int] = Field(None, alias="maxOpenPositions", ge=1, le=100)
+    max_daily_trades: Optional[int] = Field(None, alias="maxDailyTrades", ge=1, le=1000)
+    trade_cooldown_seconds: Optional[int] = Field(None, alias="tradeCooldownSeconds", ge=0, le=3600)
 
     # Default SL/TP (broker-specific units)
-    default_stop_loss: Optional[float] = Field(None, ge=0)
-    default_take_profit: Optional[float] = Field(None, ge=0)
+    default_stop_loss: Optional[float] = Field(None, alias="defaultStopLoss", ge=0)
+    default_take_profit: Optional[float] = Field(None, alias="defaultTakeProfit", ge=0)
+    sl_type: Optional[str] = Field(None, alias="slType", description="'pips', 'points', 'percent', or 'price'")
+    tp_type: Optional[str] = Field(None, alias="tpType", description="'pips', 'points', 'percent', or 'price'")
 
     # Grouping
-    group_id: Optional[int] = None
+    group_id: Optional[int] = Field(None, alias="groupId")
 
     # Routing
-    is_signal_enabled: Optional[bool] = None
-    signal_priority: Optional[int] = Field(None, ge=0, le=100)
-    auto_confirm: Optional[bool] = None
+    is_signal_enabled: Optional[bool] = Field(None, alias="isSignalEnabled")
+    signal_priority: Optional[int] = Field(None, alias="signalPriority", ge=0, le=100)
+    auto_confirm: Optional[bool] = Field(None, alias="autoConfirm")
 
     # Prop firm settings (stored in extra_metadata)
-    prop_rules_enabled: Optional[bool] = None
-    prop_provider: Optional[str] = None
-    prop_phase: Optional[str] = Field(None, description="none, evaluation_1, evaluation_2, funded, payout")
-    prop_profit_target_pct: Optional[float] = Field(None, ge=0, le=100)
-    prop_profit_target_amount: Optional[float] = Field(None, ge=0)
-    prop_max_daily_loss_pct: Optional[float] = Field(None, ge=0, le=100)
-    prop_max_daily_loss_amount: Optional[float] = Field(None, ge=0)
-    prop_max_drawdown_pct: Optional[float] = Field(None, ge=0, le=100)
-    prop_max_drawdown_amount: Optional[float] = Field(None, ge=0)
-    prop_trailing_drawdown: Optional[bool] = None
-    prop_challenge_start_date: Optional[str] = None
-    prop_challenge_end_date: Optional[str] = None
+    prop_rules_enabled: Optional[bool] = Field(None, alias="propRulesEnabled")
+    prop_provider: Optional[str] = Field(None, alias="propProvider")
+    prop_phase: Optional[str] = Field(None, alias="propPhase", description="none, evaluation_1, evaluation_2, funded, payout")
+    prop_profit_target_pct: Optional[float] = Field(None, alias="propProfitTargetPct", ge=0, le=100)
+    prop_profit_target_amount: Optional[float] = Field(None, alias="propProfitTargetAmount", ge=0)
+    prop_max_daily_loss_pct: Optional[float] = Field(None, alias="propMaxDailyLossPct", ge=0, le=100)
+    prop_max_daily_loss_amount: Optional[float] = Field(None, alias="propMaxDailyLossAmount", ge=0)
+    prop_max_drawdown_pct: Optional[float] = Field(None, alias="propMaxDrawdownPct", ge=0, le=100)
+    prop_max_drawdown_amount: Optional[float] = Field(None, alias="propMaxDrawdownAmount", ge=0)
+    prop_trailing_drawdown: Optional[bool] = Field(None, alias="propTrailingDrawdown")
+    prop_challenge_start_date: Optional[str] = Field(None, alias="propChallengeStartDate")
+    prop_challenge_end_date: Optional[str] = Field(None, alias="propChallengeEndDate")
 
 
 @router.get("/{account_id}/settings")
@@ -1738,6 +1742,8 @@ async def get_account_settings(
                 "tradeCooldownSeconds": response.trade_cooldown_seconds,
                 "defaultStopLoss": getattr(response, 'default_stop_loss', None),
                 "defaultTakeProfit": getattr(response, 'default_take_profit', None),
+                "slType": getattr(response, 'sl_type', None) or 'pips',
+                "tpType": getattr(response, 'tp_type', None) or 'pips',
             },
             "grouping": {
                 "groupId": response.group_id,
@@ -1836,6 +1842,8 @@ async def update_account_settings(
         trade_cooldown_seconds=settings.trade_cooldown_seconds,
         default_stop_loss=settings.default_stop_loss,
         default_take_profit=settings.default_take_profit,
+        sl_type=settings.sl_type,
+        tp_type=settings.tp_type,
         group_id=settings.group_id,
         is_signal_enabled=settings.is_signal_enabled,
         signal_priority=settings.signal_priority,
@@ -1933,6 +1941,8 @@ async def update_account_settings(
                 "tradeCooldownSeconds": response.trade_cooldown_seconds,
                 "defaultStopLoss": getattr(response, 'default_stop_loss', None),
                 "defaultTakeProfit": getattr(response, 'default_take_profit', None),
+                "slType": getattr(response, 'sl_type', None) or 'pips',
+                "tpType": getattr(response, 'tp_type', None) or 'pips',
             },
             "grouping": {
                 "groupId": response.group_id,

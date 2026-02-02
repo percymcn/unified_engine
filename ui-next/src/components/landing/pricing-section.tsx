@@ -291,6 +291,29 @@ export function PricingSection() {
                   </td>
                 </tr>
 
+                {/* Trading Sessions */}
+                <tr className="border-b bg-muted/30">
+                  <td className="py-3 px-4 font-medium">Trading Sessions</td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <span className="text-muted-foreground">-</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <span className="text-muted-foreground">-</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <Check className="h-4 w-4 text-green-500 mx-auto" />
+                    <span className="text-xs block">Hours & days</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3 bg-primary/5")}>
+                    <Check className="h-4 w-4 text-green-500 mx-auto" />
+                    <span className="text-xs block">+ Presets</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <Check className="h-4 w-4 text-green-500 mx-auto" />
+                    <span className="text-xs block">+ Per account</span>
+                  </td>
+                </tr>
+
                 {/* Analytics */}
                 <tr className="border-b bg-muted/30">
                   <td className="py-3 px-4 font-medium">Analytics</td>
@@ -331,6 +354,28 @@ export function PricingSection() {
                   <td className={cn("text-center py-3 px-3")}>
                     <Check className="h-4 w-4 text-green-500 mx-auto" />
                     <span className="text-xs block">Higher limits</span>
+                  </td>
+                </tr>
+
+                {/* AI Strategy Suite */}
+                <tr className="border-b">
+                  <td className="py-3 px-4 font-medium">AI Strategy Suite</td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <span className="text-muted-foreground">-</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <span className="text-muted-foreground">-</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <span className="text-muted-foreground">-</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3 bg-primary/5")}>
+                    <Check className="h-4 w-4 text-green-500 mx-auto" />
+                    <span className="text-xs block">Pine Script AI</span>
+                  </td>
+                  <td className={cn("text-center py-3 px-3")}>
+                    <Check className="h-4 w-4 text-green-500 mx-auto" />
+                    <span className="text-xs block">+ AI Coach</span>
                   </td>
                 </tr>
 

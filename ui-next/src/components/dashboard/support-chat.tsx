@@ -52,32 +52,32 @@ const KNOWLEDGE_BASE = {
     supportEmail: 'support@mytradeflow.app',
   },
 
-  // Subscription Tiers
+  // Subscription Tiers (matches lib/pricing.ts)
   tiers: {
     free: {
       name: 'Free',
       price: 0,
-      features: ['1 broker account', 'Basic webhook', '100 signals/month', 'Community support'],
+      features: ['1 broker connection', '50 signals/day', '1 webhook', 'Basic signal routing', 'Fixed lot sizing', '7-day webhook logs', 'Community support'],
     },
     tier_1: {
       name: 'Starter',
       price: 29,
-      features: ['3 broker accounts', 'Advanced webhooks', '1,000 signals/month', 'Email support', 'Basic AI Guards'],
+      features: ['1 broker connection', '100 signals/day', '2 webhooks', 'Staleness guard protection', 'Daily trade limits', 'Fixed lot sizing', 'Email support (48h)'],
     },
     tier_2: {
       name: 'Trader',
-      price: 79,
-      features: ['10 broker accounts', 'Priority webhooks', '10,000 signals/month', 'Priority support', 'Full AI Guards', 'Symbol mapping'],
+      price: 59,
+      features: ['2 broker connections', 'Unlimited signals', '5 webhooks', 'All 5 AI Signal Guards', 'Full risk management', 'Drawdown protection', '% of balance sizing', 'Symbol mapping', '2 account groups', 'Email support (24h)'],
     },
     tier_3: {
       name: 'Pro',
-      price: 149,
-      features: ['Unlimited accounts', 'Dedicated webhooks', 'Unlimited signals', 'Dedicated support', 'Advanced AI Suite', 'Custom integrations'],
+      price: 99,
+      features: ['4 broker connections', 'Unlimited signals & webhooks', 'AI Guards + custom thresholds', 'Risk-based position sizing', 'Advanced rule-based routing', 'AI Strategy Suite', 'API access', '30-day webhook logs', 'Priority support (12h)'],
     },
     tier_4: {
       name: 'Enterprise',
-      price: 299,
-      features: ['White-label option', 'API access', 'Custom development', 'SLA guarantee', 'Dedicated account manager'],
+      price: 199,
+      features: ['8 broker connections', 'Everything in Pro', 'AI Strategy Suite + AI Coach', 'Pine Script AI Fixer', 'Custom risk profiles per account', 'Strategy-based routing', 'Bulk symbol import/export', '90-day webhook logs', 'SMS & push notifications', 'Priority support + live chat'],
     },
   },
 
@@ -222,14 +222,14 @@ const KNOWLEDGE_BASE = {
     features: {
       stop_loss: {
         name: 'Stop Loss (SL)',
-        description: 'Automatic stop loss on every trade',
+        description: 'Automatic stop loss on every trade. Can be set in pips, points, or percentage.',
         supported_brokers: ['MT5', 'MT4', 'TradeLocker', 'ProjectX', 'Tradovate'],
         webhook_field: 'stop_loss or sl',
         example: '{"action": "buy", "symbol": "EURUSD", "sl": 1.0850}',
       },
       take_profit: {
         name: 'Take Profit (TP)',
-        description: 'Automatic take profit on every trade',
+        description: 'Automatic take profit on every trade. Can be set in pips, points, or percentage.',
         supported_brokers: ['MT5', 'MT4', 'TradeLocker', 'ProjectX', 'Tradovate'],
         webhook_field: 'take_profit or tp',
         example: '{"action": "buy", "symbol": "EURUSD", "tp": 1.0950}',
@@ -243,9 +243,25 @@ const KNOWLEDGE_BASE = {
       },
       account_defaults: {
         name: 'Account Risk Defaults',
-        description: 'Set default SL/TP per account if not provided in webhook',
-        location: 'Settings > Accounts > Edit > Risk Settings',
+        description: 'Set default SL/TP per account. Auto-calculated if webhook doesn\'t include SL/TP.',
+        location: 'Settings > Accounts > Edit > Risk Management > Default Stop Loss & Take Profit',
+        unit_types: 'Choose between Pips (forex), Points (futures), or Percentage (% of entry price)',
       },
+      partial_tp: {
+        name: 'Partial Take Profit (Coming Soon)',
+        description: 'Close portions of position at multiple TP levels (1:1, 1:2, 1:3, etc.)',
+        location: 'Settings > Accounts > Edit > Partial TP',
+      },
+      platform_managed: {
+        name: 'Platform-Managed SL/TP',
+        description: 'TradeFlow monitors positions and triggers closes instead of relying on broker',
+        use_case: 'Useful for brokers with unreliable SL/TP execution',
+      },
+    },
+    unit_types: {
+      pips: 'Default for forex. 1 pip = 0.0001 for most pairs, 0.01 for JPY pairs',
+      points: 'Default for futures. 1 point = minimum tick size (e.g., 0.25 for ES)',
+      percent: 'SL/TP as percentage of entry price. Example: 1% SL means SL is 1% below entry for buys',
     },
     broker_specifics: {
       futures: 'ProjectX, TopStep, Tradovate use bracket orders for SL/TP (whole contracts only)',
@@ -375,17 +391,65 @@ const KNOWLEDGE_BASE = {
     'Chop mode active': 'Market is choppy (alternating buy/sell). Trading paused.',
   },
 
+  // Trading Session Control
+  trading_sessions: {
+    description: 'Define your active trading hours and days. Signals outside your session are automatically paused.',
+    features: [
+      'Set trading hours (start/end time)',
+      'Select active trading days (Mon-Sun)',
+      'Timezone support',
+      'Automatic signal pausing outside session',
+      'Per-account session configuration',
+    ],
+    location: 'Settings > Accounts > Edit > Trading Session',
+    access: 'Available on Trader tier and above',
+    presets: [
+      'London Session (08:00-17:00 GMT)',
+      'New York Session (13:00-22:00 GMT)',
+      'Asian Session (00:00-09:00 GMT)',
+      'Custom hours',
+    ],
+  },
+
+  // Position Management
+  position_management: {
+    description: 'View and manage positions across all connected brokers from one dashboard',
+    features: [
+      'Real-time position monitoring',
+      'One-click position close',
+      'View P&L per position',
+      'Close all positions by account',
+      'Position grouping by symbol/broker',
+    ],
+    location: 'Dashboard > Positions widget (or Settings > Accounts)',
+    access: 'Available on all tiers',
+  },
+
   // AI Strategy Suite
   ai_suite: {
     description: 'Advanced AI-powered trading tools for strategy development and analysis',
     features: [
-      'Strategy Builder - Create custom trading strategies',
+      'Strategy Builder - Create custom trading strategies with Pine Script',
+      'Pine Script AI Fixer - Get AI-powered fixes for your Pine Script code',
       'Backtesting - Test strategies on historical data',
       'Signal Analysis - AI-powered signal quality scoring',
       'Risk Assessment - Portfolio risk analysis',
-      'Market Scanner - Find trading opportunities',
     ],
     access: 'Available on Pro tier and above',
+  },
+
+  // AI Trading Coach
+  ai_coach: {
+    description: 'Get intelligent feedback on your trading strategies with bias detection and improvement suggestions',
+    features: [
+      'Strategy review and feedback',
+      'Bias detection (overtrading, revenge trading, etc.)',
+      'Performance analysis',
+      'Improvement suggestions',
+      'Risk assessment feedback',
+    ],
+    access: 'Available on Enterprise tier only',
+    location: 'Dashboard > AI Suite > AI Coach',
   },
 
   // Quick Start Guide
@@ -602,10 +666,10 @@ function generateAIResponse(question: string): { response: string; needsHuman: b
   }
 
   // Stop loss / Take profit / Risk management
-  if (q.includes('stop loss') || q.includes('take profit') || q.includes('sl') || q.includes('tp') || q.includes('trailing stop') || q.includes('risk management')) {
+  if (q.includes('stop loss') || q.includes('take profit') || q.includes('sl') || q.includes('tp') || q.includes('trailing stop') || q.includes('risk management') || q.includes('percent') || q.includes('pips') || q.includes('points')) {
     const rm = KNOWLEDGE_BASE.risk_management;
     return {
-      response: `**Risk Management**\n\n${rm.description}\n\n**Stop Loss (SL):**\n• Field: \`stop_loss\` or \`sl\`\n• Example: \`${rm.features.stop_loss.example}\`\n\n**Take Profit (TP):**\n• Field: \`take_profit\` or \`tp\`\n• Example: \`${rm.features.take_profit.example}\`\n\n**Trailing Stop:**\n• Field: \`trailing_stop\`\n• Supported: ${rm.features.trailing_stop.supported_brokers.join(', ')}\n• Example: \`${rm.features.trailing_stop.example}\`\n\n**Account Defaults:**\nSet default SL/TP per account in **${rm.features.account_defaults.location}**\n\n**Broker Notes:**\n• ${rm.broker_specifics.futures}\n• ${rm.broker_specifics.forex}`,
+      response: `**Risk Management**\n\n${rm.description}\n\n**Stop Loss (SL):**\n• Field: \`stop_loss\` or \`sl\`\n• Example: \`${rm.features.stop_loss.example}\`\n\n**Take Profit (TP):**\n• Field: \`take_profit\` or \`tp\`\n• Example: \`${rm.features.take_profit.example}\`\n\n**Trailing Stop:**\n• Field: \`trailing_stop\`\n• Supported: ${rm.features.trailing_stop.supported_brokers.join(', ')}\n• Example: \`${rm.features.trailing_stop.example}\`\n\n**Unit Types (Choose in Account Settings):**\n• **Pips** - ${rm.unit_types.pips}\n• **Points** - ${rm.unit_types.points}\n• **Percent** - ${rm.unit_types.percent}\n\n**Account Defaults:**\nSet default SL/TP per account in **${rm.features.account_defaults.location}**\n\nWhen you set defaults, if your webhook doesn't include SL/TP, TradeFlow automatically calculates and applies them using the current market price.\n\n**Broker Notes:**\n• ${rm.broker_specifics.futures}\n• ${rm.broker_specifics.forex}`,
       needsHuman: false,
     };
   }
@@ -664,8 +728,35 @@ function generateAIResponse(question: string): { response: string; needsHuman: b
     };
   }
 
+  // Trading Session / Trading Hours
+  if (q.includes('trading session') || q.includes('trading hours') || q.includes('active hours') || q.includes('trade time') || q.includes('when to trade')) {
+    const sessions = KNOWLEDGE_BASE.trading_sessions;
+    return {
+      response: `**Trading Session Control**\n\n${sessions.description}\n\n**Features:**\n${sessions.features.map(f => `• ${f}`).join('\n')}\n\n**Available Presets:**\n${sessions.presets.map(p => `• ${p}`).join('\n')}\n\n**Setup:** ${sessions.location}\n\n**Access:** ${sessions.access}`,
+      needsHuman: false,
+    };
+  }
+
+  // Position Management
+  if (q.includes('position') || q.includes('close position') || q.includes('view position') || q.includes('open trade')) {
+    const pm = KNOWLEDGE_BASE.position_management;
+    return {
+      response: `**Position Management**\n\n${pm.description}\n\n**Features:**\n${pm.features.map(f => `• ${f}`).join('\n')}\n\n**Location:** ${pm.location}\n\n**Access:** ${pm.access}`,
+      needsHuman: false,
+    };
+  }
+
+  // AI Coach
+  if (q.includes('ai coach') || q.includes('trading coach') || q.includes('bias detection') || q.includes('improve') && q.includes('trading')) {
+    const coach = KNOWLEDGE_BASE.ai_coach;
+    return {
+      response: `**AI Trading Coach**\n\n${coach.description}\n\n**Features:**\n${coach.features.map(f => `• ${f}`).join('\n')}\n\n**Location:** ${coach.location}\n\n**Access:** ${coach.access}`,
+      needsHuman: false,
+    };
+  }
+
   // AI Suite
-  if (q.includes('ai suite') || q.includes('strategy') || q.includes('backtest')) {
+  if (q.includes('ai suite') || q.includes('strategy') || q.includes('backtest') || q.includes('pine script')) {
     return {
       response: `**AI Strategy Suite**\n\n${KNOWLEDGE_BASE.ai_suite.description}\n\n**Features:**\n${KNOWLEDGE_BASE.ai_suite.features.map(f => `• ${f}`).join('\n')}\n\n**Access:** ${KNOWLEDGE_BASE.ai_suite.access}\n\n**Location:** Dashboard > AI Suite (sidebar)`,
       needsHuman: false,

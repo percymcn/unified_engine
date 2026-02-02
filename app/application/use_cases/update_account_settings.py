@@ -96,6 +96,15 @@ class UpdateAccountSettingsUseCase:
             updates['default_stop_loss'] = request.default_stop_loss
         if request.default_take_profit is not None:
             updates['default_take_profit'] = request.default_take_profit
+        # SL/TP unit types
+        if request.sl_type is not None:
+            if request.sl_type not in ('pips', 'points', 'percent', 'price'):
+                raise ValueError(f"Invalid sl_type: {request.sl_type}")
+            updates['sl_type'] = request.sl_type
+        if request.tp_type is not None:
+            if request.tp_type not in ('pips', 'points', 'percent', 'price'):
+                raise ValueError(f"Invalid tp_type: {request.tp_type}")
+            updates['tp_type'] = request.tp_type
 
         # Grouping - validate group exists and belongs to user
         if request.group_id is not None:
@@ -170,6 +179,8 @@ class UpdateAccountSettingsUseCase:
             trade_cooldown_seconds=account.trade_cooldown_seconds,
             default_stop_loss=getattr(account, 'default_stop_loss', None),
             default_take_profit=getattr(account, 'default_take_profit', None),
+            sl_type=getattr(account, 'sl_type', None) or 'pips',
+            tp_type=getattr(account, 'tp_type', None) or 'pips',
             group_id=account.group_id,
             group_name=account.group_name,
             group_color=account.group_color,
@@ -219,6 +230,8 @@ class GetAccountSettingsUseCase:
             trade_cooldown_seconds=account.trade_cooldown_seconds,
             default_stop_loss=getattr(account, 'default_stop_loss', None),
             default_take_profit=getattr(account, 'default_take_profit', None),
+            sl_type=getattr(account, 'sl_type', None) or 'pips',
+            tp_type=getattr(account, 'tp_type', None) or 'pips',
             group_id=account.group_id,
             group_name=account.group_name,
             group_color=account.group_color,

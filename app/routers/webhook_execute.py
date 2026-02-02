@@ -532,6 +532,20 @@ async def _execute_tradingview_signal_inner(
         except Exception as e:
             logger.warning(f"Failed to update webhook_log for SKIP: {e}")
 
+        # Update WebhookConfig stats for SKIP/rejected
+        try:
+            webhook_config = db.query(WebhookConfig).filter(
+                WebhookConfig.webhook_key == webhook_key
+            ).first()
+            if webhook_config:
+                webhook_config.total_signals = (webhook_config.total_signals or 0) + 1
+                webhook_config.failed_signals = (webhook_config.failed_signals or 0) + 1
+                webhook_config.last_signal_at = datetime.utcnow()
+                db.commit()
+        except Exception as e:
+            logger.warning(f"Failed to update WebhookConfig stats for SKIP: {e}")
+            db.rollback()
+
         return ExecuteResponse(
             success=False,
             signal_id=signal_entity.id.value,
@@ -554,7 +568,7 @@ async def _execute_tradingview_signal_inner(
             # Auto-confirm enabled, proceed without modal
             logger.info(f"Auto-confirm enabled for all accounts, bypassing guard modal")
             guard_result = type(guard_result)(
-                decision=GuardDecision.ALLOW,
+                decision=GuardDecision.EXECUTE,
                 annotations=guard_result.annotations
             )
         else:
@@ -659,6 +673,20 @@ async def _execute_tradingview_signal_inner(
                 db.commit()
             except Exception as e:
                 logger.warning(f"Failed to update webhook_log for PAUSE: {e}")
+
+            # Update WebhookConfig stats for PAUSE
+            try:
+                webhook_config = db.query(WebhookConfig).filter(
+                    WebhookConfig.webhook_key == webhook_key
+                ).first()
+                if webhook_config:
+                    webhook_config.total_signals = (webhook_config.total_signals or 0) + 1
+                    webhook_config.failed_signals = (webhook_config.failed_signals or 0) + 1
+                    webhook_config.last_signal_at = datetime.utcnow()
+                    db.commit()
+            except Exception as e:
+                logger.warning(f"Failed to update WebhookConfig stats for PAUSE: {e}")
+                db.rollback()
 
             return ExecuteResponse(
                 success=False,
@@ -1074,6 +1102,23 @@ async def _execute_tradingview_signal_inner(
         db.commit()
     except:
         pass
+
+    # Update WebhookConfig stats
+    try:
+        webhook_config = db.query(WebhookConfig).filter(
+            WebhookConfig.webhook_key == webhook_key
+        ).first()
+        if webhook_config:
+            webhook_config.total_signals = (webhook_config.total_signals or 0) + 1
+            webhook_config.last_signal_at = datetime.utcnow()
+            if overall_success:
+                webhook_config.successful_signals = (webhook_config.successful_signals or 0) + 1
+            else:
+                webhook_config.failed_signals = (webhook_config.failed_signals or 0) + 1
+            db.commit()
+    except Exception as e:
+        logger.warning(f"Failed to update WebhookConfig stats: {e}")
+        db.rollback()
 
     # Log overall result
     log_event(

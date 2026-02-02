@@ -22,7 +22,7 @@ const faqs = [
   },
   {
     question: "Can I route signals to multiple accounts?",
-    answer: "Yes! Starter plans support 1 account, Trader plans support 2 accounts, Pro supports 4 accounts, and Enterprise supports 8+ accounts. All plans allow routing signals to multiple accounts simultaneously."
+    answer: "Yes! Starter plans support 1 broker connection, Trader plans support 2, Pro supports 4, and Enterprise supports 8. Each connection can route signals to multiple accounts simultaneously."
   },
   {
     question: "How fast are trades executed?",
@@ -30,7 +30,15 @@ const faqs = [
   },
   {
     question: "Is there a free plan?",
-    answer: "Yes! Our free plan includes up to 50 signals per day with basic signal routing. Upgrade to Starter ($29/mo) or higher for more signals, multiple accounts, and advanced features."
+    answer: "Yes! Our free plan includes up to 50 signals per day with basic signal routing. Upgrade to Starter ($29/mo), Trader ($59/mo), Pro ($99/mo), or Enterprise ($199/mo) for more features."
+  },
+  {
+    question: "Can I limit when signals execute?",
+    answer: "Yes! Trading Session Control (Trader tier+) lets you define active trading hours and days. Signals outside your session are automatically paused with presets for London, New York, and Asian sessions."
+  },
+  {
+    question: "What AI features are available?",
+    answer: "Pro tier includes the AI Strategy Suite with Pine Script builder and AI fixer. Enterprise adds the AI Trading Coach for strategy feedback and bias detection."
   },
 ];
 

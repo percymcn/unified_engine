@@ -242,6 +242,8 @@ export default function AccountSettingsPage() {
         // an entry price. Backend should convert them when used with signals.
         defaultStopLoss: updates.riskLimits?.defaultStopLoss,
         defaultTakeProfit: updates.riskLimits?.defaultTakeProfit,
+        slType: updates.riskLimits?.slType,
+        tpType: updates.riskLimits?.tpType,
         groupId: updates.grouping?.groupId,
         isSignalEnabled: updates.routing?.isSignalEnabled,
         signalPriority: updates.routing?.signalPriority,

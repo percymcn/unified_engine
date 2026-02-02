@@ -86,6 +86,13 @@ export function AccountSettingsForm({
   // Stop loss and take profit (broker-aware defaults)
   const [defaultStopLoss, setDefaultStopLoss] = useState('');
   const [defaultTakeProfit, setDefaultTakeProfit] = useState('');
+  // Unit types for SL/TP (pips, points, percent)
+  const [slType, setSlType] = useState<'pips' | 'points' | 'percent' | 'price'>(
+    settings.riskLimits.slType || riskProfile.stopLoss.mode
+  );
+  const [tpType, setTpType] = useState<'pips' | 'points' | 'percent' | 'price'>(
+    settings.riskLimits.tpType || riskProfile.takeProfit.mode
+  );
 
   // Routing state
   const [groupId, setGroupId] = useState<number | null>(settings.grouping.groupId);
@@ -141,6 +148,8 @@ export function AccountSettingsForm({
     setTradeCooldownSeconds(settings.riskLimits.tradeCooldownSeconds?.toString() || '');
     setDefaultStopLoss(settings.riskLimits.defaultStopLoss?.toString() || '');
     setDefaultTakeProfit(settings.riskLimits.defaultTakeProfit?.toString() || '');
+    setSlType(settings.riskLimits.slType || riskProfile.stopLoss.mode);
+    setTpType(settings.riskLimits.tpType || riskProfile.takeProfit.mode);
     setGroupId(settings.grouping.groupId);
     setIsSignalEnabled(settings.routing.isSignalEnabled);
     setSignalPriority(settings.routing.signalPriority.toString());
@@ -176,13 +185,12 @@ export function AccountSettingsForm({
         maxOpenPositions: maxOpenPositions ? parseInt(maxOpenPositions) : null,
         maxDailyTrades: maxDailyTrades ? parseInt(maxDailyTrades) : null,
         tradeCooldownSeconds: tradeCooldownSeconds ? parseInt(tradeCooldownSeconds) : null,
-        // NOTE: defaultStopLoss and defaultTakeProfit are stored in broker-specific units
-        // (pips/points/percent). They cannot be converted to absolute prices without an
-        // entry price. When these defaults are used with a signal that has an entry price,
-        // the backend should convert them to absolute prices. However, backend conversion
-        // is not yet implemented, so these are stored as metadata for future enhancement.
+        // SL/TP stored in broker-specific units (pips/points/percent)
+        // Backend converts to absolute prices using signal's entry price
         defaultStopLoss: defaultStopLoss ? parseFloat(defaultStopLoss) : null,
         defaultTakeProfit: defaultTakeProfit ? parseFloat(defaultTakeProfit) : null,
+        slType: slType,
+        tpType: tpType,
       },
       grouping: {
         groupId: groupId,
@@ -402,9 +410,9 @@ export function AccountSettingsForm({
                         <Input
                           id="defaultStopLoss"
                           type="number"
-                          step={riskProfile.stopLoss.step}
-                          min={riskProfile.stopLoss.min}
-                          max={riskProfile.stopLoss.max}
+                          step={slType === 'percent' ? 0.1 : riskProfile.stopLoss.step}
+                          min={slType === 'percent' ? 0.1 : riskProfile.stopLoss.min}
+                          max={slType === 'percent' ? 50 : riskProfile.stopLoss.max}
                           value={defaultStopLoss}
                           onChange={(e) => {
                             const value = parseFloat(e.target.value) || 0;
@@ -412,29 +420,29 @@ export function AccountSettingsForm({
                               setDefaultStopLoss('');
                               return;
                             }
-                            const validation = validateBrokerValue(
-                              value,
-                              riskProfile.stopLoss.min,
-                              riskProfile.stopLoss.max,
-                              riskProfile.stopLoss.step
-                            );
-                            if (validation.valid) {
-                              const formatted = formatBrokerValue(value, riskProfile.stopLoss.precision);
-                              setDefaultStopLoss(formatted.toString());
-                            } else if (validation.corrected !== undefined) {
-                              setDefaultStopLoss(validation.corrected.toString());
-                            }
+                            setDefaultStopLoss(value.toString());
                           }}
-                          placeholder={`Default: ${riskProfile.stopLoss.min}`}
+                          placeholder="Enter value"
                           className="flex-1"
                         />
-                        <span className="text-xs text-muted-foreground whitespace-nowrap">
-                          {riskProfile.stopLoss.mode === 'pips' ? 'pips' : riskProfile.stopLoss.mode === 'points' ? 'points' : '%'}
-                        </span>
+                        <Select value={slType} onValueChange={(v) => setSlType(v as 'pips' | 'points' | 'percent' | 'price')}>
+                          <SelectTrigger className="w-24">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pips">Pips</SelectItem>
+                            <SelectItem value="points">Points</SelectItem>
+                            <SelectItem value="percent">%</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      {riskProfile.stopLoss.helperText}
+                      {slType === 'percent'
+                        ? 'Stop loss as percentage of entry price'
+                        : slType === 'pips'
+                        ? '1 pip = 0.0001 for most forex pairs'
+                        : '1 point = minimum price tick for futures'}
                     </p>
                   </div>
                   
@@ -459,9 +467,9 @@ export function AccountSettingsForm({
                         <Input
                           id="defaultTakeProfit"
                           type="number"
-                          step={riskProfile.takeProfit.step}
-                          min={riskProfile.takeProfit.min}
-                          max={riskProfile.takeProfit.max}
+                          step={tpType === 'percent' ? 0.1 : riskProfile.takeProfit.step}
+                          min={tpType === 'percent' ? 0.1 : riskProfile.takeProfit.min}
+                          max={tpType === 'percent' ? 100 : riskProfile.takeProfit.max}
                           value={defaultTakeProfit}
                           onChange={(e) => {
                             const value = parseFloat(e.target.value) || 0;
@@ -469,29 +477,29 @@ export function AccountSettingsForm({
                               setDefaultTakeProfit('');
                               return;
                             }
-                            const validation = validateBrokerValue(
-                              value,
-                              riskProfile.takeProfit.min,
-                              riskProfile.takeProfit.max,
-                              riskProfile.takeProfit.step
-                            );
-                            if (validation.valid) {
-                              const formatted = formatBrokerValue(value, riskProfile.takeProfit.precision);
-                              setDefaultTakeProfit(formatted.toString());
-                            } else if (validation.corrected !== undefined) {
-                              setDefaultTakeProfit(validation.corrected.toString());
-                            }
+                            setDefaultTakeProfit(value.toString());
                           }}
-                          placeholder={`Default: ${riskProfile.takeProfit.min}`}
+                          placeholder="Enter value"
                           className="flex-1"
                         />
-                        <span className="text-xs text-muted-foreground whitespace-nowrap">
-                          {riskProfile.takeProfit.mode === 'pips' ? 'pips' : riskProfile.takeProfit.mode === 'points' ? 'points' : '%'}
-                        </span>
+                        <Select value={tpType} onValueChange={(v) => setTpType(v as 'pips' | 'points' | 'percent' | 'price')}>
+                          <SelectTrigger className="w-24">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pips">Pips</SelectItem>
+                            <SelectItem value="points">Points</SelectItem>
+                            <SelectItem value="percent">%</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      {riskProfile.takeProfit.helperText}
+                      {tpType === 'percent'
+                        ? 'Take profit as percentage of entry price'
+                        : tpType === 'pips'
+                        ? '1 pip = 0.0001 for most forex pairs'
+                        : '1 point = minimum price tick for futures'}
                     </p>
                   </div>
                 </div>

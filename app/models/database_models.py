@@ -151,6 +151,11 @@ class TradingAccount(Base):
     sl_type = Column(String(20), nullable=True, default='pips')  # 'pips' or 'price' - how SL is specified
     tp_type = Column(String(20), nullable=True, default='pips')  # 'pips' or 'price' - how TP is specified
 
+    # Partial TP and platform-managed SL/TP
+    partial_tp_enabled = Column(Boolean, default=False)  # Enable partial take profit feature
+    partial_tp_config = Column(JSON, nullable=True)  # Configuration: {levels: [{ratio: 1, close_percent: 50}, ...]}
+    platform_managed_sl_tp = Column(Boolean, default=False)  # TradeFlow manages SL/TP instead of broker
+
     # Account grouping
     group_id = Column(Integer, ForeignKey("account_groups.id"))
     group_name = Column(String(100))  # "Prop Firm", "Personal", etc. (cached for quick display)
@@ -190,6 +195,62 @@ class TradingAccount(Base):
     execution_logs = relationship("ExecutionLog", backref="account")
     broker_symbol_format = relationship("BrokerSymbolFormat", back_populates="account", uselist=False)
     contract_positions = relationship("UserContractPosition", back_populates="account")
+    position_trades = relationship("PositionTrade", back_populates="account")
+
+
+class PositionTradeStatus(enum.Enum):
+    """Status of a tracked position for partial TP"""
+    OPEN = "open"
+    PARTIAL = "partial"  # Partially closed
+    CLOSED = "closed"
+
+
+class PositionTrade(Base):
+    """
+    Tracks open positions with partial TP and platform-managed SL/TP.
+
+    This table is used for:
+    - Monitoring positions for partial take profit execution
+    - Platform-managed SL/TP (TradeFlow triggers close instead of broker)
+    - Trailing stop management when broker doesn't support it natively
+    """
+    __tablename__ = "position_trades"
+    __table_args__ = {'extend_existing': True}
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    account_id = Column(Integer, ForeignKey('trading_accounts.id', ondelete='CASCADE'), nullable=False, index=True)
+    broker_position_id = Column(String(100), nullable=True, index=True)  # Broker's position ID
+    symbol = Column(String(50), nullable=False)
+    side = Column(String(10), nullable=False)  # 'buy' or 'sell'
+    entry_price = Column(Float, nullable=False)
+    initial_volume = Column(Float, nullable=False)
+    current_volume = Column(Float, nullable=False)
+    stop_loss = Column(Float, nullable=True)
+    take_profit = Column(Float, nullable=True)  # Final TP level
+
+    # Partial TP configuration
+    partial_tp_levels = Column(JSON, nullable=True)  # Array of {level: float, close_percent: float, triggered: bool}
+    executed_tp_levels = Column(JSON, default=list)  # Indices of already executed TP levels
+
+    # Trailing stop
+    trailing_stop_distance = Column(Float, nullable=True)  # Distance in pips/points
+    current_trailing_sl = Column(Float, nullable=True)  # Current trailing SL price
+
+    # Status
+    status = Column(String(20), default='open', nullable=False, index=True)  # open, partial, closed
+
+    # Signal tracking
+    webhook_id = Column(String(100), nullable=True)
+    signal_id = Column(String(100), nullable=True)
+    comment = Column(Text, nullable=True)
+
+    # Timestamps
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=True)
+    closed_at = Column(DateTime, nullable=True)
+
+    # Relationship
+    account = relationship("TradingAccount", back_populates="position_trades")
 
 
 class WebhookConfig(Base):
