@@ -147,6 +147,9 @@ class TradingAccount(Base):
     # yet implemented, so these are stored as metadata for future enhancement.
     default_stop_loss = Column(Float, nullable=True)  # Default stop loss in broker-specific units
     default_take_profit = Column(Float, nullable=True)  # Default take profit in broker-specific units
+    trailing_stop_pips = Column(Float, nullable=True)  # Trailing stop distance in pips
+    sl_type = Column(String(20), nullable=True, default='pips')  # 'pips' or 'price' - how SL is specified
+    tp_type = Column(String(20), nullable=True, default='pips')  # 'pips' or 'price' - how TP is specified
 
     # Account grouping
     group_id = Column(Integer, ForeignKey("account_groups.id"))

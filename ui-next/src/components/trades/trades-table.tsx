@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Trade, TradeStatus } from '@/types/trade';
+import { Trade, TradeStatus, CloseReason } from '@/types/trade';
 import { TradeStatusBadge } from './trade-status-badge';
 import { useWebSocketContext } from '@/providers/websocket-provider';
 import { OrderUpdateData, PositionUpdateData } from '@/types/websocket';
@@ -204,8 +204,36 @@ export function TradesTable({ trades, onTradeUpdate }: TradesTableProps) {
     return BROKER_NAMES[broker.toLowerCase()] || broker;
   };
 
+  const formatCloseReason = (reason: CloseReason | undefined) => {
+    if (!reason) return '-';
+    const labels: Record<CloseReason, string> = {
+      stop_loss: 'SL Hit',
+      take_profit: 'TP Hit',
+      trailing_stop: 'Trail SL',
+      manual: 'Manual',
+      signal: 'Signal',
+      margin_call: 'Margin',
+    };
+    return labels[reason] || reason;
+  };
+
+  const getCloseReasonClass = (reason: CloseReason | undefined) => {
+    if (!reason) return '';
+    switch (reason) {
+      case 'stop_loss':
+      case 'margin_call':
+        return 'text-red-500';
+      case 'take_profit':
+        return 'text-green-500';
+      case 'trailing_stop':
+        return 'text-amber-500';
+      default:
+        return 'text-muted-foreground';
+    }
+  };
+
   return (
-    <div className="border border-border rounded-md">
+    <div className="border border-border rounded-md overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow>
@@ -213,8 +241,11 @@ export function TradesTable({ trades, onTradeUpdate }: TradesTableProps) {
             <TableHead>Side</TableHead>
             <TableHead className="text-right">Qty</TableHead>
             <TableHead className="text-right">Entry</TableHead>
+            <TableHead className="text-right">SL</TableHead>
+            <TableHead className="text-right">TP</TableHead>
             <TableHead className="text-right">Exit</TableHead>
             <TableHead className="text-right">P/L</TableHead>
+            <TableHead>Close Reason</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Broker</TableHead>
             <TableHead>Opened</TableHead>
@@ -250,6 +281,12 @@ export function TradesTable({ trades, onTradeUpdate }: TradesTableProps) {
               <TableCell className="text-right">
                 {formatPrice(trade.entry_price)}
               </TableCell>
+              <TableCell className="text-right text-red-400">
+                {formatPrice(trade.stop_loss)}
+              </TableCell>
+              <TableCell className="text-right text-green-400">
+                {formatPrice(trade.take_profit)}
+              </TableCell>
               <TableCell className="text-right">
                 {formatPrice(trade.exit_price)}
               </TableCell>
@@ -257,6 +294,14 @@ export function TradesTable({ trades, onTradeUpdate }: TradesTableProps) {
                 className={`text-right font-medium ${getPnlClass(trade.profit_loss)}`}
               >
                 {formatProfitLoss(trade.profit_loss)}
+                {trade.profit_loss_pct !== undefined && trade.profit_loss_pct !== null && (
+                  <span className="text-xs ml-1 text-muted-foreground">
+                    ({trade.profit_loss_pct >= 0 ? '+' : ''}{trade.profit_loss_pct.toFixed(1)}%)
+                  </span>
+                )}
+              </TableCell>
+              <TableCell className={getCloseReasonClass(trade.close_reason)}>
+                {formatCloseReason(trade.close_reason)}
               </TableCell>
               <TableCell>
                 <TradeStatusBadge

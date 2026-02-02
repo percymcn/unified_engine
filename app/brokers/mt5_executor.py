@@ -218,6 +218,18 @@ class MT5Executor(BaseExecutor):
             if order.take_profit:
                 trade_data["takeProfit"] = float(order.take_profit)
 
+            # Handle trailing stop - MetaAPI uses trailingStopLoss object
+            # with distance (pips) and units (RELATIVE_PIPS is most common)
+            trailing_stop = getattr(order, 'trailing_stop', None)
+            if trailing_stop:
+                trade_data["trailingStopLoss"] = {
+                    "distance": {
+                        "distance": float(trailing_stop),
+                        "units": "RELATIVE_PIPS"  # Trailing distance in pips
+                    }
+                }
+                logger.info(f"MT5: Using trailing stop with distance {trailing_stop} pips")
+
             # Execute trade via REST API using region-specific URL
             url = f"{self._metaapi_client_api}/users/current/accounts/{self._metaapi_account_id}/trade"
             logger.info(f"MetaAPI REST: Placing order via {url} with data: {trade_data}")

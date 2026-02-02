@@ -450,14 +450,27 @@ class TradeLockerExecutor(BaseExecutor):
             # TradeLocker requires IOC validity for market orders
             validity = "IOC" if sdk_type == "market" else "GTC"
 
+            # Handle trailing stop - TradeLocker uses stop_loss_type='trailingOffset'
+            # with the trailing distance in price units
+            trailing_stop = getattr(order, 'trailing_stop', None)
+            stop_loss_type = "absolute"
+            effective_stop_loss = order.stop_loss
+
+            if trailing_stop:
+                # Use trailing stop instead of fixed stop loss
+                stop_loss_type = "trailingOffset"
+                effective_stop_loss = float(trailing_stop)  # Distance in price units
+                logger.info(f"TradeLocker: Using trailing stop with distance {trailing_stop}")
+
             result = await self._sdk_wrapper.create_order(
                 instrument_id=instrument_id,
                 quantity=order.quantity,
                 side=side,
                 order_type=sdk_type,
                 price=order.price,
-                stop_loss=order.stop_loss,
+                stop_loss=effective_stop_loss,
                 take_profit=order.take_profit,
+                stop_loss_type=stop_loss_type,
                 validity=validity
             )
 

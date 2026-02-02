@@ -48,6 +48,7 @@ from app.services.signal_intelligence_guard import SignalIntelligenceGuard, Guar
 from app.domain.entities.signal import Signal
 from app.domain.value_objects import SignalId, Symbol, Volume, Price, StopLoss, TakeProfit, AccountId
 from app.domain.services.account_routing_service import AccountRoutingService
+from app.domain.services.risk_unit_converter import RiskUnitConverter, RiskUnitMode
 
 logger = logging.getLogger(__name__)
 
@@ -689,6 +690,13 @@ async def _execute_tradingview_signal_inner(
             broker_type=broker_str
         )
 
+        # Initialize SL/TP/trailing_stop variables (before try block for exception handler access)
+        account_sl_price = sl_price
+        account_tp_price = tp_price
+        account_trailing_stop = trailing_stop
+        entry_price = None
+        order_quantity = quantity  # Will be adjusted for futures brokers in the else block
+
         try:
             # Create account-specific executor with credentials
             executor, needs_cleanup = await _create_account_executor(account, db)
@@ -757,15 +765,109 @@ async def _execute_tradingview_signal_inner(
             else:
                 # Build order request - support market, limit, and trailing stop
                 effective_order_type = f"{order_type_payload}_{action_str}"  # e.g., "market_buy", "limit_sell"
+
+                # === Calculate SL/TP from account risk settings if not in payload ===
+                # Get entry price for SL/TP calculation
+                # Use limit_price if limit order, otherwise try price from payload
+                entry_price = limit_price or raw_payload.get("price") or raw_payload.get("entry_price")
+
+                # Try to get current price from executor if we have account settings but no entry price
+                if entry_price is None and (
+                    (account_sl_price is None and account.default_stop_loss) or
+                    (account_tp_price is None and account.default_take_profit) or
+                    (account_trailing_stop is None and account.trailing_stop_pips)
+                ):
+                    try:
+                        # Try to get current market price from executor
+                        if hasattr(executor, 'get_quote'):
+                            quote = await executor.get_quote(mapped_symbol)
+                            if quote:
+                                # Use bid for sell, ask for buy
+                                if action_str == "buy":
+                                    entry_price = quote.get('ask') or quote.get('price')
+                                else:
+                                    entry_price = quote.get('bid') or quote.get('price')
+                    except Exception as quote_err:
+                        logger.debug(f"Could not get quote for SL/TP calculation: {quote_err}")
+
+                # Calculate SL from account settings if not in payload
+                if account_sl_price is None and account.default_stop_loss and entry_price:
+                    try:
+                        is_buy = action_str == "buy"
+                        sl_unit_mode = RiskUnitMode(account.sl_type or "pips")
+
+                        if sl_unit_mode == RiskUnitMode.PRICE:
+                            # Already an absolute price
+                            account_sl_price = account.default_stop_loss
+                        else:
+                            # Convert pips/points/percent to absolute price
+                            account_sl_price = RiskUnitConverter.convert_risk_unit_to_price(
+                                value=account.default_stop_loss,
+                                mode=sl_unit_mode,
+                                entry_price=float(entry_price),
+                                is_buy=is_buy,
+                                is_stop_loss=True,
+                                digits=RiskUnitConverter.get_default_digits(broker_str),
+                                tick_size=RiskUnitConverter.get_default_tick_size(broker_str)
+                            )
+                        logger.info(f"Account {account.id}: Calculated SL {account_sl_price} from {account.default_stop_loss} {account.sl_type} (entry: {entry_price})")
+                    except Exception as sl_err:
+                        logger.warning(f"Failed to calculate SL for account {account.id}: {sl_err}")
+
+                # Calculate TP from account settings if not in payload
+                if account_tp_price is None and account.default_take_profit and entry_price:
+                    try:
+                        is_buy = action_str == "buy"
+                        tp_unit_mode = RiskUnitMode(account.tp_type or "pips")
+
+                        if tp_unit_mode == RiskUnitMode.PRICE:
+                            # Already an absolute price
+                            account_tp_price = account.default_take_profit
+                        else:
+                            # Convert pips/points/percent to absolute price
+                            account_tp_price = RiskUnitConverter.convert_risk_unit_to_price(
+                                value=account.default_take_profit,
+                                mode=tp_unit_mode,
+                                entry_price=float(entry_price),
+                                is_buy=is_buy,
+                                is_stop_loss=False,
+                                digits=RiskUnitConverter.get_default_digits(broker_str),
+                                tick_size=RiskUnitConverter.get_default_tick_size(broker_str)
+                            )
+                        logger.info(f"Account {account.id}: Calculated TP {account_tp_price} from {account.default_take_profit} {account.tp_type} (entry: {entry_price})")
+                    except Exception as tp_err:
+                        logger.warning(f"Failed to calculate TP for account {account.id}: {tp_err}")
+
+                # Apply trailing stop from account settings if not in payload
+                if account_trailing_stop is None and account.trailing_stop_pips:
+                    account_trailing_stop = account.trailing_stop_pips
+                    logger.info(f"Account {account.id}: Using trailing stop {account_trailing_stop} pips from settings")
+
+                # === Broker-specific quantity normalization ===
+                # Futures brokers (projectx, topstep, tradovate) use whole contracts (1, 2, 3...)
+                # Forex brokers (mt4, mt5, tradelocker) use lot sizes (0.01, 0.1, 1.0...)
+                order_quantity = quantity
+                if broker_str.lower() in ("projectx", "topstep", "tradovate"):
+                    # For futures: ensure minimum 1 contract, round to integer
+                    if quantity < 1:
+                        # Use account's fixed_lot_size if set and >= 1, otherwise default to 1
+                        if account.fixed_lot_size and account.fixed_lot_size >= 1:
+                            order_quantity = int(account.fixed_lot_size)
+                        else:
+                            order_quantity = 1
+                        logger.info(f"Account {account.id}: Adjusted quantity from {quantity} to {order_quantity} contracts (futures broker)")
+                    else:
+                        order_quantity = int(quantity)  # Round down to whole contracts
+
                 order_request = OrderRequest(
                     account_id=account.id,
                     symbol=mapped_symbol,  # Use broker-specific symbol
                     order_type=effective_order_type,
-                    quantity=quantity,
+                    quantity=order_quantity,
                     price=limit_price,  # For limit orders
-                    stop_loss=sl_price,
-                    take_profit=tp_price,
-                    trailing_stop=trailing_stop,  # For trailing stop orders
+                    stop_loss=account_sl_price,
+                    take_profit=account_tp_price,
+                    trailing_stop=account_trailing_stop,  # For trailing stop orders
                     comment=raw_payload.get("comment"),  # Trade comment for MT4/MT5
                 )
 
@@ -806,6 +908,7 @@ async def _execute_tradingview_signal_inner(
             )
 
             # Persist execution log for this account (use mapped_symbol to show what was actually sent)
+            # order_quantity is the actual quantity sent to the broker (adjusted for futures)
             try:
                 models_broker = ModelsBrokerType(broker_str.lower())
                 exec_log = ExecutionLog(
@@ -814,12 +917,18 @@ async def _execute_tradingview_signal_inner(
                     broker=models_broker,
                     action=action_str.upper(),
                     symbol=mapped_symbol,  # Use the broker-specific mapped symbol
-                    volume=quantity,
+                    volume=order_quantity,
                     price=None,
                     status="success" if execution_success else "failed",
                     broker_response={"executions": use_case_result.executions, "original_symbol": symbol} if execution_success else None,
                     error_message="; ".join(use_case_result.errors) if use_case_result.errors else None,
-                    execution_time_ms=int((datetime.utcnow() - account_start).total_seconds() * 1000)
+                    execution_time_ms=int((datetime.utcnow() - account_start).total_seconds() * 1000),
+                    # Enhanced risk management tracking (migration 027)
+                    stop_loss=float(account_sl_price) if account_sl_price else None,
+                    take_profit=float(account_tp_price) if account_tp_price else None,
+                    trailing_stop=float(account_trailing_stop) if account_trailing_stop else None,
+                    entry_price=float(entry_price) if entry_price else None,
+                    order_id=str(order_id) if order_id else None,
                 )
                 db.add(exec_log)
                 db.commit()
@@ -864,10 +973,15 @@ async def _execute_tradingview_signal_inner(
                     broker=models_broker,
                     action=action_str.upper(),
                     symbol=mapped_symbol,  # Use the broker-specific mapped symbol
-                    volume=quantity,
+                    volume=order_quantity,
                     status="failed",
                     error_message=error_msg,
-                    execution_time_ms=int((datetime.utcnow() - account_start).total_seconds() * 1000)
+                    execution_time_ms=int((datetime.utcnow() - account_start).total_seconds() * 1000),
+                    # Enhanced risk management tracking (migration 027)
+                    stop_loss=float(account_sl_price) if account_sl_price else None,
+                    take_profit=float(account_tp_price) if account_tp_price else None,
+                    trailing_stop=float(account_trailing_stop) if account_trailing_stop else None,
+                    entry_price=float(entry_price) if entry_price else None,
                 )
                 db.add(exec_log)
                 db.commit()

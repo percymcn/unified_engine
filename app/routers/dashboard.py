@@ -46,6 +46,12 @@ class ExecutionItem(BaseModel):
     status: str
     execution_time_ms: Optional[int] = None
     created_at: str
+    # Enhanced risk management fields (migration 027)
+    stop_loss: Optional[float] = None
+    take_profit: Optional[float] = None
+    trailing_stop: Optional[float] = None
+    entry_price: Optional[float] = None
+    order_id: Optional[str] = None
 
 
 class ExecutionsResponse(BaseModel):
@@ -160,7 +166,13 @@ async def get_recent_executions(
             price=ex.price,
             status=ex.status,
             execution_time_ms=ex.execution_time_ms,
-            created_at=ex.created_at.isoformat() if ex.created_at else datetime.utcnow().isoformat()
+            created_at=ex.created_at.isoformat() if ex.created_at else datetime.utcnow().isoformat(),
+            # Enhanced risk management fields (migration 027)
+            stop_loss=ex.stop_loss,
+            take_profit=ex.take_profit,
+            trailing_stop=ex.trailing_stop,
+            entry_price=ex.entry_price,
+            order_id=ex.order_id,
         ))
 
     return ExecutionsResponse(executions=items, total=len(items))

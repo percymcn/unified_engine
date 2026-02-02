@@ -18,6 +18,16 @@ interface ExecutionItem {
   status: string;
   execution_time_ms?: number;
   created_at: string;
+  // Enhanced risk management fields (migration 027)
+  stop_loss?: number;
+  take_profit?: number;
+  trailing_stop?: number;
+  entry_price?: number;
+  order_id?: string;
+  close_reason?: string;
+  pnl?: number;
+  pnl_pct?: number;
+  closed_at?: string;
 }
 
 /**
@@ -41,11 +51,20 @@ function executionToTrade(exec: ExecutionItem): Trade {
     symbol: exec.symbol,
     side,
     quantity: exec.volume,
-    entry_price: exec.price || 0,
+    entry_price: exec.entry_price || exec.price || 0,
     status,
     broker: exec.account.broker,
     account_id: exec.account.account_id || 0,
     opened_at: exec.created_at,
+    // Enhanced risk management fields (migration 027)
+    stop_loss: exec.stop_loss,
+    take_profit: exec.take_profit,
+    trailing_stop: exec.trailing_stop,
+    close_reason: exec.close_reason as Trade['close_reason'],
+    profit_loss: exec.pnl,
+    profit_loss_pct: exec.pnl_pct,
+    closed_at: exec.closed_at,
+    order_id: exec.order_id,
   };
 }
 

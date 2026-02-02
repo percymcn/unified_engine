@@ -20,6 +20,12 @@ export interface ExecutionItem {
   status: string;
   execution_time_ms: number | null;
   created_at: string;
+  // Enhanced risk management fields (migration 027)
+  stop_loss?: number | null;
+  take_profit?: number | null;
+  trailing_stop?: number | null;
+  entry_price?: number | null;
+  order_id?: string | null;
 }
 
 export interface ExecutionsResponse {

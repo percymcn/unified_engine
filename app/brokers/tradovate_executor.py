@@ -401,14 +401,14 @@ class TradovateExecutor(BaseExecutor):
                 "buy_stop": {"orderType": "StopMarket", "side": "Buy"},
                 "sell_stop": {"orderType": "StopMarket", "side": "Sell"}
             }
-            
+
             order_config = order_type_map.get(order.order_type)
             if not order_config:
                 return OrderResponse(
                     success=False,
                     error=f"Unsupported order type: {order.order_type}"
                 )
-            
+
             # Get contract details
             contract_response = await self.session.get(
                 f"/contract/find?symbol={order.symbol}"
@@ -418,25 +418,61 @@ class TradovateExecutor(BaseExecutor):
                     success=False,
                     error=f"Symbol {order.symbol} not found"
                 )
-            
-            contract = contract_response.json()[0]
-            
+
+            contracts = contract_response.json()
+            if not contracts or not isinstance(contracts, list):
+                return OrderResponse(
+                    success=False,
+                    error=f"Symbol {order.symbol} not found"
+                )
+            contract = contracts[0]
+
             order_data = {
                 "accountId": int(order.account_id),
                 "contractId": contract["contractId"],
                 "orderType": order_config["orderType"],
                 "side": order_config["side"],
-                "orderQty": order.quantity,
-                "price": order.price,
-                "stopPrice": order.stop_loss,
+                "orderQty": int(order.quantity),  # Futures use whole contracts
                 "isAutomated": True
             }
-            
+
+            # Add price for limit orders
+            if order.price and order_config["orderType"] in ("Limit", "StopLimit"):
+                order_data["price"] = order.price
+
+            # Build bracket orders for SL/TP (attached protective orders)
+            bracket_orders = []
+            if order.stop_loss:
+                # Stop loss is opposite side
+                sl_side = "Sell" if order_config["side"] == "Buy" else "Buy"
+                bracket_orders.append({
+                    "orderType": "StopMarket",
+                    "side": sl_side,
+                    "orderQty": int(order.quantity),
+                    "stopPrice": float(order.stop_loss)
+                })
+                logger.info(f"Tradovate: Adding SL bracket order at {order.stop_loss}")
+
+            if order.take_profit:
+                # Take profit is opposite side
+                tp_side = "Sell" if order_config["side"] == "Buy" else "Buy"
+                bracket_orders.append({
+                    "orderType": "Limit",
+                    "side": tp_side,
+                    "orderQty": int(order.quantity),
+                    "price": float(order.take_profit)
+                })
+                logger.info(f"Tradovate: Adding TP bracket order at {order.take_profit}")
+
+            if bracket_orders:
+                order_data["bracketOrders"] = bracket_orders
+
+            logger.info(f"Tradovate placing order: {order_data}")
             response = await self.session.post("/order/placeorder", json=order_data)
-            
+
             if response.status_code == 200:
                 result = response.json()
-                
+
                 return OrderResponse(
                     success=True,
                     order_id=str(result.get("orderId")),
@@ -454,7 +490,7 @@ class TradovateExecutor(BaseExecutor):
                     success=False,
                     error=error_msg
                 )
-                
+
         except Exception as e:
             logger.error(f"Error placing Tradovate order: {e}")
             return OrderResponse(

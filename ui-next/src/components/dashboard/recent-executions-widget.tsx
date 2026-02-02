@@ -27,6 +27,12 @@ interface Execution {
   guard_reason?: string | null;
   execution_time_ms: number | null;
   created_at: string;
+  // Enhanced risk management fields (migration 027)
+  stop_loss?: number | null;
+  take_profit?: number | null;
+  trailing_stop?: number | null;
+  entry_price?: number | null;
+  order_id?: string | null;
 }
 
 const POLL_INTERVAL = 15000; // 15 seconds
@@ -247,6 +253,26 @@ export function RecentExecutionsWidget() {
                 })}
                 <span className="hidden sm:inline mx-1">-</span>
                 <span className="capitalize">{execution.account.broker}</span>
+                {execution.entry_price && (
+                  <>
+                    <span className="hidden sm:inline mx-1">@</span>
+                    <span className="font-medium">{execution.entry_price.toFixed(4)}</span>
+                  </>
+                )}
+                {(execution.stop_loss || execution.take_profit) && (
+                  <>
+                    <span className="hidden sm:inline mx-1">|</span>
+                    {execution.stop_loss && (
+                      <span className="text-red-500">SL:{execution.stop_loss.toFixed(2)}</span>
+                    )}
+                    {execution.take_profit && (
+                      <span className="text-green-500 ml-1">TP:{execution.take_profit.toFixed(2)}</span>
+                    )}
+                    {execution.trailing_stop && (
+                      <span className="text-amber-500 ml-1">TS:{execution.trailing_stop}</span>
+                    )}
+                  </>
+                )}
                 {execution.guard_reason && (
                   <>
                     <span className="hidden sm:inline mx-1">-</span>

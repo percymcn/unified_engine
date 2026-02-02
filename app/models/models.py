@@ -293,6 +293,19 @@ class ExecutionLog(Base):
     execution_time_ms = Column(Integer)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
+    # Enhanced risk management tracking (migration 027)
+    stop_loss = Column(Float, nullable=True)
+    take_profit = Column(Float, nullable=True)
+    trailing_stop = Column(Float, nullable=True)
+    entry_price = Column(Float, nullable=True)
+    exit_price = Column(Float, nullable=True)
+    closed_at = Column(DateTime(timezone=True), nullable=True)
+    close_reason = Column(String(50), nullable=True)  # 'stop_loss', 'take_profit', 'trailing_stop', 'manual', 'signal'
+    pnl = Column(Float, nullable=True)
+    pnl_pct = Column(Float, nullable=True)
+    order_id = Column(String(100), nullable=True)  # Broker order ID
+    position_id = Column(String(100), nullable=True)  # Broker position ID
+
 class SystemConfig(Base):
     __tablename__ = "system_config"
     __table_args__ = {'extend_existing': True}
