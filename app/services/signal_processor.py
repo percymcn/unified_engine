@@ -147,9 +147,12 @@ async def _create_account_executor(account: TradingAccount, db: Session):
 
     elif broker_type in ("projectx", "topstep"):
         if credentials.get("username") and credentials.get("api_key"):
-            # Pass account_id for proper position/order filtering
+            broker_account_id = account.default_broker_account_id or account.account_number or str(account.id)
+            account_name = account.account_name or broker_account_id
+            # Pass account_id + account_name for proper SDK scoping and fallback filtering
             executor = ProjectXExecutor(
-                account_id=account.account_number or str(account.id),
+                account_id=broker_account_id,
+                account_name=account_name,
                 username=credentials.get("username"),
                 api_key=credentials.get("api_key")
             )
