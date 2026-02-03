@@ -30,6 +30,7 @@ credentials*.json
 # Runtime snapshots (auto-generated)
 _ops/snapshots/docker_*.txt
 _ops/snapshots/git_head.txt
+_ops/snapshots/git_status.txt
 
 # IDE
 .idea/
