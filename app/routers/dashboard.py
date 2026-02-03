@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 from typing import Optional, List
 from pydantic import BaseModel
 import logging
+import time
 import asyncio
 
 from app.db.database import get_db
@@ -20,10 +21,35 @@ from app.models.database_models import (
     BrokerType,
 )
 from app.services.signal_processor import _create_account_executor
+from app.services.compat_positions_cache import get_positions as get_cached_positions, is_enabled as compat_positions_enabled
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/dashboard", tags=["dashboard"])
+
+RECENT_CLOSE_TTL_SECONDS = 15
+_recently_closed_positions: dict[int, dict[str, float]] = {}
+
+
+def _record_recent_close(account_id: int, position_id: str) -> None:
+    if not account_id or not position_id:
+        return
+    _recently_closed_positions.setdefault(account_id, {})[position_id] = time.time()
+
+
+def _is_recently_closed(account_id: int, position_id: str) -> bool:
+    account_cache = _recently_closed_positions.get(account_id)
+    if not account_cache:
+        return False
+    closed_at = account_cache.get(position_id)
+    if not closed_at:
+        return False
+    if time.time() - closed_at > RECENT_CLOSE_TTL_SECONDS:
+        account_cache.pop(position_id, None)
+        if not account_cache:
+            _recently_closed_positions.pop(account_id, None)
+        return False
+    return True
 
 
 # --------------------
@@ -284,10 +310,18 @@ async def get_open_positions(
         """Fetch live positions for a single account."""
         positions = []
         try:
-            executor, needs_cleanup = await _create_account_executor(account, db)
+            if not (compat_positions_enabled() and account.broker and account.broker.value in ("projectx", "topstep")):
+                executor, needs_cleanup = await _create_account_executor(account, db)
+            else:
+                executor, needs_cleanup = None, False
+
             if executor:
                 try:
-                    raw_positions = await executor.get_positions()
+                    if account.broker and account.broker.value in ("projectx", "topstep"):
+                        broker_account_id = account.default_broker_account_id or account.account_number or str(account.id)
+                        raw_positions = await executor.get_positions(broker_account_id)
+                    else:
+                        raw_positions = await executor.get_positions()
                     for pos in raw_positions:
                         side = "Long"
                         pos_side = getattr(pos, 'side', None) or pos.get('side', '') if isinstance(pos, dict) else getattr(pos, 'side', 'buy')
@@ -299,6 +333,8 @@ async def get_open_positions(
                         # Handle both object and dict formats
                         if isinstance(pos, dict):
                             pnl = float(pos.get('unrealized_pnl', 0) or pos.get('unrealizedPnl', 0) or 0)
+                            if _is_recently_closed(account.id, str(pos.get("id", ""))):
+                                continue
                             positions.append(PositionItem(
                                 id=str(pos.get('id', 0)),  # String to preserve large IDs
                                 symbol=pos.get('symbol', ''),
@@ -313,6 +349,8 @@ async def get_open_positions(
                             ))
                         else:
                             pnl = float(getattr(pos, 'unrealized_pnl', 0) or 0)
+                            if _is_recently_closed(account.id, str(getattr(pos, "id", ""))):
+                                continue
                             positions.append(PositionItem(
                                 id=str(getattr(pos, 'id', 0)),  # String to preserve large IDs
                                 symbol=getattr(pos, 'symbol', ''),
@@ -333,6 +371,23 @@ async def get_open_positions(
                             pass
         except Exception as e:
             logger.warning(f"Failed to fetch positions for account {account.id}: {e}")
+        if compat_positions_enabled():
+            cached = get_cached_positions(account.id)
+            for pos in cached:
+                if _is_recently_closed(account.id, str(pos.get("id", ""))):
+                    continue
+                positions.append(PositionItem(
+                    id=str(pos.get("id", "")),
+                    symbol=str(pos.get("symbol", "")),
+                    side=str(pos.get("side", "Long")),
+                    volume=float(pos.get("volume", 0) or 0),
+                    unrealized_pnl=float(pos.get("unrealized_pnl", 0) or 0),
+                    account=PositionAccountInfo(
+                        broker=account.broker.value if account.broker else "unknown",
+                        account_name=account.account_name,
+                        account_id=account.id
+                    )
+                ))
         return positions
 
     # Fetch positions from all accounts concurrently
@@ -449,6 +504,8 @@ async def close_position(
                 message = 'Position closed' if success else 'Failed to close position'
 
             logger.info(f"Close position {request.position_id} for user {current_user.id}: success={success}")
+            if success:
+                _record_recent_close(account.id, request.position_id)
 
             return ClosePositionResponse(
                 success=success,

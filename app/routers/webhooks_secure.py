@@ -33,6 +33,7 @@ from app.domain.services import (
 from app.infrastructure.repositories import get_daily_counter_repository
 from app.infrastructure.adapters.position_counter_adapter import PositionCounterAdapter
 from app.routers.webhooks import evaluate_guard_layer
+from app.services.compat_positions_cache import record_open, record_close, is_enabled as compat_positions_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -256,6 +257,18 @@ async def incoming_webhook(
             "errors": use_case_result.errors,
             "processing_time_ms": int((datetime.utcnow() - start_time).total_seconds() * 1000),
         }
+
+        if compat_positions_enabled():
+            if action == SignalAction.CLOSE:
+                record_close(broker_account.id, symbol=signal_data.get("symbol"))
+            else:
+                record_open(broker_account.id, {
+                    "id": f"compat-{webhook_id}",
+                    "symbol": signal_data.get("symbol", "UNKNOWN"),
+                    "side": "Long" if action == SignalAction.BUY else "Short",
+                    "volume": float(command.volume or 0),
+                    "unrealized_pnl": 0.0,
+                })
         
         # Update webhook log
         db_webhook.processed = result["success"]
