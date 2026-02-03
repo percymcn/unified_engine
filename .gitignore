@@ -16,3 +16,23 @@ deploy/envs/.env.*.local
 # local backups
 .local/
 .metaapi/
+
+# Backup and temp files
+*.bak
+*.tmp
+*.backup
+
+# Secrets - NEVER track these
+production_secrets*
+*_secrets.tmp
+credentials*.json
+
+# Runtime snapshots (auto-generated)
+_ops/snapshots/docker_*.txt
+_ops/snapshots/git_head.txt
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
