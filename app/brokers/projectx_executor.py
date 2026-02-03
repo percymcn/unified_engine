@@ -188,45 +188,67 @@ class ProjectXExecutor(BaseExecutor):
         (e.g., 'PRAC-V2-95183-68790057') to be used as the primary identifier,
         NOT the numeric 'id'. This name is what gets passed to the SDK for
         authentication and order placement.
+
+        For account discovery (when we don't have a valid account yet),
+        this method uses discover_accounts_static which can list accounts
+        without requiring a pre-selected account.
         """
+        # If SDK is connected and working, use it directly
         if self.is_using_sdk:
             try:
                 # Use list_accounts to get all accounts with status
                 accounts_data = await self._sdk_service.list_accounts(limit=limit)
-                return [
-                    Account(
-                        # Use 'name' as the primary ID - this is what SDK expects!
-                        # e.g., "PRAC-V2-95183-68790057", "50KTC-V2-95183-95242774"
-                        id=acc.get("name") or acc.get("id", ""),
-                        account_number=acc.get("name") or acc.get("id", ""),
-                        broker="projectx",
-                        account_type="live" if acc.get("is_live") else "demo",
-                        currency=acc.get("currency", "USD"),
-                        balance=float(acc.get("balance", 0)),
-                        equity=float(acc.get("equity", 0)),
-                        margin=float(acc.get("margin", 0)),
-                        free_margin=float(acc.get("free_margin", 0)),
-                        margin_level=0.0,
-                        leverage=100,
-                        is_active=acc.get("is_active", True),
-                        is_live=acc.get("is_live", False),
-                        created_at=datetime.now(),
-                        updated_at=datetime.now(),
-                        # Pass status and numeric_id in extra_data
-                        extra_data={
-                            "status": acc.get("status", "active"),
-                            "numeric_id": acc.get("id", ""),  # Keep numeric ID for reference
-                            "name": acc.get("name", ""),
-                        }
-                    )
-                    for acc in accounts_data
-                ]
+                return self._convert_accounts_data(accounts_data)
             except Exception as e:
                 logger.error(f"SDK get_accounts failed: {e}")
-                return []
+                # Fall through to discovery mode
+
+        # Try SDK discovery mode (works without pre-selected account)
+        if self._use_sdk and SDK_AVAILABLE and ProjectXSDKService is not None:
+            try:
+                accounts_data = await ProjectXSDKService.discover_accounts_static(
+                    username=self._username,
+                    api_key=self._api_key
+                )
+                if accounts_data:
+                    logger.info(f"SDK discovery found {len(accounts_data)} accounts")
+                    return self._convert_accounts_data(accounts_data[:limit])
+            except Exception as e:
+                logger.warning(f"SDK discovery failed: {e}, falling back to httpx")
 
         # Fallback to httpx
         return await self._get_accounts_httpx(limit=limit)
+
+    def _convert_accounts_data(self, accounts_data: List[Dict]) -> List[Account]:
+        """Convert account data dicts to Account objects."""
+        return [
+            Account(
+                # Use 'name' as the primary ID - this is what SDK expects!
+                # e.g., "PRAC-V2-95183-68790057", "50KTC-V2-95183-95242774"
+                id=acc.get("name") or acc.get("id", ""),
+                account_number=acc.get("name") or acc.get("id", ""),
+                broker="projectx",
+                account_type="live" if acc.get("is_live") else "demo",
+                currency=acc.get("currency", "USD"),
+                balance=float(acc.get("balance", 0)),
+                equity=float(acc.get("equity", 0)),
+                margin=float(acc.get("margin", 0)),
+                free_margin=float(acc.get("free_margin", 0)),
+                margin_level=0.0,
+                leverage=100,
+                is_active=acc.get("is_active", True),
+                is_live=acc.get("is_live", False),
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                # Pass status and numeric_id in extra_data
+                extra_data={
+                    "status": acc.get("status", "active"),
+                    "numeric_id": acc.get("id", ""),  # Keep numeric ID for reference
+                    "name": acc.get("name", ""),
+                }
+            )
+            for acc in accounts_data
+        ]
 
     async def _get_accounts_httpx(self, limit: int = 5) -> List[Account]:
         """Get accounts via httpx (fallback).

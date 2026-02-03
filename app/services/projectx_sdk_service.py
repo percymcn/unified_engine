@@ -136,6 +136,102 @@ class ProjectXSDKService:
         self._is_connected = False
         logger.info("ProjectX SDK disconnected")
 
+    @staticmethod
+    async def discover_accounts_static(username: str, api_key: str) -> List[Dict[str, Any]]:
+        """
+        Discover all available accounts without requiring a pre-selected account.
+
+        This is useful for the initial account discovery flow when we don't know
+        which accounts exist yet. It handles the case where authentication fails
+        because an invalid account name was provided, and parses the available
+        accounts from the error message.
+
+        Args:
+            username: TopStep username/email
+            api_key: TopStep API key
+
+        Returns:
+            List of account dicts with 'name' field containing SDK account names
+            (e.g., 'PRAC-V2-95183-68790057')
+        """
+        if not SDK_AVAILABLE:
+            logger.warning("SDK not available for discover_accounts_static")
+            return []
+
+        try:
+            import re
+
+            # Try to create client without account_name to trigger error with account list
+            client = ProjectX(
+                username=username,
+                api_key=api_key,
+                account_name=None  # Don't specify account
+            )
+
+            try:
+                await client.authenticate()
+                # If we get here, authentication succeeded (SDK picked first account)
+                accounts = await client.list_accounts()
+                result = []
+                for acc in accounts:
+                    name = getattr(acc, 'name', '')
+                    acc_id = str(getattr(acc, 'id', ''))
+                    balance = float(getattr(acc, 'balance', 0))
+                    can_trade = getattr(acc, 'canTrade', True)
+
+                    # Determine status
+                    if not can_trade:
+                        status = 'blown' if balance < 100 else 'inactive'
+                    elif balance < 100:
+                        status = 'blown'
+                    else:
+                        status = 'active'
+
+                    result.append({
+                        "id": acc_id,
+                        "name": name,
+                        "balance": balance,
+                        "equity": balance,
+                        "margin": 0.0,
+                        "free_margin": balance,
+                        "currency": "USD",
+                        "status": status,
+                        "can_trade": can_trade,
+                        "is_live": not getattr(acc, 'simulated', True),
+                    })
+                logger.info(f"discover_accounts_static found {len(result)} accounts via SDK")
+                return result
+
+            except ValueError as e:
+                # Parse account names from error message like:
+                # "Account '...' not found. Available accounts: PRAC-V2-95183-68790057, 50KTC-V2-..."
+                error_msg = str(e)
+                if "Available accounts:" in error_msg:
+                    match = re.search(r'Available accounts:\s*(.+)', error_msg)
+                    if match:
+                        account_names = [name.strip() for name in match.group(1).split(',')]
+                        logger.info(f"discover_accounts_static parsed {len(account_names)} accounts from error: {account_names}")
+                        return [
+                            {
+                                "id": "",  # Will be filled later
+                                "name": name,
+                                "balance": 0.0,
+                                "equity": 0.0,
+                                "margin": 0.0,
+                                "free_margin": 0.0,
+                                "currency": "USD",
+                                "status": "active",
+                                "can_trade": True,
+                                "is_live": False,
+                            }
+                            for name in account_names
+                        ]
+                raise
+
+        except Exception as e:
+            logger.error(f"discover_accounts_static failed: {e}")
+            return []
+
     @property
     def is_connected(self) -> bool:
         """Check if SDK is connected."""
