@@ -581,10 +581,21 @@ class ProjectXSDKService:
                 trail_price=int(trail_price),  # In ticks
             )
 
+            if not response:
+                return {"success": False, "order_id": "", "status": "failed", "error": "No response from SDK"}
+
+            success = getattr(response, 'success', False)
+            order_id = str(getattr(response, 'orderId', ''))
+            error_msg = getattr(response, 'errorMessage', None)
+
+            if not success:
+                logger.warning(f"ProjectX trailing stop order failed: {error_msg} (code: {getattr(response, 'errorCode', 'N/A')})")
+
             return {
-                "success": getattr(response, 'success', True) if response else True,
-                "order_id": str(getattr(response, 'orderId', '')) if response else "",
-                "status": "submitted",
+                "success": success,
+                "order_id": order_id,
+                "status": "submitted" if success else "failed",
+                "error": error_msg,
             }
         except Exception as e:
             logger.error(f"Trailing stop order failed: {e}")

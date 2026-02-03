@@ -112,42 +112,84 @@ class ContractResolver:
 
     # TradingView symbol mappings to ProjectX base symbols
     # TradingView uses formats like ES1!, MES1!, NQ1!, ESH2026, etc.
+    # Also maps CFD symbols (SPX500USD, XAUUSD) to corresponding futures
     TRADINGVIEW_SYMBOL_MAP = {
-        # E-mini S&P 500
+        # === CFD / Forex Symbols (TradingView CFD → ProjectX Micro Futures) ===
+        # S&P 500 CFD variants → MES (Micro E-mini S&P 500)
+        'SPX500USD': 'MES', 'SPX500': 'MES', 'SP500': 'MES', 'US500': 'MES',
+        'SPX': 'MES', 'SPXUSD': 'MES',
+        # Nasdaq 100 CFD variants → MNQ (Micro E-mini Nasdaq)
+        'NAS100USD': 'MNQ', 'NAS100': 'MNQ', 'USTEC': 'MNQ', 'US100': 'MNQ',
+        'NDX': 'MNQ', 'NDXUSD': 'MNQ',
+        # Dow Jones CFD variants → MYM (Micro E-mini Dow)
+        'US30': 'MYM', 'US30USD': 'MYM', 'DJI': 'MYM', 'DJIUSD': 'MYM',
+        'DJ30': 'MYM', 'DOW': 'MYM',
+        # Russell 2000 CFD variants → M2K (Micro E-mini Russell)
+        'US2000': 'M2K', 'RUSSELL2000': 'M2K', 'RUT': 'M2K',
+        # Gold CFD variants → MGC (Micro Gold)
+        'XAUUSD': 'MGC', 'GOLD': 'MGC', 'GOLDUSD': 'MGC',
+        # Silver CFD variants → SIL (Micro Silver) or SI
+        'XAGUSD': 'SI', 'SILVER': 'SI', 'SILVERUSD': 'SI',
+        # Crude Oil CFD variants → MCL (Micro Crude Oil)
+        'USOIL': 'MCL', 'WTIUSD': 'MCL', 'CRUDEOIL': 'MCL', 'WTI': 'MCL',
+        'UKOIL': 'MCL', 'BRENTUSD': 'MCL',  # Brent approximated to WTI
+        # Natural Gas CFD
+        'NATGAS': 'NG', 'NGAS': 'NG', 'NATGASUSD': 'NG',
+        # Bitcoin CFD variants → MBT (Micro Bitcoin)
+        'BTCUSD': 'MBT', 'BITCOIN': 'MBT', 'BTC': 'MBT', 'XBTUSD': 'MBT',
+        # Ethereum (no ProjectX equivalent, but map to BTC for now)
+        'ETHUSD': 'MBT', 'ETH': 'MBT',
+
+        # === E-mini S&P 500 ===
         'ES1!': 'ES', 'ESZ1!': 'ES', 'ESH1!': 'ES', 'ESM1!': 'ES', 'ESU1!': 'ES',
         # Micro E-mini S&P 500
         'MES1!': 'MES', 'MESZ1!': 'MES', 'MESH1!': 'MES', 'MESM1!': 'MES', 'MESU1!': 'MES',
-        # E-mini Nasdaq
+
+        # === E-mini Nasdaq ===
         'NQ1!': 'NQ', 'NQZ1!': 'NQ', 'NQH1!': 'NQ', 'NQM1!': 'NQ', 'NQU1!': 'NQ',
         # Micro E-mini Nasdaq
         'MNQ1!': 'MNQ', 'MNQZ1!': 'MNQ', 'MNQH1!': 'MNQ', 'MNQM1!': 'MNQ', 'MNQU1!': 'MNQ',
-        # E-mini Dow
+
+        # === E-mini Dow ===
         'YM1!': 'YM', 'YMZ1!': 'YM', 'YMH1!': 'YM', 'YMM1!': 'YM', 'YMU1!': 'YM',
         # Micro E-mini Dow
         'MYM1!': 'MYM', 'MYMZ1!': 'MYM', 'MYMH1!': 'MYM', 'MYMM1!': 'MYM', 'MYMU1!': 'MYM',
-        # E-mini Russell 2000
+
+        # === E-mini Russell 2000 ===
         'RTY1!': 'RTY', 'RTYZ1!': 'RTY', 'RTYH1!': 'RTY', 'RTYM1!': 'RTY', 'RTYU1!': 'RTY',
         # Micro E-mini Russell 2000
         'M2K1!': 'M2K', 'M2KZ1!': 'M2K', 'M2KH1!': 'M2K', 'M2KM1!': 'M2K', 'M2KU1!': 'M2K',
-        # Crude Oil
+
+        # === Crude Oil ===
         'CL1!': 'CL', 'CLZ1!': 'CL', 'CLH1!': 'CL', 'CLM1!': 'CL', 'CLU1!': 'CL',
         # Micro Crude Oil
         'MCL1!': 'MCL',
-        # Gold
+
+        # === Gold ===
         'GC1!': 'GC', 'GCZ1!': 'GC', 'GCH1!': 'GC', 'GCM1!': 'GC', 'GCU1!': 'GC',
         # Micro Gold
         'MGC1!': 'MGC',
-        # Natural Gas
+
+        # === Natural Gas ===
         'NG1!': 'NG',
-        # Micro Bitcoin
-        'MBT1!': 'MBT',
-        # Silver
-        'SI1!': 'SI',
-        # COMEX symbols (alternative TradingView format)
+
+        # === Bitcoin ===
+        'MBT1!': 'MBT', 'BTC1!': 'BTC',
+
+        # === Silver ===
+        'SI1!': 'SI', 'SIL1!': 'SIL',
+
+        # === Exchange prefixed symbols ===
         'COMEX:ES1!': 'ES', 'COMEX:MES1!': 'MES', 'COMEX:GC1!': 'GC', 'COMEX:MGC1!': 'MGC',
         'CME_MINI:ES1!': 'ES', 'CME_MINI:NQ1!': 'NQ',
-        # Currency futures
+        'NYMEX:CL1!': 'CL', 'NYMEX:NG1!': 'NG',
+        'OANDA:SPX500USD': 'MES', 'OANDA:NAS100USD': 'MNQ', 'OANDA:XAUUSD': 'MGC',
+        'FOREXCOM:SPX500': 'MES', 'FOREXCOM:NAS100': 'MNQ',
+        'FX:SPX500': 'MES', 'FX:NAS100': 'MNQ', 'FX:US30': 'MYM',
+
+        # === Currency Futures ===
         '6E1!': '6E', 'M6E1!': 'M6E', '6J1!': '6J', '6B1!': '6B', '6A1!': '6A', '6C1!': '6C',
+        'EURUSD': 'M6E', 'USDJPY': '6J', 'GBPUSD': '6B', 'AUDUSD': 'M6A', 'USDCAD': '6C',
     }
 
     @classmethod
@@ -460,8 +502,121 @@ class ContractResolver:
         return ticks * tick_value * contracts
 
 
+    async def sync_contracts_from_projectx(
+        self,
+        username: Optional[str] = None,
+        api_key: Optional[str] = None
+    ) -> int:
+        """
+        Sync all tradeable contracts from ProjectX API.
+
+        Fetches all available contracts for each base symbol and caches them.
+        This ensures we always have the latest active contracts for rollover.
+
+        Args:
+            username: ProjectX username (uses env var if not provided)
+            api_key: ProjectX API key (uses env var if not provided)
+
+        Returns:
+            Number of contracts synced
+        """
+        import os
+        try:
+            from project_x_py import ProjectX
+        except ImportError:
+            logger.warning("project-x-py SDK not installed, cannot sync contracts")
+            return 0
+
+        # Get credentials from params or environment
+        username = username or os.getenv('PROJECT_X_USERNAME')
+        api_key = api_key or os.getenv('PROJECT_X_API_KEY')
+
+        if not username or not api_key:
+            logger.warning("ProjectX credentials not configured, cannot sync contracts")
+            return 0
+
+        count = 0
+        try:
+            # Create and authenticate client
+            client = ProjectX(username=username, api_key=api_key)
+            await client.authenticate()
+
+            # Fetch contracts for all tradeable symbols
+            for base_symbol in self.TRADEABLE_SYMBOLS.keys():
+                try:
+                    instruments = await client.search_instruments(base_symbol, live=True)
+                    if instruments:
+                        # Find the active contract
+                        active_inst = None
+                        for inst in instruments:
+                            if getattr(inst, 'activeContract', False):
+                                active_inst = inst
+                                break
+                        # If no active flag, use first result
+                        if not active_inst and instruments:
+                            active_inst = instruments[0]
+
+                        if active_inst:
+                            contract = self._parse_instrument(active_inst, base_symbol)
+                            if contract:
+                                self._cache[base_symbol] = contract
+                                count += 1
+                                # Also add the specific contract code to the mapping
+                                # So "MESM6" -> "MES", "MNQH6" -> "MNQ", etc.
+                                if contract.symbol and contract.symbol.upper() not in self.TRADINGVIEW_SYMBOL_MAP:
+                                    self.TRADINGVIEW_SYMBOL_MAP[contract.symbol.upper()] = base_symbol
+                                logger.debug(f"Synced {base_symbol} -> {contract.symbol} ({contract.contract_id})")
+
+                        # Also add ALL returned contracts to mapping (for historical codes)
+                        for inst in instruments:
+                            inst_name = getattr(inst, 'name', '')
+                            if inst_name and inst_name.upper() not in self.TRADINGVIEW_SYMBOL_MAP:
+                                self.TRADINGVIEW_SYMBOL_MAP[inst_name.upper()] = base_symbol
+
+                except Exception as e:
+                    logger.debug(f"Could not sync {base_symbol}: {e}")
+
+            logger.info(f"Synced {count} contracts from ProjectX")
+
+        except Exception as e:
+            logger.error(f"Error syncing contracts from ProjectX: {e}")
+
+        return count
+
+    def get_cached_contracts(self) -> Dict[str, "ContractInfo"]:
+        """Get all cached contracts."""
+        return dict(self._cache)
+
+    def is_contract_expired(self, base_symbol: str) -> bool:
+        """
+        Check if cached contract for symbol has expired.
+
+        Args:
+            base_symbol: Base symbol to check
+
+        Returns:
+            True if contract is expired or approaching expiry
+        """
+        if base_symbol.upper() not in self._cache:
+            return True
+
+        contract = self._cache[base_symbol.upper()]
+        now = datetime.now()
+
+        # Check expiry
+        expiry_month = MONTH_CODES.get(contract.expiry_month, 3)
+        expiry_year = 2000 + contract.expiry_year
+
+        # If current date is past the 15th of the expiry month, consider expired
+        if now.year > expiry_year or (now.year == expiry_year and now.month >= expiry_month and now.day > 15):
+            return True
+
+        return False
+
+
 # Global instance
 _resolver: Optional[ContractResolver] = None
+_sync_task: Optional[asyncio.Task] = None
 
 
 def get_contract_resolver() -> ContractResolver:
@@ -470,3 +625,37 @@ def get_contract_resolver() -> ContractResolver:
     if _resolver is None:
         _resolver = ContractResolver()
     return _resolver
+
+
+async def start_contract_sync_background(
+    interval_hours: int = 4,
+    username: Optional[str] = None,
+    api_key: Optional[str] = None
+) -> None:
+    """
+    Start background contract sync task.
+
+    Periodically syncs contracts from ProjectX to keep them up to date
+    and handle rollover automatically.
+
+    Args:
+        interval_hours: Hours between sync runs
+        username: ProjectX username
+        api_key: ProjectX API key
+    """
+    global _sync_task
+    resolver = get_contract_resolver()
+
+    async def sync_loop():
+        while True:
+            try:
+                count = await resolver.sync_contracts_from_projectx(username, api_key)
+                if count > 0:
+                    logger.info(f"Background contract sync completed: {count} contracts")
+            except Exception as e:
+                logger.error(f"Background contract sync failed: {e}")
+
+            await asyncio.sleep(interval_hours * 3600)
+
+    _sync_task = asyncio.create_task(sync_loop())
+    logger.info(f"Started background contract sync (interval: {interval_hours}h)")

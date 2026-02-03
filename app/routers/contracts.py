@@ -18,6 +18,7 @@ from app.domain.services.contract_tracker import ContractTracker, ExpiringPositi
 from app.domain.services.futures_contract_service import FuturesContractService
 from app.models.models import FuturesContract as FuturesContractModel
 from app.models.models import User, UserContractPosition
+from app.services.contract_resolver import ContractResolver, get_contract_resolver
 
 logger = logging.getLogger(__name__)
 
@@ -296,4 +297,164 @@ async def get_next_contract(
         "next_contract": next_code,
         "next_expiration_date": next_contract.expiration_date.isoformat() if next_contract else None,
         "next_rollover_date": next_contract.rollover_date.isoformat() if next_contract else None
+    }
+
+
+# ==============================================================================
+# ProjectX Contract Sync Endpoints
+# ==============================================================================
+
+class ProjectXContractResponse(BaseModel):
+    """Response model for a ProjectX contract from cache."""
+    base_symbol: str
+    contract_id: str
+    symbol: str
+    description: str
+    tick_size: float
+    tick_value: float
+    is_active: bool
+    expiry_month: str
+    expiry_year: int
+
+
+@router.get("/projectx/cached")
+async def get_projectx_cached_contracts(
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get all cached ProjectX contracts.
+
+    Returns the currently cached contracts from the ContractResolver.
+    These are auto-synced from ProjectX and used for symbol mapping.
+    """
+    resolver = get_contract_resolver()
+    cached = resolver.get_cached_contracts()
+
+    return {
+        "count": len(cached),
+        "contracts": [
+            {
+                "base_symbol": c.base_symbol,
+                "contract_id": c.contract_id,
+                "symbol": c.symbol,
+                "description": c.description,
+                "tick_size": c.tick_size,
+                "tick_value": c.tick_value,
+                "is_active": c.is_active,
+                "expiry_month": c.expiry_month,
+                "expiry_year": c.expiry_year,
+                "last_updated": c.last_updated.isoformat(),
+            }
+            for c in cached.values()
+        ],
+        "tradeable_symbols": resolver.get_all_tradeable_symbols(),
+    }
+
+
+@router.post("/projectx/sync")
+async def sync_projectx_contracts(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Manually trigger ProjectX contract sync.
+
+    Fetches the latest active contracts from ProjectX API and updates the cache.
+    This handles rollover automatically by getting the current front-month contract.
+
+    Requires valid ProjectX credentials in the Credential table for the user.
+    """
+    from app.services.signal_processor import _load_account_credentials
+    from app.models.database_models import TradingAccount
+
+    # Find user's ProjectX account to get credentials
+    account = db.query(TradingAccount).filter(
+        TradingAccount.user_id == current_user.id,
+        TradingAccount.broker.in_(["PROJECTX", "projectx"])
+    ).first()
+
+    if not account:
+        raise HTTPException(
+            status_code=404,
+            detail="No ProjectX account found. Add a ProjectX account first."
+        )
+
+    # Load credentials
+    credentials = _load_account_credentials(db, account)
+    username = credentials.get("username")
+    api_key = credentials.get("api_key")
+
+    if not username or not api_key:
+        raise HTTPException(
+            status_code=400,
+            detail="ProjectX credentials not configured. Add username and API key in account settings."
+        )
+
+    # Sync contracts
+    resolver = get_contract_resolver()
+    try:
+        count = await resolver.sync_contracts_from_projectx(username, api_key)
+        return {
+            "message": f"Synced {count} contracts from ProjectX",
+            "count": count,
+            "contracts": [
+                {"base_symbol": c.base_symbol, "symbol": c.symbol, "contract_id": c.contract_id}
+                for c in resolver.get_cached_contracts().values()
+            ]
+        }
+    except Exception as e:
+        logger.error(f"Error syncing ProjectX contracts: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to sync contracts: {str(e)}")
+
+
+@router.get("/projectx/resolve/{symbol}")
+async def resolve_projectx_symbol(
+    symbol: str,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Resolve a TradingView symbol to ProjectX contract.
+
+    Examples:
+    - ES1! -> ES (base) -> ESM6 (active contract)
+    - SPX500USD -> MES (base) -> MESM6 (active contract)
+    - XAUUSD -> MGC (base) -> MGCM6 (active contract)
+    """
+    resolver = get_contract_resolver()
+
+    # Normalize to base symbol
+    base_symbol = ContractResolver.normalize_symbol(symbol)
+
+    # Check cache for active contract
+    contract = resolver._cache.get(base_symbol.upper())
+
+    return {
+        "input_symbol": symbol,
+        "base_symbol": base_symbol,
+        "is_mapped": base_symbol != symbol.upper(),
+        "cached_contract": {
+            "contract_id": contract.contract_id,
+            "symbol": contract.symbol,
+            "description": contract.description,
+            "is_active": contract.is_active,
+            "expiry_month": contract.expiry_month,
+            "expiry_year": contract.expiry_year,
+        } if contract else None,
+        "tradeable": base_symbol in resolver.TRADEABLE_SYMBOLS,
+    }
+
+
+@router.get("/projectx/mappings")
+async def get_projectx_symbol_mappings(
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get all TradingView to ProjectX symbol mappings.
+
+    Returns the full mapping table used to convert TradingView symbols
+    (like ES1!, SPX500USD, XAUUSD) to ProjectX base symbols.
+    """
+    return {
+        "mappings": ContractResolver.TRADINGVIEW_SYMBOL_MAP,
+        "tradeable_symbols": ContractResolver.TRADEABLE_SYMBOLS,
     }
