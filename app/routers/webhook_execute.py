@@ -52,6 +52,8 @@ from app.domain.services.risk_unit_converter import RiskUnitConverter, RiskUnitM
 from app.domain.services.daily_counter_service import DailyCounterService
 from app.infrastructure.repositories import get_daily_counter_repository
 from app.services.compat_positions_cache import record_open, record_close, is_enabled as compat_positions_enabled
+from app.models.database_models import DailyPnL, AccountEquityHistory
+from datetime import date as date_type
 
 logger = logging.getLogger(__name__)
 
@@ -901,6 +903,48 @@ async def _execute_tradingview_signal_inner(
                     if elapsed < account.trade_cooldown_seconds:
                         remaining = int(account.trade_cooldown_seconds - elapsed)
                         rejection_reason = f"Trade cooldown active ({remaining}s remaining of {account.trade_cooldown_seconds}s)"
+
+                # 2.5 MAX DAILY LOSS CHECK ($ and %)
+                if not rejection_reason and (account.max_daily_loss or account.max_daily_loss_pct):
+                    try:
+                        today = date_type.today()
+                        daily_pnl = db.query(DailyPnL).filter(
+                            DailyPnL.account_id == account.id,
+                            DailyPnL.date == today
+                        ).first()
+
+                        if daily_pnl and daily_pnl.total_pnl is not None:
+                            # total_pnl is negative when losing money
+                            current_loss = abs(min(0, daily_pnl.total_pnl))  # Convert to positive loss value
+
+                            # Check absolute $ loss limit
+                            if account.max_daily_loss and current_loss >= account.max_daily_loss:
+                                rejection_reason = f"Max daily loss exceeded (${current_loss:.2f} >= ${account.max_daily_loss:.2f})"
+                                logger.warning(f"Account {account.id}: Daily loss limit hit - halting trades")
+
+                            # Check percentage loss limit
+                            elif account.max_daily_loss_pct and daily_pnl.starting_balance and daily_pnl.starting_balance > 0:
+                                loss_pct = (current_loss / daily_pnl.starting_balance) * 100
+                                if loss_pct >= account.max_daily_loss_pct:
+                                    rejection_reason = f"Max daily loss % exceeded ({loss_pct:.2f}% >= {account.max_daily_loss_pct:.2f}%)"
+                                    logger.warning(f"Account {account.id}: Daily loss % limit hit - halting trades")
+                    except Exception as daily_loss_err:
+                        logger.debug(f"Could not check daily loss for account {account.id}: {daily_loss_err}")
+
+                # 2.6 MAX DRAWDOWN CHECK
+                if not rejection_reason and account.max_drawdown_pct:
+                    try:
+                        # Get latest equity snapshot for drawdown calculation
+                        equity_snapshot = db.query(AccountEquityHistory).filter(
+                            AccountEquityHistory.account_id == account.id
+                        ).order_by(AccountEquityHistory.timestamp.desc()).first()
+
+                        if equity_snapshot and equity_snapshot.drawdown_pct is not None:
+                            if equity_snapshot.drawdown_pct >= account.max_drawdown_pct:
+                                rejection_reason = f"Max drawdown exceeded ({equity_snapshot.drawdown_pct:.2f}% >= {account.max_drawdown_pct:.2f}%)"
+                                logger.warning(f"Account {account.id}: Max drawdown limit hit - halting trades")
+                    except Exception as drawdown_err:
+                        logger.debug(f"Could not check drawdown for account {account.id}: {drawdown_err}")
 
                 # 3. MAX OPEN POSITIONS CHECK (requires executor to get live positions)
                 # Note: We'll check this after executor initialization below
