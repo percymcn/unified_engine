@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(signals);
   } catch (error) {
     console.error('Error fetching signals:', error);
-    // Return empty array on error/timeout (graceful degradation)
-    return NextResponse.json([], { status: 200 });
+    // Return empty response on error/timeout (graceful degradation)
+    return NextResponse.json({ signals: [], total: 0, pending_count: 0 }, { status: 200 });
   }
 }

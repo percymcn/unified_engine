@@ -22,7 +22,8 @@ export default function SignalsPage() {
       }
 
       const data = await response.json();
-      setSignals(data);
+      // Handle both wrapped response {signals: [...]} and direct array
+      setSignals(data.signals || data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
