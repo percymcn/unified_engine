@@ -43,6 +43,7 @@ class ProjectXExecutor(BaseExecutor):
     def __init__(
         self,
         account_id: Optional[str] = None,
+        account_name: Optional[str] = None,
         username: Optional[str] = None,
         api_key: Optional[str] = None,
         use_sdk: bool = True,
@@ -62,6 +63,7 @@ class ProjectXExecutor(BaseExecutor):
 
         self.config = config
         self._account_id = account_id
+        self._account_name = account_name or account_id
 
         # Credentials - prefer parameters, then settings
         self._username = username or getattr(settings, 'PROJECT_X_USERNAME', None) or config.get("username")
@@ -101,6 +103,7 @@ class ProjectXExecutor(BaseExecutor):
                 self._sdk_service = ProjectXSDKService(
                     username=self._username,
                     api_key=self._api_key,
+                    account_name=self._account_name,
                 )
 
                 success = await self._sdk_service.connect()
@@ -384,7 +387,7 @@ class ProjectXExecutor(BaseExecutor):
                 )
 
             return OrderResponse(
-                success=result.get("success", True),
+                success=result.get("success", False),
                 order_id=result.get("order_id", ""),
                 broker="projectx",
                 status=result.get("status", "submitted"),

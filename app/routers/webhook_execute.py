@@ -51,6 +51,7 @@ from app.domain.services.account_routing_service import AccountRoutingService
 from app.domain.services.risk_unit_converter import RiskUnitConverter, RiskUnitMode
 from app.domain.services.daily_counter_service import DailyCounterService
 from app.infrastructure.repositories import get_daily_counter_repository
+from app.services.compat_positions_cache import record_open, record_close, is_enabled as compat_positions_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -1057,11 +1058,11 @@ async def _execute_tradingview_signal_inner(
                     ]
 
                     if not matching_positions:
-                        # No positions to close - return success
+                        # No positions to close - mark as skipped, not success
                         order_result = type('Result', (), {
-                            'success': True,
+                            'success': False,
                             'order_id': 'no_positions',
-                            'error': None
+                            'error': 'No matching positions to close'
                         })()
                     else:
                         # Close each matching position
@@ -1285,14 +1286,25 @@ async def _execute_tradingview_signal_inner(
 
             if execution_success:
                 successful_count += 1
+            if compat_positions_enabled():
+                if action_str == "close":
+                    record_close(account.id, symbol=symbol)
+                else:
+                    record_open(account.id, {
+                        "id": f"compat-{webhook_id}",
+                        "symbol": symbol,
+                        "side": "Long" if action_str == "buy" else "Short",
+                        "volume": float(order_quantity or 0),
+                        "unrealized_pnl": 0.0,
+                    })
 
-                # Increment daily trade counter (only for non-close actions)
-                if action_str != "close":
-                    try:
-                        await counter_service.increment_trades(account.id, symbol)
-                        logger.debug(f"Incremented trade counter for account {account.id}, symbol {symbol}")
-                    except Exception as e:
-                        logger.warning(f"Failed to increment trade counter for account {account.id}: {e}")
+            # Increment daily trade counter (only for non-close actions)
+            if execution_success and action_str != "close":
+                try:
+                    await counter_service.increment_trades(account.id, symbol)
+                    logger.debug(f"Incremented trade counter for account {account.id}, symbol {symbol}")
+                except Exception as e:
+                    logger.warning(f"Failed to increment trade counter for account {account.id}: {e}")
 
                 account_results.append(AccountExecutionResult(
                     account_id=account.id,

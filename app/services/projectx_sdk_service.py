@@ -422,10 +422,21 @@ class ProjectXSDKService:
                 size=size,
             )
 
+            if not response:
+                return {"success": False, "order_id": "", "status": "failed", "error": "No response from SDK"}
+
+            success = getattr(response, 'success', False)
+            order_id = str(getattr(response, 'orderId', ''))
+            error_msg = getattr(response, 'errorMessage', None)
+
+            if not success:
+                logger.warning(f"ProjectX market order failed: {error_msg} (code: {getattr(response, 'errorCode', 'N/A')})")
+
             return {
-                "success": getattr(response, 'success', True) if response else True,
-                "order_id": str(getattr(response, 'orderId', '')) if response else "",
-                "status": "submitted",
+                "success": success,
+                "order_id": order_id,
+                "status": "submitted" if success else "failed",
+                "error": error_msg,
             }
         finally:
             await suite.disconnect()
@@ -465,10 +476,21 @@ class ProjectXSDKService:
                 limit_price=limit_price,
             )
 
+            if not response:
+                return {"success": False, "order_id": "", "status": "failed", "error": "No response from SDK"}
+
+            success = getattr(response, 'success', False)
+            order_id = str(getattr(response, 'orderId', ''))
+            error_msg = getattr(response, 'errorMessage', None)
+
+            if not success:
+                logger.warning(f"ProjectX limit order failed: {error_msg} (code: {getattr(response, 'errorCode', 'N/A')})")
+
             return {
-                "success": getattr(response, 'success', True) if response else True,
-                "order_id": str(getattr(response, 'orderId', '')) if response else "",
-                "status": "submitted",
+                "success": success,
+                "order_id": order_id,
+                "status": "submitted" if success else "failed",
+                "error": error_msg,
             }
         finally:
             await suite.disconnect()
@@ -506,10 +528,21 @@ class ProjectXSDKService:
                 stop_price=stop_price,
             )
 
+            if not response:
+                return {"success": False, "order_id": "", "status": "failed", "error": "No response from SDK"}
+
+            success = getattr(response, 'success', False)
+            order_id = str(getattr(response, 'orderId', ''))
+            error_msg = getattr(response, 'errorMessage', None)
+
+            if not success:
+                logger.warning(f"ProjectX stop order failed: {error_msg} (code: {getattr(response, 'errorCode', 'N/A')})")
+
             return {
-                "success": getattr(response, 'success', True) if response else True,
-                "order_id": str(getattr(response, 'orderId', '')) if response else "",
-                "status": "submitted",
+                "success": success,
+                "order_id": order_id,
+                "status": "submitted" if success else "failed",
+                "error": error_msg,
             }
         except Exception as e:
             logger.error(f"Stop order failed: {e}")
