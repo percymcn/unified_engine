@@ -354,6 +354,9 @@ class ProjectXSDKService:
 
         Returns:
             TradingSuite instance for the instrument
+
+        Raises:
+            RuntimeError: If SDK not available or contract not found
         """
         import os
 
@@ -364,8 +367,17 @@ class ProjectXSDKService:
         os.environ['PROJECT_X_USERNAME'] = self.username
         os.environ['PROJECT_X_API_KEY'] = self.api_key
 
-        suite = await TradingSuite.create(instrument)
-        return suite
+        try:
+            suite = await TradingSuite.create(instrument)
+            if not suite:
+                raise RuntimeError(f"TradingSuite.create returned None for {instrument}")
+            if not hasattr(suite, 'instrument_id') or not suite.instrument_id:
+                raise RuntimeError(f"TradingSuite has no instrument_id for {instrument}")
+            logger.info(f"TradingSuite created for {instrument}: contract_id={suite.instrument_id}")
+            return suite
+        except Exception as e:
+            logger.error(f"TradingSuite.create failed for '{instrument}': {e}")
+            raise RuntimeError(f"Failed to find contract for {instrument}: {e}")
 
     async def search_instruments(self, symbol: str) -> List[Dict[str, Any]]:
         """

@@ -182,14 +182,23 @@ class ProjectXExecutor(BaseExecutor):
         logger.info("ProjectX executor disconnected")
 
     async def get_accounts(self, limit: int = 5) -> List[Account]:
-        """Get all ProjectX accounts (most recent first, limited)."""
+        """Get all ProjectX accounts (most recent first, limited).
+
+        IMPORTANT: For ProjectX/TopStep, the SDK expects the account 'name'
+        (e.g., 'PRAC-V2-95183-68790057') to be used as the primary identifier,
+        NOT the numeric 'id'. This name is what gets passed to the SDK for
+        authentication and order placement.
+        """
         if self.is_using_sdk:
             try:
                 # Use list_accounts to get all accounts with status
                 accounts_data = await self._sdk_service.list_accounts(limit=limit)
                 return [
                     Account(
-                        id=acc.get("id", ""),
+                        # Use 'name' as the primary ID - this is what SDK expects!
+                        # e.g., "PRAC-V2-95183-68790057", "50KTC-V2-95183-95242774"
+                        id=acc.get("name") or acc.get("id", ""),
+                        account_number=acc.get("name") or acc.get("id", ""),
                         broker="projectx",
                         account_type="live" if acc.get("is_live") else "demo",
                         currency=acc.get("currency", "USD"),
@@ -203,8 +212,12 @@ class ProjectXExecutor(BaseExecutor):
                         is_live=acc.get("is_live", False),
                         created_at=datetime.now(),
                         updated_at=datetime.now(),
-                        # Pass status in extra_data for discover endpoint
-                        extra_data={"status": acc.get("status", "active")}
+                        # Pass status and numeric_id in extra_data
+                        extra_data={
+                            "status": acc.get("status", "active"),
+                            "numeric_id": acc.get("id", ""),  # Keep numeric ID for reference
+                            "name": acc.get("name", ""),
+                        }
                     )
                     for acc in accounts_data
                 ]
@@ -244,7 +257,10 @@ class ProjectXExecutor(BaseExecutor):
 
                 return [
                     Account(
-                        id=str(acc.get("id", "")),
+                        # Use 'name' as primary ID if available (SDK format)
+                        # Fall back to 'id' for API responses
+                        id=acc.get("name") or str(acc.get("id", "")),
+                        account_number=acc.get("name") or str(acc.get("id", "")),
                         broker="projectx",
                         account_type=acc.get("type", "live"),
                         currency=acc.get("currency", "USD"),
@@ -257,7 +273,11 @@ class ProjectXExecutor(BaseExecutor):
                         is_active=acc.get("is_active", True),
                         is_live=acc.get("type") == "live",
                         created_at=datetime.now(),
-                        updated_at=datetime.now()
+                        updated_at=datetime.now(),
+                        extra_data={
+                            "numeric_id": str(acc.get("id", "")),
+                            "name": acc.get("name", ""),
+                        }
                     )
                     for acc in active_accounts
                 ]
