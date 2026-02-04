@@ -75,8 +75,15 @@ async def get_dashboard_stats(
         # Total executions (all time)
         total_executions = executions_query.count() if user_id else 0
 
+        # Return in both flat format (for dashboard widgets) and nested (for detail views)
         return {
-            # Signal statistics
+            # Flat format for dashboard widgets
+            "activeSignals": pending_signals,  # "Active" means pending/waiting to be processed
+            "connectedBrokers": connected_accounts,
+            "todaysTrades": today_trades,
+            "totalBalance": float(total_balance),
+
+            # Nested format for detailed stats (backward compat)
             "signals": {
                 "total": total_signals,
                 "pending": pending_signals,
@@ -84,27 +91,19 @@ async def get_dashboard_stats(
                 "failed": failed_signals,
                 "skipped": skipped_signals,
             },
-
-            # Trade/Execution statistics
             "trades": {
                 "total": total_executions,
                 "today": today_trades,
             },
-
-            # Account statistics
             "accounts": {
                 "total": total_accounts,
                 "active": active_accounts,
                 "connected": connected_accounts,
             },
-
-            # Position statistics
             "positions": {
                 "total": int(total_positions),
                 "open": int(open_positions),
             },
-
-            # Financial statistics
             "financial": {
                 "total_balance": float(total_balance),
             },

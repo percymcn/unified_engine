@@ -32,6 +32,9 @@ interface MomentumSettings {
   warn_at: number;
   auto_breakeven: boolean;
   pause_on_chop: boolean;
+  check_position_pnl: boolean;
+  profit_pnl_threshold: number;
+  block_pnl_signals: boolean;
   max_exposure: number;
   auto_pause_on_exposure: boolean;
   allow_hedge: boolean;
@@ -107,6 +110,9 @@ export default function RiskSettingsPage() {
           warn_at: 6,
           auto_breakeven: false,
           pause_on_chop: true,
+          check_position_pnl: true,
+          profit_pnl_threshold: 500,
+          block_pnl_signals: false,
           max_exposure: 5000,
           auto_pause_on_exposure: true,
           allow_hedge: false,
@@ -127,6 +133,9 @@ export default function RiskSettingsPage() {
         warn_at: 6,
         auto_breakeven: false,
         pause_on_chop: true,
+        check_position_pnl: true,
+        profit_pnl_threshold: 500,
+        block_pnl_signals: false,
         max_exposure: 5000,
         auto_pause_on_exposure: true,
         allow_hedge: false,
@@ -504,6 +513,57 @@ export default function RiskSettingsPage() {
                 onCheckedChange={(v) => setMomentumSettings({ ...momentumSettings, pause_on_chop: v })}
               />
             </div>
+          </div>
+
+          {/* Position P&L Check */}
+          <div className="space-y-4 border-t pt-4">
+            <h3 className="font-semibold text-sm flex items-center gap-2">
+              <DollarSign className="h-4 w-4" />
+              Position P&L Protection
+            </h3>
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>Enable Position P&L Check</Label>
+                <p className="text-xs text-muted-foreground">Warn when trading against profitable positions</p>
+              </div>
+              <Switch
+                checked={momentumSettings.check_position_pnl}
+                onCheckedChange={(v) => setMomentumSettings({ ...momentumSettings, check_position_pnl: v })}
+              />
+            </div>
+            {momentumSettings.check_position_pnl && (
+              <div className="space-y-4">
+                <div>
+                  <Label>Profit Threshold ($)</Label>
+                  <Input
+                    type="number"
+                    value={momentumSettings.profit_pnl_threshold}
+                    onChange={(e) => setMomentumSettings({
+                      ...momentumSettings,
+                      profit_pnl_threshold: parseFloat(e.target.value) || 500
+                    })}
+                    placeholder="500"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Trigger when open positions are in ${momentumSettings.profit_pnl_threshold}+ profit
+                  </p>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                  <div>
+                    <Label>Block Mode</Label>
+                    <p className="text-xs text-muted-foreground">
+                      {momentumSettings.block_pnl_signals
+                        ? "Auto-reject signals (no prompt)"
+                        : "Show warning and ask to confirm"}
+                    </p>
+                  </div>
+                  <Switch
+                    checked={momentumSettings.block_pnl_signals}
+                    onCheckedChange={(v) => setMomentumSettings({ ...momentumSettings, block_pnl_signals: v })}
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Exposure Limits */}

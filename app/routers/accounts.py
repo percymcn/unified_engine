@@ -1640,6 +1640,7 @@ class AccountSettingsBody(BaseModel):
     max_daily_loss_pct: Optional[float] = Field(None, alias="maxDailyLossPct", ge=0, le=100)
     max_drawdown_pct: Optional[float] = Field(None, alias="maxDrawdownPct", ge=0, le=100)
     max_open_positions: Optional[int] = Field(None, alias="maxOpenPositions", ge=1, le=100)
+    max_positions_per_symbol: Optional[int] = Field(None, alias="maxPositionsPerSymbol", ge=1, le=50, description="Max positions per instrument/symbol")
     max_daily_trades: Optional[int] = Field(None, alias="maxDailyTrades", ge=1, le=1000)
     trade_cooldown_seconds: Optional[int] = Field(None, alias="tradeCooldownSeconds", ge=0, le=3600)
 
@@ -1656,6 +1657,9 @@ class AccountSettingsBody(BaseModel):
     is_signal_enabled: Optional[bool] = Field(None, alias="isSignalEnabled")
     signal_priority: Optional[int] = Field(None, alias="signalPriority", ge=0, le=100)
     auto_confirm: Optional[bool] = Field(None, alias="autoConfirm")
+
+    # Symbol blocking
+    blocked_symbols: Optional[List[str]] = Field(None, alias="blockedSymbols", description="List of symbols blocked from trading on this account")
 
     # Prop firm settings (stored in extra_metadata)
     prop_rules_enabled: Optional[bool] = Field(None, alias="propRulesEnabled")
@@ -1738,6 +1742,7 @@ async def get_account_settings(
                 "maxDailyLossPct": response.max_daily_loss_pct,
                 "maxDrawdownPct": response.max_drawdown_pct,
                 "maxOpenPositions": response.max_open_positions,
+                "maxPositionsPerSymbol": response.max_positions_per_symbol,
                 "maxDailyTrades": response.max_daily_trades,
                 "tradeCooldownSeconds": response.trade_cooldown_seconds,
                 "defaultStopLoss": getattr(response, 'default_stop_loss', None),
@@ -1754,6 +1759,7 @@ async def get_account_settings(
                 "isSignalEnabled": response.is_signal_enabled,
                 "signalPriority": response.signal_priority,
                 "autoConfirm": getattr(response, 'auto_confirm', True),
+                "blockedSymbols": getattr(response, 'blocked_symbols', []) or [],
             },
             "propRules": {
                 "isEnabled": prop_rules.get("is_enabled", False) if prop_rules else False,
@@ -1843,6 +1849,7 @@ async def update_account_settings(
         max_daily_loss_pct=settings.max_daily_loss_pct,
         max_drawdown_pct=settings.max_drawdown_pct,
         max_open_positions=settings.max_open_positions,
+        max_positions_per_symbol=settings.max_positions_per_symbol,
         max_daily_trades=settings.max_daily_trades,
         trade_cooldown_seconds=settings.trade_cooldown_seconds,
         default_stop_loss=settings.default_stop_loss,
@@ -1853,6 +1860,7 @@ async def update_account_settings(
         is_signal_enabled=settings.is_signal_enabled,
         signal_priority=settings.signal_priority,
         auto_confirm=settings.auto_confirm,
+        blocked_symbols=settings.blocked_symbols,
     )
 
     try:
@@ -1942,6 +1950,7 @@ async def update_account_settings(
                 "maxDailyLossPct": response.max_daily_loss_pct,
                 "maxDrawdownPct": response.max_drawdown_pct,
                 "maxOpenPositions": response.max_open_positions,
+                "maxPositionsPerSymbol": response.max_positions_per_symbol,
                 "maxDailyTrades": response.max_daily_trades,
                 "tradeCooldownSeconds": response.trade_cooldown_seconds,
                 "defaultStopLoss": getattr(response, 'default_stop_loss', None),
@@ -1958,6 +1967,7 @@ async def update_account_settings(
                 "isSignalEnabled": response.is_signal_enabled,
                 "signalPriority": response.signal_priority,
                 "autoConfirm": getattr(response, 'auto_confirm', True),
+                "blockedSymbols": getattr(response, 'blocked_symbols', []) or [],
             },
             "propRules": {
                 "isEnabled": prop_rules.get("is_enabled", False) if prop_rules else False,
@@ -2254,3 +2264,190 @@ async def retry_provisioning(
         "status": "pending",
         "message": "Retry provisioning job started. Poll /provision/status for progress.",
     }
+
+
+# =============================================================================
+# SYMBOL-SPECIFIC SETTINGS ENDPOINTS
+# =============================================================================
+
+class SymbolSettingsBody(BaseModel):
+    """Request body for symbol-specific settings"""
+    model_config = {"populate_by_name": True}
+
+    symbol: str = Field(..., description="Symbol name (e.g., XAUUSD, BTCUSD, NAS100)")
+    default_stop_loss: Optional[float] = Field(None, alias="defaultStopLoss", ge=0)
+    default_take_profit: Optional[float] = Field(None, alias="defaultTakeProfit", ge=0)
+    sl_type: Optional[str] = Field("pips", alias="slType", description="'pips', 'points', 'percent', or 'price'")
+    tp_type: Optional[str] = Field("pips", alias="tpType", description="'pips', 'points', 'percent', or 'price'")
+    position_size_override: Optional[float] = Field(None, alias="positionSizeOverride", ge=0.01)
+    max_positions: Optional[int] = Field(None, alias="maxPositions", ge=1, le=50)
+    notes: Optional[str] = None
+
+
+class SymbolSettingsResponse(BaseModel):
+    """Response for symbol settings"""
+    model_config = {"populate_by_name": True}
+
+    id: int
+    account_id: int = Field(alias="accountId")
+    symbol: str
+    default_stop_loss: Optional[float] = Field(None, alias="defaultStopLoss")
+    default_take_profit: Optional[float] = Field(None, alias="defaultTakeProfit")
+    sl_type: str = Field(alias="slType")
+    tp_type: str = Field(alias="tpType")
+    position_size_override: Optional[float] = Field(None, alias="positionSizeOverride")
+    max_positions: Optional[int] = Field(None, alias="maxPositions")
+    notes: Optional[str] = None
+
+
+@router.get("/{account_id}/symbol-settings")
+async def get_symbol_settings(
+    account_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get all symbol-specific settings for an account."""
+    from app.models.database_models import TradingAccount, SymbolSettings
+
+    # Verify account ownership
+    account = db.query(TradingAccount).filter(
+        TradingAccount.id == account_id,
+        TradingAccount.user_id == current_user.id
+    ).first()
+
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    settings = db.query(SymbolSettings).filter(
+        SymbolSettings.account_id == account_id
+    ).all()
+
+    return {
+        "accountId": account_id,
+        "settings": [
+            {
+                "id": s.id,
+                "symbol": s.symbol,
+                "defaultStopLoss": s.default_stop_loss,
+                "defaultTakeProfit": s.default_take_profit,
+                "slType": s.sl_type or "pips",
+                "tpType": s.tp_type or "pips",
+                "positionSizeOverride": s.position_size_override,
+                "maxPositions": s.max_positions,
+                "notes": s.notes,
+            }
+            for s in settings
+        ]
+    }
+
+
+@router.post("/{account_id}/symbol-settings")
+async def create_symbol_setting(
+    account_id: int,
+    body: SymbolSettingsBody,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Create or update symbol-specific settings."""
+    from app.models.database_models import TradingAccount, SymbolSettings
+
+    # Verify account ownership
+    account = db.query(TradingAccount).filter(
+        TradingAccount.id == account_id,
+        TradingAccount.user_id == current_user.id
+    ).first()
+
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    # Normalize symbol
+    symbol_upper = body.symbol.upper()
+
+    # Check if setting already exists
+    existing = db.query(SymbolSettings).filter(
+        SymbolSettings.account_id == account_id,
+        SymbolSettings.symbol == symbol_upper
+    ).first()
+
+    if existing:
+        # Update existing
+        if body.default_stop_loss is not None:
+            existing.default_stop_loss = body.default_stop_loss
+        if body.default_take_profit is not None:
+            existing.default_take_profit = body.default_take_profit
+        if body.sl_type is not None:
+            existing.sl_type = body.sl_type
+        if body.tp_type is not None:
+            existing.tp_type = body.tp_type
+        if body.position_size_override is not None:
+            existing.position_size_override = body.position_size_override
+        if body.max_positions is not None:
+            existing.max_positions = body.max_positions
+        if body.notes is not None:
+            existing.notes = body.notes
+        db.commit()
+        db.refresh(existing)
+        setting = existing
+    else:
+        # Create new
+        setting = SymbolSettings(
+            account_id=account_id,
+            symbol=symbol_upper,
+            default_stop_loss=body.default_stop_loss,
+            default_take_profit=body.default_take_profit,
+            sl_type=body.sl_type or "pips",
+            tp_type=body.tp_type or "pips",
+            position_size_override=body.position_size_override,
+            max_positions=body.max_positions,
+            notes=body.notes,
+        )
+        db.add(setting)
+        db.commit()
+        db.refresh(setting)
+
+    return {
+        "id": setting.id,
+        "accountId": account_id,
+        "symbol": setting.symbol,
+        "defaultStopLoss": setting.default_stop_loss,
+        "defaultTakeProfit": setting.default_take_profit,
+        "slType": setting.sl_type,
+        "tpType": setting.tp_type,
+        "positionSizeOverride": setting.position_size_override,
+        "maxPositions": setting.max_positions,
+        "notes": setting.notes,
+    }
+
+
+@router.delete("/{account_id}/symbol-settings/{symbol}")
+async def delete_symbol_setting(
+    account_id: int,
+    symbol: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Delete symbol-specific settings."""
+    from app.models.database_models import TradingAccount, SymbolSettings
+
+    # Verify account ownership
+    account = db.query(TradingAccount).filter(
+        TradingAccount.id == account_id,
+        TradingAccount.user_id == current_user.id
+    ).first()
+
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    # Find and delete
+    setting = db.query(SymbolSettings).filter(
+        SymbolSettings.account_id == account_id,
+        SymbolSettings.symbol == symbol.upper()
+    ).first()
+
+    if not setting:
+        raise HTTPException(status_code=404, detail="Symbol setting not found")
+
+    db.delete(setting)
+    db.commit()
+
+    return {"success": True, "message": f"Settings for {symbol.upper()} deleted"}

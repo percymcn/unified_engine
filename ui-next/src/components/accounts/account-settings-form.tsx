@@ -76,6 +76,9 @@ export function AccountSettingsForm({
   const [maxOpenPositions, setMaxOpenPositions] = useState(
     settings.riskLimits.maxOpenPositions?.toString() || ''
   );
+  const [maxPositionsPerSymbol, setMaxPositionsPerSymbol] = useState(
+    settings.riskLimits.maxPositionsPerSymbol?.toString() || ''
+  );
   const [maxDailyTrades, setMaxDailyTrades] = useState(
     settings.riskLimits.maxDailyTrades?.toString() || ''
   );
@@ -99,6 +102,9 @@ export function AccountSettingsForm({
   const [isSignalEnabled, setIsSignalEnabled] = useState(settings.routing.isSignalEnabled);
   const [signalPriority, setSignalPriority] = useState(settings.routing.signalPriority.toString());
   const [autoConfirm, setAutoConfirm] = useState(settings.routing.autoConfirm ?? true);
+  const [blockedSymbols, setBlockedSymbols] = useState<string>(
+    (settings.routing.blockedSymbols || []).join(', ')
+  );
 
   // Prop rules state
   const [propEnabled, setPropEnabled] = useState(settings.propRules?.isEnabled || false);
@@ -144,6 +150,7 @@ export function AccountSettingsForm({
     setMaxDailyLossPct(settings.riskLimits.maxDailyLossPct?.toString() || '');
     setMaxDrawdownPct(settings.riskLimits.maxDrawdownPct?.toString() || '');
     setMaxOpenPositions(settings.riskLimits.maxOpenPositions?.toString() || '');
+    setMaxPositionsPerSymbol(settings.riskLimits.maxPositionsPerSymbol?.toString() || '');
     setMaxDailyTrades(settings.riskLimits.maxDailyTrades?.toString() || '');
     setTradeCooldownSeconds(settings.riskLimits.tradeCooldownSeconds?.toString() || '');
     setDefaultStopLoss(settings.riskLimits.defaultStopLoss?.toString() || '');
@@ -153,6 +160,7 @@ export function AccountSettingsForm({
     setGroupId(settings.grouping.groupId);
     setIsSignalEnabled(settings.routing.isSignalEnabled);
     setSignalPriority(settings.routing.signalPriority.toString());
+    setBlockedSymbols((settings.routing.blockedSymbols || []).join(', '));
     // Prop rules
     setPropEnabled(settings.propRules?.isEnabled || false);
     setPropProvider(settings.propRules?.provider || '');
@@ -183,6 +191,7 @@ export function AccountSettingsForm({
         maxDailyLossPct: maxDailyLossPct ? parseFloat(maxDailyLossPct) : null,
         maxDrawdownPct: maxDrawdownPct ? parseFloat(maxDrawdownPct) : null,
         maxOpenPositions: maxOpenPositions ? parseInt(maxOpenPositions) : null,
+        maxPositionsPerSymbol: maxPositionsPerSymbol ? parseInt(maxPositionsPerSymbol) : null,
         maxDailyTrades: maxDailyTrades ? parseInt(maxDailyTrades) : null,
         tradeCooldownSeconds: tradeCooldownSeconds ? parseInt(tradeCooldownSeconds) : null,
         // SL/TP stored in broker-specific units (pips/points/percent)
@@ -201,6 +210,10 @@ export function AccountSettingsForm({
         isSignalEnabled: isSignalEnabled,
         signalPriority: parseInt(signalPriority) || 0,
         autoConfirm: autoConfirm,
+        blockedSymbols: blockedSymbols
+          .split(',')
+          .map(s => s.trim().toUpperCase())
+          .filter(s => s.length > 0),
       },
       propRules: {
         isEnabled: propEnabled,
@@ -558,6 +571,22 @@ export function AccountSettingsForm({
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="maxPositionsPerSymbol">Max Positions Per Symbol</Label>
+                <Input
+                  id="maxPositionsPerSymbol"
+                  type="number"
+                  min="1"
+                  max="50"
+                  value={maxPositionsPerSymbol}
+                  onChange={(e) => setMaxPositionsPerSymbol(e.target.value)}
+                  placeholder="No limit"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Maximum open positions allowed per symbol (1 - 50)
+                </p>
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="maxDailyLoss">Max Daily Loss ($)</Label>
                 <Input
                   id="maxDailyLoss"
@@ -700,6 +729,23 @@ export function AccountSettingsForm({
               />
               <p className="text-xs text-muted-foreground">
                 Higher priority accounts execute signals first (0 - 100)
+              </p>
+            </div>
+
+            {/* Blocked Symbols */}
+            <div className="space-y-2">
+              <Label htmlFor="blockedSymbols">Blocked Symbols</Label>
+              <Input
+                id="blockedSymbols"
+                type="text"
+                value={blockedSymbols}
+                onChange={(e) => setBlockedSymbols(e.target.value)}
+                disabled={!isSignalEnabled}
+                placeholder="XAUUSD, BTCUSD, NAS100"
+              />
+              <p className="text-xs text-muted-foreground">
+                Comma-separated list of symbols to block from trading on this account.
+                Signals for these symbols will be skipped.
               </p>
             </div>
 

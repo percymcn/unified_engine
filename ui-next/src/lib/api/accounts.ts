@@ -90,6 +90,7 @@ interface ApiAccountSettingsData {
     maxDailyLossPct: number | null;
     maxDrawdownPct: number | null;
     maxOpenPositions: number | null;
+    maxPositionsPerSymbol: number | null;
     maxDailyTrades: number | null;
     tradeCooldownSeconds: number | null;
     defaultStopLoss?: number | null;
@@ -106,6 +107,7 @@ interface ApiAccountSettingsData {
     isSignalEnabled: boolean;
     signalPriority: number;
     autoConfirm: boolean;
+    blockedSymbols: string[];
   };
   propRules?: {
     isEnabled: boolean;
@@ -139,6 +141,7 @@ const mapAccountSettingsResponse = (data: ApiAccountSettingsData): AccountSettin
     maxDailyLossPct: data.riskLimits.maxDailyLossPct,
     maxDrawdownPct: data.riskLimits.maxDrawdownPct,
     maxOpenPositions: data.riskLimits.maxOpenPositions,
+    maxPositionsPerSymbol: data.riskLimits.maxPositionsPerSymbol,
     maxDailyTrades: data.riskLimits.maxDailyTrades,
     tradeCooldownSeconds: data.riskLimits.tradeCooldownSeconds,
     defaultStopLoss: data.riskLimits.defaultStopLoss ?? null,
@@ -155,6 +158,7 @@ const mapAccountSettingsResponse = (data: ApiAccountSettingsData): AccountSettin
     isSignalEnabled: data.routing.isSignalEnabled,
     signalPriority: data.routing.signalPriority,
     autoConfirm: data.routing.autoConfirm ?? true,
+    blockedSymbols: data.routing.blockedSymbols || [],
   },
   propRules: data.propRules ? {
     isEnabled: data.propRules.isEnabled,
@@ -418,6 +422,9 @@ export async function updateAccountSettings(
   if (settings.maxOpenPositions !== undefined) {
     payload.max_open_positions = settings.maxOpenPositions;
   }
+  if (settings.maxPositionsPerSymbol !== undefined) {
+    payload.max_positions_per_symbol = settings.maxPositionsPerSymbol;
+  }
   if (settings.maxDailyTrades !== undefined) {
     payload.max_daily_trades = settings.maxDailyTrades;
   }
@@ -451,6 +458,9 @@ export async function updateAccountSettings(
   }
   if (settings.autoConfirm !== undefined) {
     payload.auto_confirm = settings.autoConfirm;
+  }
+  if (settings.blockedSymbols !== undefined) {
+    payload.blocked_symbols = settings.blockedSymbols;
   }
   // Prop rules
   if (settings.propRulesEnabled !== undefined) {
@@ -812,4 +822,158 @@ export async function reconnectMetaApiAccount(
   }
 
   return response.json();
+}
+
+// ============================================================================
+// Symbol-Specific Settings API
+// ============================================================================
+
+export type RiskUnitType = 'pips' | 'points' | 'percent' | 'price';
+
+/**
+ * Symbol-specific SL/TP and position settings
+ */
+export interface SymbolSetting {
+  id: number;
+  accountId: number;
+  symbol: string;
+  defaultStopLoss: number | null;
+  defaultTakeProfit: number | null;
+  slType: RiskUnitType;
+  tpType: RiskUnitType;
+  positionSizeOverride: number | null;
+  maxPositions: number | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Input for creating/updating symbol settings
+ */
+export interface SymbolSettingInput {
+  symbol: string;
+  defaultStopLoss?: number | null;
+  defaultTakeProfit?: number | null;
+  slType?: RiskUnitType;
+  tpType?: RiskUnitType;
+  positionSizeOverride?: number | null;
+  maxPositions?: number | null;
+  notes?: string | null;
+}
+
+interface ApiSymbolSetting {
+  id: number;
+  account_id: number;
+  symbol: string;
+  default_stop_loss: number | null;
+  default_take_profit: number | null;
+  sl_type: string;
+  tp_type: string;
+  position_size_override: number | null;
+  max_positions: number | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+const mapSymbolSetting = (data: ApiSymbolSetting): SymbolSetting => ({
+  id: data.id,
+  accountId: data.account_id,
+  symbol: data.symbol,
+  defaultStopLoss: data.default_stop_loss,
+  defaultTakeProfit: data.default_take_profit,
+  slType: (data.sl_type || 'pips') as RiskUnitType,
+  tpType: (data.tp_type || 'pips') as RiskUnitType,
+  positionSizeOverride: data.position_size_override,
+  maxPositions: data.max_positions,
+  notes: data.notes,
+  createdAt: data.created_at,
+  updatedAt: data.updated_at,
+});
+
+/**
+ * Get all symbol-specific settings for an account
+ */
+export async function getSymbolSettings(accountId: number): Promise<SymbolSetting[]> {
+  const response = await fetch(`/api/accounts/${accountId}/symbol-settings`, {
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    throw await buildApiError(response, 'Failed to fetch symbol settings');
+  }
+
+  const data = await response.json();
+  return (data.settings || data || []).map(mapSymbolSetting);
+}
+
+/**
+ * Create or update symbol-specific settings
+ */
+export async function saveSymbolSetting(
+  accountId: number,
+  setting: SymbolSettingInput
+): Promise<SymbolSetting> {
+  const payload: Record<string, unknown> = {
+    symbol: setting.symbol.toUpperCase(),
+  };
+
+  if (setting.defaultStopLoss !== undefined) {
+    payload.default_stop_loss = setting.defaultStopLoss;
+  }
+  if (setting.defaultTakeProfit !== undefined) {
+    payload.default_take_profit = setting.defaultTakeProfit;
+  }
+  if (setting.slType !== undefined) {
+    payload.sl_type = setting.slType;
+  }
+  if (setting.tpType !== undefined) {
+    payload.tp_type = setting.tpType;
+  }
+  if (setting.positionSizeOverride !== undefined) {
+    payload.position_size_override = setting.positionSizeOverride;
+  }
+  if (setting.maxPositions !== undefined) {
+    payload.max_positions = setting.maxPositions;
+  }
+  if (setting.notes !== undefined) {
+    payload.notes = setting.notes;
+  }
+
+  const response = await fetch(`/api/accounts/${accountId}/symbol-settings`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw await buildApiError(response, 'Failed to save symbol settings');
+  }
+
+  const data = await response.json();
+  return mapSymbolSetting(data.setting || data);
+}
+
+/**
+ * Delete symbol-specific settings
+ */
+export async function deleteSymbolSetting(
+  accountId: number,
+  symbol: string
+): Promise<void> {
+  const response = await fetch(
+    `/api/accounts/${accountId}/symbol-settings/${encodeURIComponent(symbol.toUpperCase())}`,
+    {
+      method: 'DELETE',
+      credentials: 'include',
+    }
+  );
+
+  if (!response.ok) {
+    throw await buildApiError(response, 'Failed to delete symbol settings');
+  }
 }

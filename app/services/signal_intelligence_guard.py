@@ -99,6 +99,19 @@ class SignalIntelligenceGuard:
         # Determine session key for momentum tracking
         session_key = self._get_session_key(user_id, signal)
 
+        # sg-008: Position P&L Check (warn when trading against profitable positions)
+        pnl_result = await self._check_position_pnl(
+            signal, settings, account_ids, open_positions_summary or {}
+        )
+        if pnl_result.decision != GuardDecision.EXECUTE:
+            if pnl_result.decision == GuardDecision.WARN_MODAL_REQUIRED:
+                result.decision = GuardDecision.WARN_MODAL_REQUIRED
+                result.modal_data = pnl_result.modal_data
+                result.annotations.update(pnl_result.annotations)
+                return result  # Return immediately - profitable positions is a strong signal
+            else:
+                return pnl_result
+
         # sg-001: Signal Momentum Guard
         momentum_result = await self._check_momentum(
             signal, settings, user_id, session_key
@@ -142,6 +155,8 @@ class SignalIntelligenceGuard:
                 warn_at=6,
                 auto_breakeven=False,
                 pause_on_chop=True,
+                check_position_pnl=True,
+                profit_pnl_threshold=500.0,
                 max_exposure=5000.0,
                 auto_pause_on_exposure=True,
                 allow_hedge=False,
@@ -520,6 +535,174 @@ class SignalIntelligenceGuard:
                 modal_data=modal_data
             )
 
+        return GuardResult(
+            decision=GuardDecision.EXECUTE,
+            annotations={}
+        )
+
+    async def _check_position_pnl(
+        self,
+        signal: Signal,
+        settings: MomentumSettings,
+        account_ids: List[int],
+        open_positions_summary: Dict[int, Dict]
+    ) -> GuardResult:
+        """
+        sg-008: Check if trading against profitable positions.
+
+        If user has BUY positions in significant profit and a SELL signal comes in,
+        warn the user that they're about to trade against profitable positions.
+        Same logic for SELL positions and BUY signals.
+        """
+        # Check if feature is enabled
+        if not getattr(settings, 'check_position_pnl', True):
+            return GuardResult(
+                decision=GuardDecision.EXECUTE,
+                annotations={}
+            )
+
+        # Skip for CLOSE signals - always allow closing
+        if signal.action == SignalAction.CLOSE:
+            return GuardResult(
+                decision=GuardDecision.EXECUTE,
+                annotations={}
+            )
+
+        # Get profit threshold (default $500)
+        profit_threshold = getattr(settings, 'profit_pnl_threshold', 500.0)
+
+        # Get the signal's symbol
+        signal_symbol = signal.symbol.value.upper() if signal.symbol else ""
+        if not signal_symbol:
+            return GuardResult(
+                decision=GuardDecision.EXECUTE,
+                annotations={}
+            )
+
+        # Determine signal direction
+        signal_side = "buy" if signal.action == SignalAction.BUY else "sell"
+
+        # Aggregate P&L across all accounts for this symbol
+        total_buy_pnl = 0.0
+        total_sell_pnl = 0.0
+        total_buy_count = 0
+        total_sell_count = 0
+
+        for account_id in account_ids:
+            if account_id not in open_positions_summary:
+                continue
+
+            symbol_pnl = open_positions_summary[account_id].get("symbol_pnl", {})
+
+            # Try to find matching symbol (exact match or partial match)
+            matched_data = None
+            for pos_symbol, pnl_data in symbol_pnl.items():
+                # Exact match or partial match (e.g., "XAUUSD" matches "XAUUSD.i")
+                if pos_symbol == signal_symbol or signal_symbol in pos_symbol or pos_symbol in signal_symbol:
+                    matched_data = pnl_data
+                    break
+
+            if matched_data:
+                total_buy_pnl += matched_data.get("buy_pnl", 0.0)
+                total_sell_pnl += matched_data.get("sell_pnl", 0.0)
+                total_buy_count += matched_data.get("buy_count", 0)
+                total_sell_count += matched_data.get("sell_count", 0)
+
+        # Check if block mode is enabled (auto-reject instead of warn)
+        block_mode = getattr(settings, 'block_pnl_signals', False)
+
+        # Check if trading against profitable positions
+        if signal_side == "sell" and total_buy_pnl >= profit_threshold and total_buy_count > 0:
+            # User has BUYs in profit and is trying to SELL - this might flip the position
+            history_tag = f"profitable_position_warning – {total_buy_count} BUYs in ${total_buy_pnl:.2f} profit"
+
+            if block_mode:
+                # Auto-block: skip the signal without prompting
+                logger.info(f"Position P&L BLOCKED: {total_buy_count} BUY positions on {signal_symbol} in ${total_buy_pnl:.2f} profit, SELL signal auto-rejected")
+                return GuardResult(
+                    decision=GuardDecision.SKIP,
+                    annotations={
+                        "history_tag": f"BLOCKED: {history_tag}",
+                        "skip_reason": f"Auto-blocked: trading against {total_buy_count} profitable BUY positions (${total_buy_pnl:.2f})",
+                        "existing_side": "buy",
+                        "existing_pnl": total_buy_pnl,
+                        "existing_count": total_buy_count,
+                        "signal_side": signal_side
+                    }
+                )
+
+            # Warn mode: show modal for user decision
+            modal_data = {
+                "type": "profitable_position_warning",
+                "message": f"You have {total_buy_count} BUY position(s) on {signal_symbol} in ${total_buy_pnl:.2f} profit. This SELL signal will trade against your profitable longs. Continue?",
+                "symbol": signal_symbol,
+                "existing_side": "buy",
+                "existing_pnl": total_buy_pnl,
+                "existing_count": total_buy_count,
+                "signal_side": signal_side,
+                "options": ["execute", "discard", "close_existing"]
+            }
+
+            logger.info(f"Position P&L warning: {total_buy_count} BUY positions on {signal_symbol} in ${total_buy_pnl:.2f} profit, SELL signal incoming")
+
+            return GuardResult(
+                decision=GuardDecision.WARN_MODAL_REQUIRED,
+                annotations={
+                    "history_tag": history_tag,
+                    "existing_side": "buy",
+                    "existing_pnl": total_buy_pnl,
+                    "existing_count": total_buy_count,
+                    "signal_side": signal_side
+                },
+                modal_data=modal_data
+            )
+
+        elif signal_side == "buy" and total_sell_pnl >= profit_threshold and total_sell_count > 0:
+            # User has SELLs in profit and is trying to BUY - this might flip the position
+            history_tag = f"profitable_position_warning – {total_sell_count} SELLs in ${total_sell_pnl:.2f} profit"
+
+            if block_mode:
+                # Auto-block: skip the signal without prompting
+                logger.info(f"Position P&L BLOCKED: {total_sell_count} SELL positions on {signal_symbol} in ${total_sell_pnl:.2f} profit, BUY signal auto-rejected")
+                return GuardResult(
+                    decision=GuardDecision.SKIP,
+                    annotations={
+                        "history_tag": f"BLOCKED: {history_tag}",
+                        "skip_reason": f"Auto-blocked: trading against {total_sell_count} profitable SELL positions (${total_sell_pnl:.2f})",
+                        "existing_side": "sell",
+                        "existing_pnl": total_sell_pnl,
+                        "existing_count": total_sell_count,
+                        "signal_side": signal_side
+                    }
+                )
+
+            # Warn mode: show modal for user decision
+            modal_data = {
+                "type": "profitable_position_warning",
+                "message": f"You have {total_sell_count} SELL position(s) on {signal_symbol} in ${total_sell_pnl:.2f} profit. This BUY signal will trade against your profitable shorts. Continue?",
+                "symbol": signal_symbol,
+                "existing_side": "sell",
+                "existing_pnl": total_sell_pnl,
+                "existing_count": total_sell_count,
+                "signal_side": signal_side,
+                "options": ["execute", "discard", "close_existing"]
+            }
+
+            logger.info(f"Position P&L warning: {total_sell_count} SELL positions on {signal_symbol} in ${total_sell_pnl:.2f} profit, BUY signal incoming")
+
+            return GuardResult(
+                decision=GuardDecision.WARN_MODAL_REQUIRED,
+                annotations={
+                    "history_tag": history_tag,
+                    "existing_side": "sell",
+                    "existing_pnl": total_sell_pnl,
+                    "existing_count": total_sell_count,
+                    "signal_side": signal_side
+                },
+                modal_data=modal_data
+            )
+
+        # No conflict - proceed
         return GuardResult(
             decision=GuardDecision.EXECUTE,
             annotations={}

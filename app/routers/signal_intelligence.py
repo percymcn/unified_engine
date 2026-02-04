@@ -38,6 +38,9 @@ class MomentumSettingsUpdate(BaseModel):
     warn_at: Optional[int] = None
     auto_breakeven: Optional[bool] = None
     pause_on_chop: Optional[bool] = None
+    check_position_pnl: Optional[bool] = None  # Enable P&L-based momentum check
+    profit_pnl_threshold: Optional[float] = None  # Warn if opposite signal and positions in $X+ profit
+    block_pnl_signals: Optional[bool] = None  # Block signals (vs warn) when trading against profitable positions
     max_exposure: Optional[float] = None
     auto_pause_on_exposure: Optional[bool] = None
     allow_hedge: Optional[bool] = None
@@ -59,6 +62,9 @@ class MomentumSettingsResponse(BaseModel):
     warn_at: int
     auto_breakeven: bool
     pause_on_chop: bool
+    check_position_pnl: bool = True
+    profit_pnl_threshold: float = 500.0
+    block_pnl_signals: bool = False
     max_exposure: float
     auto_pause_on_exposure: bool
     allow_hedge: bool

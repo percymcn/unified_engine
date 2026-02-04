@@ -85,6 +85,9 @@ class UpdateAccountSettingsUseCase:
         if request.max_open_positions is not None:
             self._validate_range(request.max_open_positions, 1, 100, "max_open_positions")
             updates['max_open_positions'] = request.max_open_positions
+        if request.max_positions_per_symbol is not None:
+            self._validate_range(request.max_positions_per_symbol, 1, 50, "max_positions_per_symbol")
+            updates['max_positions_per_symbol'] = request.max_positions_per_symbol
         if request.max_daily_trades is not None:
             self._validate_range(request.max_daily_trades, 1, 1000, "max_daily_trades")
             updates['max_daily_trades'] = request.max_daily_trades
@@ -144,6 +147,11 @@ class UpdateAccountSettingsUseCase:
         if request.auto_confirm is not None:
             updates['auto_confirm'] = request.auto_confirm
 
+        # Symbol blocking
+        if request.blocked_symbols is not None:
+            # Normalize symbols to uppercase
+            updates['blocked_symbols'] = [s.upper() for s in request.blocked_symbols if s]
+
         # Apply updates
         for field, value in updates.items():
             setattr(account, field, value)
@@ -179,6 +187,7 @@ class UpdateAccountSettingsUseCase:
             max_daily_loss_pct=account.max_daily_loss_pct,
             max_drawdown_pct=account.max_drawdown_pct,
             max_open_positions=account.max_open_positions,
+            max_positions_per_symbol=account.max_positions_per_symbol,
             max_daily_trades=account.max_daily_trades,
             trade_cooldown_seconds=account.trade_cooldown_seconds,
             default_stop_loss=getattr(account, 'default_stop_loss', None),
@@ -191,6 +200,7 @@ class UpdateAccountSettingsUseCase:
             is_signal_enabled=account.is_signal_enabled if account.is_signal_enabled is not None else True,
             signal_priority=account.signal_priority or 0,
             auto_confirm=account.auto_confirm if account.auto_confirm is not None else True,
+            blocked_symbols=account.blocked_symbols or [],
         )
 
 
@@ -230,6 +240,7 @@ class GetAccountSettingsUseCase:
             max_daily_loss_pct=account.max_daily_loss_pct,
             max_drawdown_pct=account.max_drawdown_pct,
             max_open_positions=account.max_open_positions,
+            max_positions_per_symbol=account.max_positions_per_symbol,
             max_daily_trades=account.max_daily_trades,
             trade_cooldown_seconds=account.trade_cooldown_seconds,
             default_stop_loss=getattr(account, 'default_stop_loss', None),
@@ -242,4 +253,5 @@ class GetAccountSettingsUseCase:
             is_signal_enabled=account.is_signal_enabled if account.is_signal_enabled is not None else True,
             signal_priority=account.signal_priority or 0,
             auto_confirm=account.auto_confirm if account.auto_confirm is not None else True,
+            blocked_symbols=account.blocked_symbols or [],
         )

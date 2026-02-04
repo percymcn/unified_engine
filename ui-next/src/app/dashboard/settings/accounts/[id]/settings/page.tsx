@@ -3,11 +3,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { Loader2, ArrowLeft, Settings, Shield, GitBranch, RefreshCw, Trophy } from 'lucide-react';
+import { Loader2, ArrowLeft, Settings, Shield, GitBranch, RefreshCw, Trophy, Target } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AccountSettingsForm } from '@/components/accounts/account-settings-form';
+import { SymbolSettingsPanel } from '@/components/accounts/symbol-settings-panel';
 import { Account, AccountSettings, AccountGroup, BROKER_DISPLAY_NAMES } from '@/types/account';
 import { ApiError, getAccountSettings, updateAccountSettings, getAccountGroups, refreshBrokerAccounts, updateAccount, DiscoveredAccount } from '@/lib/api/accounts';
 import { useToast } from '@/hooks/use-toast';
@@ -235,6 +236,7 @@ export default function AccountSettingsPage() {
         maxDailyLossPct: updates.riskLimits?.maxDailyLossPct,
         maxDrawdownPct: updates.riskLimits?.maxDrawdownPct,
         maxOpenPositions: updates.riskLimits?.maxOpenPositions,
+        maxPositionsPerSymbol: updates.riskLimits?.maxPositionsPerSymbol,
         maxDailyTrades: updates.riskLimits?.maxDailyTrades,
         tradeCooldownSeconds: updates.riskLimits?.tradeCooldownSeconds,
         // NOTE: defaultStopLoss and defaultTakeProfit are in broker-specific units
@@ -530,7 +532,7 @@ export default function AccountSettingsPage() {
 
       {/* Settings Tabs */}
       <Tabs defaultValue="position-sizing" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4 lg:w-[520px]">
+        <TabsList className="grid w-full grid-cols-5 lg:w-[650px]">
           <TabsTrigger value="position-sizing" className="gap-2">
             <Settings className="h-4 w-4" />
             <span className="hidden sm:inline">Position Sizing</span>
@@ -540,6 +542,11 @@ export default function AccountSettingsPage() {
             <Shield className="h-4 w-4" />
             <span className="hidden sm:inline">Risk Limits</span>
             <span className="sm:hidden">Risk</span>
+          </TabsTrigger>
+          <TabsTrigger value="symbol-settings" className="gap-2">
+            <Target className="h-4 w-4" />
+            <span className="hidden sm:inline">Symbol SL/TP</span>
+            <span className="sm:hidden">Symbols</span>
           </TabsTrigger>
           <TabsTrigger value="prop-rules" className="gap-2">
             <Trophy className="h-4 w-4" />
@@ -560,6 +567,13 @@ export default function AccountSettingsPage() {
           onSave={handleSave}
           saving={saving}
         />
+
+        <TabsContent value="symbol-settings">
+          <SymbolSettingsPanel
+            accountId={accountId}
+            broker={account?.broker || 'tradelocker'}
+          />
+        </TabsContent>
       </Tabs>
     </div>
   );

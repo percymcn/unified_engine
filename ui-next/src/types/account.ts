@@ -129,6 +129,7 @@ export interface AccountSettings {
     maxDailyLossPct: number | null;
     maxDrawdownPct: number | null;
     maxOpenPositions: number | null;
+    maxPositionsPerSymbol: number | null;
     maxDailyTrades: number | null;
     tradeCooldownSeconds: number | null;
     // Default stop loss/take profit in broker-specific units (pips/points/percent)
@@ -150,6 +151,7 @@ export interface AccountSettings {
     isSignalEnabled: boolean;
     signalPriority: number;
     autoConfirm: boolean;
+    blockedSymbols: string[];
   };
   // Prop firm specific settings (stored in extra_metadata)
   propRules: {
@@ -180,6 +182,7 @@ export interface AccountSettingsUpdate {
   maxDailyLossPct?: number | null;
   maxDrawdownPct?: number | null;
   maxOpenPositions?: number | null;
+  maxPositionsPerSymbol?: number | null;
   maxDailyTrades?: number | null;
   tradeCooldownSeconds?: number | null;
   // Default stop loss/take profit in broker-specific units (pips/points/percent)
@@ -193,6 +196,7 @@ export interface AccountSettingsUpdate {
   isSignalEnabled?: boolean;
   signalPriority?: number;
   autoConfirm?: boolean;
+  blockedSymbols?: string[];
   // Prop firm settings (stored in extra_metadata)
   propRulesEnabled?: boolean;
   propProvider?: string | null;

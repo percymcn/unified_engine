@@ -291,7 +291,28 @@ async def execute_tradingview_signal(
             detail="Missing required field: webhook_key"
         )
 
-    action_str = raw_payload.get("action", "").lower()
+    # === PINESCRIPT FORMAT TRANSLATION ===
+    # Translate PineScript webhook formats to standard format BEFORE validation
+    # This allows PineScript users to send their native format without changes
+    action_str = raw_payload.get("action", "").lower().strip()
+    data_str = raw_payload.get("data", "").lower().strip()
+
+    # 1. Translate data="long"/"short" to action="buy"/"sell" (PineScript entry signals)
+    if data_str in ["long", "short"] and action_str not in ["buy", "sell", "close"]:
+        action_str = "buy" if data_str == "long" else "sell"
+        logger.info(f"PineScript translation: data='{data_str}' -> action='{action_str}'")
+
+    # 2. Translate partial_close, tp1, tp2, tp3 to close (PineScript exit signals)
+    if action_str in ["partial_close", "tp1", "tp2", "tp3", "sl", "exit"]:
+        original_action = action_str
+        action_str = "close"
+        # Store original for potential partial close size handling
+        raw_payload["_original_action"] = original_action
+        logger.info(f"PineScript translation: action='{original_action}' -> action='close'")
+
+    # Update raw_payload with translated action for downstream processing
+    raw_payload["action"] = action_str
+
     if action_str not in ["buy", "sell", "close"]:
         log_event("webhook_rejected_invalid_action", webhook_id=webhook_id, action=action_str)
         raise HTTPException(
@@ -408,6 +429,38 @@ async def _execute_tradingview_signal_inner(
         routing_reason = routing_decision.reason
         user_id = routing_decision.user_id
 
+    # === SYMBOL BLOCKING FILTER ===
+    # Filter out accounts that have this symbol in their blocked_symbols list
+    symbol_upper = symbol.upper() if symbol else ""
+    original_account_count = len(accounts)
+    blocked_account_ids = []
+
+    if symbol_upper and accounts:
+        filtered_accounts = []
+        for account in accounts:
+            blocked = account.blocked_symbols or []
+            # Check if symbol is blocked (exact match or partial match)
+            is_blocked = False
+            for blocked_sym in blocked:
+                blocked_sym_upper = (blocked_sym or "").upper()
+                if blocked_sym_upper and (symbol_upper == blocked_sym_upper or symbol_upper in blocked_sym_upper or blocked_sym_upper in symbol_upper):
+                    is_blocked = True
+                    blocked_account_ids.append(account.id)
+                    break
+            if not is_blocked:
+                filtered_accounts.append(account)
+        accounts = filtered_accounts
+
+        if blocked_account_ids:
+            log_event(
+                "symbol_blocked",
+                webhook_id=webhook_id,
+                symbol=symbol,
+                blocked_account_ids=blocked_account_ids,
+                remaining_accounts=len(accounts)
+            )
+            routing_reason += f" (symbol blocked on {len(blocked_account_ids)} account(s))"
+
     # Log routing decision
     log_event(
         "routing_decision",
@@ -513,16 +566,17 @@ async def _execute_tradingview_signal_inner(
     if sl_price_raw and entry_price_hint and signal_sl_type != "price":
         try:
             sl_unit_mode = RiskUnitMode(signal_sl_type)
+            # Use symbol-specific tick size/digits for accurate conversion
             sl_price = RiskUnitConverter.convert_risk_unit_to_price(
                 value=float(sl_price_raw),
                 mode=sl_unit_mode,
                 entry_price=entry_price_hint,
                 is_buy=is_buy_action,
                 is_stop_loss=True,
-                digits=5,  # Default 5 digits for forex
-                tick_size=0.25  # Default tick size for futures
+                digits=RiskUnitConverter.get_digits_for_symbol(symbol),
+                tick_size=RiskUnitConverter.get_tick_size_for_symbol(symbol)
             )
-            logger.info(f"Signal SL converted: {sl_price_raw} {signal_sl_type} -> {sl_price} (entry: {entry_price_hint})")
+            logger.info(f"Signal SL converted: {sl_price_raw} {signal_sl_type} -> {sl_price} (entry: {entry_price_hint}, symbol: {symbol})")
         except Exception as sl_conv_err:
             logger.warning(f"Failed to convert signal SL: {sl_conv_err}, using raw value")
             sl_price = sl_price_raw
@@ -530,16 +584,17 @@ async def _execute_tradingview_signal_inner(
     if tp_price_raw and entry_price_hint and signal_tp_type != "price":
         try:
             tp_unit_mode = RiskUnitMode(signal_tp_type)
+            # Use symbol-specific tick size/digits for accurate conversion
             tp_price = RiskUnitConverter.convert_risk_unit_to_price(
                 value=float(tp_price_raw),
                 mode=tp_unit_mode,
                 entry_price=entry_price_hint,
                 is_buy=is_buy_action,
                 is_stop_loss=False,
-                digits=5,
-                tick_size=0.25
+                digits=RiskUnitConverter.get_digits_for_symbol(symbol),
+                tick_size=RiskUnitConverter.get_tick_size_for_symbol(symbol)
             )
-            logger.info(f"Signal TP converted: {tp_price_raw} {signal_tp_type} -> {tp_price} (entry: {entry_price_hint})")
+            logger.info(f"Signal TP converted: {tp_price_raw} {signal_tp_type} -> {tp_price} (entry: {entry_price_hint}, symbol: {symbol})")
         except Exception as tp_conv_err:
             logger.warning(f"Failed to convert signal TP: {tp_conv_err}, using raw value")
             tp_price = tp_price_raw
@@ -613,7 +668,9 @@ async def _execute_tradingview_signal_inner(
     guard = SignalIntelligenceGuard(db)
 
     # Get open positions summary for ALL target accounts
+    # Include per-symbol P&L for momentum flip detection
     open_positions_summary = {}
+    signal_symbol = symbol  # The symbol we're about to trade
     try:
         from app.models.models import Position
         for account in accounts:
@@ -622,14 +679,38 @@ async def _execute_tradingview_signal_inner(
                 Position.status == "open"
             ).all()
             total_margin = sum(p.margin or 0.0 for p in positions) if positions else (account.margin or 0.0)
+
+            # Build per-symbol P&L summary for momentum flip detection
+            symbol_pnl = {}
+            for pos in positions:
+                pos_symbol = (pos.symbol or "").upper()
+                pnl = pos.unrealized_pnl or 0.0
+                # Determine side from position type or broker_data
+                pos_side = "buy"  # default
+                if pos.type and hasattr(pos.type, 'value'):
+                    pos_side = "sell" if "sell" in pos.type.value.lower() else "buy"
+                elif pos.broker_data and isinstance(pos.broker_data, dict):
+                    pos_side = pos.broker_data.get("side", "buy").lower()
+
+                if pos_symbol not in symbol_pnl:
+                    symbol_pnl[pos_symbol] = {"buy_pnl": 0.0, "sell_pnl": 0.0, "buy_count": 0, "sell_count": 0}
+
+                if "buy" in pos_side or "long" in pos_side:
+                    symbol_pnl[pos_symbol]["buy_pnl"] += pnl
+                    symbol_pnl[pos_symbol]["buy_count"] += 1
+                else:
+                    symbol_pnl[pos_symbol]["sell_pnl"] += pnl
+                    symbol_pnl[pos_symbol]["sell_count"] += 1
+
             open_positions_summary[account.id] = {
                 "total_margin": total_margin,
-                "positions_count": len(positions) if positions else 0
+                "positions_count": len(positions) if positions else 0,
+                "symbol_pnl": symbol_pnl  # Per-symbol P&L breakdown
             }
     except Exception as e:
         logger.debug(f"Could not query positions: {e}")
         for account in accounts:
-            open_positions_summary[account.id] = {"total_margin": account.margin or 0.0, "positions_count": 0}
+            open_positions_summary[account.id] = {"total_margin": account.margin or 0.0, "positions_count": 0, "symbol_pnl": {}}
 
     # Evaluate guard (using first account for user context)
     first_account = accounts[0]
@@ -1144,10 +1225,10 @@ async def _execute_tradingview_signal_inner(
                 # Use limit_price if limit order, otherwise try price from payload
                 entry_price = limit_price or raw_payload.get("price") or raw_payload.get("entry_price")
 
-                # Try to get current price from executor if we have account settings but no entry price
+                # Try to get current price from executor if we have settings that need entry price
                 if entry_price is None and (
-                    (account_sl_price is None and account.default_stop_loss) or
-                    (account_tp_price is None and account.default_take_profit) or
+                    (account_sl_price is None and (account.default_stop_loss or hasattr(account, 'symbol_settings'))) or
+                    (account_tp_price is None and (account.default_take_profit or hasattr(account, 'symbol_settings'))) or
                     (account_trailing_stop is None and account.trailing_stop_pips)
                 ):
                     try:
@@ -1163,51 +1244,95 @@ async def _execute_tradingview_signal_inner(
                     except Exception as quote_err:
                         logger.debug(f"Could not get quote for SL/TP calculation: {quote_err}")
 
-                # Calculate SL from account settings if not in payload
-                if account_sl_price is None and account.default_stop_loss and entry_price:
+                # === SYMBOL-SPECIFIC SETTINGS LOOKUP ===
+                # Check if there are symbol-specific SL/TP settings for this account
+                symbol_sl = None
+                symbol_tp = None
+                symbol_sl_type = None
+                symbol_tp_type = None
+                try:
+                    from app.models.database_models import SymbolSettings
+                    symbol_upper = mapped_symbol.upper()
+                    # Try multiple symbol formats for matching (XAUUSD, XAUUSD.i, XAU/USD, etc.)
+                    sym_setting = db.query(SymbolSettings).filter(
+                        SymbolSettings.account_id == account.id,
+                        SymbolSettings.symbol == symbol_upper
+                    ).first()
+
+                    # If not found, try partial match
+                    if not sym_setting:
+                        all_settings = db.query(SymbolSettings).filter(
+                            SymbolSettings.account_id == account.id
+                        ).all()
+                        for ss in all_settings:
+                            ss_symbol = (ss.symbol or "").upper()
+                            if ss_symbol in symbol_upper or symbol_upper in ss_symbol:
+                                sym_setting = ss
+                                break
+
+                    if sym_setting:
+                        symbol_sl = sym_setting.default_stop_loss
+                        symbol_tp = sym_setting.default_take_profit
+                        symbol_sl_type = sym_setting.sl_type
+                        symbol_tp_type = sym_setting.tp_type
+                        logger.info(f"Account {account.id}: Found symbol-specific settings for {symbol_upper}: SL={symbol_sl} {symbol_sl_type}, TP={symbol_tp} {symbol_tp_type}")
+                except Exception as sym_err:
+                    # Table might not exist yet, or other error - use account defaults
+                    logger.debug(f"Could not query symbol settings (will use account defaults): {sym_err}")
+
+                # Determine effective SL/TP values (symbol-specific > account default)
+                effective_sl_value = symbol_sl if symbol_sl is not None else account.default_stop_loss
+                effective_sl_type = symbol_sl_type if symbol_sl_type else (account.sl_type or "pips")
+                effective_tp_value = symbol_tp if symbol_tp is not None else account.default_take_profit
+                effective_tp_type = symbol_tp_type if symbol_tp_type else (account.tp_type or "pips")
+
+                # Calculate SL from account/symbol settings if not in payload
+                if account_sl_price is None and effective_sl_value and entry_price:
                     try:
                         is_buy = action_str == "buy"
-                        sl_unit_mode = RiskUnitMode(account.sl_type or "pips")
+                        sl_unit_mode = RiskUnitMode(effective_sl_type)
 
                         if sl_unit_mode == RiskUnitMode.PRICE:
                             # Already an absolute price
-                            account_sl_price = account.default_stop_loss
+                            account_sl_price = effective_sl_value
                         else:
                             # Convert pips/points/percent to absolute price
+                            # Use symbol-specific tick size/digits for accurate conversion
                             account_sl_price = RiskUnitConverter.convert_risk_unit_to_price(
-                                value=account.default_stop_loss,
+                                value=effective_sl_value,
                                 mode=sl_unit_mode,
                                 entry_price=float(entry_price),
                                 is_buy=is_buy,
                                 is_stop_loss=True,
-                                digits=RiskUnitConverter.get_default_digits(broker_str),
-                                tick_size=RiskUnitConverter.get_default_tick_size(broker_str)
+                                digits=RiskUnitConverter.get_digits_for_symbol(mapped_symbol, broker_str),
+                                tick_size=RiskUnitConverter.get_tick_size_for_symbol(mapped_symbol, broker_str)
                             )
-                        logger.info(f"Account {account.id}: Calculated SL {account_sl_price} from {account.default_stop_loss} {account.sl_type} (entry: {entry_price})")
+                        logger.info(f"Account {account.id}: Calculated SL {account_sl_price} from {effective_sl_value} {effective_sl_type} (entry: {entry_price}, symbol: {mapped_symbol})")
                     except Exception as sl_err:
                         logger.warning(f"Failed to calculate SL for account {account.id}: {sl_err}")
 
-                # Calculate TP from account settings if not in payload
-                if account_tp_price is None and account.default_take_profit and entry_price:
+                # Calculate TP from account/symbol settings if not in payload
+                if account_tp_price is None and effective_tp_value and entry_price:
                     try:
                         is_buy = action_str == "buy"
-                        tp_unit_mode = RiskUnitMode(account.tp_type or "pips")
+                        tp_unit_mode = RiskUnitMode(effective_tp_type)
 
                         if tp_unit_mode == RiskUnitMode.PRICE:
                             # Already an absolute price
-                            account_tp_price = account.default_take_profit
+                            account_tp_price = effective_tp_value
                         else:
                             # Convert pips/points/percent to absolute price
+                            # Use symbol-specific tick size/digits for accurate conversion
                             account_tp_price = RiskUnitConverter.convert_risk_unit_to_price(
-                                value=account.default_take_profit,
+                                value=effective_tp_value,
                                 mode=tp_unit_mode,
                                 entry_price=float(entry_price),
                                 is_buy=is_buy,
                                 is_stop_loss=False,
-                                digits=RiskUnitConverter.get_default_digits(broker_str),
-                                tick_size=RiskUnitConverter.get_default_tick_size(broker_str)
+                                digits=RiskUnitConverter.get_digits_for_symbol(mapped_symbol, broker_str),
+                                tick_size=RiskUnitConverter.get_tick_size_for_symbol(mapped_symbol, broker_str)
                             )
-                        logger.info(f"Account {account.id}: Calculated TP {account_tp_price} from {account.default_take_profit} {account.tp_type} (entry: {entry_price})")
+                        logger.info(f"Account {account.id}: Calculated TP {account_tp_price} from {effective_tp_value} {effective_tp_type} (entry: {entry_price}, symbol: {mapped_symbol})")
                     except Exception as tp_err:
                         logger.warning(f"Failed to calculate TP for account {account.id}: {tp_err}")
 

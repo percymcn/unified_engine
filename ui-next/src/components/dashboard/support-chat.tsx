@@ -216,6 +216,93 @@ const KNOWLEDGE_BASE = {
     },
   },
 
+  // Signal Intelligence (Advanced AI Guards)
+  signal_intelligence: {
+    description: 'Advanced AI-powered signal analysis that protects profitable positions and detects market conditions',
+    features: {
+      position_pnl_protection: {
+        name: 'Position P&L Protection',
+        description: 'Warns or blocks signals that would open opposite positions against currently profitable trades',
+        modes: {
+          warn: 'Shows warning but allows signal to proceed (default)',
+          block: 'Automatically rejects signals that would reverse profitable positions',
+        },
+        example: 'If you have a profitable LONG position in XAUUSD and a SELL signal comes in, the system warns/blocks to protect your gains',
+        location: 'Settings > Accounts > Edit > Signal Intelligence tab',
+        tier: 'Trader tier and above',
+      },
+      momentum_flip_detection: {
+        name: 'Momentum Flip Detection',
+        description: 'Tracks market momentum and detects when signals flip too frequently (choppy conditions)',
+        how_it_works: [
+          'Tracks buy/sell signal ratio over configurable window',
+          'When opposite signals exceed threshold, triggers warning or pause',
+          'Helps avoid whipsaws in ranging markets',
+        ],
+        configurable: ['Window period (minutes)', 'Flip threshold count', 'Cooldown period'],
+        location: 'Settings > Accounts > Edit > Signal Intelligence tab',
+        tier: 'Trader tier and above',
+      },
+      daily_trade_limits: {
+        name: 'Daily Trade Limits',
+        description: 'Limit number of trades per day per symbol to prevent overtrading',
+        location: 'Settings > Accounts > Edit > Risk Management',
+        tier: 'Starter tier and above',
+      },
+    },
+  },
+
+  // Symbol-Specific Settings
+  symbol_settings: {
+    description: 'Configure custom stop loss, take profit, and position sizing for individual trading symbols',
+    features: {
+      per_symbol_sl_tp: {
+        name: 'Per-Symbol SL/TP Override',
+        description: 'Set different default SL/TP values for specific symbols. Overrides account-level defaults.',
+        example: 'Set XAUUSD to use 200 points SL while EURUSD uses 30 pips SL',
+        unit_types: ['pips', 'points', 'percent', 'price'],
+      },
+      position_size_override: {
+        name: 'Position Size Override',
+        description: 'Set fixed lot/contract size for specific symbols',
+        example: 'Always trade 0.1 lots on XAUUSD regardless of risk calculations',
+      },
+      max_positions_per_symbol: {
+        name: 'Max Positions per Symbol',
+        description: 'Limit how many simultaneous positions can be open for a specific symbol',
+        example: 'Allow max 2 positions on EURUSD to prevent over-exposure to single pair',
+      },
+    },
+    location: 'Settings > Accounts > Edit > Symbol SL/TP tab',
+    tier: 'Trader tier and above',
+    setup_steps: [
+      '1. Go to Settings > Accounts',
+      '2. Click Edit on your account',
+      '3. Navigate to "Symbol SL/TP" tab',
+      '4. Click "Add Symbol" button',
+      '5. Enter symbol name (e.g., XAUUSD)',
+      '6. Configure SL, TP, position size, or max positions',
+      '7. Click Save',
+    ],
+  },
+
+  // Symbol Blocking
+  symbol_blocking: {
+    description: 'Allow or block specific symbols from executing trades',
+    modes: {
+      allow_all: 'All symbols allowed (default)',
+      allow_list: 'Only trade symbols in the allowed list',
+      block_list: 'Trade all symbols except those in the blocked list',
+    },
+    use_cases: [
+      'Block volatile symbols during news events',
+      'Only allow specific forex pairs for focused strategy',
+      'Prevent accidental trades on unfamiliar instruments',
+    ],
+    location: 'Settings > Accounts > Edit > Signal Routing tab',
+    tier: 'Trader tier and above',
+  },
+
   // Risk Management Features
   risk_management: {
     description: 'Comprehensive risk management enforced per broker',
@@ -248,14 +335,59 @@ const KNOWLEDGE_BASE = {
         unit_types: 'Choose between Pips (forex), Points (futures), or Percentage (% of entry price)',
       },
       partial_tp: {
-        name: 'Partial Take Profit (Coming Soon)',
+        name: 'Partial Take Profit',
         description: 'Close portions of position at multiple TP levels (1:1, 1:2, 1:3, etc.)',
-        location: 'Settings > Accounts > Edit > Partial TP',
+        location: 'Settings > Accounts > Edit > Risk Management > Partial TP',
+        tier: 'Pro tier and above',
       },
       platform_managed: {
         name: 'Platform-Managed SL/TP',
         description: 'TradeFlow monitors positions and triggers closes instead of relying on broker',
         use_case: 'Useful for brokers with unreliable SL/TP execution',
+      },
+    },
+    position_sizing: {
+      description: 'Choose how position sizes are calculated for your trades',
+      modes: {
+        fixed: {
+          name: 'Fixed Lot Size',
+          description: 'Use a constant lot/contract size for all trades',
+          example: 'Always trade 0.1 lots regardless of account balance or risk',
+          tier: 'All tiers',
+        },
+        percent_balance: {
+          name: 'Percent of Balance',
+          description: 'Position size as a percentage of account balance',
+          example: '2% of $10,000 balance = $200 position value',
+          tier: 'Trader tier and above',
+        },
+        risk_percent: {
+          name: 'Risk-Based Sizing',
+          description: 'Calculate position size based on risk per trade and stop loss distance',
+          example: 'Risk 1% of account per trade with 50 pip SL = position size auto-calculated',
+          tier: 'Pro tier and above',
+        },
+      },
+      location: 'Settings > Accounts > Edit > Risk Management > Position Size Mode',
+    },
+    daily_limits: {
+      daily_loss_limit: {
+        name: 'Daily Loss Limit',
+        description: 'Maximum loss allowed per day before trading is paused',
+        example: 'Set to $500 - trading stops when daily P&L reaches -$500',
+        location: 'Settings > Accounts > Edit > Risk Management',
+      },
+      max_daily_drawdown: {
+        name: 'Max Daily Drawdown %',
+        description: 'Maximum percentage drawdown allowed per day',
+        example: 'Set to 3% - trading stops when account drops 3% from daily starting balance',
+        location: 'Settings > Accounts > Edit > Risk Management',
+      },
+      max_positions: {
+        name: 'Max Positions per Symbol',
+        description: 'Limit simultaneous positions on any single symbol',
+        example: 'Set to 2 - no more than 2 XAUUSD positions at once',
+        location: 'Settings > Accounts > Edit > Risk Management',
       },
     },
     unit_types: {
@@ -267,6 +399,30 @@ const KNOWLEDGE_BASE = {
       futures: 'ProjectX, TopStep, Tradovate use bracket orders for SL/TP (whole contracts only)',
       forex: 'MT5, MT4, TradeLocker use standard SL/TP (fractional lots like 0.01)',
     },
+  },
+
+  // Prop Firm Rules
+  prop_rules: {
+    description: 'Configure rules for prop firm challenge and funded account compliance',
+    features: {
+      challenge_tracking: {
+        name: 'Challenge Rule Tracking',
+        description: 'Track daily loss limits and drawdown rules specific to your prop firm',
+        supported_firms: ['FTMO', 'MyForexFunds', 'Funded Next', 'TopStep', 'Custom'],
+      },
+      auto_pause: {
+        name: 'Auto-Pause on Limit',
+        description: 'Automatically pause trading when prop firm limits are approached',
+        example: 'Pause trading at 4% daily loss if firm limit is 5%',
+      },
+      trailing_drawdown: {
+        name: 'Trailing Drawdown Support',
+        description: 'Track trailing drawdown rules used by firms like TopStep',
+        how_it_works: 'Monitors high water mark and pauses if drawdown limit is reached',
+      },
+    },
+    location: 'Settings > Accounts > Edit > Risk Management > Prop Firm Rules',
+    tier: 'Trader tier and above',
   },
 
   // Symbol Mapping
@@ -630,6 +786,79 @@ function generateAIResponse(question: string): { response: string; needsHuman: b
     };
   }
 
+  // Signal Intelligence
+  if (q.includes('signal intelligence') || q.includes('pnl protection') || q.includes('p&l protection') || q.includes('protect profit') || q.includes('profitable position')) {
+    const si = KNOWLEDGE_BASE.signal_intelligence;
+    const pnl = si.features.position_pnl_protection;
+    return {
+      response: `**Signal Intelligence - P&L Protection**\n\n${pnl.description}\n\n**How it works:**\n${pnl.example}\n\n**Modes:**\n• **Warn** - ${pnl.modes.warn}\n• **Block** - ${pnl.modes.block}\n\n**Location:** ${pnl.location}\n\n**Access:** ${pnl.tier}\n\nThis helps prevent accidentally reversing winning positions and locking in losses.`,
+      needsHuman: false,
+    };
+  }
+
+  // Symbol-specific settings
+  if ((q.includes('symbol') && (q.includes('specific') || q.includes('setting') || q.includes('override') || q.includes('sl') || q.includes('tp'))) || q.includes('per symbol') || q.includes('per-symbol')) {
+    const ss = KNOWLEDGE_BASE.symbol_settings;
+    return {
+      response: `**Symbol-Specific Settings**\n\n${ss.description}\n\n**Features:**\n• **Per-Symbol SL/TP** - ${ss.features.per_symbol_sl_tp.description}\n  Example: ${ss.features.per_symbol_sl_tp.example}\n\n• **Position Size Override** - ${ss.features.position_size_override.description}\n  Example: ${ss.features.position_size_override.example}\n\n• **Max Positions per Symbol** - ${ss.features.max_positions_per_symbol.description}\n  Example: ${ss.features.max_positions_per_symbol.example}\n\n**Setup:**\n${ss.setup_steps.join('\n')}\n\n**Access:** ${ss.tier}`,
+      needsHuman: false,
+    };
+  }
+
+  // Symbol blocking
+  if (q.includes('symbol block') || q.includes('block symbol') || q.includes('allow symbol') || q.includes('whitelist') || q.includes('blacklist')) {
+    const sb = KNOWLEDGE_BASE.symbol_blocking;
+    return {
+      response: `**Symbol Blocking**\n\n${sb.description}\n\n**Modes:**\n• **Allow All** - ${sb.modes.allow_all}\n• **Allow List** - ${sb.modes.allow_list}\n• **Block List** - ${sb.modes.block_list}\n\n**Use Cases:**\n${sb.use_cases.map(uc => `• ${uc}`).join('\n')}\n\n**Location:** ${sb.location}\n\n**Access:** ${sb.tier}`,
+      needsHuman: false,
+    };
+  }
+
+  // Position sizing modes
+  if (q.includes('position size') || q.includes('lot size') || q.includes('sizing mode') || q.includes('risk percent') || q.includes('percent balance')) {
+    const ps = KNOWLEDGE_BASE.risk_management.position_sizing;
+    return {
+      response: `**Position Sizing Modes**\n\n${ps.description}\n\n**Available Modes:**\n\n• **Fixed Lot Size** - ${ps.modes.fixed.description}\n  Example: ${ps.modes.fixed.example}\n  Access: ${ps.modes.fixed.tier}\n\n• **Percent of Balance** - ${ps.modes.percent_balance.description}\n  Example: ${ps.modes.percent_balance.example}\n  Access: ${ps.modes.percent_balance.tier}\n\n• **Risk-Based Sizing** - ${ps.modes.risk_percent.description}\n  Example: ${ps.modes.risk_percent.example}\n  Access: ${ps.modes.risk_percent.tier}\n\n**Location:** ${ps.location}`,
+      needsHuman: false,
+    };
+  }
+
+  // Prop firm rules
+  if (q.includes('prop') || q.includes('funded') || q.includes('challenge') || q.includes('ftmo') || q.includes('evaluation')) {
+    const pr = KNOWLEDGE_BASE.prop_rules;
+    return {
+      response: `**Prop Firm Rules & Compliance**\n\n${pr.description}\n\n**Features:**\n\n• **${pr.features.challenge_tracking.name}** - ${pr.features.challenge_tracking.description}\n  Supported: ${pr.features.challenge_tracking.supported_firms.join(', ')}\n\n• **${pr.features.auto_pause.name}** - ${pr.features.auto_pause.description}\n  Example: ${pr.features.auto_pause.example}\n\n• **${pr.features.trailing_drawdown.name}** - ${pr.features.trailing_drawdown.description}\n\n**Location:** ${pr.location}\n\n**Access:** ${pr.tier}\n\n**Tip:** Always test with demo accounts first when setting up prop firm rules!`,
+      needsHuman: false,
+    };
+  }
+
+  // Max positions
+  if (q.includes('max position') || q.includes('maximum position') || q.includes('position limit')) {
+    const mp = KNOWLEDGE_BASE.risk_management.daily_limits.max_positions;
+    return {
+      response: `**Max Positions per Symbol**\n\n${mp.description}\n\n**Example:** ${mp.example}\n\n**Location:** ${mp.location}\n\n**Use Cases:**\n• Prevent over-exposure to single symbol\n• Comply with prop firm rules\n• Manage risk during volatile markets\n\n**Note:** You can also set this per-symbol in the Symbol SL/TP settings for more granular control.`,
+      needsHuman: false,
+    };
+  }
+
+  // Daily loss / drawdown limits
+  if (q.includes('daily loss') || q.includes('daily limit') || q.includes('loss limit')) {
+    const dl = KNOWLEDGE_BASE.risk_management.daily_limits;
+    return {
+      response: `**Daily Loss & Drawdown Limits**\n\n**Daily Loss Limit:**\n${dl.daily_loss_limit.description}\nExample: ${dl.daily_loss_limit.example}\n\n**Max Daily Drawdown %:**\n${dl.max_daily_drawdown.description}\nExample: ${dl.max_daily_drawdown.example}\n\n**Location:** ${dl.daily_loss_limit.location}\n\n**How it works:**\n1. Set your maximum acceptable daily loss\n2. System tracks real-time P&L\n3. When limit is reached, trading automatically pauses\n4. Resets at midnight UTC\n\n**Tip:** Set limits slightly below prop firm requirements to have a safety buffer!`,
+      needsHuman: false,
+    };
+  }
+
+  // Partial take profit
+  if (q.includes('partial') && (q.includes('tp') || q.includes('take profit') || q.includes('close'))) {
+    const ptp = KNOWLEDGE_BASE.risk_management.features.partial_tp;
+    return {
+      response: `**Partial Take Profit**\n\n${ptp.description}\n\n**How it works:**\n• Close a portion of your position at each TP level\n• Example: Close 50% at 1:1 RR, remaining 50% at 1:2 RR\n• Locks in profits while letting winners run\n\n**Location:** ${ptp.location}\n\n**Access:** ${ptp.tier}`,
+      needsHuman: false,
+    };
+  }
+
   // Symbol mapping
   if (q.includes('symbol') && (q.includes('map') || q.includes('convert') || q.includes('translate'))) {
     return {
@@ -854,9 +1083,9 @@ export function SupportChat() {
   // Suggested questions
   const suggestions = [
     'How do I get started?',
-    'How do I connect MT5?',
-    'What is my webhook URL?',
-    'Why was my signal rejected?',
+    'What is Signal Intelligence?',
+    'How do I set symbol-specific SL/TP?',
+    'What position sizing modes are available?',
   ];
 
   // Auto-scroll to bottom

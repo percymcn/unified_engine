@@ -166,6 +166,9 @@ class TradingAccount(Base):
     signal_priority = Column(Integer, default=0)  # Priority when routing (higher = first)
     auto_confirm = Column(Boolean, default=True)  # Auto-execute trades without manual confirmation
 
+    # Symbol blocking - list of symbols blocked from trading on this account
+    blocked_symbols = Column(JSON, nullable=True, default=list)  # ["XAUUSD", "BTCUSD", ...]
+
     # Status
     is_active = Column(Boolean, default=True)
     is_connected = Column(Boolean, default=False)
@@ -196,6 +199,45 @@ class TradingAccount(Base):
     broker_symbol_format = relationship("BrokerSymbolFormat", back_populates="account", uselist=False)
     contract_positions = relationship("UserContractPosition", back_populates="account")
     position_trades = relationship("PositionTrade", back_populates="account")
+    symbol_settings = relationship("SymbolSettings", back_populates="account", cascade="all, delete-orphan")
+
+
+class SymbolSettings(Base):
+    """
+    Symbol-specific trading settings per account.
+
+    Allows users to configure SL/TP defaults per symbol, e.g.:
+    - XAUUSD: SL=200 pips, TP=400 pips
+    - BTCUSD: SL=500 points, TP=1000 points
+    - NAS100: SL=50 points, TP=100 points
+    """
+    __tablename__ = "symbol_settings"
+    __table_args__ = (
+        Index('ix_symbol_settings_account_symbol', 'account_id', 'symbol', unique=True),
+        {'extend_existing': True}
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    account_id = Column(Integer, ForeignKey("trading_accounts.id", ondelete="CASCADE"), nullable=False, index=True)
+    symbol = Column(String(50), nullable=False, index=True)  # e.g., "XAUUSD", "BTCUSD", "NAS100"
+
+    # SL/TP settings for this symbol
+    default_stop_loss = Column(Float, nullable=True)  # Value in units specified by sl_type
+    default_take_profit = Column(Float, nullable=True)  # Value in units specified by tp_type
+    sl_type = Column(String(20), nullable=True, default='pips')  # 'pips', 'points', 'percent', 'price'
+    tp_type = Column(String(20), nullable=True, default='pips')  # 'pips', 'points', 'percent', 'price'
+
+    # Optional: override position sizing for this symbol
+    position_size_override = Column(Float, nullable=True)  # Override lot size for this symbol
+    max_positions = Column(Integer, nullable=True)  # Max positions for this symbol (overrides account level)
+
+    # Metadata
+    notes = Column(Text, nullable=True)  # User notes for this symbol config
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationship
+    account = relationship("TradingAccount", back_populates="symbol_settings")
 
 
 class PositionTradeStatus(enum.Enum):
@@ -527,6 +569,11 @@ class MomentumSettings(Base):
 
     # Hedge settings
     allow_hedge = Column(Boolean, nullable=False, default=False)  # Allow hedging on momentum warning
+
+    # Position P&L check settings (warn when trading against profitable positions)
+    check_position_pnl = Column(Boolean, nullable=False, default=True)  # Enable P&L-based momentum check
+    profit_pnl_threshold = Column(Float, nullable=False, default=500.0)  # Warn if opposite signal and positions in $X+ profit
+    block_pnl_signals = Column(Boolean, nullable=False, default=False)  # Block signals (vs just warn) when trading against profit
 
     # Staleness settings
     staleness_enabled = Column(Boolean, nullable=False, default=True)  # Enable staleness check

@@ -4,7 +4,7 @@ Account Settings DTOs - Input/Output contracts for account settings use cases.
 Handles per-account position sizing and risk management configuration.
 """
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Optional, List
 from enum import Enum
 
 
@@ -34,6 +34,7 @@ class AccountSettingsRequest:
     max_daily_loss_pct: Optional[float] = None  # 0 - 100
     max_drawdown_pct: Optional[float] = None  # 0 - 100
     max_open_positions: Optional[int] = None  # 1 - 100
+    max_positions_per_symbol: Optional[int] = None  # 1 - 50 (max positions per instrument)
     max_daily_trades: Optional[int] = None  # 1 - 1000
     trade_cooldown_seconds: Optional[int] = None  # 0 - 3600
     # Default stop loss/take profit in broker-specific units (pips/points/percent)
@@ -50,6 +51,9 @@ class AccountSettingsRequest:
     is_signal_enabled: Optional[bool] = None
     signal_priority: Optional[int] = None  # 0 - 100
     auto_confirm: Optional[bool] = None
+
+    # Symbol blocking - list of symbols blocked from trading on this account
+    blocked_symbols: Optional[List[str]] = None  # ["XAUUSD", "BTCUSD", ...]
 
 
 @dataclass(frozen=True)
@@ -70,6 +74,7 @@ class AccountSettingsResponse:
     max_daily_loss_pct: Optional[float]
     max_drawdown_pct: Optional[float]
     max_open_positions: Optional[int]
+    max_positions_per_symbol: Optional[int]
     max_daily_trades: Optional[int]
     trade_cooldown_seconds: Optional[int]
     # Default stop loss/take profit in broker-specific units (pips/points/percent)
@@ -87,6 +92,9 @@ class AccountSettingsResponse:
     is_signal_enabled: bool
     signal_priority: int
     auto_confirm: bool
+
+    # Symbol blocking
+    blocked_symbols: List[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
