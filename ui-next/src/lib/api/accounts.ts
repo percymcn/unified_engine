@@ -864,32 +864,41 @@ export interface SymbolSettingInput {
 
 interface ApiSymbolSetting {
   id: number;
-  account_id: number;
+  account_id?: number;
+  accountId?: number;
   symbol: string;
-  default_stop_loss: number | null;
-  default_take_profit: number | null;
-  sl_type: string;
-  tp_type: string;
-  position_size_override: number | null;
-  max_positions: number | null;
-  notes: string | null;
-  created_at: string;
-  updated_at: string;
+  default_stop_loss?: number | null;
+  defaultStopLoss?: number | null;
+  default_take_profit?: number | null;
+  defaultTakeProfit?: number | null;
+  sl_type?: string;
+  slType?: string;
+  tp_type?: string;
+  tpType?: string;
+  position_size_override?: number | null;
+  positionSizeOverride?: number | null;
+  max_positions?: number | null;
+  maxPositions?: number | null;
+  notes?: string | null;
+  created_at?: string;
+  createdAt?: string;
+  updated_at?: string;
+  updatedAt?: string;
 }
 
 const mapSymbolSetting = (data: ApiSymbolSetting): SymbolSetting => ({
   id: data.id,
-  accountId: data.account_id,
+  accountId: data.account_id || data.accountId,
   symbol: data.symbol,
-  defaultStopLoss: data.default_stop_loss,
-  defaultTakeProfit: data.default_take_profit,
-  slType: (data.sl_type || 'pips') as RiskUnitType,
-  tpType: (data.tp_type || 'pips') as RiskUnitType,
-  positionSizeOverride: data.position_size_override,
-  maxPositions: data.max_positions,
+  defaultStopLoss: data.default_stop_loss ?? data.defaultStopLoss,
+  defaultTakeProfit: data.default_take_profit ?? data.defaultTakeProfit,
+  slType: (data.sl_type || data.slType || 'pips') as RiskUnitType,
+  tpType: (data.tp_type || data.tpType || 'pips') as RiskUnitType,
+  positionSizeOverride: data.position_size_override ?? data.positionSizeOverride,
+  maxPositions: data.max_positions ?? data.maxPositions,
   notes: data.notes,
-  createdAt: data.created_at,
-  updatedAt: data.updated_at,
+  createdAt: data.created_at || data.createdAt,
+  updatedAt: data.updated_at || data.updatedAt,
 });
 
 /**
