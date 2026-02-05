@@ -752,7 +752,7 @@ class ProjectXSDKService:
 
                 # Get symbol info for tick value
                 symbol = getattr(pos, 'contractName', getattr(pos, 'symbol', ''))
-                contract_info = self._contract_resolver.get_info(symbol) if symbol else None
+                contract_info = self._contract_resolver.get_symbol_info(symbol) if symbol else None
                 tick_value = float(contract_info.get('tick_value', 1.0)) if contract_info else 1.0
 
                 # Handle pnl - prefer direct API values over calculated
