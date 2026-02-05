@@ -752,8 +752,23 @@ class ProjectXSDKService:
 
                 # Get symbol info for tick value
                 symbol = getattr(pos, 'contractName', getattr(pos, 'symbol', ''))
-                contract_info = self._contract_resolver.get_symbol_info(symbol) if symbol else None
+
+                # Extract base symbol from contract name (e.g., CON.F.US.MES.H26 -> MES, MESH26 -> MES)
+                base_symbol = symbol
+                if symbol:
+                    # Handle CON.F.US.XXX.YYY format
+                    if symbol.startswith('CON.'):
+                        parts = symbol.split('.')
+                        if len(parts) >= 4:
+                            base_symbol = parts[3]  # e.g., MES from CON.F.US.MES.H26
+                    else:
+                        # Handle MESH26, MGCJ26 format - strip month code and year
+                        import re
+                        base_symbol = re.sub(r'[FGHJKMNQUVXZ]\d{1,4}$', '', symbol.upper())
+
+                contract_info = self._contract_resolver.get_symbol_info(base_symbol) if base_symbol else None
                 tick_value = float(contract_info.get('tick_value', 1.0)) if contract_info else 1.0
+                tick_size = float(contract_info.get('tick_size', 0.01)) if contract_info else 0.01
 
                 # Handle pnl - prefer direct API values over calculated
                 pnl_val = 0.0
@@ -788,7 +803,6 @@ class ProjectXSDKService:
                     pos_type = getattr(pos, 'type', None)
                     is_long = pos_type == 2 if pos_type is not None else (float(getattr(pos, 'size', 0) or 0) > 0)
 
-                    tick_size = float(contract_info.get('tick_size', 0.01)) if contract_info else 0.01
                     if tick_size > 0:
                         price_diff = current_price - entry_price
                         ticks = price_diff / tick_size

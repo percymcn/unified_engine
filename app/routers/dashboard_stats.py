@@ -47,6 +47,9 @@ async def get_dashboard_stats(
         # Get signals stats
         total_signals = signals_query.count()
         pending_signals = db.query(SignalORM).filter(SignalORM.user_id == user_id, SignalORM.status == "pending").count() if user_id else 0
+        # "Active" signals = pending + partial (signals still being processed across accounts)
+        partial_signals = db.query(SignalORM).filter(SignalORM.user_id == user_id, SignalORM.status == "partial").count() if user_id else 0
+        active_signals = pending_signals + partial_signals
         executed_signals = db.query(SignalORM).filter(SignalORM.user_id == user_id, SignalORM.status == "executed").count() if user_id else 0
         failed_signals = db.query(SignalORM).filter(SignalORM.user_id == user_id, SignalORM.status == "failed").count() if user_id else 0
         skipped_signals = db.query(SignalORM).filter(SignalORM.user_id == user_id, SignalORM.status == "skipped").count() if user_id else 0
@@ -78,7 +81,7 @@ async def get_dashboard_stats(
         # Return in both flat format (for dashboard widgets) and nested (for detail views)
         return {
             # Flat format for dashboard widgets
-            "activeSignals": pending_signals,  # "Active" means pending/waiting to be processed
+            "activeSignals": active_signals,  # "Active" = pending + partial (still being processed)
             "connectedBrokers": connected_accounts,
             "todaysTrades": today_trades,
             "totalBalance": float(total_balance),
@@ -86,7 +89,9 @@ async def get_dashboard_stats(
             # Nested format for detailed stats (backward compat)
             "signals": {
                 "total": total_signals,
+                "active": active_signals,  # pending + partial
                 "pending": pending_signals,
+                "partial": partial_signals,
                 "executed": executed_signals,
                 "failed": failed_signals,
                 "skipped": skipped_signals,
