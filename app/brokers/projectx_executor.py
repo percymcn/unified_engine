@@ -680,12 +680,39 @@ class ProjectXExecutor(BaseExecutor):
             logger.error(f"get_orders failed: {e}")
             return []
 
+    def _normalize_futures_symbol(self, symbol: str) -> str:
+        """
+        Normalize futures symbol by stripping month/year codes.
+
+        Examples:
+            MGCZ5 -> MGC
+            MGCZ25 -> MGC
+            MNQ1! -> MNQ
+            MESH2026 -> MES
+        """
+        import re
+        s = symbol.upper().strip()
+
+        # Strip TradingView continuous contract suffix (1!, 2!, etc)
+        s = re.sub(r'\d!$', '', s)
+
+        # Strip futures month codes with various year formats
+        # Month codes: F=Jan, G=Feb, H=Mar, J=Apr, K=May, M=Jun, N=Jul, Q=Aug, U=Sep, V=Oct, X=Nov, Z=Dec
+        # Year formats: Z5, Z25, Z2025, Z2026
+        s = re.sub(r'[FGHJKMNQUVXZ]\d{1,4}$', '', s)
+
+        return s
+
     async def get_quote(self, symbol: str) -> Optional[Dict[str, Any]]:
         """Get quote for symbol using orderbook (real-time bid/ask)."""
         if self.is_using_sdk:
+            # Normalize symbol for ProjectX (strip month/year codes)
+            normalized_symbol = self._normalize_futures_symbol(symbol)
+            logger.debug(f"get_quote: normalized {symbol} -> {normalized_symbol}")
+
             try:
                 # First try orderbook for real-time bid/ask (most accurate)
-                orderbook = await self._sdk_service.get_orderbook(symbol, depth=1)
+                orderbook = await self._sdk_service.get_orderbook(normalized_symbol, depth=1)
                 if orderbook:
                     best_bid = orderbook.get("best_bid", 0)
                     best_ask = orderbook.get("best_ask", 0)
@@ -701,13 +728,13 @@ class ProjectXExecutor(BaseExecutor):
                         }
 
                 # Fallback to market data (OHLC - less accurate for current price)
-                data = await self._sdk_service.get_market_data(symbol, days=1, interval=1)
+                data = await self._sdk_service.get_market_data(normalized_symbol, days=1, interval=1)
                 if data:
                     latest = data[-1]
                     close_price = latest.get("close", 0)
                     if close_price > 0:
                         # Estimate spread based on symbol type (futures typically have small spread)
-                        spread_estimate = 0.25 if symbol.upper().startswith(("M", "E", "N", "Y")) else 0.01
+                        spread_estimate = 0.25 if normalized_symbol.upper().startswith(("M", "E", "N", "Y")) else 0.01
                         return {
                             "symbol": symbol,
                             "bid": close_price - spread_estimate / 2,
@@ -716,7 +743,7 @@ class ProjectXExecutor(BaseExecutor):
                             "timestamp": datetime.now(),
                         }
             except Exception as e:
-                logger.error(f"SDK get_quote failed for {symbol}: {e}")
+                logger.error(f"SDK get_quote failed for {symbol} (normalized: {normalized_symbol}): {e}")
         return None
 
     async def get_account_info(self, account_id: str) -> Optional[Account]:
