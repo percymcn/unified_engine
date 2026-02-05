@@ -681,20 +681,42 @@ class ProjectXExecutor(BaseExecutor):
             return []
 
     async def get_quote(self, symbol: str) -> Optional[Dict[str, Any]]:
-        """Get quote for symbol."""
+        """Get quote for symbol using orderbook (real-time bid/ask)."""
         if self.is_using_sdk:
             try:
+                # First try orderbook for real-time bid/ask (most accurate)
+                orderbook = await self._sdk_service.get_orderbook(symbol, depth=1)
+                if orderbook:
+                    best_bid = orderbook.get("best_bid", 0)
+                    best_ask = orderbook.get("best_ask", 0)
+
+                    if best_bid > 0 or best_ask > 0:
+                        return {
+                            "symbol": symbol,
+                            "bid": best_bid,
+                            "ask": best_ask,
+                            "price": (best_bid + best_ask) / 2 if best_bid and best_ask else best_bid or best_ask,
+                            "spread": orderbook.get("spread", 0),
+                            "timestamp": datetime.now(),
+                        }
+
+                # Fallback to market data (OHLC - less accurate for current price)
                 data = await self._sdk_service.get_market_data(symbol, days=1, interval=1)
                 if data:
                     latest = data[-1]
-                    return {
-                        "symbol": symbol,
-                        "bid": latest.get("close", 0),
-                        "ask": latest.get("close", 0),
-                        "timestamp": datetime.now(),
-                    }
+                    close_price = latest.get("close", 0)
+                    if close_price > 0:
+                        # Estimate spread based on symbol type (futures typically have small spread)
+                        spread_estimate = 0.25 if symbol.upper().startswith(("M", "E", "N", "Y")) else 0.01
+                        return {
+                            "symbol": symbol,
+                            "bid": close_price - spread_estimate / 2,
+                            "ask": close_price + spread_estimate / 2,
+                            "price": close_price,
+                            "timestamp": datetime.now(),
+                        }
             except Exception as e:
-                logger.error(f"SDK get_quote failed: {e}")
+                logger.error(f"SDK get_quote failed for {symbol}: {e}")
         return None
 
     async def get_account_info(self, account_id: str) -> Optional[Account]:

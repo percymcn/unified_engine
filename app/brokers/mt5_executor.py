@@ -1188,11 +1188,74 @@ class MT5Executor(BaseExecutor):
 
     async def get_quote(self, symbol: str) -> Optional[Dict[str, Any]]:
         """Get quote for symbol from MT5."""
+        # Try REST API first (most reliable)
+        if self.is_using_rest_api:
+            return await self._get_quote_rest(symbol)
+
         if self.is_using_sdk:
             return self._sdk_service.get_quote(symbol)
 
         # Fallback - not implemented in Manager API
         return None
+
+    async def _get_quote_rest(self, symbol: str) -> Optional[Dict[str, Any]]:
+        """Get quote via MetaAPI REST API using current candle data."""
+        if not self._rest_client:
+            return None
+
+        try:
+            # MetaAPI endpoint for current candles (latest price data)
+            # Per docs: GET /users/current/accounts/:accountId/symbols/:symbol/current-candles
+            url = f"{self._metaapi_client_api}/users/current/accounts/{self._metaapi_account_id}/symbols/{symbol}/current-candles"
+            params = {"timeframe": "1m"}  # 1-minute candle for current price
+
+            response = await self._rest_client.get(url, params=params, timeout=10.0)
+
+            if response.status_code == 200:
+                candles = response.json()
+                if candles and len(candles) > 0:
+                    # Get the most recent candle
+                    latest = candles[-1] if isinstance(candles, list) else candles
+                    close_price = float(latest.get("close", 0))
+
+                    if close_price > 0:
+                        # Estimate bid/ask from close price (typical spread)
+                        # For forex pairs, spread is typically 0.0001-0.0005
+                        # For metals like XAUUSD, spread is typically 0.1-0.5
+                        spread_estimate = 0.01 if "XAU" in symbol.upper() or "GOLD" in symbol.upper() else 0.0001
+
+                        return {
+                            "symbol": symbol,
+                            "bid": close_price - spread_estimate / 2,
+                            "ask": close_price + spread_estimate / 2,
+                            "price": close_price,
+                            "time": latest.get("time", datetime.now().isoformat())
+                        }
+
+            # Try alternative endpoint: market-data
+            url_alt = f"{self._metaapi_client_api}/users/current/accounts/{self._metaapi_account_id}/symbols/{symbol}/current-price"
+            response_alt = await self._rest_client.get(url_alt, timeout=10.0)
+
+            if response_alt.status_code == 200:
+                data = response_alt.json()
+                bid = float(data.get("bid", 0))
+                ask = float(data.get("ask", 0))
+
+                if bid > 0 or ask > 0:
+                    return {
+                        "symbol": symbol,
+                        "bid": bid,
+                        "ask": ask,
+                        "price": (bid + ask) / 2 if bid and ask else bid or ask,
+                        "time": datetime.now().isoformat()
+                    }
+
+            logger.warning(f"MetaAPI REST get_quote failed for {symbol}: {response.status_code}")
+            return None
+
+        except Exception as e:
+            logger.error(f"Error getting quote via REST for {symbol}: {e}")
+            return None
 
     async def modify_position(
         self,
