@@ -750,22 +750,52 @@ class ProjectXSDKService:
                 current_price = float(getattr(pos, 'currentPrice', getattr(pos, 'current_price', 0)) or 0)
                 entry_price = float(getattr(pos, 'avgPrice', getattr(pos, 'averagePrice', getattr(pos, 'entry_price', 0))) or 0)
 
-                # Handle pnl - SDK Position.unrealized_pnl() is a method requiring current_price
+                # Get symbol info for tick value
+                symbol = getattr(pos, 'contractName', getattr(pos, 'symbol', ''))
+                contract_info = self._contract_resolver.get_info(symbol) if symbol else None
+                tick_value = float(contract_info.get('tick_value', 1.0)) if contract_info else 1.0
+
+                # Handle pnl - prefer direct API values over calculated
                 pnl_val = 0.0
-                pnl_attr = getattr(pos, 'unrealized_pnl', None)
-                if pnl_attr is not None:
-                    if callable(pnl_attr):
-                        # Call the method with current_price (tick_value defaults to 1.0)
-                        try:
-                            pnl_val = float(pnl_attr(current_price))
-                        except Exception as pnl_err:
-                            logger.debug(f"Error calculating PnL: {pnl_err}")
-                            pnl_val = 0.0
-                    else:
-                        pnl_val = float(pnl_attr)
-                # Fallback: check for unrealizedPnl or pnl attributes (camelCase from API)
+
+                # First: Check for direct pnl/unrealizedPnl from API (most accurate)
+                direct_pnl = getattr(pos, 'unrealizedPnl', None) or getattr(pos, 'pnl', None)
+                if direct_pnl is not None and not callable(direct_pnl):
+                    pnl_val = float(direct_pnl)
+
+                # Second: Try SDK unrealized_pnl method with proper tick_value
                 if pnl_val == 0.0:
-                    pnl_val = float(getattr(pos, 'unrealizedPnl', getattr(pos, 'pnl', 0)) or 0)
+                    pnl_attr = getattr(pos, 'unrealized_pnl', None)
+                    if pnl_attr is not None:
+                        if callable(pnl_attr):
+                            try:
+                                # Pass tick_value if method accepts it
+                                import inspect
+                                sig = inspect.signature(pnl_attr)
+                                if len(sig.parameters) >= 2:
+                                    pnl_val = float(pnl_attr(current_price, tick_value))
+                                else:
+                                    pnl_val = float(pnl_attr(current_price))
+                            except Exception as pnl_err:
+                                logger.debug(f"Error calculating PnL via method: {pnl_err}")
+                                pnl_val = 0.0
+                        else:
+                            pnl_val = float(pnl_attr)
+
+                # Third: Manual calculation as last resort
+                if pnl_val == 0.0 and current_price > 0 and entry_price > 0:
+                    pos_size = abs(float(getattr(pos, 'size', getattr(pos, 'qty', 0)) or 0))
+                    pos_type = getattr(pos, 'type', None)
+                    is_long = pos_type == 2 if pos_type is not None else (float(getattr(pos, 'size', 0) or 0) > 0)
+
+                    tick_size = float(contract_info.get('tick_size', 0.01)) if contract_info else 0.01
+                    if tick_size > 0:
+                        price_diff = current_price - entry_price
+                        ticks = price_diff / tick_size
+                        pnl_val = ticks * tick_value * pos_size
+                        if not is_long:
+                            pnl_val = -pnl_val
+                    logger.debug(f"Manual PnL calc for {symbol}: price_diff={current_price-entry_price}, tick_value={tick_value}, size={pos_size}, pnl={pnl_val}")
 
                 # Determine side from 'type' attribute or size sign
                 # Position type: 2 = long (buy), 0 = short (sell)
