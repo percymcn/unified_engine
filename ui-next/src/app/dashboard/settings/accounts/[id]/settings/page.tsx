@@ -234,6 +234,8 @@ export default function AccountSettingsPage() {
         maxPositionSize: updates.riskLimits?.maxPositionSize,
         maxDailyLoss: updates.riskLimits?.maxDailyLoss,
         maxDailyLossPct: updates.riskLimits?.maxDailyLossPct,
+        maxDailyProfit: updates.riskLimits?.maxDailyProfit,
+        maxDailyProfitPct: updates.riskLimits?.maxDailyProfitPct,
         maxDrawdownPct: updates.riskLimits?.maxDrawdownPct,
         maxOpenPositions: updates.riskLimits?.maxOpenPositions,
         maxPositionsPerSymbol: updates.riskLimits?.maxPositionsPerSymbol,
