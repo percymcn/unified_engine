@@ -70,6 +70,12 @@ export function AccountSettingsForm({
   const [maxDailyLossPct, setMaxDailyLossPct] = useState(
     settings.riskLimits.maxDailyLossPct?.toString() || ''
   );
+  const [maxDailyProfit, setMaxDailyProfit] = useState(
+    settings.riskLimits.maxDailyProfit?.toString() || ''
+  );
+  const [maxDailyProfitPct, setMaxDailyProfitPct] = useState(
+    settings.riskLimits.maxDailyProfitPct?.toString() || ''
+  );
   const [maxDrawdownPct, setMaxDrawdownPct] = useState(
     settings.riskLimits.maxDrawdownPct?.toString() || ''
   );
@@ -148,6 +154,8 @@ export function AccountSettingsForm({
     setMaxPositionSize(settings.riskLimits.maxPositionSize?.toString() || '');
     setMaxDailyLoss(settings.riskLimits.maxDailyLoss?.toString() || '');
     setMaxDailyLossPct(settings.riskLimits.maxDailyLossPct?.toString() || '');
+    setMaxDailyProfit(settings.riskLimits.maxDailyProfit?.toString() || '');
+    setMaxDailyProfitPct(settings.riskLimits.maxDailyProfitPct?.toString() || '');
     setMaxDrawdownPct(settings.riskLimits.maxDrawdownPct?.toString() || '');
     setMaxOpenPositions(settings.riskLimits.maxOpenPositions?.toString() || '');
     setMaxPositionsPerSymbol(settings.riskLimits.maxPositionsPerSymbol?.toString() || '');
@@ -189,6 +197,8 @@ export function AccountSettingsForm({
         maxPositionSize: maxPositionSize ? parseFloat(maxPositionSize) : null,
         maxDailyLoss: maxDailyLoss ? parseFloat(maxDailyLoss) : null,
         maxDailyLossPct: maxDailyLossPct ? parseFloat(maxDailyLossPct) : null,
+        maxDailyProfit: maxDailyProfit ? parseFloat(maxDailyProfit) : null,
+        maxDailyProfitPct: maxDailyProfitPct ? parseFloat(maxDailyProfitPct) : null,
         maxDrawdownPct: maxDrawdownPct ? parseFloat(maxDrawdownPct) : null,
         maxOpenPositions: maxOpenPositions ? parseInt(maxOpenPositions) : null,
         maxPositionsPerSymbol: maxPositionsPerSymbol ? parseInt(maxPositionsPerSymbol) : null,
@@ -610,6 +620,38 @@ export function AccountSettingsForm({
                   onChange={(e) => setMaxDailyLossPct(e.target.value)}
                   placeholder="No limit"
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="maxDailyProfit">Daily Profit Target ($)</Label>
+                <Input
+                  id="maxDailyProfit"
+                  type="number"
+                  min="0"
+                  value={maxDailyProfit}
+                  onChange={(e) => setMaxDailyProfit(e.target.value)}
+                  placeholder="No limit"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Stop trading when this profit is reached
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="maxDailyProfitPct">Daily Profit Target (%)</Label>
+                <Input
+                  id="maxDailyProfitPct"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  value={maxDailyProfitPct}
+                  onChange={(e) => setMaxDailyProfitPct(e.target.value)}
+                  placeholder="No limit"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Stop trading when this % profit is reached
+                </p>
               </div>
 
               <div className="space-y-2">

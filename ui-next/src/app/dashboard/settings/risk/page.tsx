@@ -20,6 +20,8 @@ interface GlobalRiskSettings {
   default_max_open_positions: number | null;
   default_max_daily_loss: number | null;
   default_max_daily_loss_pct: number | null;
+  default_max_daily_profit: number | null;
+  default_max_daily_profit_pct: number | null;
   default_max_drawdown_pct: number | null;
   default_trade_cooldown_seconds: number | null;
   default_position_sizing_mode: string | null;
@@ -167,6 +169,8 @@ export default function RiskSettingsPage() {
           default_max_open_positions: null,
           default_max_daily_loss: null,
           default_max_daily_loss_pct: null,
+          default_max_daily_profit: null,
+          default_max_daily_profit_pct: null,
           default_max_drawdown_pct: null,
           default_trade_cooldown_seconds: null,
           default_position_sizing_mode: "fixed",
@@ -183,6 +187,8 @@ export default function RiskSettingsPage() {
         default_max_open_positions: null,
         default_max_daily_loss: null,
         default_max_daily_loss_pct: null,
+        default_max_daily_profit: null,
+        default_max_daily_profit_pct: null,
         default_max_drawdown_pct: null,
         default_trade_cooldown_seconds: null,
         default_position_sizing_mode: "fixed",
@@ -385,6 +391,56 @@ export default function RiskSettingsPage() {
                 <div className="flex justify-between text-xs text-muted-foreground">
                   <span>0%</span>
                   <span className="font-medium">{settings.default_max_drawdown_pct || 0}%</span>
+                  <span>50%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Profit Targets */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <DollarSign className="h-5 w-5 text-green-500" />
+            Profit Target Protection
+          </CardTitle>
+          <CardDescription>Stop trading when profit targets are reached to protect gains</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <Label>Daily Profit Target ($)</Label>
+              <Input
+                type="number"
+                value={settings.default_max_daily_profit || ""}
+                onChange={(e) => setSettings({
+                  ...settings,
+                  default_max_daily_profit: e.target.value ? parseFloat(e.target.value) : null
+                })}
+                placeholder="No limit"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Halt trading when this profit is reached
+              </p>
+            </div>
+            <div>
+              <Label>Daily Profit Target (%)</Label>
+              <div className="space-y-2">
+                <Slider
+                  value={settings.default_max_daily_profit_pct || 0}
+                  onValueChange={(value) => setSettings({
+                    ...settings,
+                    default_max_daily_profit_pct: value > 0 ? value : null
+                  })}
+                  min={0}
+                  max={50}
+                  step={0.5}
+                />
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>0%</span>
+                  <span className="font-medium">{settings.default_max_daily_profit_pct || 0}%</span>
                   <span>50%</span>
                 </div>
               </div>

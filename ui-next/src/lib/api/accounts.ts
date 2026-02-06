@@ -88,6 +88,8 @@ interface ApiAccountSettingsData {
     maxPositionSize: number | null;
     maxDailyLoss: number | null;
     maxDailyLossPct: number | null;
+    maxDailyProfit: number | null;
+    maxDailyProfitPct: number | null;
     maxDrawdownPct: number | null;
     maxOpenPositions: number | null;
     maxPositionsPerSymbol: number | null;
@@ -139,6 +141,8 @@ const mapAccountSettingsResponse = (data: ApiAccountSettingsData): AccountSettin
     maxPositionSize: data.riskLimits.maxPositionSize,
     maxDailyLoss: data.riskLimits.maxDailyLoss,
     maxDailyLossPct: data.riskLimits.maxDailyLossPct,
+    maxDailyProfit: data.riskLimits.maxDailyProfit,
+    maxDailyProfitPct: data.riskLimits.maxDailyProfitPct,
     maxDrawdownPct: data.riskLimits.maxDrawdownPct,
     maxOpenPositions: data.riskLimits.maxOpenPositions,
     maxPositionsPerSymbol: data.riskLimits.maxPositionsPerSymbol,
@@ -415,6 +419,12 @@ export async function updateAccountSettings(
   }
   if (settings.maxDailyLossPct !== undefined) {
     payload.max_daily_loss_pct = settings.maxDailyLossPct;
+  }
+  if (settings.maxDailyProfit !== undefined) {
+    payload.max_daily_profit = settings.maxDailyProfit;
+  }
+  if (settings.maxDailyProfitPct !== undefined) {
+    payload.max_daily_profit_pct = settings.maxDailyProfitPct;
   }
   if (settings.maxDrawdownPct !== undefined) {
     payload.max_drawdown_pct = settings.maxDrawdownPct;

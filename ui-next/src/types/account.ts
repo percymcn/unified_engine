@@ -127,6 +127,8 @@ export interface AccountSettings {
     maxPositionSize: number | null;
     maxDailyLoss: number | null;
     maxDailyLossPct: number | null;
+    maxDailyProfit: number | null;
+    maxDailyProfitPct: number | null;
     maxDrawdownPct: number | null;
     maxOpenPositions: number | null;
     maxPositionsPerSymbol: number | null;
@@ -180,6 +182,8 @@ export interface AccountSettingsUpdate {
   maxPositionSize?: number | null;
   maxDailyLoss?: number | null;
   maxDailyLossPct?: number | null;
+  maxDailyProfit?: number | null;
+  maxDailyProfitPct?: number | null;
   maxDrawdownPct?: number | null;
   maxOpenPositions?: number | null;
   maxPositionsPerSymbol?: number | null;
