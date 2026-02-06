@@ -102,9 +102,9 @@ async def update_risk_settings(
     """
     user = db.query(User).filter(User.id == current_user.id).first()
 
-    # Update non-None values
-    for field, value in settings.dict().items():
-        if hasattr(user, field):
+    # Update non-None values only (use exclude_unset to skip fields not explicitly provided)
+    for field, value in settings.dict(exclude_unset=True).items():
+        if hasattr(user, field) and value is not None:
             setattr(user, field, value)
 
     db.commit()
