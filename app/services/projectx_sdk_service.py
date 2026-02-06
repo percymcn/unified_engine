@@ -462,6 +462,10 @@ class ProjectXSDKService:
         # TradingSuite.create() looks for env vars, so set them from our credentials
         os.environ['PROJECT_X_USERNAME'] = self.username
         os.environ['PROJECT_X_API_KEY'] = self.api_key
+        # Set account name to ensure we trade on the correct account
+        if self.account_name:
+            os.environ['PROJECT_X_ACCOUNT_NAME'] = self.account_name
+            logger.info(f"TradingSuite using account: {self.account_name}")
 
         try:
             suite = await TradingSuite.create(instrument)
