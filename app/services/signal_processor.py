@@ -77,13 +77,16 @@ def _load_account_credentials(db: Session, account: TradingAccount) -> Dict[str,
             logger.warning(f"Failed to decrypt credential {row.id}: {e}")
             continue
 
-        # Match by account_id/account_number or default_broker_account_id
+        # Match by account_id/account_number, default_broker_account_id, or extra_metadata.metaapi_account_id
         data_account_id = data.get("account_id") or data.get("metaapi_account_id")
         if data_account_id:
-            # Check if data_account_id matches either account_number or default_broker_account_id
+            # Check if data_account_id matches account_number, default_broker_account_id, or metaapi_account_id in extra_metadata
             matches_account_number = str(data_account_id) == str(account.account_number)
             matches_broker_account = account.default_broker_account_id and str(data_account_id) == str(account.default_broker_account_id)
-            if not matches_account_number and not matches_broker_account:
+            # For MT4/MT5, also check extra_metadata.metaapi_account_id
+            extra_meta_id = account.extra_metadata.get("metaapi_account_id") if account.extra_metadata and isinstance(account.extra_metadata, dict) else None
+            matches_meta_account = extra_meta_id and str(data_account_id) == str(extra_meta_id)
+            if not matches_account_number and not matches_broker_account and not matches_meta_account:
                 continue
 
         credentials.update(data)
