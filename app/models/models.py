@@ -90,6 +90,8 @@ class User(Base):
     default_max_open_positions = Column(Integer)  # Default max concurrent positions
     default_max_daily_loss = Column(Float)  # Default max daily loss $
     default_max_daily_loss_pct = Column(Float)  # Default max daily loss %
+    default_max_daily_profit = Column(Float)  # Default max daily profit target $
+    default_max_daily_profit_pct = Column(Float)  # Default max daily profit target %
     default_max_drawdown_pct = Column(Float)  # Default max drawdown %
     default_trade_cooldown_seconds = Column(Integer)  # Default cooldown
 

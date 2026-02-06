@@ -1638,6 +1638,8 @@ class AccountSettingsBody(BaseModel):
     max_position_size: Optional[float] = Field(None, alias="maxPositionSize", ge=0.01)
     max_daily_loss: Optional[float] = Field(None, alias="maxDailyLoss", ge=0)
     max_daily_loss_pct: Optional[float] = Field(None, alias="maxDailyLossPct", ge=0, le=100)
+    max_daily_profit: Optional[float] = Field(None, alias="maxDailyProfit", ge=0)
+    max_daily_profit_pct: Optional[float] = Field(None, alias="maxDailyProfitPct", ge=0, le=100)
     max_drawdown_pct: Optional[float] = Field(None, alias="maxDrawdownPct", ge=0, le=100)
     max_open_positions: Optional[int] = Field(None, alias="maxOpenPositions", ge=1, le=100)
     max_positions_per_symbol: Optional[int] = Field(None, alias="maxPositionsPerSymbol", ge=1, le=50, description="Max positions per instrument/symbol")
@@ -1740,6 +1742,8 @@ async def get_account_settings(
                 "maxPositionSize": response.max_position_size,
                 "maxDailyLoss": response.max_daily_loss,
                 "maxDailyLossPct": response.max_daily_loss_pct,
+                "maxDailyProfit": response.max_daily_profit,
+                "maxDailyProfitPct": response.max_daily_profit_pct,
                 "maxDrawdownPct": response.max_drawdown_pct,
                 "maxOpenPositions": response.max_open_positions,
                 "maxPositionsPerSymbol": response.max_positions_per_symbol,
@@ -1847,6 +1851,8 @@ async def update_account_settings(
         max_position_size=settings.max_position_size,
         max_daily_loss=settings.max_daily_loss,
         max_daily_loss_pct=settings.max_daily_loss_pct,
+        max_daily_profit=settings.max_daily_profit,
+        max_daily_profit_pct=settings.max_daily_profit_pct,
         max_drawdown_pct=settings.max_drawdown_pct,
         max_open_positions=settings.max_open_positions,
         max_positions_per_symbol=settings.max_positions_per_symbol,
@@ -1948,6 +1954,8 @@ async def update_account_settings(
                 "maxPositionSize": response.max_position_size,
                 "maxDailyLoss": response.max_daily_loss,
                 "maxDailyLossPct": response.max_daily_loss_pct,
+                "maxDailyProfit": response.max_daily_profit,
+                "maxDailyProfitPct": response.max_daily_profit_pct,
                 "maxDrawdownPct": response.max_drawdown_pct,
                 "maxOpenPositions": response.max_open_positions,
                 "maxPositionsPerSymbol": response.max_positions_per_symbol,

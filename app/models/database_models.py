@@ -135,6 +135,8 @@ class TradingAccount(Base):
     max_position_size = Column(Float)  # Maximum lots per position
     max_daily_loss = Column(Float)  # Maximum daily loss in account currency
     max_daily_loss_pct = Column(Float)  # Maximum daily loss as % of balance
+    max_daily_profit = Column(Float)  # Maximum daily profit target in account currency (halt when reached)
+    max_daily_profit_pct = Column(Float)  # Maximum daily profit target as % of balance (halt when reached)
     max_drawdown_pct = Column(Float)  # Maximum drawdown % from peak
     max_open_positions = Column(Integer)  # Maximum concurrent positions
     max_daily_trades = Column(Integer)  # Maximum trades per day

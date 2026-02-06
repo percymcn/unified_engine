@@ -50,6 +50,8 @@ class GlobalRiskSettings(BaseModel):
     default_max_open_positions: Optional[int] = None
     default_max_daily_loss: Optional[float] = None
     default_max_daily_loss_pct: Optional[float] = None
+    default_max_daily_profit: Optional[float] = None
+    default_max_daily_profit_pct: Optional[float] = None
     default_max_drawdown_pct: Optional[float] = None
     default_trade_cooldown_seconds: Optional[int] = None
     default_position_sizing_mode: Optional[str] = None
@@ -75,6 +77,8 @@ async def get_risk_settings(
         default_max_open_positions=current_user.default_max_open_positions,
         default_max_daily_loss=current_user.default_max_daily_loss,
         default_max_daily_loss_pct=current_user.default_max_daily_loss_pct,
+        default_max_daily_profit=current_user.default_max_daily_profit,
+        default_max_daily_profit_pct=current_user.default_max_daily_profit_pct,
         default_max_drawdown_pct=current_user.default_max_drawdown_pct,
         default_trade_cooldown_seconds=current_user.default_trade_cooldown_seconds,
         default_position_sizing_mode=current_user.default_position_sizing_mode,

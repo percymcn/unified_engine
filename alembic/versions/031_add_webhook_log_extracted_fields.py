@@ -9,8 +9,8 @@ from alembic import op
 import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
-revision = '031_add_webhook_log_fields'
-down_revision = '030_add_block_pnl_signals'
+revision = '031'
+down_revision = '030_block_pnl'
 branch_labels = None
 depends_on = None
 

@@ -32,6 +32,8 @@ class AccountSettingsRequest:
     max_position_size: Optional[float] = None  # >= 0.01
     max_daily_loss: Optional[float] = None  # >= 0
     max_daily_loss_pct: Optional[float] = None  # 0 - 100
+    max_daily_profit: Optional[float] = None  # >= 0 (profit target - halt when reached)
+    max_daily_profit_pct: Optional[float] = None  # 0 - 100 (profit target % - halt when reached)
     max_drawdown_pct: Optional[float] = None  # 0 - 100
     max_open_positions: Optional[int] = None  # 1 - 100
     max_positions_per_symbol: Optional[int] = None  # 1 - 50 (max positions per instrument)
@@ -72,6 +74,8 @@ class AccountSettingsResponse:
     max_position_size: Optional[float]
     max_daily_loss: Optional[float]
     max_daily_loss_pct: Optional[float]
+    max_daily_profit: Optional[float]
+    max_daily_profit_pct: Optional[float]
     max_drawdown_pct: Optional[float]
     max_open_positions: Optional[int]
     max_positions_per_symbol: Optional[int]

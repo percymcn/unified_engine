@@ -1146,10 +1146,10 @@ class ProjectXSDKService:
                     }
                 except Exception as bracket_err:
                     # Bracket order failed (often due to fill timeout in low liquidity)
-                    # Fallback to simple market order without SL/TP
+                    # Fallback to simple market order and then add SL/TP to position
                     error_str = str(bracket_err)
-                    if "failed to fill" in error_str.lower():
-                        logger.warning(f"Bracket order fill timeout, falling back to market order without SL/TP: {bracket_err}")
+                    if "failed to fill" in error_str.lower() or "timeout" in error_str.lower():
+                        logger.warning(f"Bracket order failed, falling back to market order + manual SL/TP: {bracket_err}")
                         try:
                             fallback_order = await suite.orders.place_market_order(
                                 contract_id=suite.instrument_id,
@@ -1157,13 +1157,58 @@ class ProjectXSDKService:
                                 size=size,
                             )
                             order_id = getattr(fallback_order, 'orderId', getattr(fallback_order, 'order_id', '')) if fallback_order else ""
-                            return {
+
+                            # Now add SL/TP to the position after market order fills
+                            sl_added = False
+                            tp_added = False
+
+                            # Give a small delay for position to be registered
+                            await asyncio.sleep(0.5)
+
+                            if stop_loss:
+                                try:
+                                    sl_response = await suite.orders.add_stop_loss(
+                                        contract_id=suite.instrument_id,
+                                        stop_price=stop_loss,
+                                        size=size,
+                                    )
+                                    sl_added = getattr(sl_response, 'success', True) if sl_response else True
+                                    logger.info(f"Added stop loss to position: {stop_loss}")
+                                except Exception as sl_err:
+                                    logger.warning(f"Failed to add stop loss after fallback: {sl_err}")
+
+                            if take_profit:
+                                try:
+                                    tp_response = await suite.orders.add_take_profit(
+                                        contract_id=suite.instrument_id,
+                                        limit_price=take_profit,
+                                        size=size,
+                                    )
+                                    tp_added = getattr(tp_response, 'success', True) if tp_response else True
+                                    logger.info(f"Added take profit to position: {take_profit}")
+                                except Exception as tp_err:
+                                    logger.warning(f"Failed to add take profit after fallback: {tp_err}")
+
+                            result = {
                                 "success": True,
                                 "order_id": str(order_id),
                                 "status": "submitted",
                                 "bracket": False,
-                                "warning": "SL/TP not placed due to fill timeout - add manually",
+                                "fallback": True,
                             }
+                            if sl_added:
+                                result["stop_loss"] = stop_loss
+                            if tp_added:
+                                result["take_profit"] = take_profit
+                            if not sl_added or not tp_added:
+                                warnings = []
+                                if not sl_added:
+                                    warnings.append("stop loss")
+                                if not tp_added:
+                                    warnings.append("take profit")
+                                result["warning"] = f"Failed to add {' and '.join(warnings)} - add manually"
+
+                            return result
                         except Exception as fallback_err:
                             logger.error(f"Fallback market order also failed: {fallback_err}")
                             raise bracket_err  # Re-raise original error
@@ -1214,11 +1259,36 @@ class ProjectXSDKService:
                     except Exception as e:
                         logger.warning(f"Failed to add take profit to order: {e}")
             else:
-                # Market order filled immediately - need to add protection to position
-                # The position_id should match the execution_id or we need to query positions
+                # Market order filled immediately - add protection to the position
                 if stop_loss or take_profit:
-                    result["note"] = "Market order filled. Use add_stop_loss_to_position/add_take_profit_to_position for protection."
-                    result["execution_id"] = str(execution_id)
+                    # Give a small delay for position to be registered
+                    await asyncio.sleep(0.5)
+
+                    if stop_loss:
+                        try:
+                            sl_response = await suite.orders.add_stop_loss(
+                                contract_id=suite.instrument_id,
+                                stop_price=stop_loss,
+                                size=size,
+                            )
+                            result["stop_loss"] = stop_loss
+                            logger.info(f"Added stop loss to position: {stop_loss}")
+                        except Exception as sl_err:
+                            logger.warning(f"Failed to add stop loss to market order position: {sl_err}")
+                            result["stop_loss_error"] = str(sl_err)
+
+                    if take_profit:
+                        try:
+                            tp_response = await suite.orders.add_take_profit(
+                                contract_id=suite.instrument_id,
+                                limit_price=take_profit,
+                                size=size,
+                            )
+                            result["take_profit"] = take_profit
+                            logger.info(f"Added take profit to position: {take_profit}")
+                        except Exception as tp_err:
+                            logger.warning(f"Failed to add take profit to market order position: {tp_err}")
+                            result["take_profit_error"] = str(tp_err)
 
             return result
         except Exception as e:

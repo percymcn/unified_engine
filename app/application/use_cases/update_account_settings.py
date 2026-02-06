@@ -79,6 +79,12 @@ class UpdateAccountSettingsUseCase:
         if request.max_daily_loss_pct is not None:
             self._validate_range(request.max_daily_loss_pct, 0, 100, "max_daily_loss_pct")
             updates['max_daily_loss_pct'] = request.max_daily_loss_pct
+        if request.max_daily_profit is not None:
+            self._validate_range(request.max_daily_profit, 0, float('inf'), "max_daily_profit")
+            updates['max_daily_profit'] = request.max_daily_profit
+        if request.max_daily_profit_pct is not None:
+            self._validate_range(request.max_daily_profit_pct, 0, 100, "max_daily_profit_pct")
+            updates['max_daily_profit_pct'] = request.max_daily_profit_pct
         if request.max_drawdown_pct is not None:
             self._validate_range(request.max_drawdown_pct, 0, 100, "max_drawdown_pct")
             updates['max_drawdown_pct'] = request.max_drawdown_pct
@@ -185,6 +191,8 @@ class UpdateAccountSettingsUseCase:
             max_position_size=account.max_position_size,
             max_daily_loss=account.max_daily_loss,
             max_daily_loss_pct=account.max_daily_loss_pct,
+            max_daily_profit=account.max_daily_profit,
+            max_daily_profit_pct=account.max_daily_profit_pct,
             max_drawdown_pct=account.max_drawdown_pct,
             max_open_positions=account.max_open_positions,
             max_positions_per_symbol=account.max_positions_per_symbol,
@@ -238,6 +246,8 @@ class GetAccountSettingsUseCase:
             max_position_size=account.max_position_size,
             max_daily_loss=account.max_daily_loss,
             max_daily_loss_pct=account.max_daily_loss_pct,
+            max_daily_profit=account.max_daily_profit,
+            max_daily_profit_pct=account.max_daily_profit_pct,
             max_drawdown_pct=account.max_drawdown_pct,
             max_open_positions=account.max_open_positions,
             max_positions_per_symbol=account.max_positions_per_symbol,

@@ -123,8 +123,61 @@ class PendingPositionsTracker:
             self._pending[account_key][symbol_key] = 0
 
 
-# Global singleton for tracking pending positions
+# Global singleton for tracking pending positions per symbol
 _pending_tracker = PendingPositionsTracker(ttl_seconds=30)
+
+
+class PendingTotalPositionsTracker:
+    """
+    Thread-safe tracker for pending total position orders per account.
+
+    Prevents race condition where multiple signals slip through max_open_positions
+    because they all check before any orders are confirmed.
+    """
+    def __init__(self, ttl_seconds: int = 30):
+        self._pending: Dict[str, int] = defaultdict(int)
+        self._timestamps: Dict[str, float] = defaultdict(float)
+        self._lock = threading.Lock()
+        self._ttl = ttl_seconds
+
+    def _make_key(self, account_id: int) -> str:
+        """Create normalized key for account."""
+        return str(account_id)
+
+    def _cleanup_expired(self, account_key: str):
+        """Remove expired pending entries."""
+        now = time.time()
+        if now - self._timestamps[account_key] > self._ttl:
+            self._pending[account_key] = 0
+            self._timestamps[account_key] = now
+
+    def get_pending_count(self, account_id: int) -> int:
+        """Get count of pending orders for account."""
+        account_key = self._make_key(account_id)
+        with self._lock:
+            self._cleanup_expired(account_key)
+            return self._pending[account_key]
+
+    def increment(self, account_id: int) -> int:
+        """Increment pending count, returns new count."""
+        account_key = self._make_key(account_id)
+        with self._lock:
+            self._cleanup_expired(account_key)
+            self._pending[account_key] += 1
+            self._timestamps[account_key] = time.time()
+            return self._pending[account_key]
+
+    def decrement(self, account_id: int) -> int:
+        """Decrement pending count after order completes."""
+        account_key = self._make_key(account_id)
+        with self._lock:
+            if self._pending[account_key] > 0:
+                self._pending[account_key] -= 1
+            return self._pending[account_key]
+
+
+# Global singleton for tracking total pending positions per account
+_pending_total_tracker = PendingTotalPositionsTracker(ttl_seconds=30)
 
 
 def validate_sl_tp_distance(
@@ -1092,6 +1145,33 @@ async def _execute_tradingview_signal_inner(
                     except Exception as daily_loss_err:
                         logger.debug(f"Could not check daily loss for account {account.id}: {daily_loss_err}")
 
+                # 2.55 MAX DAILY PROFIT CHECK ($ and %) - profit target halt
+                if not rejection_reason and (account.max_daily_profit or account.max_daily_profit_pct):
+                    try:
+                        today = date_type.today()
+                        daily_pnl = db.query(DailyPnL).filter(
+                            DailyPnL.account_id == account.id,
+                            DailyPnL.date == today
+                        ).first()
+
+                        if daily_pnl and daily_pnl.total_pnl is not None:
+                            # total_pnl is positive when making profit
+                            current_profit = max(0, daily_pnl.total_pnl)  # Only consider positive PnL
+
+                            # Check absolute $ profit target
+                            if account.max_daily_profit and current_profit >= account.max_daily_profit:
+                                rejection_reason = f"Daily profit target reached (${current_profit:.2f} >= ${account.max_daily_profit:.2f}) - trading halted"
+                                logger.info(f"Account {account.id}: Daily profit target hit - halting trades to protect gains")
+
+                            # Check percentage profit target
+                            elif account.max_daily_profit_pct and daily_pnl.starting_balance and daily_pnl.starting_balance > 0:
+                                profit_pct = (current_profit / daily_pnl.starting_balance) * 100
+                                if profit_pct >= account.max_daily_profit_pct:
+                                    rejection_reason = f"Daily profit target % reached ({profit_pct:.2f}% >= {account.max_daily_profit_pct:.2f}%) - trading halted"
+                                    logger.info(f"Account {account.id}: Daily profit target % hit - halting trades to protect gains")
+                    except Exception as daily_profit_err:
+                        logger.debug(f"Could not check daily profit for account {account.id}: {daily_profit_err}")
+
                 # 2.6 MAX DRAWDOWN CHECK
                 if not rejection_reason and account.max_drawdown_pct:
                     try:
@@ -1190,18 +1270,54 @@ async def _execute_tradingview_signal_inner(
                             return obj.get(key, default)
                         return getattr(obj, key, default)
 
-                    # 3. MAX OPEN POSITIONS CHECK
-                    if account.max_open_positions and total_positions >= account.max_open_positions:
-                        position_rejection = f"Max open positions exceeded ({total_positions}/{account.max_open_positions})"
+                    # Helper to normalize symbol for position matching
+                    def normalize_symbol_for_match(sym: str) -> str:
+                        """Normalize symbol for matching (strip suffixes, contract codes)."""
+                        if not sym:
+                            return ""
+                        import re
+                        s = sym.upper().strip()
+                        # Strip common suffixes
+                        for suffix in ['.PRO', '.RAW', '.STD', '.I', '.S', '_SB', '.SB']:
+                            if s.endswith(suffix):
+                                s = s[:-len(suffix)]
+                        # Strip futures contract month/year codes (e.g., H5, Z24, H25)
+                        futures_pattern = re.compile(r'^([A-Z]+[A-Z0-9]*?)([FGHJKMNQUVXZ])(\d{1,4})$')
+                        match = futures_pattern.match(s)
+                        if match:
+                            s = match.group(1)
+                        # Strip trailing "1!" format from TradingView
+                        if s.endswith('1!'):
+                            s = s[:-2]
+                        return s
+
+                    # Normalize our target symbols for matching
+                    normalized_signal_symbol = normalize_symbol_for_match(symbol)
+                    normalized_mapped_symbol = normalize_symbol_for_match(mapped_symbol)
+
+                    # 3. MAX OPEN POSITIONS CHECK (with race condition prevention)
+                    if account.max_open_positions:
+                        # Add pending orders that haven't been confirmed yet
+                        pending_total_count = _pending_total_tracker.get_pending_count(account.id)
+                        total_with_pending = total_positions + pending_total_count
+
+                        if total_with_pending >= account.max_open_positions:
+                            position_rejection = f"Max open positions exceeded ({total_with_pending}/{account.max_open_positions}, broker={total_positions}, pending={pending_total_count})"
+                        else:
+                            # Reserve a slot by incrementing pending counter BEFORE placing order
+                            _pending_total_tracker.increment(account.id)
+                            logger.info(f"Account {account.id}: Total position check passed ({total_positions} broker + {pending_total_count + 1} pending / {account.max_open_positions} max)")
 
                     # 4. MAX POSITIONS PER SYMBOL CHECK (with race condition prevention)
                     if not position_rejection and account.max_positions_per_symbol:
-                        # Count existing positions matching this symbol
-                        symbol_positions = [
-                            p for p in (current_positions or [])
-                            if symbol.upper() in (get_pos_attr(p, 'symbol', '') or '').upper()
-                            or mapped_symbol.upper() in (get_pos_attr(p, 'symbol', '') or '').upper()
-                        ]
+                        # Count existing positions matching this symbol using normalized comparison
+                        symbol_positions = []
+                        for p in (current_positions or []):
+                            pos_symbol = get_pos_attr(p, 'symbol', '') or ''
+                            normalized_pos_symbol = normalize_symbol_for_match(pos_symbol)
+                            # Match if normalized symbols are equal (not substring!)
+                            if normalized_pos_symbol == normalized_signal_symbol or normalized_pos_symbol == normalized_mapped_symbol:
+                                symbol_positions.append(p)
                         broker_position_count = len(symbol_positions)
 
                         # Add pending orders that haven't been confirmed yet (race condition prevention)
@@ -1213,7 +1329,7 @@ async def _execute_tradingview_signal_inner(
                         else:
                             # Reserve a slot by incrementing pending counter BEFORE placing order
                             _pending_tracker.increment(account.id, mapped_symbol)
-                            logger.info(f"Account {account.id}: Position check passed for {mapped_symbol} ({broker_position_count} broker + {pending_count + 1} pending / {account.max_positions_per_symbol} max)")
+                            logger.info(f"Account {account.id}: Symbol position check passed for {mapped_symbol} ({broker_position_count} broker + {pending_count + 1} pending / {account.max_positions_per_symbol} max)")
 
                 except Exception as pos_err:
                     logger.warning(f"Failed to check positions for account {account.id}: {pos_err}")
@@ -1536,10 +1652,13 @@ async def _execute_tradingview_signal_inner(
             execution_error = order_result.error if hasattr(order_result, 'error') else order_result.get('error')
             order_id = order_result.order_id if hasattr(order_result, 'order_id') else order_result.get('order_id')
 
-            # Decrement pending position counter after order completes (success or failure)
-            # This releases the "reservation" made during position check
-            if action_str != "close" and account.max_positions_per_symbol:
-                _pending_tracker.decrement(account.id, mapped_symbol)
+            # Decrement pending position counters after order completes (success or failure)
+            # This releases the "reservations" made during position checks
+            if action_str != "close":
+                if account.max_open_positions:
+                    _pending_total_tracker.decrement(account.id)
+                if account.max_positions_per_symbol:
+                    _pending_tracker.decrement(account.id, mapped_symbol)
 
             # Cleanup executor if needed
             if needs_cleanup and hasattr(executor, 'disconnect'):
