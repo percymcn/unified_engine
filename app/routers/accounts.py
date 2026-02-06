@@ -33,7 +33,7 @@ import logging
 import secrets
 import hashlib
 from app.core.encryption import get_encryption_service
-from app.models.database_models import Credential
+from app.models.database_models import Credential, TradingAccount
 
 logger = logging.getLogger(__name__)
 
