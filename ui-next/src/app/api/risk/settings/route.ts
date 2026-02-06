@@ -58,6 +58,11 @@ export async function PUT(request: NextRequest) {
 
     const body = await request.json();
 
+    // Debug: Log what we're sending to backend
+    console.log('[Risk Settings PUT] Sending to backend:', JSON.stringify(body, null, 2));
+    console.log('[Risk Settings PUT] default_max_daily_profit:', body.default_max_daily_profit);
+    console.log('[Risk Settings PUT] default_max_open_positions:', body.default_max_open_positions);
+
     const response = await fetch(`${BACKEND_URL}/api/v1/risk/settings`, {
       method: 'PUT',
       headers: {

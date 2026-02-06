@@ -160,7 +160,10 @@ export default function RiskSettingsPage() {
         credentials: 'include',
       });
       if (res.ok) {
-        setSettings(await res.json());
+        const data = await res.json();
+        console.log('[Risk Settings] Loaded from API:', JSON.stringify(data, null, 2));
+        console.log('[Risk Settings] Loaded default_max_daily_profit:', data.default_max_daily_profit);
+        setSettings(data);
       } else {
         console.error("Failed to fetch risk settings:", res.status);
         // Set defaults if fetch fails
@@ -201,6 +204,10 @@ export default function RiskSettingsPage() {
 
   async function saveSettings() {
     setSaving(true);
+    // Debug: Log what we're about to send
+    console.log('[Risk Settings] Saving settings:', JSON.stringify(settings, null, 2));
+    console.log('[Risk Settings] default_max_daily_profit:', settings?.default_max_daily_profit);
+    console.log('[Risk Settings] default_max_open_positions:', settings?.default_max_open_positions);
     try {
       const [res1, res2] = await Promise.all([
         fetch("/api/risk/settings", {

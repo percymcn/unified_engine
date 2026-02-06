@@ -422,6 +422,7 @@ secrets:
     external: true
   credential_encryption_key:
     external: true
+    name: credential_encryption_key_v8
   flower_auth:
     external: true
   google_client_secret:

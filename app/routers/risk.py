@@ -102,10 +102,21 @@ async def update_risk_settings(
     """
     user = db.query(User).filter(User.id == current_user.id).first()
 
+    # Debug: Log what we're receiving
+    settings_dict = settings.dict(exclude_unset=True)
+    logger.info(f"Risk settings update - received fields: {list(settings_dict.keys())}")
+    logger.info(f"Risk settings update - max_daily_profit value: {settings_dict.get('default_max_daily_profit')}")
+    logger.info(f"Risk settings update - max_open_positions value: {settings_dict.get('default_max_open_positions')}")
+
     # Update non-None values only (use exclude_unset to skip fields not explicitly provided)
-    for field, value in settings.dict(exclude_unset=True).items():
+    updated_fields = []
+    for field, value in settings_dict.items():
         if hasattr(user, field) and value is not None:
+            old_value = getattr(user, field)
             setattr(user, field, value)
+            updated_fields.append(f"{field}: {old_value} -> {value}")
+
+    logger.info(f"Risk settings update - updated fields: {updated_fields}")
 
     db.commit()
     return {"message": "Risk settings updated successfully"}
