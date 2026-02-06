@@ -1268,11 +1268,23 @@ async def _execute_tradingview_signal_inner(
                 def normalize_for_match(sym: str) -> str:
                     if not sym:
                         return ""
+                    import re
                     s = sym.upper().strip()
                     # Strip common suffixes
                     for suffix in ['.PRO', '.RAW', '.STD', '.I', '.S', '_SB', '.SB']:
                         if s.endswith(suffix):
                             s = s[:-len(suffix)]
+                    # Strip futures contract month/year codes (e.g., H5, Z24, H25, M2025)
+                    # Futures months: F(Jan), G(Feb), H(Mar), J(Apr), K(May), M(Jun),
+                    #                 N(Jul), Q(Aug), U(Sep), V(Oct), X(Nov), Z(Dec)
+                    # Pattern: base symbol + month letter + 1-4 digit year
+                    futures_pattern = re.compile(r'^([A-Z]+[A-Z0-9]*?)([FGHJKMNQUVXZ])(\d{1,4})$')
+                    match = futures_pattern.match(s)
+                    if match:
+                        s = match.group(1)  # Return just the base symbol
+                    # Also handle trailing "1!" format from TradingView (e.g., MNQ1!, ES1!)
+                    if s.endswith('1!'):
+                        s = s[:-2]
                     return s
 
                 # Get positions and close matching ones (check both original and mapped symbol)
