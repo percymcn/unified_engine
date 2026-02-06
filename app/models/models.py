@@ -275,6 +275,14 @@ class WebhookLog(Base):
     processing_time_ms = Column(Integer)  # Processing time in milliseconds
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
+    # Extracted fields for easier querying (added to fix webhook processing)
+    symbol = Column(String, nullable=True)
+    action = Column(String, nullable=True)
+    quantity = Column(Float, nullable=True)
+    price = Column(Float, nullable=True)
+    stop_loss = Column(Float, nullable=True)
+    take_profit = Column(Float, nullable=True)
+
 class ExecutionLog(Base):
     __tablename__ = "execution_logs"
     __table_args__ = {'extend_existing': True}
