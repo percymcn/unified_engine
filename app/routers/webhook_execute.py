@@ -58,6 +58,75 @@ from datetime import date as date_type
 logger = logging.getLogger(__name__)
 
 
+# ============================================================================
+# PENDING POSITIONS TRACKER - Prevents race condition in position enforcement
+# ============================================================================
+# When multiple signals arrive rapidly, they can all pass the position check
+# before any orders are actually placed. This tracker counts pending orders
+# that haven't yet been confirmed by the broker.
+import threading
+from collections import defaultdict
+import time
+
+class PendingPositionsTracker:
+    """
+    Thread-safe tracker for pending position orders.
+
+    Prevents race condition where multiple signals slip through position limits
+    because they all check positions before any orders are confirmed.
+    """
+    def __init__(self, ttl_seconds: int = 30):
+        self._pending: Dict[str, Dict[str, int]] = defaultdict(lambda: defaultdict(int))
+        self._timestamps: Dict[str, Dict[str, float]] = defaultdict(lambda: defaultdict(float))
+        self._lock = threading.Lock()
+        self._ttl = ttl_seconds
+
+    def _make_key(self, account_id: int, symbol: str) -> tuple:
+        """Create normalized key for account+symbol."""
+        return (str(account_id), symbol.upper().strip())
+
+    def _cleanup_expired(self, account_key: str, symbol_key: str):
+        """Remove expired pending entries."""
+        now = time.time()
+        if now - self._timestamps[account_key][symbol_key] > self._ttl:
+            self._pending[account_key][symbol_key] = 0
+            self._timestamps[account_key][symbol_key] = now
+
+    def get_pending_count(self, account_id: int, symbol: str) -> int:
+        """Get count of pending orders for account+symbol."""
+        account_key, symbol_key = self._make_key(account_id, symbol)
+        with self._lock:
+            self._cleanup_expired(account_key, symbol_key)
+            return self._pending[account_key][symbol_key]
+
+    def increment(self, account_id: int, symbol: str) -> int:
+        """Increment pending count, returns new count."""
+        account_key, symbol_key = self._make_key(account_id, symbol)
+        with self._lock:
+            self._cleanup_expired(account_key, symbol_key)
+            self._pending[account_key][symbol_key] += 1
+            self._timestamps[account_key][symbol_key] = time.time()
+            return self._pending[account_key][symbol_key]
+
+    def decrement(self, account_id: int, symbol: str) -> int:
+        """Decrement pending count after order completes."""
+        account_key, symbol_key = self._make_key(account_id, symbol)
+        with self._lock:
+            if self._pending[account_key][symbol_key] > 0:
+                self._pending[account_key][symbol_key] -= 1
+            return self._pending[account_key][symbol_key]
+
+    def reset(self, account_id: int, symbol: str):
+        """Reset pending count for account+symbol."""
+        account_key, symbol_key = self._make_key(account_id, symbol)
+        with self._lock:
+            self._pending[account_key][symbol_key] = 0
+
+
+# Global singleton for tracking pending positions
+_pending_tracker = PendingPositionsTracker(ttl_seconds=30)
+
+
 def validate_sl_tp_distance(
     sl_price: float,
     tp_price: float,
@@ -329,14 +398,25 @@ async def execute_tradingview_signal(
             detail="Missing required field: symbol or ticker"
         )
 
-    # Create webhook log
+    # Create webhook log with extracted fields for easier querying
+    quantity = raw_payload.get("quantity") or raw_payload.get("qty") or raw_payload.get("size")
+    price = raw_payload.get("price") or raw_payload.get("entry_price")
+    sl = raw_payload.get("sl") or raw_payload.get("stop_loss")
+    tp = raw_payload.get("tp") or raw_payload.get("take_profit")
+
     try:
         webhook_log = WebhookLog(
             webhook_id=webhook_id,
             source="tradingview",
             source_ip=request.client.host if request.client else "unknown",
             user_agent=request.headers.get("user-agent"),
-            payload=json.dumps(raw_payload)
+            payload=json.dumps(raw_payload),
+            symbol=symbol,
+            action=action_str,
+            quantity=float(quantity) if quantity else None,
+            price=float(price) if price else None,
+            stop_loss=float(sl) if sl else None,
+            take_profit=float(tp) if tp else None,
         )
         db.add(webhook_log)
         db.commit()
@@ -1114,15 +1194,26 @@ async def _execute_tradingview_signal_inner(
                     if account.max_open_positions and total_positions >= account.max_open_positions:
                         position_rejection = f"Max open positions exceeded ({total_positions}/{account.max_open_positions})"
 
-                    # 4. MAX POSITIONS PER SYMBOL CHECK
+                    # 4. MAX POSITIONS PER SYMBOL CHECK (with race condition prevention)
                     if not position_rejection and account.max_positions_per_symbol:
+                        # Count existing positions matching this symbol
                         symbol_positions = [
                             p for p in (current_positions or [])
                             if symbol.upper() in (get_pos_attr(p, 'symbol', '') or '').upper()
                             or mapped_symbol.upper() in (get_pos_attr(p, 'symbol', '') or '').upper()
                         ]
-                        if len(symbol_positions) >= account.max_positions_per_symbol:
-                            position_rejection = f"Max positions for {symbol} exceeded ({len(symbol_positions)}/{account.max_positions_per_symbol})"
+                        broker_position_count = len(symbol_positions)
+
+                        # Add pending orders that haven't been confirmed yet (race condition prevention)
+                        pending_count = _pending_tracker.get_pending_count(account.id, mapped_symbol)
+                        total_symbol_positions = broker_position_count + pending_count
+
+                        if total_symbol_positions >= account.max_positions_per_symbol:
+                            position_rejection = f"Max positions for {symbol} exceeded ({total_symbol_positions}/{account.max_positions_per_symbol}, broker={broker_position_count}, pending={pending_count})"
+                        else:
+                            # Reserve a slot by incrementing pending counter BEFORE placing order
+                            _pending_tracker.increment(account.id, mapped_symbol)
+                            logger.info(f"Account {account.id}: Position check passed for {mapped_symbol} ({broker_position_count} broker + {pending_count + 1} pending / {account.max_positions_per_symbol} max)")
 
                 except Exception as pos_err:
                     logger.warning(f"Failed to check positions for account {account.id}: {pos_err}")
@@ -1173,14 +1264,45 @@ async def _execute_tradingview_signal_inner(
                         return obj.get(key, default)
                     return getattr(obj, key, default)
 
+                # Helper to normalize symbol for matching (strip suffixes like .pro, .i, etc)
+                def normalize_for_match(sym: str) -> str:
+                    if not sym:
+                        return ""
+                    s = sym.upper().strip()
+                    # Strip common suffixes
+                    for suffix in ['.PRO', '.RAW', '.STD', '.I', '.S', '_SB', '.SB']:
+                        if s.endswith(suffix):
+                            s = s[:-len(suffix)]
+                    return s
+
                 # Get positions and close matching ones (check both original and mapped symbol)
                 try:
                     positions = await executor.get_positions()
-                    matching_positions = [
-                        p for p in (positions or [])
-                        if symbol.upper() in (get_attr(p, 'symbol', '') or '').upper()
-                        or mapped_symbol.upper() in (get_attr(p, 'symbol', '') or '').upper()
-                    ]
+
+                    # Normalize both search symbols
+                    norm_symbol = normalize_for_match(symbol)
+                    norm_mapped = normalize_for_match(mapped_symbol)
+
+                    # Log for debugging close matching
+                    logger.info(f"Close matching: symbol={symbol}, mapped={mapped_symbol}, positions={len(positions or [])}")
+                    for p in (positions or []):
+                        pos_sym = get_attr(p, 'symbol', '')
+                        logger.debug(f"  Position: id={get_attr(p, 'id', '')}, symbol={pos_sym}")
+
+                    matching_positions = []
+                    for p in (positions or []):
+                        pos_sym = get_attr(p, 'symbol', '') or ''
+                        norm_pos = normalize_for_match(pos_sym)
+
+                        # Check various matching conditions
+                        if (norm_symbol and norm_symbol in norm_pos) or \
+                           (norm_symbol and norm_pos in norm_symbol) or \
+                           (norm_mapped and norm_mapped in norm_pos) or \
+                           (norm_mapped and norm_pos in norm_mapped) or \
+                           (norm_symbol == norm_pos) or \
+                           (norm_mapped == norm_pos):
+                            matching_positions.append(p)
+                            logger.info(f"  MATCHED: {pos_sym} (normalized: {norm_pos})")
 
                     if not matching_positions:
                         # No positions to close - mark as skipped, not success
@@ -1307,7 +1429,11 @@ async def _execute_tradingview_signal_inner(
                                 digits=RiskUnitConverter.get_digits_for_symbol(mapped_symbol, broker_str),
                                 tick_size=RiskUnitConverter.get_tick_size_for_symbol(mapped_symbol, broker_str)
                             )
-                        logger.info(f"Account {account.id}: Calculated SL {account_sl_price} from {effective_sl_value} {effective_sl_type} (entry: {entry_price}, symbol: {mapped_symbol})")
+                        # Enhanced logging with direction validation
+                        sl_direction = "below" if account_sl_price < entry_price else "above"
+                        expected_sl_direction = "below" if is_buy else "above"
+                        sl_ok = "✓" if sl_direction == expected_sl_direction else "✗ WRONG DIRECTION"
+                        logger.info(f"Account {account.id}: Calculated SL {account_sl_price:.5f} from {effective_sl_value} {effective_sl_type} | action={action_str.upper()}, entry={entry_price:.5f}, SL is {sl_direction} entry {sl_ok}")
                     except Exception as sl_err:
                         logger.warning(f"Failed to calculate SL for account {account.id}: {sl_err}")
 
@@ -1332,7 +1458,11 @@ async def _execute_tradingview_signal_inner(
                                 digits=RiskUnitConverter.get_digits_for_symbol(mapped_symbol, broker_str),
                                 tick_size=RiskUnitConverter.get_tick_size_for_symbol(mapped_symbol, broker_str)
                             )
-                        logger.info(f"Account {account.id}: Calculated TP {account_tp_price} from {effective_tp_value} {effective_tp_type} (entry: {entry_price}, symbol: {mapped_symbol})")
+                        # Enhanced logging with direction validation
+                        tp_direction = "above" if account_tp_price > entry_price else "below"
+                        expected_tp_direction = "above" if is_buy else "below"
+                        tp_ok = "✓" if tp_direction == expected_tp_direction else "✗ WRONG DIRECTION"
+                        logger.info(f"Account {account.id}: Calculated TP {account_tp_price:.5f} from {effective_tp_value} {effective_tp_type} | action={action_str.upper()}, entry={entry_price:.5f}, TP is {tp_direction} entry {tp_ok}")
                     except Exception as tp_err:
                         logger.warning(f"Failed to calculate TP for account {account.id}: {tp_err}")
 
@@ -1393,6 +1523,11 @@ async def _execute_tradingview_signal_inner(
             execution_success = order_result.success if hasattr(order_result, 'success') else order_result.get('success', False)
             execution_error = order_result.error if hasattr(order_result, 'error') else order_result.get('error')
             order_id = order_result.order_id if hasattr(order_result, 'order_id') else order_result.get('order_id')
+
+            # Decrement pending position counter after order completes (success or failure)
+            # This releases the "reservation" made during position check
+            if action_str != "close" and account.max_positions_per_symbol:
+                _pending_tracker.decrement(account.id, mapped_symbol)
 
             # Cleanup executor if needed
             if needs_cleanup and hasattr(executor, 'disconnect'):

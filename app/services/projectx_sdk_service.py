@@ -741,14 +741,52 @@ class ProjectXSDKService:
             # Use client's search_open_positions directly (SDK v3.0+)
             positions = await self._client.search_open_positions()
 
+            # Pre-fetch current prices for all unique symbols
+            # SDK doesn't provide currentPrice in position data, so we fetch from market data
+            import re
+            symbol_prices = {}  # base_symbol -> current_price
+            unique_symbols = set()
+
+            # First pass: collect unique base symbols
+            for pos in positions:
+                if not pos:
+                    continue
+                symbol = getattr(pos, 'symbol', '') or getattr(pos, 'contractName', '')
+                if symbol:
+                    base_symbol = symbol
+                    if symbol.startswith('CON.'):
+                        parts = symbol.split('.')
+                        if len(parts) >= 4:
+                            base_symbol = parts[3]
+                    else:
+                        base_symbol = re.sub(r'[FGHJKMNQUVXZ]\d{1,4}$', '', symbol.upper())
+                    unique_symbols.add(base_symbol)
+
+            # Fetch current prices for all symbols
+            for base_symbol in unique_symbols:
+                try:
+                    # Get 1-minute bars for today to get current price
+                    bars = await self._client.get_bars(base_symbol, days=1, interval=1)
+                    if bars is not None and len(bars) > 0:
+                        # Get the last (most recent) bar's close price
+                        if hasattr(bars, 'to_dicts'):
+                            bar_list = bars.to_dicts()
+                        elif hasattr(bars, 'to_dict'):
+                            bar_list = bars.to_dict(orient='records')
+                        else:
+                            bar_list = list(bars) if hasattr(bars, '__iter__') else []
+
+                        if bar_list:
+                            last_bar = bar_list[-1]
+                            symbol_prices[base_symbol] = float(last_bar.get('close', last_bar.get('Close', 0)))
+                            logger.debug(f"Fetched current price for {base_symbol}: {symbol_prices[base_symbol]}")
+                except Exception as price_err:
+                    logger.warning(f"Could not fetch price for {base_symbol}: {price_err}")
+
             result = []
             for pos in positions:
                 if not pos:
                     continue
-
-                # Get current price for PnL calculation
-                current_price = float(getattr(pos, 'currentPrice', getattr(pos, 'current_price', 0)) or 0)
-                entry_price = float(getattr(pos, 'avgPrice', getattr(pos, 'averagePrice', getattr(pos, 'entry_price', 0))) or 0)
 
                 # Get symbol info for tick value
                 symbol = getattr(pos, 'contractName', getattr(pos, 'symbol', ''))
@@ -763,8 +801,20 @@ class ProjectXSDKService:
                             base_symbol = parts[3]  # e.g., MES from CON.F.US.MES.H26
                     else:
                         # Handle MESH26, MGCJ26 format - strip month code and year
-                        import re
                         base_symbol = re.sub(r'[FGHJKMNQUVXZ]\d{1,4}$', '', symbol.upper())
+
+                # Get current price from pre-fetched prices or SDK (if available)
+                current_price = symbol_prices.get(base_symbol, 0)
+                if current_price == 0:
+                    current_price = float(getattr(pos, 'currentPrice', getattr(pos, 'current_price', 0)) or 0)
+
+                entry_price = float(getattr(pos, 'avgPrice', getattr(pos, 'averagePrice', getattr(pos, 'entry_price', 0))) or 0)
+
+                # SDK provides direction, is_long for determining long/short
+                direction = getattr(pos, 'direction', None)
+                is_long_sdk = getattr(pos, 'is_long', None)
+
+                logger.debug(f"POSITION CALC: symbol={base_symbol}, direction={direction}, is_long={is_long_sdk}, entry={entry_price}, current={current_price}")
 
                 contract_info = self._contract_resolver.get_symbol_info(base_symbol) if base_symbol else None
                 tick_value = float(contract_info.get('tick_value', 1.0)) if contract_info else 1.0
@@ -800,8 +850,20 @@ class ProjectXSDKService:
                 # Third: Manual calculation as last resort
                 if pnl_val == 0.0 and current_price > 0 and entry_price > 0:
                     pos_size = abs(float(getattr(pos, 'size', getattr(pos, 'qty', 0)) or 0))
-                    pos_type = getattr(pos, 'type', None)
-                    is_long = pos_type == 2 if pos_type is not None else (float(getattr(pos, 'size', 0) or 0) > 0)
+
+                    # Determine if long using SDK attributes (direction, is_long, signed_size)
+                    direction = getattr(pos, 'direction', None)
+                    is_long_attr = getattr(pos, 'is_long', None)
+                    signed_size = getattr(pos, 'signed_size', None)
+
+                    if direction is not None:
+                        is_long = (direction == 'LONG')
+                    elif is_long_attr is not None:
+                        is_long = is_long_attr
+                    elif signed_size is not None:
+                        is_long = (signed_size > 0)
+                    else:
+                        is_long = (float(getattr(pos, 'size', 0) or 0) > 0)
 
                     if tick_size > 0:
                         price_diff = current_price - entry_price
@@ -811,13 +873,19 @@ class ProjectXSDKService:
                             pnl_val = -pnl_val
                     logger.debug(f"Manual PnL calc for {symbol}: price_diff={current_price-entry_price}, tick_value={tick_value}, size={pos_size}, pnl={pnl_val}")
 
-                # Determine side from 'type' attribute or size sign
-                # Position type: 2 = long (buy), 0 = short (sell)
-                # Fallback: positive size = long, negative = short
-                pos_type = getattr(pos, 'type', None)
+                # Determine side from SDK attributes
+                # SDK provides: direction ('LONG'/'SHORT'), is_long, is_short, signed_size
+                direction = getattr(pos, 'direction', None)
+                is_long_attr = getattr(pos, 'is_long', None)
+                signed_size = getattr(pos, 'signed_size', None)
                 pos_size = getattr(pos, 'size', getattr(pos, 'qty', 0)) or 0
-                if pos_type is not None:
-                    side = "buy" if pos_type == 2 else "sell"
+
+                if direction is not None:
+                    side = "buy" if direction == 'LONG' else "sell"
+                elif is_long_attr is not None:
+                    side = "buy" if is_long_attr else "sell"
+                elif signed_size is not None:
+                    side = "buy" if signed_size > 0 else "sell"
                 else:
                     side = "buy" if pos_size > 0 else "sell"
 
@@ -863,19 +931,28 @@ class ProjectXSDKService:
                 contract_id = str(getattr(pos, 'contractId', getattr(pos, 'contract_id', '')))
 
                 if pos_id == position_id or contract_id == position_id:
-                    # Determine position side from 'type' attribute or size sign
-                    # type=2 or positive size = long (bought), type=0 or negative size = short (sold)
-                    # SDK order sides: 0=sell, 1=buy (empirically verified)
-                    pos_type = getattr(pos, 'type', None)
+                    # Determine position side from SDK attributes
+                    # SDK provides: direction ('LONG'/'SHORT'), is_long, is_short, signed_size
+                    direction = getattr(pos, 'direction', None)
+                    is_long_attr = getattr(pos, 'is_long', None)
+                    signed_size = getattr(pos, 'signed_size', None)
                     pos_size = getattr(pos, 'size', 0)
 
-                    # Long position (type=2 or positive size) needs sell order (side=0)
-                    # Short position (type=0 or negative size) needs buy order (side=1)
-                    is_long = pos_type == 2 or (pos_type is None and pos_size > 0)
+                    # Determine if long position (needs sell to close)
+                    if direction is not None:
+                        is_long = direction == 'LONG'
+                    elif is_long_attr is not None:
+                        is_long = is_long_attr
+                    elif signed_size is not None:
+                        is_long = signed_size > 0
+                    else:
+                        is_long = pos_size > 0
+
+                    # Long position needs sell order (side=0), Short needs buy order (side=1)
                     close_side = 0 if is_long else 1  # SDK: 0=sell, 1=buy
                     close_size = size if size else abs(int(pos_size)) or 1
 
-                    logger.info(f"Closing position {pos_id}: type={pos_type}, size={pos_size}, is_long={is_long}, close_side={close_side}, close_size={close_size}")
+                    logger.info(f"Closing position {pos_id}: direction={direction}, is_long={is_long}, close_side={close_side}, close_size={close_size}")
 
                     response = await suite.orders.place_market_order(
                         contract_id=suite.instrument_id,
@@ -1043,25 +1120,51 @@ class ProjectXSDKService:
                 # SDK's place_bracket_order handles this atomically
                 entry_type = 'market' if entry_price is None else 'limit'
                 logger.info(f"Using SDK place_bracket_order with entry_type={entry_type}, contract_id={suite.instrument_id}")
-                response = await suite.orders.place_bracket_order(
-                    contract_id=suite.instrument_id,
-                    side=side_int,
-                    size=size,
-                    entry_price=entry_price,  # None for market
-                    stop_loss_price=stop_loss,
-                    take_profit_price=take_profit,
-                    entry_type=entry_type,
-                )
-                logger.info(f"SDK place_bracket_order response: {response}")
-                order_id = getattr(response, 'orderId', getattr(response, 'order_id', '')) if response else ""
-                return {
-                    "success": getattr(response, 'success', True) if response else True,
-                    "order_id": str(order_id),
-                    "status": "submitted",
-                    "bracket": True,
-                    "stop_loss": stop_loss,
-                    "take_profit": take_profit,
-                }
+                try:
+                    response = await suite.orders.place_bracket_order(
+                        contract_id=suite.instrument_id,
+                        side=side_int,
+                        size=size,
+                        entry_price=entry_price,  # None for market
+                        stop_loss_price=stop_loss,
+                        take_profit_price=take_profit,
+                        entry_type=entry_type,
+                    )
+                    logger.info(f"SDK place_bracket_order response: {response}")
+                    order_id = getattr(response, 'orderId', getattr(response, 'order_id', '')) if response else ""
+                    return {
+                        "success": getattr(response, 'success', True) if response else True,
+                        "order_id": str(order_id),
+                        "status": "submitted",
+                        "bracket": True,
+                        "stop_loss": stop_loss,
+                        "take_profit": take_profit,
+                    }
+                except Exception as bracket_err:
+                    # Bracket order failed (often due to fill timeout in low liquidity)
+                    # Fallback to simple market order without SL/TP
+                    error_str = str(bracket_err)
+                    if "failed to fill" in error_str.lower():
+                        logger.warning(f"Bracket order fill timeout, falling back to market order without SL/TP: {bracket_err}")
+                        try:
+                            fallback_order = await suite.orders.place_market_order(
+                                contract_id=suite.instrument_id,
+                                side=side_int,
+                                size=size,
+                            )
+                            order_id = getattr(fallback_order, 'orderId', getattr(fallback_order, 'order_id', '')) if fallback_order else ""
+                            return {
+                                "success": True,
+                                "order_id": str(order_id),
+                                "status": "submitted",
+                                "bracket": False,
+                                "warning": "SL/TP not placed due to fill timeout - add manually",
+                            }
+                        except Exception as fallback_err:
+                            logger.error(f"Fallback market order also failed: {fallback_err}")
+                            raise bracket_err  # Re-raise original error
+                    else:
+                        raise  # Re-raise non-fill-timeout errors
 
             # If only SL or only TP, place order first then add protection
             # For market orders with partial protection, we need to:

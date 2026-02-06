@@ -77,30 +77,30 @@ class SymbolNormalizationService:
         # =====================================================================
         # Micro Futures (TradingView continuous contracts)
         # =====================================================================
-        # Micro E-mini NASDAQ-100
-        'MNQ1!': {'tradovate': 'MNQ', 'projectx': 'MNQ'},
-        'MNQ': {'tradovate': 'MNQ', 'projectx': 'MNQ'},
-        'MNQH2026': {'tradovate': 'MNQ', 'projectx': 'MNQ'},
-        # Micro E-mini S&P 500
-        'MES1!': {'tradovate': 'MES', 'projectx': 'MES'},
-        'MES': {'tradovate': 'MES', 'projectx': 'MES'},
-        'MESH2026': {'tradovate': 'MES', 'projectx': 'MES'},
-        # Micro E-mini Dow
-        'MYM1!': {'tradovate': 'MYM', 'projectx': 'MYM'},
-        'MYM': {'tradovate': 'MYM', 'projectx': 'MYM'},
-        'MYMH2026': {'tradovate': 'MYM', 'projectx': 'MYM'},
-        # Micro Crude Oil
-        'MCL1!': {'tradovate': 'MCL', 'projectx': 'MCL'},
-        'MCL': {'tradovate': 'MCL', 'projectx': 'MCL'},
-        # Micro Gold
-        'MGC1!': {'tradovate': 'MGC', 'projectx': 'MGC'},
-        'MGC': {'tradovate': 'MGC', 'projectx': 'MGC'},
-        # Micro Bitcoin (CME)
-        'MBT1!': {'tradovate': 'MBT', 'projectx': 'MBT'},
-        'MBT': {'tradovate': 'MBT', 'projectx': 'MBT'},
-        # Micro Russell 2000
-        'M2K1!': {'tradovate': 'M2K', 'projectx': 'M2K'},
-        'M2K': {'tradovate': 'M2K', 'projectx': 'M2K'},
+        # Micro E-mini NASDAQ-100 -> NAS100 for CFD brokers
+        'MNQ1!': {'tradovate': 'MNQ', 'projectx': 'MNQ', 'tradelocker': 'NAS100', 'mt5': 'NAS100'},
+        'MNQ': {'tradovate': 'MNQ', 'projectx': 'MNQ', 'tradelocker': 'NAS100', 'mt5': 'NAS100'},
+        'MNQH2026': {'tradovate': 'MNQ', 'projectx': 'MNQ', 'tradelocker': 'NAS100', 'mt5': 'NAS100'},
+        # Micro E-mini S&P 500 -> US500 for CFD brokers
+        'MES1!': {'tradovate': 'MES', 'projectx': 'MES', 'tradelocker': 'US500', 'mt5': 'US500'},
+        'MES': {'tradovate': 'MES', 'projectx': 'MES', 'tradelocker': 'US500', 'mt5': 'US500'},
+        'MESH2026': {'tradovate': 'MES', 'projectx': 'MES', 'tradelocker': 'US500', 'mt5': 'US500'},
+        # Micro E-mini Dow -> US30 for CFD brokers
+        'MYM1!': {'tradovate': 'MYM', 'projectx': 'MYM', 'tradelocker': 'US30', 'mt5': 'US30'},
+        'MYM': {'tradovate': 'MYM', 'projectx': 'MYM', 'tradelocker': 'US30', 'mt5': 'US30'},
+        'MYMH2026': {'tradovate': 'MYM', 'projectx': 'MYM', 'tradelocker': 'US30', 'mt5': 'US30'},
+        # Micro Crude Oil -> USOIL/WTI for CFD brokers
+        'MCL1!': {'tradovate': 'MCL', 'projectx': 'MCL', 'tradelocker': 'USOIL', 'mt5': 'USOIL'},
+        'MCL': {'tradovate': 'MCL', 'projectx': 'MCL', 'tradelocker': 'USOIL', 'mt5': 'USOIL'},
+        # Micro Gold -> XAUUSD for CFD brokers
+        'MGC1!': {'tradovate': 'MGC', 'projectx': 'MGC', 'tradelocker': 'XAUUSD', 'mt5': 'XAUUSD'},
+        'MGC': {'tradovate': 'MGC', 'projectx': 'MGC', 'tradelocker': 'XAUUSD', 'mt5': 'XAUUSD'},
+        # Micro Bitcoin (CME) -> BTCUSD for CFD brokers
+        'MBT1!': {'tradovate': 'MBT', 'projectx': 'MBT', 'tradelocker': 'BTCUSD', 'mt5': 'BTCUSD'},
+        'MBT': {'tradovate': 'MBT', 'projectx': 'MBT', 'tradelocker': 'BTCUSD', 'mt5': 'BTCUSD'},
+        # Micro Russell 2000 -> US2000 for CFD brokers
+        'M2K1!': {'tradovate': 'M2K', 'projectx': 'M2K', 'tradelocker': 'US2000', 'mt5': 'US2000'},
+        'M2K': {'tradovate': 'M2K', 'projectx': 'M2K', 'tradelocker': 'US2000', 'mt5': 'US2000'},
 
         # =====================================================================
         # E-mini Futures (TradingView continuous contracts)
@@ -124,23 +124,23 @@ class SymbolNormalizationService:
         # Commodities
         # =====================================================================
         # Crude Oil
-        'CL1!': {'tradovate': 'CL', 'projectx': 'CL'},
-        'CL': {'tradovate': 'CL', 'projectx': 'CL'},
-        'USOIL': {'tradovate': 'CL', 'projectx': 'CL'},
-        'WTIUSD': {'tradovate': 'CL', 'projectx': 'CL'},
+        'CL1!': {'tradovate': 'CL', 'projectx': 'CL', 'tradelocker': 'USOIL', 'mt5': 'USOIL'},
+        'CL': {'tradovate': 'CL', 'projectx': 'CL', 'tradelocker': 'USOIL', 'mt5': 'USOIL'},
+        'USOIL': {'tradovate': 'CL', 'projectx': 'CL', 'tradelocker': 'USOIL', 'mt5': 'USOIL'},
+        'WTIUSD': {'tradovate': 'CL', 'projectx': 'CL', 'tradelocker': 'USOIL', 'mt5': 'USOIL'},
         # Gold
-        'GC1!': {'tradovate': 'GC', 'projectx': 'GC'},
-        'GC': {'tradovate': 'GC', 'projectx': 'GC'},
-        'XAUUSD': {'tradovate': 'GC', 'projectx': 'GC'},
-        'GOLD': {'tradovate': 'GC', 'projectx': 'GC'},
+        'GC1!': {'tradovate': 'GC', 'projectx': 'GC', 'tradelocker': 'XAUUSD', 'mt5': 'XAUUSD'},
+        'GC': {'tradovate': 'GC', 'projectx': 'GC', 'tradelocker': 'XAUUSD', 'mt5': 'XAUUSD'},
+        'XAUUSD': {'tradovate': 'GC', 'projectx': 'GC', 'tradelocker': 'XAUUSD', 'mt5': 'XAUUSD'},
+        'GOLD': {'tradovate': 'GC', 'projectx': 'GC', 'tradelocker': 'XAUUSD', 'mt5': 'XAUUSD'},
         # Silver
-        'SI1!': {'tradovate': 'SI', 'projectx': 'SI'},
-        'SI': {'tradovate': 'SI', 'projectx': 'SI'},
-        'XAGUSD': {'tradovate': 'SI', 'projectx': 'SI'},
+        'SI1!': {'tradovate': 'SI', 'projectx': 'SI', 'tradelocker': 'XAGUSD', 'mt5': 'XAGUSD'},
+        'SI': {'tradovate': 'SI', 'projectx': 'SI', 'tradelocker': 'XAGUSD', 'mt5': 'XAGUSD'},
+        'XAGUSD': {'tradovate': 'SI', 'projectx': 'SI', 'tradelocker': 'XAGUSD', 'mt5': 'XAGUSD'},
         # Natural Gas
-        'NG1!': {'tradovate': 'NG', 'projectx': 'NG'},
-        'NG': {'tradovate': 'NG', 'projectx': 'NG'},
-        'NATGAS': {'tradovate': 'NG', 'projectx': 'NG'},
+        'NG1!': {'tradovate': 'NG', 'projectx': 'NG', 'tradelocker': 'NATGAS', 'mt5': 'NATGAS'},
+        'NG': {'tradovate': 'NG', 'projectx': 'NG', 'tradelocker': 'NATGAS', 'mt5': 'NATGAS'},
+        'NATGAS': {'tradovate': 'NG', 'projectx': 'NG', 'tradelocker': 'NATGAS', 'mt5': 'NATGAS'},
 
         # =====================================================================
         # CFD/Index mappings (for TradeLocker/other brokers)
@@ -150,9 +150,10 @@ class SymbolNormalizationService:
         'DJ30': {'tradovate': 'YM', 'projectx': 'YM', 'tradelocker': 'US30'},
         'DOW': {'tradovate': 'YM', 'projectx': 'YM', 'tradelocker': 'US30'},
         # S&P 500
-        'US500': {'tradovate': 'ES', 'projectx': 'ES', 'tradelocker': 'US500'},
-        'SPX500': {'tradovate': 'ES', 'projectx': 'ES', 'tradelocker': 'US500'},
-        'SPX': {'tradovate': 'ES', 'projectx': 'ES', 'tradelocker': 'US500'},
+        'US500': {'tradovate': 'ES', 'projectx': 'ES', 'tradelocker': 'US500', 'mt5': 'US500'},
+        'SPX500': {'tradovate': 'ES', 'projectx': 'ES', 'tradelocker': 'US500', 'mt5': 'US500'},
+        'SPX500USD': {'tradovate': 'ES', 'projectx': 'ES', 'tradelocker': 'US500', 'mt5': 'US500'},
+        'SPX': {'tradovate': 'ES', 'projectx': 'ES', 'tradelocker': 'US500', 'mt5': 'US500'},
         # NASDAQ
         'NAS100': {'tradovate': 'NQ', 'projectx': 'NQ', 'tradelocker': 'NAS100'},
         'USTEC': {'tradovate': 'NQ', 'projectx': 'NQ', 'tradelocker': 'NAS100'},
