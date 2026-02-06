@@ -405,10 +405,79 @@ class FunnelAutomationService:
         try:
             email = await self.redis_client.get(f"lead_email_{lead_id}")
             return email or ""
-            
+
         except Exception as e:
             logger.error(f"Error getting lead email: {e}")
             return ""
+
+    async def get_payments_for_followup(self) -> List[Dict]:
+        """Get payments that need follow-up"""
+        try:
+            payments_json = await self.redis_client.get("payments_pending_followup")
+
+            if payments_json:
+                return json.loads(payments_json)
+
+            return []
+
+        except Exception as e:
+            logger.error(f"Error getting payments for follow-up: {e}")
+            return []
+
+    async def send_payment_followup(self, payment: Dict):
+        """Send payment follow-up email"""
+        try:
+            email_data = {
+                "personalizations": [{
+                    "to": [{"email": payment.get("email", "")}],
+                    "subject": "Complete Your Payment - Limited Time Offer",
+                }],
+                "from": {"email": "noreply@fluxeo-trading.com"},
+                "content": [{
+                    "type": "text/plain",
+                    "value": f"Hi {payment.get('name', 'Trader')},\n\nWe noticed your payment is incomplete. Complete it now to secure your spot.\n\nBest regards,\nFluxeo Trading Team"
+                }]
+            }
+
+            await self.send_email(email_data)
+            logger.info(f"Payment follow-up sent to {payment.get('email')}")
+
+        except Exception as e:
+            logger.error(f"Error sending payment follow-up: {e}")
+
+    async def flag_for_manual_review(self, application: Dict):
+        """Flag application for manual review"""
+        try:
+            await self.redis_client.lpush("applications_manual_review", json.dumps(application))
+            logger.info(f"Application {application.get('id')} flagged for manual review")
+
+        except Exception as e:
+            logger.error(f"Error flagging application for manual review: {e}")
+
+    async def send_vsl_midpoint_email(self, engagement: Dict):
+        """Send email to users who watched more than 10 minutes of VSL"""
+        try:
+            lead_email = await self.get_lead_email(engagement.get('lead_id', ''))
+
+            if not lead_email:
+                return
+
+            email_data = {
+                "personalizations": [{
+                    "to": [{"email": lead_email}],
+                    "subject": "You're On The Right Track!",
+                }],
+                "from": {"email": "noreply@fluxeo-trading.com"},
+                "content": [{
+                    "type": "text/plain",
+                    "value": "Great progress! You're halfway through. Keep watching to discover the full strategy.\n\nBest regards,\nFluxeo Trading Team"
+                }]
+            }
+
+            await self.send_email(email_data)
+
+        except Exception as e:
+            logger.error(f"Error sending VSL midpoint email: {e}")
 
 # Main execution
 async def main():

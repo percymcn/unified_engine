@@ -103,38 +103,30 @@ services:
       - FRONTEND_URL=https://mytradeflow.app
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      # Google OAuth
+      # Google OAuth (ID is public, secret loaded from Docker secret)
       - GOOGLE_CLIENT_ID=245547382264-erko44adkasedj547c4r0jkk4b7gt0mm.apps.googleusercontent.com
-      - GOOGLE_CLIENT_SECRET=GOCSPX-PLACEHOLDER
       - GOOGLE_REDIRECT_URI=https://mytradeflow.app/api/auth/google/callback
-      # MetaAPI
-      - METAAPI_TOKEN=METAAPI_TOKEN_PLACEHOLDER
+      # MetaAPI (token loaded from Docker secret)
       - METAAPI_APPLICATION=tradeflow
-      # Stripe Keys
-      - STRIPE_SECRET_KEY=sk_live_PLACEHOLDER
+      # Stripe Keys (publishable is public, secret loaded from Docker secret)
       - STRIPE_PUBLISHABLE_KEY=pk_live_51Sj3b9AeDMJzniTXZXoZkFzqOM5sJsJcQgFiXzxVKWNTATsFLD7ApOQJSVmNWxGihzpQ5A5g038YzYj9rqoIn3fd000ayzdBBU
-      - STRIPE_WEBHOOK_SECRET=whsec_PLACEHOLDER
-      # Stripe Price IDs (Monthly)
+      # Stripe Price IDs (Monthly) - these are public
       - STRIPE_PRICE_TIER1_MONTHLY=price_1SuGD8AeDMJzniTXYXFcjNUn
       - STRIPE_PRICE_TIER2_MONTHLY=price_1SuGVuAeDMJzniTXmuM6UM23
       - STRIPE_PRICE_TIER3_MONTHLY=price_1SuGXsAeDMJzniTXKVp7x94O
       - STRIPE_PRICE_TIER4_MONTHLY=price_1SuGYXAeDMJzniTXQiBisbhc
-      # Stripe Price IDs (Annual)
+      # Stripe Price IDs (Annual) - these are public
       - STRIPE_PRICE_TIER1_ANNUAL=price_1SungBAeDMJzniTX013x3GMl
       - STRIPE_PRICE_TIER2_ANNUAL=price_1SunfTAeDMJzniTXGXGxG08B
       - STRIPE_PRICE_TIER3_ANNUAL=price_1SunenAeDMJzniTXFiIyg9mF
       - STRIPE_PRICE_TIER4_ANNUAL=price_1Sune6AeDMJzniTX9TJglICS
       # Admin
       - OWNER_ADMIN_EMAILS=benzemm110@gmail.com
-      # AI
-      - ANTHROPIC_API_KEY=sk-ant-PLACEHOLDER
       # CORS
       - CORS_ORIGINS=["https://mytradeflow.app", "https://www.mytradeflow.app", "https://api.mytradeflow.app", "http://localhost:3456"]
       # JWT
       - JWT_ALGORITHM=HS256
       - ACCESS_TOKEN_EXPIRE_MINUTES=1440
-      # Encryption (override secret with proper 32-byte key)
-      - CREDENTIAL_ENCRYPTION_KEY=POkS2p2f6kRPtVkIxYSeIbVz1gQies_JlKze1g8OvDw=
       # ProjectX/TopstepX
       - PROJECTX_API_URL=https://api.topstepx.com
       - TOPSTEPX_API_URL=https://api.topstepx.com
@@ -150,6 +142,11 @@ services:
       - secret_key
       - jwt_secret
       - credential_encryption_key
+      - google_client_secret
+      - metaapi_token
+      - stripe_secret_key
+      - stripe_webhook_secret
+      - anthropic_api_key
     deploy:
       replicas: 1
       placement:
@@ -181,20 +178,16 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.stack
-    command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=2
+    command: ["celery", "-A", "app.tasks.celery_app", "worker", "--loglevel=info", "--concurrency=2"]
     environment:
       - DATABASE_URL=postgresql://trading_user@postgres:5432/trading_db
       - REDIS_URL=redis://redis:6379/0
       - ENVIRONMENT=production
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - METAAPI_TOKEN=METAAPI_TOKEN_PLACEHOLDER
       - METAAPI_APPLICATION=tradeflow
-      - STRIPE_SECRET_KEY=sk_live_PLACEHOLDER
-      - ANTHROPIC_API_KEY=sk-ant-PLACEHOLDER
       - PROJECTX_API_URL=https://api.topstepx.com
       - TOPSTEPX_API_URL=https://api.topstepx.com
-      - CREDENTIAL_ENCRYPTION_KEY=POkS2p2f6kRPtVkIxYSeIbVz1gQies_JlKze1g8OvDw=
     volumes:
       - ./logs:/app/logs
       - ./data:/app/data
@@ -205,6 +198,9 @@ services:
       - secret_key
       - jwt_secret
       - credential_encryption_key
+      - metaapi_token
+      - stripe_secret_key
+      - anthropic_api_key
     deploy:
       replicas: 1
       placement:
@@ -230,14 +226,13 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.stack
-    command: celery -A app.tasks.celery_app beat --loglevel=info
+    command: ["celery", "-A", "app.tasks.celery_app", "beat", "--loglevel=info", "--pidfile=/tmp/celerybeat.pid"]
     environment:
       - DATABASE_URL=postgresql://trading_user@postgres:5432/trading_db
       - REDIS_URL=redis://redis:6379/0
       - ENVIRONMENT=production
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - CREDENTIAL_ENCRYPTION_KEY=POkS2p2f6kRPtVkIxYSeIbVz1gQies_JlKze1g8OvDw=
     volumes:
       - ./logs:/app/logs
       - ./data:/app/data
@@ -248,13 +243,22 @@ services:
       - secret_key
       - jwt_secret
       - credential_encryption_key
+    healthcheck:
+      test: ["CMD-SHELL", "exit 0"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
     deploy:
       replicas: 1
       placement:
         constraints:
           - node.role == manager
       restart_policy:
-        condition: on-failure
+        condition: any
+        delay: 5s
+        max_attempts: 10
+        window: 120s
       resources:
         limits:
           memory: 256M
@@ -267,7 +271,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.stack
-    command: sh -c 'celery -A app.tasks.celery_app flower --port=5555 --basic_auth=$$(cat /run/secrets/flower_auth)'
+    command: ["sh", "-c", "celery -A app.tasks.celery_app flower --port=5555 --basic_auth=$$(cat /run/secrets/flower_auth)"]
     ports:
       - "5558:5555"
     environment:
@@ -276,7 +280,6 @@ services:
       - ENVIRONMENT=production
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - CREDENTIAL_ENCRYPTION_KEY=POkS2p2f6kRPtVkIxYSeIbVz1gQies_JlKze1g8OvDw=
     networks:
       - unified-network
     secrets:
@@ -288,12 +291,20 @@ services:
     deploy:
       replicas: 1
       restart_policy:
-        condition: on-failure
+        condition: any
+        delay: 5s
+        max_attempts: 5
       resources:
         limits:
           memory: 256M
         reservations:
           memory: 128M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5555/healthcheck"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   # Next.js UI
   ui:
@@ -330,12 +341,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.stack
-    command: python -c "import asyncio; from app.services.funnel_automation import main; asyncio.run(main())"
+    command: ["python", "-c", "import asyncio; from app.services.funnel_automation import main; asyncio.run(main())"]
     environment:
       - DATABASE_URL=postgresql://trading_user@postgres:5432/trading_db
       - REDIS_URL=redis://redis:6379/0
       - ENVIRONMENT=production
-      - CREDENTIAL_ENCRYPTION_KEY=POkS2p2f6kRPtVkIxYSeIbVz1gQies_JlKze1g8OvDw=
     volumes:
       - ./logs:/app/logs
       - ./data:/app/data
@@ -346,13 +356,21 @@ services:
       - secret_key
       - jwt_secret
       - credential_encryption_key
+    healthcheck:
+      test: ["CMD-SHELL", "exit 0"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
     deploy:
       replicas: 1
       placement:
         constraints:
           - node.role == manager
       restart_policy:
-        condition: on-failure
+        condition: any
+        delay: 10s
+        max_attempts: 5
       resources:
         limits:
           memory: 256M
@@ -405,4 +423,14 @@ secrets:
   credential_encryption_key:
     external: true
   flower_auth:
+    external: true
+  google_client_secret:
+    external: true
+  metaapi_token:
+    external: true
+  stripe_secret_key:
+    external: true
+  stripe_webhook_secret:
+    external: true
+  anthropic_api_key:
     external: true
