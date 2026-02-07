@@ -13,40 +13,42 @@ from app.services.oauth_service import oauth_service
 from app.routers.auth import create_access_token, get_current_user
 from app.models.models import User
 from app.core.config import settings
+from app.core.oauth_state import generate_oauth_state, validate_oauth_state_permissive
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/oauth", tags=["oauth"])
 
-router = APIRouter(prefix="/api/v1/oauth", tags=["oauth"])
-
 @router.get("/providers")
 async def get_oauth_providers():
-    """Get available OAuth providers"""
+    """Get available OAuth providers with CSRF-protected auth URLs"""
     providers = []
-    
+
+    # Generate a unique state token for CSRF protection
+    state = await generate_oauth_state()
+
     if hasattr(settings, "GOOGLE_CLIENT_ID") and settings.GOOGLE_CLIENT_ID:
         providers.append({
             "provider": "google",
             "name": "Google",
-            "auth_url": oauth_service.get_oauth_authorization_url(OAuthProvider.GOOGLE)
+            "auth_url": oauth_service.get_oauth_authorization_url(OAuthProvider.GOOGLE, state=state)
         })
-    
+
     if hasattr(settings, "GITHUB_CLIENT_ID") and settings.GITHUB_CLIENT_ID:
         providers.append({
             "provider": "github",
             "name": "GitHub",
-            "auth_url": oauth_service.get_oauth_authorization_url(OAuthProvider.GITHUB)
+            "auth_url": oauth_service.get_oauth_authorization_url(OAuthProvider.GITHUB, state=state)
         })
-    
+
     if hasattr(settings, "MICROSOFT_CLIENT_ID") and settings.MICROSOFT_CLIENT_ID:
         providers.append({
             "provider": "microsoft",
             "name": "Microsoft",
-            "auth_url": oauth_service.get_oauth_authorization_url(OAuthProvider.MICROSOFT)
+            "auth_url": oauth_service.get_oauth_authorization_url(OAuthProvider.MICROSOFT, state=state)
         })
-    
-    return {"providers": providers}
+
+    return {"providers": providers, "state": state}
 
 @router.get("/callback/google")
 async def google_oauth_callback(
@@ -59,7 +61,16 @@ async def google_oauth_callback(
     Exchanges authorization code for access token and creates/updates user session.
     """
     import httpx
-    
+
+    # Validate state parameter to prevent CSRF attacks
+    # Using permissive mode for backwards compatibility with existing flows
+    state_valid = await validate_oauth_state_permissive(state)
+    if not state_valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid OAuth state parameter - possible CSRF attack"
+        )
+
     if not settings.GOOGLE_CLIENT_ID or not settings.GOOGLE_CLIENT_SECRET:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

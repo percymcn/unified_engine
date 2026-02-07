@@ -240,8 +240,16 @@ class OAuthService:
         return user
     
     @staticmethod
-    def get_oauth_authorization_url(provider: OAuthProvider) -> str:
-        """Get OAuth authorization URL for provider"""
+    def get_oauth_authorization_url(provider: OAuthProvider, state: Optional[str] = None) -> str:
+        """
+        Get OAuth authorization URL for provider.
+
+        Args:
+            provider: The OAuth provider
+            state: Optional CSRF state token (strongly recommended for security)
+        """
+        state_param = f"&state={state}" if state else ""
+
         if provider == OAuthProvider.GOOGLE:
             client_id = getattr(settings, "GOOGLE_CLIENT_ID", "")
             if not client_id:
@@ -258,6 +266,7 @@ class OAuthService:
                 f"scope=openid email profile&"
                 f"access_type=offline&"
                 f"prompt=consent"
+                f"{state_param}"
             )
         elif provider == OAuthProvider.GITHUB:
             client_id = getattr(settings, "GITHUB_CLIENT_ID", "")
@@ -267,6 +276,7 @@ class OAuthService:
                 f"client_id={client_id}&"
                 f"redirect_uri={redirect_uri}&"
                 f"scope=user:email"
+                f"{state_param}"
             )
         elif provider == OAuthProvider.MICROSOFT:
             client_id = getattr(settings, "MICROSOFT_CLIENT_ID", "")
@@ -277,6 +287,7 @@ class OAuthService:
                 f"redirect_uri={redirect_uri}&"
                 f"response_type=code&"
                 f"scope=openid email profile"
+                f"{state_param}"
             )
         else:
             raise HTTPException(
