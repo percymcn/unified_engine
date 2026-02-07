@@ -1,4 +1,13 @@
+# Environment files - NEVER commit secrets
 .env
+.env.*
+!.env.example
+!.env.*.example
+deploy/envs/.env.*
+!deploy/envs/.env.*.example
+ui-next/.env.*
+!ui-next/.env.example
+
 *.db
 *.log
 __pycache__/
@@ -7,11 +16,6 @@ __pycache__/
 venv/
 node_modules/
 .DS_Store
-
-# Environment files with real values
-.env.local
-.env.*.local
-deploy/envs/.env.*.local
 
 # local backups
 .local/
