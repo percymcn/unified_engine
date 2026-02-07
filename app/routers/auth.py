@@ -462,12 +462,15 @@ async def resend_verification_email(
 
 
 def generate_password_reset_token(email: str, user_id: int) -> str:
-    """Generate a JWT token for password reset"""
+    """Generate a JWT token for password reset with unique JTI for one-time use"""
+    import secrets
     expires = datetime.utcnow() + timedelta(hours=1)  # Token valid for 1 hour
+    jti = secrets.token_urlsafe(16)  # Unique token ID for one-time use tracking
     to_encode = {
         "sub": email,
         "user_id": user_id,
         "type": "password_reset",
+        "jti": jti,  # JWT ID for blacklisting after use
         "exp": expires
     }
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
@@ -525,8 +528,10 @@ async def reset_password(
 ):
     """
     Reset password using the token from the email.
+    Token can only be used once - subsequent attempts will fail.
     """
     import logging
+    from app.cache.redis_client import redis_client
     logger = logging.getLogger(__name__)
 
     # Verify the token
@@ -536,6 +541,23 @@ async def reset_password(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid or expired reset token"
         )
+
+    # Check if token has already been used (one-time use)
+    jti = payload.get("jti")
+    if jti:
+        used_key = f"password_reset_used:{jti}"
+        try:
+            already_used = await redis_client.get(used_key)
+            if already_used:
+                logger.warning(f"Attempt to reuse password reset token: {jti[:8]}...")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="This reset link has already been used"
+                )
+        except Exception as e:
+            if "already been used" in str(e):
+                raise
+            logger.warning(f"Redis check failed, proceeding: {e}")
 
     user_id = payload.get("user_id")
     email = payload.get("sub")
@@ -553,6 +575,13 @@ async def reset_password(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Password must be at least 8 characters"
         )
+
+    # Mark token as used BEFORE updating password (prevents race condition)
+    if jti:
+        try:
+            await redis_client.set(used_key, "1", ex=3600)  # Keep for 1 hour (token TTL)
+        except Exception as e:
+            logger.warning(f"Failed to mark token as used: {e}")
 
     # Update password
     try:
