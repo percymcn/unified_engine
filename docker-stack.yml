@@ -124,9 +124,9 @@ services:
       - OWNER_ADMIN_EMAILS=benzemm110@gmail.com
       # CORS
       - CORS_ORIGINS=["https://mytradeflow.app", "https://www.mytradeflow.app", "https://api.mytradeflow.app", "http://localhost:3456"]
-      # JWT
+      # JWT - reduced from 24h to 1h for security
       - JWT_ALGORITHM=HS256
-      - ACCESS_TOKEN_EXPIRE_MINUTES=1440
+      - ACCESS_TOKEN_EXPIRE_MINUTES=60
       # ProjectX/TopstepX
       - PROJECTX_API_URL=https://api.topstepx.com
       - TOPSTEPX_API_URL=https://api.topstepx.com
@@ -422,7 +422,7 @@ secrets:
     external: true
   credential_encryption_key:
     external: true
-    name: credential_encryption_key_v8
+    name: credential_encryption_key_v11
   flower_auth:
     external: true
   google_client_secret:
