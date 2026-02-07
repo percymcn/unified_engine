@@ -275,6 +275,9 @@ if settings.is_production:
             "api.mytradeflow.app",
             "tradeflow.fluxeo.net",
             "localhost",
+            # Internal Docker service names for container-to-container communication
+            "api",
+            "api:8000",
         ]
     )
 
