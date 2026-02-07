@@ -263,7 +263,13 @@ app.add_middleware(
 if settings.is_production:
     app.add_middleware(
         TrustedHostMiddleware,
-        allowed_hosts=["*"]  # Configure with actual allowed hosts
+        allowed_hosts=[
+            "mytradeflow.app",
+            "www.mytradeflow.app",
+            "api.mytradeflow.app",
+            "tradeflow.fluxeo.net",
+            "localhost",
+        ]
     )
 
 # Request ID middleware for tracing
