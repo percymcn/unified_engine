@@ -579,7 +579,7 @@ async def reset_password(
     # Mark token as used BEFORE updating password (prevents race condition)
     if jti:
         try:
-            await redis_client.set(used_key, "1", ex=3600)  # Keep for 1 hour (token TTL)
+            await redis_client.set(used_key, "1", expire=3600)  # Keep for 1 hour (token TTL)
         except Exception as e:
             logger.warning(f"Failed to mark token as used: {e}")
 

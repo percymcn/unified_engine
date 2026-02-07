@@ -62,7 +62,7 @@ async def add_token_to_blacklist(token: str) -> bool:
             key = f"{BLACKLIST_PREFIX}{token_hash}"
 
         # Store in Redis with TTL
-        await redis_client.set(key, "1", ex=ttl_seconds)
+        await redis_client.set(key, "1", expire=ttl_seconds)
         logger.info(f"Token blacklisted, expires in {ttl_seconds}s")
         return True
 
@@ -133,7 +133,7 @@ async def blacklist_all_user_tokens(user_id: int) -> bool:
         await redis_client.set(
             key,
             str(datetime.utcnow().timestamp()),
-            ex=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60 * 2  # Keep for 2x token lifetime
+            expire=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60 * 2  # Keep for 2x token lifetime
         )
         logger.info(f"Invalidated all tokens for user {user_id}")
         return True

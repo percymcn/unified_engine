@@ -33,7 +33,7 @@ async def generate_oauth_state() -> str:
     try:
         # Store in Redis with TTL
         key = f"{STATE_PREFIX}{state}"
-        await redis_client.set(key, "1", ex=STATE_TTL_SECONDS)
+        await redis_client.set(key, "1", expire=STATE_TTL_SECONDS)
         logger.debug(f"Generated OAuth state token (TTL={STATE_TTL_SECONDS}s)")
         return state
     except Exception as e:
