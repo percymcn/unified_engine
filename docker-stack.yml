@@ -147,6 +147,7 @@ services:
       - stripe_secret_key
       - stripe_webhook_secret
       - anthropic_api_key
+      - resend_api_key
     deploy:
       replicas: 1
       placement:
@@ -434,4 +435,6 @@ secrets:
   stripe_webhook_secret:
     external: true
   anthropic_api_key:
+    external: true
+  resend_api_key:
     external: true

@@ -299,7 +299,18 @@ class Settings(BaseSettings):
             except ValueError:
                 return ""
         return v
-    
+
+    @field_validator("RESEND_API_KEY", mode="before")
+    @classmethod
+    def load_resend_api_key(cls, v):
+        # Try to load from Docker secret if not provided
+        if not v:
+            try:
+                return get_secret("resend_api_key", default=None)
+            except ValueError:
+                return None
+        return v
+
     model_config = SettingsConfigDict(
         env_file=".env",
         case_sensitive=True,
