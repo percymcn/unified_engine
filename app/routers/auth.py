@@ -12,6 +12,7 @@ from app.models.schemas import UserCreate, User as UserSchema, Token, TokenData,
 from app.core.config import settings
 from app.core.event_emitter import emit_user_event
 from app.core.rate_limiter import limiter, AUTH_RATE_LIMIT, EMAIL_RATE_LIMIT
+from app.core.token_blacklist import add_token_to_blacklist, is_token_blacklisted
 from app.services.email_service import (
     generate_verification_token,
     verify_email_token,
@@ -84,21 +85,31 @@ async def get_current_user(
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    
+
+    token = credentials.credentials
+
+    # Check if token is blacklisted (logged out)
+    if await is_token_blacklisted(token):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has been revoked",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     try:
-        payload = jwt.decode(credentials.credentials, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         username: str = payload.get("sub")
         if username is None:
             raise credentials_exception
-        
+
         token_data = TokenData(username=username)
     except JWTError:
         raise credentials_exception
-    
+
     user = get_user_by_username(db, username=token_data.username)
     if user is None:
         raise credentials_exception
-    
+
     return user
 
 
@@ -284,11 +295,20 @@ async def read_users_me(current_user: User = Depends(get_current_user)):
     return current_user
 
 @router.post("/logout")
-async def logout(current_user: User = Depends(get_current_user)):
-    """Logout user (client-side token removal)"""
-    # In a stateless JWT system, logout is handled client-side
-    # We could implement token blacklisting if needed
-    return {"message": "Successfully logged out"}
+async def logout(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    current_user: User = Depends(get_current_user)
+):
+    """Logout user and invalidate the token"""
+    # Add token to blacklist so it can't be reused
+    token = credentials.credentials
+    blacklisted = await add_token_to_blacklist(token)
+    if blacklisted:
+        return {"message": "Successfully logged out", "token_revoked": True}
+    else:
+        # Even if blacklisting fails, tell user logout succeeded
+        # They should still clear the token client-side
+        return {"message": "Successfully logged out", "token_revoked": False}
 
 @router.post("/refresh", response_model=Token)
 async def refresh_token(current_user: User = Depends(get_current_user)):
