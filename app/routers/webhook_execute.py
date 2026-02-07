@@ -367,6 +367,44 @@ def log_event(event_type: str, **kwargs):
     logger.info(json.dumps(log_data))
 
 
+def _get_client_ip(request: Request) -> str:
+    """Extract real client IP handling Cloudflare and proxy headers."""
+    # Cloudflare
+    cf_ip = request.headers.get("CF-Connecting-IP")
+    if cf_ip:
+        return cf_ip
+    # Nginx
+    real_ip = request.headers.get("X-Real-IP")
+    if real_ip:
+        return real_ip
+    # Standard proxy
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    # Direct
+    return request.client.host if request.client else "unknown"
+
+
+# Known TradingView IP ranges (as of 2024)
+# Reference: https://www.tradingview.com/support/solutions/43000529348
+TRADINGVIEW_IP_RANGES = [
+    "52.89.214.",
+    "34.212.75.",
+    "54.218.53.",
+    "52.32.178.",
+    "167.89.101.",
+    "167.89.100.",
+]
+
+
+def _is_tradingview_ip(ip: str) -> bool:
+    """Check if IP is from known TradingView ranges."""
+    for prefix in TRADINGVIEW_IP_RANGES:
+        if ip.startswith(prefix):
+            return True
+    return False
+
+
 @router.post("/execute", response_model=ExecuteResponse)
 async def execute_tradingview_signal(
     request: Request,
@@ -391,18 +429,29 @@ async def execute_tradingview_signal(
     start_time = datetime.utcnow()
     webhook_id = str(uuid.uuid4())
 
+    # Get and log client IP for security auditing
+    client_ip = _get_client_ip(request)
+    is_tv_ip = _is_tradingview_ip(client_ip)
+
     try:
         # Parse JSON payload
         raw_payload = await request.json()
     except Exception as e:
-        logger.warning(f"Invalid JSON payload: {e}")
+        logger.warning(f"Invalid JSON payload from {client_ip}: {e}")
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Invalid JSON payload"
         )
 
-    # Log webhook received
-    log_event("webhook_received", webhook_id=webhook_id, has_key=bool(raw_payload.get("webhook_key")))
+    # Log webhook received with IP info for security auditing
+    log_event(
+        "webhook_received",
+        webhook_id=webhook_id,
+        has_key=bool(raw_payload.get("webhook_key")),
+        client_ip=client_ip,
+        is_tradingview_ip=is_tv_ip,
+        user_agent=request.headers.get("user-agent", "")[:100]
+    )
 
     # Validate required fields
     webhook_key = raw_payload.get("webhook_key")
@@ -453,6 +502,8 @@ async def execute_tradingview_signal(
 
     # Create webhook log with extracted fields for easier querying
     quantity = raw_payload.get("quantity") or raw_payload.get("qty") or raw_payload.get("size")
+    # Track if quantity was explicitly provided (for partial close support)
+    explicit_close_quantity = quantity if action_str == "close" else None
     price = raw_payload.get("price") or raw_payload.get("entry_price")
     sl = raw_payload.get("sl") or raw_payload.get("stop_loss")
     tp = raw_payload.get("tp") or raw_payload.get("take_profit")
@@ -487,7 +538,8 @@ async def execute_tradingview_signal(
             webhook_key=webhook_key,
             action_str=action_str,
             symbol=symbol,
-            start_time=start_time
+            start_time=start_time,
+            explicit_close_quantity=explicit_close_quantity
         )
     except HTTPException:
         # Re-raise HTTP exceptions (they have their own error handling)
@@ -532,7 +584,8 @@ async def _execute_tradingview_signal_inner(
     webhook_key: str,
     action_str: str,
     symbol: str,
-    start_time: datetime
+    start_time: datetime,
+    explicit_close_quantity: Optional[str] = None
 ):
     """Inner implementation of webhook execution with all the main logic."""
     # === MULTI-ACCOUNT ROUTING ===
@@ -1446,7 +1499,9 @@ async def _execute_tradingview_signal_inner(
                         for pos in matching_positions:
                             pos_id = get_attr(pos, 'id') or get_attr(pos, 'position_id') or get_attr(pos, 'contract_id')
                             if pos_id:
-                                close_result = await executor.close_position(str(pos_id), quantity if quantity > 0 else None)
+                                # Use explicit_close_quantity if provided (partial close), otherwise None (full close)
+                                close_qty = float(explicit_close_quantity) if explicit_close_quantity else None
+                                close_result = await executor.close_position(str(pos_id), close_qty)
                                 if close_result.success if hasattr(close_result, 'success') else close_result.get('success'):
                                     closed += 1
                                 else:
@@ -1741,6 +1796,8 @@ async def _execute_tradingview_signal_inner(
                 except Exception as e:
                     logger.warning(f"Failed to increment trade counter for account {account.id}: {e}")
 
+            # Record result based on execution success
+            if execution_success:
                 account_results.append(AccountExecutionResult(
                     account_id=account.id,
                     broker=broker_str,
