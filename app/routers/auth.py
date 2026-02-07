@@ -11,6 +11,7 @@ from app.models.models import User, UserSession
 from app.models.schemas import UserCreate, User as UserSchema, Token, TokenData, LoginRequest
 from app.core.config import settings
 from app.core.event_emitter import emit_user_event
+from app.core.rate_limiter import limiter, AUTH_RATE_LIMIT, EMAIL_RATE_LIMIT
 from app.services.email_service import (
     generate_verification_token,
     verify_email_token,
@@ -131,7 +132,8 @@ async def get_current_user_optional(
 
 
 @router.post("/register", response_model=UserSchema)
-async def register(user: UserCreate, db: Session = Depends(get_db)):
+@limiter.limit(AUTH_RATE_LIMIT)
+async def register(request: Request, user: UserCreate, db: Session = Depends(get_db)):
     """Register new user"""
     import logging
     logger = logging.getLogger(__name__)
@@ -205,6 +207,7 @@ async def register(user: UserCreate, db: Session = Depends(get_db)):
     return db_user
 
 @router.post("/login", response_model=Token)
+@limiter.limit(AUTH_RATE_LIMIT)
 async def login(
     request: Request,
     login_data: Optional[LoginRequest] = Body(None),
@@ -213,7 +216,7 @@ async def login(
     db: Session = Depends(get_db)
 ):
     """Login user and return access token
-    
+
     Accepts JSON body (preferred) or query parameters (backward compatibility).
     JSON body format: {"username": str, "password": str}
     """
@@ -404,7 +407,9 @@ async def verify_email(token: str = Body(..., embed=True), db: Session = Depends
 
 
 @router.post("/resend-verification")
+@limiter.limit(EMAIL_RATE_LIMIT)
 async def resend_verification_email(
+    request: Request,
     email: str = Body(..., embed=True),
     db: Session = Depends(get_db)
 ):
@@ -460,7 +465,9 @@ def verify_password_reset_token(token: str) -> Optional[dict]:
 
 
 @router.post("/forgot-password")
+@limiter.limit(EMAIL_RATE_LIMIT)
 async def forgot_password(
+    request: Request,
     email: str = Body(..., embed=True),
     db: Session = Depends(get_db)
 ):
@@ -489,7 +496,9 @@ async def forgot_password(
 
 
 @router.post("/reset-password")
+@limiter.limit(AUTH_RATE_LIMIT)
 async def reset_password(
+    request: Request,
     token: str = Body(...),
     new_password: str = Body(...),
     db: Session = Depends(get_db)

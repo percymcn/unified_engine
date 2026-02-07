@@ -16,6 +16,8 @@ import uvicorn
 # Core imports
 from app.core.config import settings
 from app.core.websocket_manager import ws_manager as websocket_manager
+from app.core.rate_limiter import limiter, rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 from app.services.signal_processor import signal_processor
 from app.cache.redis_client import redis_client
 from app.db.database import engine
@@ -186,6 +188,10 @@ app = FastAPI(
     docs_url="/docs" if settings.is_development else None,
     redoc_url="/redoc" if settings.is_development else None
 )
+
+# Register rate limiter with the app
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 
 
 async def _verify_database_connection() -> None:
