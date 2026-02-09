@@ -16,6 +16,7 @@ import { TestimonialsSection } from "@/components/landing/testimonials-section";
 import { FAQ } from "@/components/landing/faq";
 import { Footer } from "@/components/landing/footer";
 import { SalesChat } from "@/components/landing/sales-chat";
+import { TelegramSupportButton } from "@/components/telegram-support-button";
 
 export const metadata: Metadata = {
   title: "Tradeflow - Never Miss a Trade Again | Auto-Execute TradingView Signals",
@@ -79,6 +80,8 @@ export default function Home() {
       <Footer />
       {/* Sales chatbot for visitor questions */}
       <SalesChat />
+      {/* Quick Telegram support */}
+      <TelegramSupportButton />
       {/* Social proof purchase notifications */}
       <SocialProofToast />
     </>

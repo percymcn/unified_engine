@@ -873,12 +873,13 @@ async def get_webhook_logs(
     ).all()
     user_webhook_keys = [a.webhook_key for a in user_accounts if a.webhook_key]
 
-    # Also get profile webhook key
-    user_webhook_config = db.query(WebhookConfig).filter(
+    # Also get ALL profile webhook keys (user may have multiple configs)
+    user_webhook_configs = db.query(WebhookConfig).filter(
         WebhookConfig.user_id == current_user.id
-    ).first()
-    if user_webhook_config and user_webhook_config.webhook_key:
-        user_webhook_keys.append(user_webhook_config.webhook_key)
+    ).all()
+    for config in user_webhook_configs:
+        if config.webhook_key:
+            user_webhook_keys.append(config.webhook_key)
 
     # Query logs
     logs = db.query(WebhookLog).order_by(WebhookLog.created_at.desc()).offset(skip).limit(limit).all()
@@ -1037,9 +1038,16 @@ async def get_webhook_logs(
             "successful_accounts": response_data.get("successful", 1 if log.processed else 0) if response_data else (1 if log.processed else 0),
             "failed_accounts": response_data.get("failed", 0 if log.processed else 1) if response_data else (0 if log.processed else 1),
             "executions": executions,
-            # NEW: Human-readable rejection reason
+            # Human-readable rejection reason
             "rejection_reason": rejection_reason,
             "result_status": result_status,
+            # Full errors array from response
+            "errors": response_data.get("errors", []) if response_data else [],
+            # Guard decision info
+            "guard_decision": response_data.get("guard_decision") if response_data else None,
+            "guard_reason": response_data.get("guard_reason") if response_data else None,
+            # Signal ID for cross-reference
+            "signal_id": response_data.get("signal_id") if response_data else None,
         })
 
     return enriched_logs

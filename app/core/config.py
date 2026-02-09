@@ -311,6 +311,39 @@ class Settings(BaseSettings):
                 return None
         return v
 
+    @field_validator("METAAPI_TOKEN", mode="before")
+    @classmethod
+    def load_metaapi_token(cls, v):
+        # Try to load from Docker secret if not provided
+        if not v:
+            try:
+                return get_secret("metaapi_token", default=None)
+            except ValueError:
+                return None
+        return v
+
+    @field_validator("STRIPE_SECRET_KEY", mode="before")
+    @classmethod
+    def load_stripe_secret_key(cls, v):
+        # Try to load from Docker secret if not provided
+        if not v:
+            try:
+                return get_secret("stripe_secret_key", default=None)
+            except ValueError:
+                return None
+        return v
+
+    @field_validator("STRIPE_WEBHOOK_SECRET", mode="before")
+    @classmethod
+    def load_stripe_webhook_secret(cls, v):
+        # Try to load from Docker secret if not provided
+        if not v:
+            try:
+                return get_secret("stripe_webhook_secret", default=None)
+            except ValueError:
+                return None
+        return v
+
     model_config = SettingsConfigDict(
         env_file=".env",
         case_sensitive=True,

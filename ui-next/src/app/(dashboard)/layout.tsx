@@ -1,5 +1,7 @@
 import { Sidebar } from '@/components/sidebar';
 import { Header } from '@/components/header';
+import { TelegramSupportButton } from '@/components/telegram-support-button';
+import { SupportChat } from '@/components/dashboard/support-chat';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -22,6 +24,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         {/* Page content */}
         <main className="flex-1 overflow-auto p-6">{children}</main>
       </div>
+
+      {/* Floating support buttons */}
+      <TelegramSupportButton />
+      <SupportChat />
     </div>
   );
 }
