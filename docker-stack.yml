@@ -4,6 +4,7 @@ services:
   # PostgreSQL Database
   postgres:
     image: postgres:15
+    command: postgres -c max_connections=300 -c shared_buffers=128MB
     environment:
       POSTGRES_DB: trading_db
       POSTGRES_USER: trading_user
@@ -47,7 +48,9 @@ services:
         constraints:
           - node.role == manager
       restart_policy:
-        condition: on-failure
+        condition: any
+        delay: 5s
+        max_attempts: 10
       resources:
         limits:
           memory: 256M
@@ -155,7 +158,10 @@ services:
         constraints:
           - node.role == manager
       restart_policy:
-        condition: on-failure
+        condition: any
+        delay: 5s
+        max_attempts: 10
+        window: 120s
       resources:
         limits:
           memory: 512M
@@ -208,7 +214,10 @@ services:
         constraints:
           - node.role == manager
       restart_policy:
-        condition: on-failure
+        condition: any
+        delay: 5s
+        max_attempts: 10
+        window: 120s
       resources:
         limits:
           memory: 512M
@@ -323,7 +332,10 @@ services:
     deploy:
       replicas: 1
       restart_policy:
-        condition: on-failure
+        condition: any
+        delay: 5s
+        max_attempts: 10
+        window: 120s
       resources:
         limits:
           memory: 512M
