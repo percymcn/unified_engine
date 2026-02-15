@@ -682,12 +682,32 @@ class TestConnectionUseCase:
                     if response.status_code == 200:
                         # Get auth token from response
                         auth_token = None
+                        auth_success = False
+                        error_code = None
                         try:
                             auth_data = response.json()
-                            auth_token = auth_data.get("token")
+                            # ProjectX always returns HTTP 200 - must check body for success
+                            auth_success = auth_data.get("success", False)
+                            auth_token = auth_data.get("token") if auth_success else None
+                            error_code = auth_data.get("errorCode")
                         except Exception:
                             # Response might be plain text token
-                            auth_token = response.text.strip()
+                            raw = response.text.strip()
+                            if raw and len(raw) > 20:
+                                auth_token = raw
+                                auth_success = True
+
+                        # If auth failed in the JSON body, report failure
+                        if not auth_success and not auth_token:
+                            error_msg = "Invalid ProjectX/TopStep credentials. Please verify your username and API key."
+                            if error_code == 3:
+                                error_msg = "Authentication failed (error code 3). Please check your TopStep username and API key."
+                            return TestConnectionResponse(
+                                success=False,
+                                status="failed",
+                                message=error_msg,
+                                details={"http_status": 200, "error_code": error_code}
+                            )
 
                         # Get symbols for format detection
                         symbols = []

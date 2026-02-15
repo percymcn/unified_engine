@@ -257,15 +257,16 @@ class ProjectXExecutor(BaseExecutor):
         filtered to only active accounts (positive balance), limited to `limit`.
         """
         try:
-            response = await self._session.post("/api/Account/search", json={})
+            response = await self._session.post("/api/Account/search", json={"onlyActiveAccounts": True})
             if response.status_code == 200:
                 data = response.json()
                 accounts_data = data if isinstance(data, list) else data.get("accounts", data.get("data", []))
 
                 # Filter to tradeable accounts (canTrade=True) first
+                # Use bool() to handle both boolean True and integer 1 from API
                 tradeable_accounts = [
                     acc for acc in accounts_data
-                    if acc.get("canTrade", False) is True
+                    if bool(acc.get("canTrade", False))
                 ]
 
                 # Sort by ID descending (most recent first) and limit
