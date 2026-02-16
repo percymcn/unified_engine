@@ -530,6 +530,34 @@ class DailyPnL(Base):
     account = relationship("TradingAccount")
 
 
+class DailyCounter(Base):
+    """Daily trade counters per account for risk management"""
+    __tablename__ = "daily_counters"
+    __table_args__ = (
+        Index('ix_daily_counters_account_id', 'account_id'),
+        Index('ix_daily_counters_date', 'date'),
+        Index('ix_daily_counters_account_date', 'account_id', 'date', unique=True),
+        {'extend_existing': True}
+    )
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    account_id = Column(Integer, ForeignKey("trading_accounts.id", ondelete='CASCADE'), nullable=False)
+    date = Column(Date, nullable=False)
+
+    # Counters
+    signals_received = Column(Integer, nullable=False, default=0, server_default='0')
+    trades_executed = Column(Integer, nullable=False, default=0, server_default='0')
+    trades_rejected = Column(Integer, nullable=False, default=0, server_default='0')
+    last_trade_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow, server_default=sa_text('now()'))
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, server_default=sa_text('now()'))
+
+    # Relationships
+    account = relationship("TradingAccount")
+
+
 class AccountEquityHistory(Base):
     """Equity snapshots for drawdown calculation"""
     __tablename__ = "account_equity_history"
