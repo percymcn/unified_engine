@@ -537,8 +537,8 @@ async def evaluate_risk(
             detail="Account not found"
         )
 
-    # Build risk settings from account
-    settings = AccountRiskSettings.from_account(account)
+    # Build risk settings from account with user defaults cascade
+    settings = AccountRiskSettings.from_account(account, user=current_user)
 
     # Get services
     counter_repo = get_daily_counter_repository()

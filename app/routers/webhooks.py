@@ -1208,6 +1208,9 @@ async def process_routed_signal(
         symbol = signal_data.get("symbol", "UNKNOWN")
         action_str = signal_data.get("action", "buy").lower()
 
+        # Get user for default settings cascade
+        user = db.query(User).filter(User.id == webhook_config.user_id).first()
+
         # Initialize risk enforcement service
         counter_repo = get_daily_counter_repository()
         counter_service = DailyCounterService(counter_repo)
@@ -1226,8 +1229,8 @@ async def process_routed_signal(
             if not account:
                 continue
 
-            # Build risk settings from account
-            risk_settings = AccountRiskSettings.from_account(account)
+            # Build risk settings from account with user defaults cascade
+            risk_settings = AccountRiskSettings.from_account(account, user=user)
 
             # Evaluate risk limits
             evaluation = await risk_service.evaluate(

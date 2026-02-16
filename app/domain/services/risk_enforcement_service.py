@@ -72,27 +72,33 @@ class AccountRiskSettings:
     risk_management_enabled: bool = True
 
     @classmethod
-    def from_account(cls, account) -> "AccountRiskSettings":
+    def from_account(cls, account, user=None) -> "AccountRiskSettings":
         """
-        Create settings from a TradingAccount model.
+        Create settings from a TradingAccount model with user defaults cascade.
+
+        Settings priority:
+        1. Account-specific setting (if not None)
+        2. User default setting (if user provided and not None)
+        3. System default (None or hardcoded default)
 
         Args:
             account: TradingAccount model instance
+            user: User model instance (optional) for default fallback
 
         Returns:
             AccountRiskSettings instance
         """
         return cls(
-            max_daily_trades=getattr(account, 'max_daily_trades', None),
-            max_open_positions=getattr(account, 'max_open_positions', None),
-            max_positions_per_symbol=getattr(account, 'max_positions_per_symbol', None) or 1,
-            trade_cooldown_seconds=getattr(account, 'trade_cooldown_seconds', None),
-            max_daily_loss=getattr(account, 'max_daily_loss', None),
-            max_daily_loss_pct=getattr(account, 'max_daily_loss_pct', None),
-            max_daily_profit=getattr(account, 'max_daily_profit', None),
-            max_daily_profit_pct=getattr(account, 'max_daily_profit_pct', None),
-            max_drawdown_pct=getattr(account, 'max_drawdown_pct', None),
-            min_risk_reward_ratio=getattr(account, 'min_risk_reward_ratio', None),
+            max_daily_trades=getattr(account, 'max_daily_trades', None) or (getattr(user, 'default_max_daily_trades', None) if user else None),
+            max_open_positions=getattr(account, 'max_open_positions', None) or (getattr(user, 'default_max_open_positions', None) if user else None),
+            max_positions_per_symbol=getattr(account, 'max_positions_per_symbol', None) or (getattr(user, 'default_max_positions_per_symbol', None) if user else None) or 1,
+            trade_cooldown_seconds=getattr(account, 'trade_cooldown_seconds', None) or (getattr(user, 'default_trade_cooldown_seconds', None) if user else None),
+            max_daily_loss=getattr(account, 'max_daily_loss', None) or (getattr(user, 'default_max_daily_loss', None) if user else None),
+            max_daily_loss_pct=getattr(account, 'max_daily_loss_pct', None) or (getattr(user, 'default_max_daily_loss_pct', None) if user else None),
+            max_daily_profit=getattr(account, 'max_daily_profit', None) or (getattr(user, 'default_max_daily_profit', None) if user else None),
+            max_daily_profit_pct=getattr(account, 'max_daily_profit_pct', None) or (getattr(user, 'default_max_daily_profit_pct', None) if user else None),
+            max_drawdown_pct=getattr(account, 'max_drawdown_pct', None) or (getattr(user, 'default_max_drawdown_pct', None) if user else None),
+            min_risk_reward_ratio=getattr(account, 'min_risk_reward_ratio', None) or (getattr(user, 'default_min_risk_reward_ratio', None) if user else None),
         )
 
 

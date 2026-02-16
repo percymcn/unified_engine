@@ -100,6 +100,9 @@ class UpdateAccountSettingsUseCase:
         if request.trade_cooldown_seconds is not None:
             self._validate_range(request.trade_cooldown_seconds, 0, 3600, "trade_cooldown_seconds")
             updates['trade_cooldown_seconds'] = request.trade_cooldown_seconds
+        if request.min_risk_reward_ratio is not None:
+            self._validate_range(request.min_risk_reward_ratio, 0.1, 20.0, "min_risk_reward_ratio")
+            updates['min_risk_reward_ratio'] = request.min_risk_reward_ratio
         # Default stop loss/take profit (stored in broker-specific units)
         if request.default_stop_loss is not None:
             updates['default_stop_loss'] = request.default_stop_loss
@@ -198,6 +201,7 @@ class UpdateAccountSettingsUseCase:
             max_positions_per_symbol=account.max_positions_per_symbol,
             max_daily_trades=account.max_daily_trades,
             trade_cooldown_seconds=account.trade_cooldown_seconds,
+            min_risk_reward_ratio=account.min_risk_reward_ratio,
             default_stop_loss=getattr(account, 'default_stop_loss', None),
             default_take_profit=getattr(account, 'default_take_profit', None),
             sl_type=getattr(account, 'sl_type', None) or 'pips',
@@ -253,6 +257,7 @@ class GetAccountSettingsUseCase:
             max_positions_per_symbol=account.max_positions_per_symbol,
             max_daily_trades=account.max_daily_trades,
             trade_cooldown_seconds=account.trade_cooldown_seconds,
+            min_risk_reward_ratio=account.min_risk_reward_ratio,
             default_stop_loss=getattr(account, 'default_stop_loss', None),
             default_take_profit=getattr(account, 'default_take_profit', None),
             sl_type=getattr(account, 'sl_type', None) or 'pips',

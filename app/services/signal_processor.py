@@ -739,8 +739,12 @@ class SignalProcessor:
         try:
             db = next(get_db())
 
-            # Create risk settings from account
-            risk_settings = AccountRiskSettings.from_account(account)
+            # Get user for default settings cascade
+            from app.models.models import User
+            user = db.query(User).filter(User.id == account.user_id).first()
+
+            # Create risk settings from account with user defaults cascade
+            risk_settings = AccountRiskSettings.from_account(account, user=user)
 
             # Check if risk management is enabled for this account
             if not getattr(account, 'risk_management_enabled', True):

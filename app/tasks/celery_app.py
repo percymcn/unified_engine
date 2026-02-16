@@ -1,4 +1,5 @@
 from celery import Celery
+from celery.schedules import crontab
 import os
 
 # Get Redis URL from environment
@@ -22,3 +23,18 @@ celery_app.conf.update(
     broker_connection_retry=True,
     broker_connection_max_retries=10,
 )
+
+# Celery Beat schedule for periodic tasks
+celery_app.conf.beat_schedule = {
+    'sync-all-accounts-every-5-minutes': {
+        'task': 'trading_tasks.sync_all_accounts',
+        'schedule': 300.0,  # Every 5 minutes (in seconds)
+        'options': {
+            'expires': 240,  # Task expires after 4 minutes
+        }
+    },
+    'sync-daily-counters-at-midnight': {
+        'task': 'trading_tasks.reset_daily_counters',
+        'schedule': crontab(hour=0, minute=1),  # Daily at 00:01 UTC
+    },
+}

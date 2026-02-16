@@ -39,6 +39,7 @@ class AccountSettingsRequest:
     max_positions_per_symbol: Optional[int] = None  # 1 - 50 (max positions per instrument)
     max_daily_trades: Optional[int] = None  # 1 - 1000
     trade_cooldown_seconds: Optional[int] = None  # 0 - 3600
+    min_risk_reward_ratio: Optional[float] = None  # 0.1 - 20.0 (minimum risk-reward ratio)
     # Default stop loss/take profit in broker-specific units (pips/points/percent)
     # Backend converts to absolute prices using signal's entry price
     default_stop_loss: Optional[float] = None  # Value in units specified by sl_type
@@ -81,6 +82,7 @@ class AccountSettingsResponse:
     max_positions_per_symbol: Optional[int]
     max_daily_trades: Optional[int]
     trade_cooldown_seconds: Optional[int]
+    min_risk_reward_ratio: Optional[float]
     # Default stop loss/take profit in broker-specific units (pips/points/percent)
     default_stop_loss: Optional[float]
     default_take_profit: Optional[float]

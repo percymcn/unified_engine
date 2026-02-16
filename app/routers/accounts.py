@@ -1641,6 +1641,7 @@ class AccountSettingsBody(BaseModel):
     max_positions_per_symbol: Optional[int] = Field(None, alias="maxPositionsPerSymbol", ge=1, le=50, description="Max positions per instrument/symbol")
     max_daily_trades: Optional[int] = Field(None, alias="maxDailyTrades", ge=1, le=1000)
     trade_cooldown_seconds: Optional[int] = Field(None, alias="tradeCooldownSeconds", ge=0, le=3600)
+    min_risk_reward_ratio: Optional[float] = Field(None, alias="minRiskRewardRatio", ge=0.1, le=20.0, description="Minimum risk-reward ratio (e.g., 1.5 means reward must be 1.5x risk)")
 
     # Default SL/TP (broker-specific units)
     default_stop_loss: Optional[float] = Field(None, alias="defaultStopLoss", ge=0)
@@ -1745,6 +1746,7 @@ async def get_account_settings(
                 "maxPositionsPerSymbol": response.max_positions_per_symbol,
                 "maxDailyTrades": response.max_daily_trades,
                 "tradeCooldownSeconds": response.trade_cooldown_seconds,
+                "minRiskRewardRatio": response.min_risk_reward_ratio,
                 "defaultStopLoss": getattr(response, 'default_stop_loss', None),
                 "defaultTakeProfit": getattr(response, 'default_take_profit', None),
                 "slType": getattr(response, 'sl_type', None) or 'pips',
@@ -1854,6 +1856,7 @@ async def update_account_settings(
         max_positions_per_symbol=settings.max_positions_per_symbol,
         max_daily_trades=settings.max_daily_trades,
         trade_cooldown_seconds=settings.trade_cooldown_seconds,
+        min_risk_reward_ratio=settings.min_risk_reward_ratio,
         default_stop_loss=settings.default_stop_loss,
         default_take_profit=settings.default_take_profit,
         sl_type=settings.sl_type,
@@ -1957,6 +1960,7 @@ async def update_account_settings(
                 "maxPositionsPerSymbol": response.max_positions_per_symbol,
                 "maxDailyTrades": response.max_daily_trades,
                 "tradeCooldownSeconds": response.trade_cooldown_seconds,
+                "minRiskRewardRatio": response.min_risk_reward_ratio,
                 "defaultStopLoss": getattr(response, 'default_stop_loss', None),
                 "defaultTakeProfit": getattr(response, 'default_take_profit', None),
                 "slType": getattr(response, 'sl_type', None) or 'pips',
