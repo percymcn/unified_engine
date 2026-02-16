@@ -611,13 +611,13 @@ async def discover_accounts(
                 message="No accounts found. ProjectX/TopStep accounts may need to be added manually with your account ID."
             )
 
-        # Filter to only show active/funded/sim accounts for cleaner UX
-        # Exclude blown/expired/inactive accounts regardless of account_type
+        # Filter to only show relevant accounts - include all tradeable statuses
+        # Do NOT exclude blown accounts - users may have accounts that show temporarily
+        # negative (e.g. EXPRESS accounts with open trades) or newly funded $0 accounts
         filtered = [
             acc for acc in discovered
-            if acc.status not in ('blown', 'expired', 'inactive')
-            and (acc.status in ('active', 'funded')
-                 or acc.account_type in ('funded', 'demo', 'eval', 'sim'))
+            if acc.status in ('active', 'funded', 'blown')
+            or acc.account_type in ('funded', 'demo', 'eval', 'sim')
         ]
 
         # Keep SDK order (most recent first by ID) - only take first 5

@@ -188,10 +188,11 @@ export function AccountForm({
           const discoverResult = await discoverAccounts(broker, stringCredentials);
           setDiscoveredAccounts(discoverResult.accounts || []);
           
-          // Auto-select accounts based on count - never auto-select blown/inactive accounts
+          // Auto-select accounts based on count - prefer active, but blown accounts are selectable too
+          // EXPRESS accounts can show 'blown' temporarily due to open trades starting from $0
           if (discoverResult.accounts && discoverResult.accounts.length > 0) {
             const selectableAccounts = discoverResult.accounts.filter(
-              acc => acc.status !== 'blown' && acc.status !== 'inactive' && acc.status !== 'expired'
+              acc => acc.status !== 'inactive' && acc.status !== 'expired'
             );
             if (selectableAccounts.length === 1) {
               // Exactly one selectable account - auto-select it
@@ -643,15 +644,16 @@ export function AccountForm({
                           {discoveredAccounts.map((acc) => {
                             const accId = acc.broker_account_id || acc.id || '';
                             const displayName = acc.display_name || acc.name || accId;
-                            const isBlown = acc.status === 'blown' || acc.status === 'inactive' || acc.status === 'expired';
+                            const isDisabled = acc.status === 'inactive' || acc.status === 'expired';
+                            const hasWarning = acc.status === 'blown';
                             return (
-                              <div key={accId} className={`flex items-start gap-3 p-2 border rounded-md ${isBlown ? 'opacity-50 bg-muted/30' : ''}`}>
+                              <div key={accId} className={`flex items-start gap-3 p-2 border rounded-md ${isDisabled ? 'opacity-40 bg-muted/30' : hasWarning ? 'border-yellow-400/50 bg-yellow-50/30' : ''}`}>
                                 <Checkbox
                                   id={`account-${accId}`}
                                   checked={selectedAccountIds.has(accId)}
-                                  disabled={isBlown}
+                                  disabled={isDisabled}
                                   onCheckedChange={(checked) =>
-                                    !isBlown && handleAccountToggle(accId, checked as boolean)
+                                    !isDisabled && handleAccountToggle(accId, checked as boolean)
                                   }
                                   className="mt-1"
                                 />
@@ -659,7 +661,7 @@ export function AccountForm({
                                   <div className="flex items-center gap-2 flex-wrap">
                                     <Label
                                       htmlFor={`account-${accId}`}
-                                      className={`font-medium ${isBlown ? 'cursor-not-allowed line-through' : 'cursor-pointer'}`}
+                                      className={`font-medium ${isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                                     >
                                       {displayName}
                                     </Label>
@@ -674,8 +676,8 @@ export function AccountForm({
                                       </span>
                                     )}
                                     {acc.status === 'blown' && (
-                                      <span className="text-xs px-1.5 py-0.5 bg-red-100 text-red-700 rounded">
-                                        Blown
+                                      <span className="text-xs px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded">
+                                        Caution
                                       </span>
                                     )}
                                     <span className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">
@@ -685,7 +687,7 @@ export function AccountForm({
                                   <div className="text-xs text-muted-foreground mt-1">
                                     {String((acc.meta as Record<string, unknown>)?.currency ?? acc.currency ?? 'USD')} •
                                     Balance: ${Number(acc.meta?.balance || acc.balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                    {isBlown && <span className="ml-2 text-red-500">• Cannot be added</span>}
+                                    {hasWarning && <span className="ml-2 text-yellow-600">• Verify account status with broker</span>}
                                   </div>
                                   {acc.account_number && acc.account_number !== accId && (
                                     <div className="text-xs text-muted-foreground mt-1">
@@ -693,7 +695,7 @@ export function AccountForm({
                                     </div>
                                   )}
                                 </div>
-                                {selectedAccountIds.has(accId) && !isBlown && (
+                                {selectedAccountIds.has(accId) && !isDisabled && (
                                   <div className="flex items-center gap-2">
                                     <input
                                       type="radio"
@@ -847,15 +849,16 @@ export function AccountForm({
                           {discoveredAccounts.map((acc) => {
                             const accId = acc.broker_account_id || acc.id || '';
                             const displayName = acc.display_name || acc.name || accId;
-                            const isBlown = acc.status === 'blown' || acc.status === 'inactive' || acc.status === 'expired';
+                            const isDisabled = acc.status === 'inactive' || acc.status === 'expired';
+                            const hasWarning = acc.status === 'blown';
                             return (
-                              <div key={accId} className={`flex items-start gap-3 p-2 border rounded-md ${isBlown ? 'opacity-50 bg-muted/30' : ''}`}>
+                              <div key={accId} className={`flex items-start gap-3 p-2 border rounded-md ${isDisabled ? 'opacity-40 bg-muted/30' : hasWarning ? 'border-yellow-400/50 bg-yellow-50/30' : ''}`}>
                                 <Checkbox
                                   id={`account-${accId}`}
                                   checked={selectedAccountIds.has(accId)}
-                                  disabled={isBlown}
+                                  disabled={isDisabled}
                                   onCheckedChange={(checked) =>
-                                    !isBlown && handleAccountToggle(accId, checked as boolean)
+                                    !isDisabled && handleAccountToggle(accId, checked as boolean)
                                   }
                                   className="mt-1"
                                 />
@@ -863,7 +866,7 @@ export function AccountForm({
                                   <div className="flex items-center gap-2 flex-wrap">
                                     <Label
                                       htmlFor={`account-${accId}`}
-                                      className={`font-medium ${isBlown ? 'cursor-not-allowed line-through' : 'cursor-pointer'}`}
+                                      className={`font-medium ${isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                                     >
                                       {displayName}
                                     </Label>
@@ -878,8 +881,8 @@ export function AccountForm({
                                       </span>
                                     )}
                                     {acc.status === 'blown' && (
-                                      <span className="text-xs px-1.5 py-0.5 bg-red-100 text-red-700 rounded">
-                                        Blown
+                                      <span className="text-xs px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded">
+                                        Caution
                                       </span>
                                     )}
                                     <span className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">
@@ -889,7 +892,7 @@ export function AccountForm({
                                   <div className="text-xs text-muted-foreground mt-1">
                                     {String((acc.meta as Record<string, unknown>)?.currency ?? acc.currency ?? 'USD')} •
                                     Balance: ${Number(acc.meta?.balance || acc.balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                    {isBlown && <span className="ml-2 text-red-500">• Cannot be added</span>}
+                                    {hasWarning && <span className="ml-2 text-yellow-600">• Verify account status with broker</span>}
                                   </div>
                                   {acc.account_number && acc.account_number !== accId && (
                                     <div className="text-xs text-muted-foreground mt-1">
@@ -897,7 +900,7 @@ export function AccountForm({
                                     </div>
                                   )}
                                 </div>
-                                {selectedAccountIds.has(accId) && !isBlown && (
+                                {selectedAccountIds.has(accId) && !isDisabled && (
                                   <div className="flex items-center gap-2">
                                     <input
                                       type="radio"
