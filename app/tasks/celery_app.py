@@ -16,8 +16,8 @@ celery_app.conf.update(
     task_serializer='json',
     accept_content=['json'],
     result_serializer='json',
-    timezone='UTC',
-    enable_utc=True,
+    timezone='America/New_York',  # EST/EDT timezone
+    enable_utc=False,  # Use local timezone instead of UTC
     # Connection retry settings for Docker Swarm DNS timing
     broker_connection_retry_on_startup=True,
     broker_connection_retry=True,
@@ -35,6 +35,6 @@ celery_app.conf.beat_schedule = {
     },
     'sync-daily-counters-at-midnight': {
         'task': 'trading_tasks.reset_daily_counters',
-        'schedule': crontab(hour=0, minute=1),  # Daily at 00:01 UTC
+        'schedule': crontab(hour=0, minute=1),  # Daily at 00:01 EST/EDT
     },
 }
