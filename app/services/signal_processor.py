@@ -35,6 +35,7 @@ from app.domain.services.risk_enforcement_service import (
 )
 from app.domain.services.daily_counter_service import DailyCounterService
 from app.infrastructure.adapters.position_counter_adapter import PositionCounterAdapter
+from app.infrastructure.repositories.daily_counter_repository import get_daily_counter_repository
 from app.utils.broker_field_limits import truncate_comment, generate_short_comment
 
 logger = logging.getLogger(__name__)
@@ -751,7 +752,8 @@ class SignalProcessor:
                 return {"passed": True}
 
             # Create risk service dependencies
-            counter_service = DailyCounterService(db)
+            counter_repo = get_daily_counter_repository()
+            counter_service = DailyCounterService(counter_repo)
             position_counter = PositionCounterAdapter(db)
 
             # Create risk enforcement service

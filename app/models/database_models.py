@@ -5,7 +5,7 @@ This module contains ORM models unique to the infrastructure layer.
 Shared models (User, Signal, Trade, Position, Order) are imported from models.py
 to avoid duplicate SQLAlchemy mapper registrations.
 """
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text, JSON, Enum, Index, Date
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text, JSON, Enum, Index, Date, text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from datetime import datetime
@@ -142,6 +142,7 @@ class TradingAccount(Base):
     max_daily_trades = Column(Integer)  # Maximum trades per day
     trade_cooldown_seconds = Column(Integer)  # Minimum seconds between trades
     max_positions_per_symbol = Column(Integer, default=1)  # Maximum positions per instrument
+    min_risk_reward_ratio = Column(Float)  # Minimum risk-reward ratio (e.g., 1.5 = risk $1 to make $1.50)
     # Default stop loss/take profit in broker-specific units (pips/points/percent)
     # NOTE: These are stored in broker-specific units because they cannot be converted
     # to absolute prices without an entry price. When used with a signal, the backend
@@ -551,8 +552,8 @@ class DailyCounter(Base):
     last_trade_at = Column(DateTime(timezone=True), nullable=True)
 
     # Timestamps
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow, server_default=sa_text('now()'))
-    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, server_default=sa_text('now()'))
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow, server_default=text('now()'))
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, server_default=text('now()'))
 
     # Relationships
     account = relationship("TradingAccount")

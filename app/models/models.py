@@ -94,6 +94,7 @@ class User(Base):
     default_max_daily_profit_pct = Column(Float)  # Default max daily profit target %
     default_max_drawdown_pct = Column(Float)  # Default max drawdown %
     default_trade_cooldown_seconds = Column(Integer)  # Default cooldown
+    default_min_risk_reward_ratio = Column(Float)  # Default minimum R:R ratio (e.g., 1.5 = risk $1 to make $1.50)
 
     # Global position sizing defaults
     default_position_sizing_mode = Column(String(20), default="fixed")

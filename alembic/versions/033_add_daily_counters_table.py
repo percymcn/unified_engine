@@ -1,7 +1,7 @@
 """Add daily_counters table for persistent trade counting
 
-Revision ID: 033_add_daily_counters
-Revises: 032_add_max_daily_profit_fields
+Revision ID: 033
+Revises: 032
 Create Date: 2026-02-16
 
 Adds daily_counters table to persist trade counts and timestamps across
@@ -13,8 +13,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '033_add_daily_counters'
-down_revision = '032_add_max_daily_profit_fields'
+revision = '033'
+down_revision = '032'
 branch_labels = None
 depends_on = None
 

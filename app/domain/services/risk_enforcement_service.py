@@ -65,6 +65,8 @@ class AccountRiskSettings:
     trade_cooldown_seconds: Optional[int] = None
     max_daily_loss: Optional[float] = None
     max_daily_loss_pct: Optional[float] = None
+    max_daily_profit: Optional[float] = None
+    max_daily_profit_pct: Optional[float] = None
     max_drawdown_pct: Optional[float] = None
     min_risk_reward_ratio: Optional[float] = None
     risk_management_enabled: bool = True
@@ -87,6 +89,8 @@ class AccountRiskSettings:
             trade_cooldown_seconds=getattr(account, 'trade_cooldown_seconds', None),
             max_daily_loss=getattr(account, 'max_daily_loss', None),
             max_daily_loss_pct=getattr(account, 'max_daily_loss_pct', None),
+            max_daily_profit=getattr(account, 'max_daily_profit', None),
+            max_daily_profit_pct=getattr(account, 'max_daily_profit_pct', None),
             max_drawdown_pct=getattr(account, 'max_drawdown_pct', None),
             min_risk_reward_ratio=getattr(account, 'min_risk_reward_ratio', None),
         )
@@ -300,7 +304,23 @@ class RiskEnforcementService:
                 ))
                 logger.info(f"Account {account_id}: Drawdown limit blocked - {reason}")
 
-        # Check 7: Risk-reward ratio
+        # Check 7: Daily profit target (halt trading when reached)
+        if self._daily_pnl and (settings.max_daily_profit or settings.max_daily_profit_pct):
+            is_exceeded, reason = await self._daily_pnl.check_daily_profit_target(
+                account_id,
+                max_daily_profit=settings.max_daily_profit,
+                max_daily_profit_pct=settings.max_daily_profit_pct
+            )
+            if is_exceeded:
+                violations.append(RiskViolation(
+                    reason="daily_profit_target",
+                    detail=reason,
+                    limit_value=settings.max_daily_profit or settings.max_daily_profit_pct,
+                    current_value=0.0  # Actual value is in the detail string
+                ))
+                logger.info(f"Account {account_id}: Daily profit target reached - {reason}")
+
+        # Check 8: Risk-reward ratio
         if settings.min_risk_reward_ratio and entry_price and stop_loss and take_profit:
             is_valid, reason, ratio = self.validate_risk_reward(
                 entry_price, stop_loss, take_profit, settings.min_risk_reward_ratio

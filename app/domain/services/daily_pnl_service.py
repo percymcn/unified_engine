@@ -215,6 +215,45 @@ class DailyPnLService:
 
         return False, None
 
+    async def check_daily_profit_target(
+        self,
+        account_id: int,
+        max_daily_profit: Optional[float] = None,
+        max_daily_profit_pct: Optional[float] = None
+    ) -> tuple[bool, Optional[str]]:
+        """
+        Check if daily profit target has been reached (should halt trading).
+
+        Args:
+            account_id: Account ID
+            max_daily_profit: Maximum daily profit in account currency (HALT when reached)
+            max_daily_profit_pct: Maximum daily profit as percentage (HALT when reached)
+
+        Returns:
+            (is_exceeded, reason) tuple
+        """
+        state = await self.get_or_initialize(account_id, 0)
+
+        # Already halted
+        if state.is_trading_halted:
+            return True, state.halt_reason
+
+        # Check absolute profit target
+        if max_daily_profit and state.total_pnl > 0:
+            if state.total_pnl >= max_daily_profit:
+                reason = f"Daily profit target reached: ${state.total_pnl:.2f} >= ${max_daily_profit:.2f}"
+                await self._halt_trading(account_id, reason)
+                return True, reason
+
+        # Check percentage profit target
+        if max_daily_profit_pct and state.pnl_percent > 0:
+            if state.pnl_percent >= max_daily_profit_pct:
+                reason = f"Daily profit % target reached: {state.pnl_percent:.2f}% >= {max_daily_profit_pct}%"
+                await self._halt_trading(account_id, reason)
+                return True, reason
+
+        return False, None
+
     async def _halt_trading(self, account_id: int, reason: str):
         """
         Halt trading for the day.
