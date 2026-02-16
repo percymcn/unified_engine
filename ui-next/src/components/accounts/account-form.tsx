@@ -188,17 +188,20 @@ export function AccountForm({
           const discoverResult = await discoverAccounts(broker, stringCredentials);
           setDiscoveredAccounts(discoverResult.accounts || []);
           
-          // Auto-select accounts based on count
+          // Auto-select accounts based on count - never auto-select blown/inactive accounts
           if (discoverResult.accounts && discoverResult.accounts.length > 0) {
-            if (discoverResult.accounts.length === 1) {
-              // Exactly one account - auto-select it
-              const acc = discoverResult.accounts[0];
+            const selectableAccounts = discoverResult.accounts.filter(
+              acc => acc.status !== 'blown' && acc.status !== 'inactive' && acc.status !== 'expired'
+            );
+            if (selectableAccounts.length === 1) {
+              // Exactly one selectable account - auto-select it
+              const acc = selectableAccounts[0];
               const accId = acc.broker_account_id || acc.id || '';
               setSelectedAccountIds(new Set([accId]));
               setDefaultAccountId(accId);
-            } else if (discoverResult.accounts.length <= 5) {
-              // Few accounts (2-5) - auto-select all
-              const allIds = new Set(discoverResult.accounts.map(acc => acc.broker_account_id || acc.id || '').filter(Boolean));
+            } else if (selectableAccounts.length <= 5) {
+              // Few selectable accounts (2-5) - auto-select all active ones
+              const allIds = new Set(selectableAccounts.map(acc => acc.broker_account_id || acc.id || '').filter(Boolean));
               setSelectedAccountIds(allIds);
               if (allIds.size > 0) {
                 setDefaultAccountId(Array.from(allIds)[0]);
@@ -206,7 +209,7 @@ export function AccountForm({
             } else {
               // Many accounts (6+) - don't auto-select, let user choose
               // Just set first active account as default for convenience
-              const activeAccounts = discoverResult.accounts.filter(acc => acc.status === 'active');
+              const activeAccounts = selectableAccounts.filter(acc => acc.status === 'active');
               if (activeAccounts.length > 0) {
                 const firstActiveId = activeAccounts[0].broker_account_id || activeAccounts[0].id || '';
                 setSelectedAccountIds(new Set([firstActiveId]));
@@ -640,13 +643,15 @@ export function AccountForm({
                           {discoveredAccounts.map((acc) => {
                             const accId = acc.broker_account_id || acc.id || '';
                             const displayName = acc.display_name || acc.name || accId;
+                            const isBlown = acc.status === 'blown' || acc.status === 'inactive' || acc.status === 'expired';
                             return (
-                              <div key={accId} className="flex items-start gap-3 p-2 border rounded-md">
+                              <div key={accId} className={`flex items-start gap-3 p-2 border rounded-md ${isBlown ? 'opacity-50 bg-muted/30' : ''}`}>
                                 <Checkbox
                                   id={`account-${accId}`}
                                   checked={selectedAccountIds.has(accId)}
+                                  disabled={isBlown}
                                   onCheckedChange={(checked) =>
-                                    handleAccountToggle(accId, checked as boolean)
+                                    !isBlown && handleAccountToggle(accId, checked as boolean)
                                   }
                                   className="mt-1"
                                 />
@@ -654,7 +659,7 @@ export function AccountForm({
                                   <div className="flex items-center gap-2 flex-wrap">
                                     <Label
                                       htmlFor={`account-${accId}`}
-                                      className="font-medium cursor-pointer"
+                                      className={`font-medium ${isBlown ? 'cursor-not-allowed line-through' : 'cursor-pointer'}`}
                                     >
                                       {displayName}
                                     </Label>
@@ -680,6 +685,7 @@ export function AccountForm({
                                   <div className="text-xs text-muted-foreground mt-1">
                                     {String((acc.meta as Record<string, unknown>)?.currency ?? acc.currency ?? 'USD')} •
                                     Balance: ${Number(acc.meta?.balance || acc.balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    {isBlown && <span className="ml-2 text-red-500">• Cannot be added</span>}
                                   </div>
                                   {acc.account_number && acc.account_number !== accId && (
                                     <div className="text-xs text-muted-foreground mt-1">
@@ -687,7 +693,7 @@ export function AccountForm({
                                     </div>
                                   )}
                                 </div>
-                                {selectedAccountIds.has(accId) && (
+                                {selectedAccountIds.has(accId) && !isBlown && (
                                   <div className="flex items-center gap-2">
                                     <input
                                       type="radio"
@@ -709,7 +715,7 @@ export function AccountForm({
                             );
                           })}
                         </div>
-                        
+
                         {selectedAccountIds.size === 0 && (
                           <p className="text-xs text-muted-foreground">
                             Select at least one account to continue.
@@ -841,13 +847,15 @@ export function AccountForm({
                           {discoveredAccounts.map((acc) => {
                             const accId = acc.broker_account_id || acc.id || '';
                             const displayName = acc.display_name || acc.name || accId;
+                            const isBlown = acc.status === 'blown' || acc.status === 'inactive' || acc.status === 'expired';
                             return (
-                              <div key={accId} className="flex items-start gap-3 p-2 border rounded-md">
+                              <div key={accId} className={`flex items-start gap-3 p-2 border rounded-md ${isBlown ? 'opacity-50 bg-muted/30' : ''}`}>
                                 <Checkbox
                                   id={`account-${accId}`}
                                   checked={selectedAccountIds.has(accId)}
+                                  disabled={isBlown}
                                   onCheckedChange={(checked) =>
-                                    handleAccountToggle(accId, checked as boolean)
+                                    !isBlown && handleAccountToggle(accId, checked as boolean)
                                   }
                                   className="mt-1"
                                 />
@@ -855,7 +863,7 @@ export function AccountForm({
                                   <div className="flex items-center gap-2 flex-wrap">
                                     <Label
                                       htmlFor={`account-${accId}`}
-                                      className="font-medium cursor-pointer"
+                                      className={`font-medium ${isBlown ? 'cursor-not-allowed line-through' : 'cursor-pointer'}`}
                                     >
                                       {displayName}
                                     </Label>
@@ -881,6 +889,7 @@ export function AccountForm({
                                   <div className="text-xs text-muted-foreground mt-1">
                                     {String((acc.meta as Record<string, unknown>)?.currency ?? acc.currency ?? 'USD')} •
                                     Balance: ${Number(acc.meta?.balance || acc.balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    {isBlown && <span className="ml-2 text-red-500">• Cannot be added</span>}
                                   </div>
                                   {acc.account_number && acc.account_number !== accId && (
                                     <div className="text-xs text-muted-foreground mt-1">
@@ -888,7 +897,7 @@ export function AccountForm({
                                     </div>
                                   )}
                                 </div>
-                                {selectedAccountIds.has(accId) && (
+                                {selectedAccountIds.has(accId) && !isBlown && (
                                   <div className="flex items-center gap-2">
                                     <input
                                       type="radio"
@@ -910,7 +919,7 @@ export function AccountForm({
                             );
                           })}
                         </div>
-                        
+
                         {selectedAccountIds.size === 0 && (
                           <p className="text-xs text-muted-foreground">
                             Select at least one account to continue.

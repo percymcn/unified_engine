@@ -617,11 +617,12 @@ async def discover_accounts(
             )
 
         # Filter to only show active/funded/sim accounts for cleaner UX
-        # Only show accounts with status in ('active', 'funded') or account_type in ('funded', 'demo', 'eval')
+        # Exclude blown/expired/inactive accounts regardless of account_type
         filtered = [
             acc for acc in discovered
-            if acc.status in ('active', 'funded')
-            or acc.account_type in ('funded', 'demo', 'eval', 'sim')
+            if acc.status not in ('blown', 'expired', 'inactive')
+            and (acc.status in ('active', 'funded')
+                 or acc.account_type in ('funded', 'demo', 'eval', 'sim'))
         ]
 
         # Keep SDK order (most recent first by ID) - only take first 5
