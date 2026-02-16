@@ -33,8 +33,8 @@ celery_app.conf.beat_schedule = {
             'expires': 240,  # Task expires after 4 minutes
         }
     },
-    'sync-daily-counters-at-midnight': {
+    'reset-daily-counters-at-market-close': {
         'task': 'trading_tasks.reset_daily_counters',
-        'schedule': crontab(hour=0, minute=1),  # Daily at 00:01 EST/EDT
+        'schedule': crontab(hour=18, minute=1),  # Daily at 6:01 PM EST/EDT (after 4pm close, before 6pm after-hours)
     },
 }
