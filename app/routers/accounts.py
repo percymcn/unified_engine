@@ -565,17 +565,12 @@ async def discover_accounts(
                 status = extra_data['status']
             else:
                 # Fallback to is_live/is_active flags
-                balance = float(getattr(acc, 'balance', 0))
-
+                # Do NOT use balance < 100 as a blown indicator - funded accounts
+                # (e.g. EXPRESS, 50KTC) can have $0 balance when newly created
                 if not is_active:
                     status = 'inactive'
-                elif balance < 100:
-                    # Blown account detection
-                    status = 'blown'
-                elif is_live:
-                    status = 'active'
                 else:
-                    status = 'active'  # Default to active for demo accounts
+                    status = 'active'
             
             currency = getattr(acc, 'currency', 'USD')
             balance = float(getattr(acc, 'balance', 0))

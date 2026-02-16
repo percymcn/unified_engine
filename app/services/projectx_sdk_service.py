@@ -179,10 +179,10 @@ class ProjectXSDKService:
                     balance = float(getattr(acc, 'balance', 0))
                     can_trade = getattr(acc, 'canTrade', True)
 
-                    # Determine status
+                    # Determine status based on canTrade flag only
+                    # Do NOT use balance < 100 as a blown indicator - funded accounts
+                    # (e.g. EXPRESS, 50KTC) can have $0 balance when newly created
                     if not can_trade:
-                        status = 'blown' if balance < 100 else 'inactive'
-                    elif balance < 100:
                         status = 'blown'
                     else:
                         status = 'active'
