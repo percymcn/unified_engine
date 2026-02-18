@@ -76,7 +76,6 @@ class SQLAlchemyDailyCounterRepository:
                     date=counter.date,
                     signals_received=counter.signals_received,
                     trades_executed=counter.trades_executed,
-                    trades_rejected=counter.trades_rejected,
                     last_trade_at=counter.last_trade_at
                 )
             else:
@@ -98,7 +97,6 @@ class SQLAlchemyDailyCounterRepository:
                     date=new_counter.date,
                     signals_received=new_counter.signals_received,
                     trades_executed=new_counter.trades_executed,
-                    trades_rejected=new_counter.trades_rejected,
                     last_trade_at=new_counter.last_trade_at
                 )
         except Exception as e:
@@ -170,7 +168,6 @@ class SQLAlchemyDailyCounterRepository:
                     date=c.date,
                     signals_received=c.signals_received,
                     trades_executed=c.trades_executed,
-                    trades_rejected=c.trades_rejected,
                     last_trade_at=c.last_trade_at
                 )
                 for c in counters

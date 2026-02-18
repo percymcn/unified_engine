@@ -592,7 +592,14 @@ class MomentumSettings(Base):
     # Momentum guard settings
     warn_at = Column(Integer, nullable=False, default=6)  # Threshold for warning modal
     auto_breakeven = Column(Boolean, nullable=False, default=False)  # Auto move SL to entry on warning
-    pause_on_chop = Column(Boolean, nullable=False, default=True)  # Pause new entries when choppy
+    pause_on_chop = Column(Boolean, nullable=False, default=True)  # Pause new entries when choppy (pattern-based)
+
+    # Volatility-based chop detection (live market data)
+    volatility_chop_enabled = Column(Boolean, nullable=False, default=True)  # Enable live volatility check
+    volatility_atr_periods = Column(Integer, nullable=False, default=14)  # ATR calculation periods
+    volatility_atr_threshold = Column(Float, nullable=False, default=0.5)  # Block if ATR < (avg * threshold)
+    volatility_lookback_candles = Column(Integer, nullable=False, default=20)  # Candles to analyze
+    volatility_candle_interval = Column(Integer, nullable=False, default=5)  # Candle interval in minutes
 
     # Exposure limits
     max_exposure = Column(Float, nullable=False, default=5000.0)  # Max dollar exposure
@@ -605,6 +612,12 @@ class MomentumSettings(Base):
     check_position_pnl = Column(Boolean, nullable=False, default=True)  # Enable P&L-based momentum check
     profit_pnl_threshold = Column(Float, nullable=False, default=500.0)  # Warn if opposite signal and positions in $X+ profit
     block_pnl_signals = Column(Boolean, nullable=False, default=False)  # Block signals (vs just warn) when trading against profit
+
+    # Profit Lock settings (smart exit when profit drops from peak)
+    profit_lock_enabled = Column(Boolean, nullable=False, default=True)  # Enable profit lock feature
+    profit_lock_pct = Column(Float, nullable=False, default=50.0)  # Allow flip if profit dropped X% from peak (e.g., 50%)
+    profit_lock_min_profit = Column(Float, nullable=False, default=200.0)  # Only track after $X profit reached
+    profit_lock_action = Column(String(20), nullable=False, default="allow_flip")  # 'allow_flip', 'breakeven', 'close'
 
     # Staleness settings
     staleness_enabled = Column(Boolean, nullable=False, default=True)  # Enable staleness check
@@ -719,6 +732,524 @@ class DiscardBin(Base):
     side = Column(String(10), nullable=True)  # 'buy', 'sell'
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    # Relationships
+    user = relationship("User")
+
+
+# ============================================================================
+# TRADE JOURNAL & ANALYTICS SYSTEM
+# ============================================================================
+
+class TradeJournal(Base):
+    """
+    Complete trade journal entry linking entry and exit.
+    This is the source of truth for win/loss calculations.
+    """
+    __tablename__ = "trade_journal"
+    __table_args__ = (
+        Index('ix_trade_journal_user_closed', 'user_id', 'closed_at'),
+        Index('ix_trade_journal_account_symbol', 'account_id', 'symbol'),
+        Index('ix_trade_journal_strategy', 'strategy_name'),
+        {'extend_existing': True}
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    account_id = Column(Integer, ForeignKey("trading_accounts.id"), nullable=False, index=True)
+
+    # Trade identification
+    trade_uuid = Column(String(36), unique=True, nullable=False, index=True)  # UUID for linking
+    broker_trade_id = Column(String(100), nullable=True)  # Broker's position/trade ID
+
+    # Symbol and direction
+    symbol = Column(String(50), nullable=False, index=True)
+    side = Column(String(10), nullable=False)  # 'buy' or 'sell'
+
+    # Position sizing
+    quantity = Column(Float, nullable=False)
+    quantity_closed = Column(Float, default=0.0)  # For partial closes
+
+    # Entry details
+    entry_price = Column(Float, nullable=False)
+    entry_time = Column(DateTime(timezone=True), nullable=False)
+    entry_execution_id = Column(Integer, ForeignKey("execution_logs.id"), nullable=True)
+
+    # Exit details (null if still open)
+    exit_price = Column(Float, nullable=True)
+    exit_time = Column(DateTime(timezone=True), nullable=True)
+    exit_execution_id = Column(Integer, ForeignKey("execution_logs.id"), nullable=True)
+    exit_reason = Column(String(50), nullable=True)  # 'signal', 'stop_loss', 'take_profit', 'manual', 'circuit_breaker'
+
+    # Stop loss / Take profit
+    stop_loss = Column(Float, nullable=True)
+    take_profit = Column(Float, nullable=True)
+
+    # P&L
+    gross_pnl = Column(Float, nullable=True)  # P&L before fees
+    commission = Column(Float, default=0.0)
+    swap = Column(Float, default=0.0)  # Overnight fees
+    net_pnl = Column(Float, nullable=True)  # P&L after fees
+    pnl_pips = Column(Float, nullable=True)  # P&L in pips/points
+
+    # Risk metrics
+    risk_amount = Column(Float, nullable=True)  # $ risked (entry to SL)
+    reward_amount = Column(Float, nullable=True)  # $ potential reward (entry to TP)
+    risk_reward_ratio = Column(Float, nullable=True)  # RR ratio
+
+    # Strategy tracking
+    strategy_name = Column(String(100), nullable=True, index=True)  # From TradingView alert
+    strategy_version = Column(String(50), nullable=True)
+
+    # Timing analysis
+    holding_time_seconds = Column(Integer, nullable=True)
+    entry_hour = Column(Integer, nullable=True)  # 0-23 for time analysis
+    entry_day_of_week = Column(Integer, nullable=True)  # 0=Monday, 6=Sunday
+    entry_session = Column(String(20), nullable=True)  # 'asian', 'london', 'new_york', 'overlap'
+
+    # Market context (for analysis)
+    market_regime = Column(String(20), nullable=True)  # 'trending', 'ranging', 'volatile'
+    atr_at_entry = Column(Float, nullable=True)  # ATR when trade was entered
+
+    # Status
+    status = Column(String(20), default='open', nullable=False, index=True)  # 'open', 'closed', 'partial'
+    is_winner = Column(Boolean, nullable=True)  # True if net_pnl > 0
+
+    # Metadata
+    notes = Column(Text, nullable=True)  # User notes
+    tags = Column(JSON, nullable=True)  # User-defined tags
+    webhook_payload = Column(JSON, nullable=True)  # Original signal for audit
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    closed_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    user = relationship("User")
+    account = relationship("TradingAccount")
+
+
+class StrategyPerformance(Base):
+    """
+    Aggregated performance metrics per strategy.
+    Updated daily or on-demand.
+    """
+    __tablename__ = "strategy_performance"
+    __table_args__ = (
+        Index('ix_strategy_performance_user_strategy', 'user_id', 'strategy_name'),
+        {'extend_existing': True}
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    strategy_name = Column(String(100), nullable=False, index=True)
+
+    # Period
+    period_type = Column(String(20), nullable=False)  # 'all_time', 'daily', 'weekly', 'monthly'
+    period_start = Column(Date, nullable=True)
+    period_end = Column(Date, nullable=True)
+
+    # Trade counts
+    total_trades = Column(Integer, default=0)
+    winning_trades = Column(Integer, default=0)
+    losing_trades = Column(Integer, default=0)
+    breakeven_trades = Column(Integer, default=0)
+
+    # Win metrics
+    win_rate = Column(Float, default=0.0)  # winning_trades / total_trades
+    avg_win = Column(Float, default=0.0)  # Average winning trade $
+    avg_loss = Column(Float, default=0.0)  # Average losing trade $
+    largest_win = Column(Float, default=0.0)
+    largest_loss = Column(Float, default=0.0)
+
+    # P&L
+    gross_profit = Column(Float, default=0.0)
+    gross_loss = Column(Float, default=0.0)
+    net_profit = Column(Float, default=0.0)
+    total_commission = Column(Float, default=0.0)
+
+    # Risk metrics
+    profit_factor = Column(Float, nullable=True)  # gross_profit / abs(gross_loss)
+    expectancy = Column(Float, nullable=True)  # (win_rate * avg_win) - (loss_rate * avg_loss)
+    sharpe_ratio = Column(Float, nullable=True)
+    sortino_ratio = Column(Float, nullable=True)
+
+    # Drawdown
+    max_drawdown = Column(Float, default=0.0)
+    max_drawdown_pct = Column(Float, default=0.0)
+    max_consecutive_wins = Column(Integer, default=0)
+    max_consecutive_losses = Column(Integer, default=0)
+    current_streak = Column(Integer, default=0)  # Positive = wins, negative = losses
+
+    # Time analysis
+    avg_holding_time_seconds = Column(Integer, nullable=True)
+    best_hour = Column(Integer, nullable=True)  # Hour with best performance
+    best_day = Column(Integer, nullable=True)  # Day with best performance
+    best_session = Column(String(20), nullable=True)
+
+    # Equity curve data (for equity curve trading)
+    equity_curve = Column(JSON, nullable=True)  # Array of cumulative P&L points
+    equity_ma_20 = Column(Float, nullable=True)  # 20-trade moving average
+    above_equity_ma = Column(Boolean, default=True)  # Is equity above MA?
+
+    # Status
+    is_active = Column(Boolean, default=True)  # Whether strategy should be traded
+    auto_disabled_at = Column(DateTime(timezone=True), nullable=True)
+    disable_reason = Column(String(200), nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    user = relationship("User")
+
+
+class TimeBasedStats(Base):
+    """
+    Performance statistics broken down by time periods.
+    Used for finding optimal trading hours/days.
+    """
+    __tablename__ = "time_based_stats"
+    __table_args__ = (
+        Index('ix_time_stats_user_type', 'user_id', 'stat_type'),
+        {'extend_existing': True}
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    account_id = Column(Integer, ForeignKey("trading_accounts.id"), nullable=True)
+    strategy_name = Column(String(100), nullable=True)
+    symbol = Column(String(50), nullable=True)
+
+    # Type of stat
+    stat_type = Column(String(20), nullable=False)  # 'hourly', 'daily', 'session'
+    stat_value = Column(Integer, nullable=False)  # 0-23 for hourly, 0-6 for daily, or session enum
+
+    # Performance
+    total_trades = Column(Integer, default=0)
+    winning_trades = Column(Integer, default=0)
+    losing_trades = Column(Integer, default=0)
+    win_rate = Column(Float, default=0.0)
+    net_pnl = Column(Float, default=0.0)
+    avg_pnl = Column(Float, default=0.0)
+
+    # Recommendation
+    is_recommended = Column(Boolean, default=True)  # Should trade during this time?
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    user = relationship("User")
+
+
+# ============================================================================
+# CIRCUIT BREAKERS & RISK CONTROLS
+# ============================================================================
+
+class CircuitBreakerSettings(Base):
+    """
+    User-configurable circuit breaker settings.
+    Auto-pause trading based on various conditions.
+    """
+    __tablename__ = "circuit_breaker_settings"
+    __table_args__ = {'extend_existing': True}
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True, index=True)
+
+    # Daily drawdown limits
+    daily_loss_limit_enabled = Column(Boolean, default=True)
+    daily_loss_limit_pct = Column(Float, default=3.0)  # Pause if daily loss > 3%
+    daily_loss_limit_amount = Column(Float, nullable=True)  # Or use absolute amount
+
+    # Weekly drawdown limits
+    weekly_loss_limit_enabled = Column(Boolean, default=True)
+    weekly_loss_limit_pct = Column(Float, default=7.0)
+
+    # Overall drawdown from peak
+    max_drawdown_enabled = Column(Boolean, default=True)
+    max_drawdown_pct = Column(Float, default=10.0)  # Pause if total drawdown > 10%
+
+    # Consecutive losses
+    consecutive_loss_enabled = Column(Boolean, default=True)
+    max_consecutive_losses = Column(Integer, default=5)  # Pause after 5 consecutive losses
+
+    # Win rate degradation
+    win_rate_enabled = Column(Boolean, default=False)
+    min_win_rate = Column(Float, default=40.0)  # Pause if win rate drops below 40%
+    win_rate_lookback_trades = Column(Integer, default=20)  # Trades to analyze
+
+    # Profit target (take profits)
+    daily_profit_target_enabled = Column(Boolean, default=False)
+    daily_profit_target_pct = Column(Float, default=5.0)  # Stop trading after 5% gain
+
+    # Cooldown after trigger
+    cooldown_hours = Column(Integer, default=24)  # How long to pause after trigger
+
+    # Auto-resume
+    auto_resume_enabled = Column(Boolean, default=True)
+    auto_resume_after_hours = Column(Integer, default=24)
+
+    # Notifications
+    notify_on_trigger = Column(Boolean, default=True)
+    notify_on_warning = Column(Boolean, default=True)  # Warn at 80% of limit
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    user = relationship("User")
+
+
+class CircuitBreakerEvent(Base):
+    """
+    Log of circuit breaker triggers.
+    """
+    __tablename__ = "circuit_breaker_events"
+    __table_args__ = {'extend_existing': True}
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    account_id = Column(Integer, ForeignKey("trading_accounts.id"), nullable=True)
+
+    # Event type
+    trigger_type = Column(String(50), nullable=False)  # 'daily_loss', 'consecutive_loss', 'max_drawdown', etc.
+    trigger_value = Column(Float, nullable=False)  # The value that triggered
+    limit_value = Column(Float, nullable=False)  # The limit that was exceeded
+
+    # Status
+    is_active = Column(Boolean, default=True)  # Whether circuit is still tripped
+    triggered_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=True)  # When auto-resume
+    resumed_at = Column(DateTime(timezone=True), nullable=True)
+    resume_reason = Column(String(100), nullable=True)  # 'auto', 'manual', 'new_day'
+
+    # Context
+    trades_at_trigger = Column(Integer, nullable=True)
+    pnl_at_trigger = Column(Float, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    # Relationships
+    user = relationship("User")
+
+
+# ============================================================================
+# NEWS & ECONOMIC CALENDAR
+# ============================================================================
+
+class NewsEvent(Base):
+    """
+    Economic calendar events that affect trading.
+    """
+    __tablename__ = "news_events"
+    __table_args__ = (
+        Index('ix_news_events_datetime', 'event_datetime'),
+        {'extend_existing': True}
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    # Event identification
+    event_id = Column(String(100), unique=True, nullable=False)  # External ID
+    title = Column(String(255), nullable=False)
+    country = Column(String(10), nullable=False)  # 'USD', 'EUR', 'GBP', etc.
+
+    # Timing
+    event_datetime = Column(DateTime(timezone=True), nullable=False, index=True)
+
+    # Impact
+    impact = Column(String(20), nullable=False)  # 'low', 'medium', 'high'
+
+    # Affected symbols (derived from country)
+    affected_symbols = Column(JSON, nullable=True)  # ['EURUSD', 'GBPUSD', ...]
+
+    # Values (updated after release)
+    forecast = Column(String(50), nullable=True)
+    previous = Column(String(50), nullable=True)
+    actual = Column(String(50), nullable=True)
+
+    # Status
+    is_released = Column(Boolean, default=False)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class NewsFilterSettings(Base):
+    """
+    User settings for news-based trade filtering.
+    """
+    __tablename__ = "news_filter_settings"
+    __table_args__ = {'extend_existing': True}
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True, index=True)
+
+    # Enable/disable
+    enabled = Column(Boolean, default=False)
+
+    # Filter by impact
+    filter_high_impact = Column(Boolean, default=True)
+    filter_medium_impact = Column(Boolean, default=False)
+    filter_low_impact = Column(Boolean, default=False)
+
+    # Timing
+    pause_minutes_before = Column(Integer, default=15)  # Pause 15 min before
+    pause_minutes_after = Column(Integer, default=15)  # Resume 15 min after
+
+    # Currencies to filter (if empty, filter all)
+    filter_currencies = Column(JSON, nullable=True)  # ['USD', 'EUR', ...]
+
+    # Specific events to always filter
+    always_filter_events = Column(JSON, nullable=True)  # ['FOMC', 'NFP', 'CPI', ...]
+
+    # Action
+    action_on_news = Column(String(20), default='pause')  # 'pause', 'reduce_size', 'warn_only'
+    size_reduction_pct = Column(Float, default=50.0)  # If 'reduce_size', reduce by this %
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    user = relationship("User")
+
+
+# ============================================================================
+# CORRELATION & POSITION SIZING
+# ============================================================================
+
+class SymbolCorrelation(Base):
+    """
+    Correlation matrix between symbols.
+    Used to prevent taking correlated trades.
+    """
+    __tablename__ = "symbol_correlations"
+    __table_args__ = (
+        Index('ix_symbol_correlation_pair', 'symbol_a', 'symbol_b', unique=True),
+        {'extend_existing': True}
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    symbol_a = Column(String(50), nullable=False, index=True)
+    symbol_b = Column(String(50), nullable=False, index=True)
+
+    # Correlation coefficient (-1 to 1)
+    correlation = Column(Float, nullable=False)
+
+    # Period used for calculation
+    period_days = Column(Integer, default=30)
+
+    # Last updated
+    calculated_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class CorrelationFilterSettings(Base):
+    """
+    User settings for correlation-based filtering.
+    """
+    __tablename__ = "correlation_filter_settings"
+    __table_args__ = {'extend_existing': True}
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True, index=True)
+
+    # Enable/disable
+    enabled = Column(Boolean, default=False)
+
+    # Thresholds
+    max_positive_correlation = Column(Float, default=0.7)  # Block if correlation > 0.7
+    max_negative_correlation = Column(Float, default=-0.7)  # Block if correlation < -0.7
+
+    # Action
+    action_on_correlation = Column(String(20), default='block')  # 'block', 'warn', 'reduce_size'
+    size_reduction_pct = Column(Float, default=50.0)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    user = relationship("User")
+
+
+class DynamicSizingSettings(Base):
+    """
+    Settings for dynamic position sizing based on performance.
+    """
+    __tablename__ = "dynamic_sizing_settings"
+    __table_args__ = {'extend_existing': True}
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True, index=True)
+
+    # Enable/disable
+    enabled = Column(Boolean, default=False)
+
+    # Sizing method
+    method = Column(String(30), default='fixed_fractional')  # 'fixed_fractional', 'kelly', 'anti_martingale'
+
+    # Fixed fractional settings
+    base_risk_pct = Column(Float, default=1.0)  # Base % of account to risk
+
+    # Performance-based adjustment
+    increase_on_win_streak = Column(Boolean, default=True)
+    win_streak_threshold = Column(Integer, default=3)
+    win_streak_increase_pct = Column(Float, default=25.0)  # Increase size by 25%
+
+    decrease_on_loss_streak = Column(Boolean, default=True)
+    loss_streak_threshold = Column(Integer, default=2)
+    loss_streak_decrease_pct = Column(Float, default=50.0)  # Decrease size by 50%
+
+    # Limits
+    max_size_multiplier = Column(Float, default=2.0)  # Never more than 2x base
+    min_size_multiplier = Column(Float, default=0.25)  # Never less than 0.25x base
+
+    # Equity curve based
+    equity_curve_enabled = Column(Boolean, default=False)
+    equity_ma_periods = Column(Integer, default=20)  # 20-trade MA
+    pause_below_ma = Column(Boolean, default=False)  # Pause when equity below MA
+    reduce_below_ma_pct = Column(Float, default=50.0)  # Or reduce size by 50%
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    user = relationship("User")
+
+
+class EquityCurveState(Base):
+    """
+    Current equity curve state for equity curve trading.
+    """
+    __tablename__ = "equity_curve_state"
+    __table_args__ = {'extend_existing': True}
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    account_id = Column(Integer, ForeignKey("trading_accounts.id"), nullable=True)
+    strategy_name = Column(String(100), nullable=True)
+
+    # Current state
+    cumulative_pnl = Column(Float, default=0.0)
+    trade_count = Column(Integer, default=0)
+
+    # Moving average
+    pnl_history = Column(JSON, nullable=True)  # Array of last N trade P&Ls
+    equity_ma = Column(Float, default=0.0)  # Moving average of equity
+
+    # Status
+    is_above_ma = Column(Boolean, default=True)
+    crosses_below_at = Column(DateTime(timezone=True), nullable=True)
+    crosses_above_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Trading status
+    is_trading_allowed = Column(Boolean, default=True)
+    pause_reason = Column(String(100), nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     # Relationships
     user = relationship("User")

@@ -14,6 +14,8 @@ import {
   TrendingDown,
   RefreshCw,
   Target,
+  Lock,
+  Activity,
 } from "lucide-react";
 
 const features = [
@@ -21,7 +23,7 @@ const features = [
     icon: Globe,
     title: "Multi-Broker Support",
     description:
-      "Connect to TradeLocker, Tradovate, TopStep, and MetaTrader from one dashboard.",
+      "Connect to TradeLocker, Tradovate, TopStep, ProjectX, and MetaTrader from one dashboard.",
   },
   {
     icon: Zap,
@@ -31,9 +33,15 @@ const features = [
   },
   {
     icon: Shield,
-    title: "Bank-Grade Security",
+    title: "Signal Intelligence Guard",
     description:
-      "AES-256 encryption for all credentials. Your API keys are never exposed.",
+      "Self-protecting execution layer. Blocks stale signals, detects choppy markets, and prevents trading against profitable positions.",
+  },
+  {
+    icon: Lock,
+    title: "Profit Lock Protection",
+    description:
+      "Smart exit protection. Tracks peak profits and only allows position flips when profits drop significantly - protecting your winners.",
   },
   {
     icon: ArrowRightLeft,
@@ -64,6 +72,12 @@ const features = [
     title: "Risk Management",
     description:
       "Set daily loss limits, max drawdown, position limits, and trade cooldowns to protect your capital.",
+  },
+  {
+    icon: Activity,
+    title: "Chop Detection",
+    description:
+      "Automatically detects sideways/choppy markets and pauses new entries to prevent whipsaw losses.",
   },
   {
     icon: RefreshCw,

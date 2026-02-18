@@ -17,10 +17,10 @@ const stats = [
  * Supported broker platforms
  */
 const brokers = [
-  { name: "TradeLocker", description: "Full API Integration" },
-  { name: "Tradovate", description: "OAuth + REST API" },
-  { name: "TopStep", description: "ProjectX SDK" },
-  { name: "MetaTrader", description: "MT4 & MT5 via MetaAPI" },
+  { name: "TradeLocker", description: "CFD & Forex" },
+  { name: "Tradovate", description: "Futures Trading" },
+  { name: "TopStep", description: "Funded Accounts" },
+  { name: "MetaTrader", description: "MT4 & MT5" },
 ];
 
 /**
@@ -30,7 +30,7 @@ const brokers = [
 const trustSignals = [
   {
     icon: Lock,
-    text: "Secure Payments via Stripe",
+    text: "Secure Payments",
     description: "PCI-compliant payment processing",
   },
   {

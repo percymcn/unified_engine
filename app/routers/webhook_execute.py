@@ -1148,12 +1148,34 @@ async def _execute_tradingview_signal_inner(
     counter_repo = get_daily_counter_repository()
     counter_service = DailyCounterService(counter_repo)
 
+    # === EXPAND MULTI-ACCOUNT BROKERS ===
+    # For ProjectX/TopStep, a single TradingAccount can have multiple enabled_broker_account_ids
+    # We need to execute on ALL enabled broker accounts, not just the default
+    execution_targets: List[tuple] = []  # List of (account, broker_account_id) tuples
     for account in accounts:
+        broker_str = account.broker.value if hasattr(account.broker, 'value') else str(account.broker)
+
+        # For ProjectX/TopStep with multiple enabled broker accounts
+        if broker_str in ("projectx", "topstep") and account.enabled_broker_account_ids:
+            # Execute on EACH enabled broker account
+            for broker_acct_id in account.enabled_broker_account_ids:
+                execution_targets.append((account, broker_acct_id))
+                logger.info(f"Expanded {broker_str} account {account.id} -> broker account: {broker_acct_id}")
+        else:
+            # Single execution target (default behavior)
+            execution_targets.append((account, None))
+
+    logger.info(f"Execution targets: {len(execution_targets)} (expanded from {len(accounts)} accounts)")
+
+    for account, target_broker_account_id in execution_targets:
         account_start = datetime.utcnow()
         broker_str = account.broker.value if hasattr(account.broker, 'value') else str(account.broker)
 
         # === RISK MANAGEMENT ENFORCEMENT (only for non-close actions) ===
-        if action_str != "close":
+        risk_mgmt_enabled = getattr(account, 'risk_management_enabled', True)
+        if risk_mgmt_enabled is None:
+            risk_mgmt_enabled = True
+        if action_str != "close" and risk_mgmt_enabled:
             rejection_reason = None
 
             try:
@@ -1297,7 +1319,8 @@ async def _execute_tradingview_signal_inner(
 
         try:
             # Create account-specific executor with credentials
-            executor, needs_cleanup = await _create_account_executor(account, db)
+            # Pass target_broker_account_id for multi-account brokers like ProjectX
+            executor, needs_cleanup = await _create_account_executor(account, db, target_broker_account_id)
 
             if not executor:
                 raise Exception(f"Could not create executor for {broker_str}")
@@ -1330,6 +1353,11 @@ async def _execute_tradingview_signal_inner(
                             return ""
                         import re
                         s = sym.upper().strip()
+                        # Handle ProjectX CON.F.US.XXX.YYY format (e.g., CON.F.US.MYM.H26 -> MYM)
+                        if s.startswith('CON.'):
+                            parts = s.split('.')
+                            if len(parts) >= 4:
+                                s = parts[3]  # e.g., "MYM" from "CON.F.US.MYM.H26"
                         # Strip common suffixes
                         for suffix in ['.PRO', '.RAW', '.STD', '.I', '.S', '_SB', '.SB']:
                             if s.endswith(suffix):
@@ -1374,18 +1402,20 @@ async def _execute_tradingview_signal_inner(
                         broker_position_count = len(symbol_positions)
 
                         # Add pending orders that haven't been confirmed yet (race condition prevention)
-                        pending_count = _pending_tracker.get_pending_count(account.id, mapped_symbol)
+                        # Use normalized_mapped_symbol as key so MYM1! and MYMH5 share the same counter
+                        pending_count = _pending_tracker.get_pending_count(account.id, normalized_mapped_symbol)
                         total_symbol_positions = broker_position_count + pending_count
 
                         if total_symbol_positions >= account.max_positions_per_symbol:
                             position_rejection = f"Max positions for {symbol} exceeded ({total_symbol_positions}/{account.max_positions_per_symbol}, broker={broker_position_count}, pending={pending_count})"
                         else:
                             # Reserve a slot by incrementing pending counter BEFORE placing order
-                            _pending_tracker.increment(account.id, mapped_symbol)
+                            _pending_tracker.increment(account.id, normalized_mapped_symbol)
                             logger.info(f"Account {account.id}: Symbol position check passed for {mapped_symbol} ({broker_position_count} broker + {pending_count + 1} pending / {account.max_positions_per_symbol} max)")
 
                 except Exception as pos_err:
-                    logger.warning(f"Failed to check positions for account {account.id}: {pos_err}")
+                    logger.error(f"Failed to check positions for account {account.id}: {pos_err} — rejecting as fail-safe")
+                    position_rejection = f"Position check failed (cannot verify limits): {pos_err}"
 
                 # If rejected by position checks, skip this account
                 if position_rejection:
@@ -1689,6 +1719,60 @@ async def _execute_tradingview_signal_inner(
                     logger.warning(f"Account {account.id}: Capping order quantity from {order_quantity} to max_position_size {account.max_position_size}")
                     order_quantity = account.max_position_size
 
+                # Re-normalize for futures after capping (ensure at least 1 contract)
+                if broker_str.lower() in ("projectx", "topstep", "tradovate"):
+                    order_quantity = max(1, int(order_quantity))
+
+                # === MIN RISK/REWARD RATIO ENFORCEMENT ===
+                min_rr = getattr(account, 'min_risk_reward_ratio', None)
+                if min_rr and min_rr > 0 and account_sl_price and account_tp_price and entry_price:
+                    try:
+                        sl_dist = abs(float(entry_price) - float(account_sl_price))
+                        tp_dist = abs(float(account_tp_price) - float(entry_price))
+                        if sl_dist > 0:
+                            rr_ratio = tp_dist / sl_dist
+                            if rr_ratio < min_rr:
+                                rr_rejection = (
+                                    f"Risk/reward ratio too low: {rr_ratio:.2f} < {min_rr:.2f} "
+                                    f"(SL dist={sl_dist:.5f}, TP dist={tp_dist:.5f})"
+                                )
+                                logger.warning(f"Account {account.id}: {rr_rejection}")
+                                # Cleanup executor before skipping
+                                if needs_cleanup and hasattr(executor, 'disconnect'):
+                                    try:
+                                        await executor.disconnect()
+                                    except Exception:
+                                        pass
+                                models_broker = ModelsBrokerType(broker_str.lower())
+                                execution_log = ExecutionLog(
+                                    account_id=account.id,
+                                    signal_id=signal_entity.id.value,
+                                    broker=models_broker,
+                                    symbol=symbol,
+                                    action=action_str,
+                                    volume=order_quantity,
+                                    status="rejected",
+                                    error_message=rr_rejection,
+                                    execution_time_ms=int((datetime.utcnow() - account_start).total_seconds() * 1000),
+                                )
+                                db.add(execution_log)
+                                db.commit()
+                                account_results.append(AccountExecutionResult(
+                                    account_id=account.id,
+                                    broker=broker_str,
+                                    success=False,
+                                    status="rejected",
+                                    executions=0,
+                                    errors=[rr_rejection]
+                                ))
+                                failed_count += 1
+                                all_errors.append(rr_rejection)
+                                continue
+                            else:
+                                logger.info(f"Account {account.id}: R:R check passed ({rr_ratio:.2f} >= {min_rr:.2f})")
+                    except Exception as rr_err:
+                        logger.warning(f"Account {account.id}: Could not evaluate R:R ratio: {rr_err}")
+
                 order_request = OrderRequest(
                     account_id=account.id,
                     symbol=mapped_symbol,  # Use broker-specific symbol
@@ -1713,7 +1797,7 @@ async def _execute_tradingview_signal_inner(
                 if account.max_open_positions:
                     _pending_total_tracker.decrement(account.id)
                 if account.max_positions_per_symbol:
-                    _pending_tracker.decrement(account.id, mapped_symbol)
+                    _pending_tracker.decrement(account.id, normalized_mapped_symbol)
 
             # Cleanup executor if needed
             if needs_cleanup and hasattr(executor, 'disconnect'):

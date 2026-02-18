@@ -345,8 +345,8 @@ TradeFlow automatically converts your configured SL/TP values to absolute prices
 // Platform Features Documentation
 const PLATFORM_FEATURES = {
   signalIntelligence: {
-    title: "Signal Intelligence",
-    description: "Advanced signal filtering and protection mechanisms",
+    title: "Signal Intelligence Guard",
+    description: "Self-protecting execution layer with advanced signal filtering",
     features: [
       {
         name: "Position P&L Protection",
@@ -360,13 +360,33 @@ const PLATFORM_FEATURES = {
         location: "Settings > Risk Intelligence",
       },
       {
-        name: "Momentum Flip Detection",
-        description: "Detects when signals reverse direction on the same symbol",
+        name: "Profit Lock (Smart Exit)",
+        description: "Tracks peak profit and only allows position flips when profit drops significantly - protecting your winners during brief pullbacks",
         settings: [
-          { name: "Enable Momentum Check", description: "Turn on momentum flip detection" },
-          { name: "Lookback Window", description: "Minutes to look back for recent signals" },
+          { name: "Enable Profit Lock", description: "Turn on peak profit tracking" },
+          { name: "Min Profit to Track ($)", description: "Only track positions with $X+ profit" },
+          { name: "Allow Flip Drop (%)", description: "Allow flip after profit drops X% from peak" },
         ],
-        example: "If you just bought EURUSD and a SELL signal comes 5 minutes later, you'll be warned about the rapid direction change.",
+        example: "Position peaks at $800 profit. If a flip signal comes while at $750 (6% drop), it's BLOCKED. If profit drops to $400 (50% drop), flip is ALLOWED - trend likely changed.",
+        location: "Settings > Risk Intelligence > Profit Lock",
+      },
+      {
+        name: "Chop Detection",
+        description: "Detects sideways/choppy markets and pauses new entries to prevent whipsaw losses",
+        settings: [
+          { name: "Enable Chop Detection", description: "Turn on chop pattern recognition" },
+          { name: "Pause on Chop", description: "Auto-pause new entries when chop detected" },
+        ],
+        example: "If signals alternate BUY-SELL-BUY-SELL rapidly, system detects chop mode and pauses entries.",
+        location: "Settings > Risk Intelligence",
+      },
+      {
+        name: "Auto-Breakeven",
+        description: "Automatically moves stop loss to entry when momentum warning triggers",
+        settings: [
+          { name: "Enable Auto-Breakeven", description: "Auto-move SL to entry on momentum shift" },
+        ],
+        example: "When a flip signal is detected but blocked, the system can auto-move your stop to breakeven to protect profits.",
         location: "Settings > Risk Intelligence",
       },
       {

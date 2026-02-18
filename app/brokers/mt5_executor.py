@@ -238,14 +238,25 @@ class MT5Executor(BaseExecutor):
 
             if response.status_code in (200, 201):
                 result = response.json()
-                return OrderResponse(
-                    success=True,
-                    order_id=str(result.get("orderId", result.get("positionId", ""))),
-                    broker_order_id=str(result.get("orderId", "")),
-                    filled_quantity=float(order.quantity),
-                    status="filled",
-                    message=result.get("stringCode", "Order executed via REST API")
-                )
+                # MetaAPI returns 200 even for errors - check stringCode/numericCode
+                # Success: numericCode=10009, stringCode="TRADE_RETCODE_DONE"
+                # Errors: numericCode=4301 (unknown symbol), etc.
+                string_code = result.get("stringCode", "")
+                numeric_code = result.get("numericCode", 0)
+
+                if string_code == "TRADE_RETCODE_DONE" or numeric_code == 10009:
+                    return OrderResponse(
+                        success=True,
+                        order_id=str(result.get("orderId", result.get("positionId", ""))),
+                        broker_order_id=str(result.get("orderId", "")),
+                        filled_quantity=float(order.quantity),
+                        status="filled",
+                        message=string_code
+                    )
+                else:
+                    # MetaAPI returned an error in the response body
+                    error_msg = result.get("message", f"MetaAPI error: {string_code} ({numeric_code})")
+                    return OrderResponse(success=False, error=error_msg)
             else:
                 error_msg = response.text
                 try:
@@ -968,18 +979,27 @@ class MT5Executor(BaseExecutor):
 
             if response.status_code in (200, 201):
                 result = response.json()
-                return TradeResponse(
-                    success=True,
-                    trade_id=str(result.get("orderId", position_id)),
-                    broker="mt5",
-                    symbol=position.symbol,
-                    side="sell" if position.side == "buy" else "buy",
-                    quantity=quantity or position.size,
-                    price=position.current_price,
-                    pnl=position.unrealized_pnl,
-                    commission=0.0,
-                    timestamp=datetime.now(),
-                )
+                # MetaAPI returns 200 even for errors - check stringCode/numericCode
+                string_code = result.get("stringCode", "")
+                numeric_code = result.get("numericCode", 0)
+
+                if string_code == "TRADE_RETCODE_DONE" or numeric_code == 10009:
+                    return TradeResponse(
+                        success=True,
+                        trade_id=str(result.get("orderId", position_id)),
+                        broker="mt5",
+                        symbol=position.symbol,
+                        side="sell" if position.side == "buy" else "buy",
+                        quantity=quantity or position.size,
+                        price=position.current_price,
+                        pnl=position.unrealized_pnl,
+                        commission=0.0,
+                        timestamp=datetime.now(),
+                    )
+                else:
+                    # MetaAPI returned an error in the response body
+                    error_msg = result.get("message", f"MetaAPI error: {string_code} ({numeric_code})")
+                    return TradeResponse(success=False, error=error_msg)
             else:
                 error_msg = response.text
                 try:

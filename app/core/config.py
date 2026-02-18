@@ -176,9 +176,9 @@ class Settings(BaseSettings):
     CELERY_RESULT_SERIALIZER: str = "json"
 
     # Stripe
-    STRIPE_SECRET_KEY: str = ""
+    STRIPE_SECRET_KEY: Optional[str] = ""
     STRIPE_PUBLISHABLE_KEY: str = ""
-    STRIPE_WEBHOOK_SECRET: str = ""
+    STRIPE_WEBHOOK_SECRET: Optional[str] = ""
     STRIPE_PRO_PRICE_ID: str = ""  # Deprecated - use tier-specific IDs below
 
     # Stripe Price IDs for each tier (Monthly)

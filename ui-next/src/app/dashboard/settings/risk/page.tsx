@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Shield, AlertTriangle, DollarSign, TrendingDown, Zap, Clock, Info, Calendar, Lock } from "lucide-react";
+import { Shield, AlertTriangle, DollarSign, TrendingDown, Zap, Clock, Info, Calendar, Lock, Activity } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -34,9 +34,20 @@ interface MomentumSettings {
   warn_at: number;
   auto_breakeven: boolean;
   pause_on_chop: boolean;
+  // Volatility-based chop detection (live market data)
+  volatility_chop_enabled?: boolean;
+  volatility_atr_periods?: number;
+  volatility_atr_threshold?: number;
+  volatility_lookback_candles?: number;
+  volatility_candle_interval?: number;
   check_position_pnl: boolean;
   profit_pnl_threshold: number;
   block_pnl_signals: boolean;
+  // Profit Lock (smart exit when profit drops from peak)
+  profit_lock_enabled: boolean;
+  profit_lock_pct: number;
+  profit_lock_min_profit: number;
+  profit_lock_action: string;
   max_exposure: number;
   auto_pause_on_exposure: boolean;
   allow_hedge: boolean;
@@ -105,16 +116,24 @@ export default function RiskSettingsPage() {
         credentials: 'include',
       });
       if (res.ok) {
-        setMomentumSettings(await res.json());
+        const data = await res.json();
+        console.log('[Momentum Settings] Loaded from API:', JSON.stringify(data, null, 2));
+        console.log('[Momentum Settings] profit_lock_enabled:', data.profit_lock_enabled);
+        console.log('[Momentum Settings] block_pnl_signals:', data.block_pnl_signals);
+        setMomentumSettings(data);
       } else {
         // Set defaults if fetch fails
         setMomentumSettings({
           warn_at: 6,
-          auto_breakeven: false,
+          auto_breakeven: true,
           pause_on_chop: true,
           check_position_pnl: true,
           profit_pnl_threshold: 500,
-          block_pnl_signals: false,
+          block_pnl_signals: true,
+          profit_lock_enabled: true,
+          profit_lock_pct: 50,
+          profit_lock_min_profit: 200,
+          profit_lock_action: "allow_flip",
           max_exposure: 5000,
           auto_pause_on_exposure: true,
           allow_hedge: false,
@@ -133,11 +152,15 @@ export default function RiskSettingsPage() {
       console.error("Error fetching momentum settings:", error);
       setMomentumSettings({
         warn_at: 6,
-        auto_breakeven: false,
+        auto_breakeven: true,
         pause_on_chop: true,
         check_position_pnl: true,
         profit_pnl_threshold: 500,
-        block_pnl_signals: false,
+        block_pnl_signals: true,
+        profit_lock_enabled: true,
+        profit_lock_pct: 50,
+        profit_lock_min_profit: 200,
+        profit_lock_action: "allow_flip",
         max_exposure: 5000,
         auto_pause_on_exposure: true,
         allow_hedge: false,
@@ -206,8 +229,9 @@ export default function RiskSettingsPage() {
     setSaving(true);
     // Debug: Log what we're about to send
     console.log('[Risk Settings] Saving settings:', JSON.stringify(settings, null, 2));
-    console.log('[Risk Settings] default_max_daily_profit:', settings?.default_max_daily_profit);
-    console.log('[Risk Settings] default_max_open_positions:', settings?.default_max_open_positions);
+    console.log('[Momentum Settings] Saving:', JSON.stringify(momentumSettings, null, 2));
+    console.log('[Momentum Settings] profit_lock_enabled:', momentumSettings?.profit_lock_enabled);
+    console.log('[Momentum Settings] block_pnl_signals:', momentumSettings?.block_pnl_signals);
     try {
       const [res1, res2] = await Promise.all([
         fetch("/api/risk/settings", {
@@ -223,10 +247,15 @@ export default function RiskSettingsPage() {
           body: JSON.stringify(momentumSettings),
         }) : Promise.resolve({ ok: true }),
       ]);
-      
+
       if (res1.ok && res2.ok) {
+        const momResponse = res2 instanceof Response ? await res2.json() : null;
+        console.log('[Momentum Settings] Save response:', JSON.stringify(momResponse, null, 2));
         toast({ title: "Settings saved", description: "All settings updated successfully" });
       } else {
+        const errorText1 = !res1.ok ? await res1.text() : '';
+        const errorText2 = res2 instanceof Response && !res2.ok ? await res2.text() : '';
+        console.error('[Settings] Save failed:', { risk: errorText1, momentum: errorText2 });
         toast({ title: "Error", description: "Failed to save some settings", variant: "destructive" });
       }
     } finally {
@@ -568,14 +597,110 @@ export default function RiskSettingsPage() {
             </div>
             <div className="flex items-center justify-between">
               <div>
-                <Label>Pause on Choppy Market</Label>
-                <p className="text-xs text-muted-foreground">Pause new entries when market is choppy</p>
+                <Label>Pause on Choppy Pattern</Label>
+                <p className="text-xs text-muted-foreground">Pause when signal pattern is flip-flopping (B/S/B/S)</p>
               </div>
               <Switch
                 checked={momentumSettings.pause_on_chop}
                 onCheckedChange={(v) => setMomentumSettings({ ...momentumSettings, pause_on_chop: v })}
               />
             </div>
+          </div>
+
+          {/* Volatility-Based Chop Detection */}
+          <div className="space-y-4 border-t pt-4">
+            <h3 className="font-semibold text-sm flex items-center gap-2">
+              <Activity className="h-4 w-4" />
+              Live Market Volatility Detection
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Uses real-time market data to detect low volatility (choppy) conditions using ATR (Average True Range).
+              More accurate than pattern-based detection.
+            </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>Enable Volatility Detection</Label>
+                <p className="text-xs text-muted-foreground">Block entries when ATR indicates low volatility</p>
+              </div>
+              <Switch
+                checked={momentumSettings.volatility_chop_enabled ?? true}
+                onCheckedChange={(v) => setMomentumSettings({ ...momentumSettings, volatility_chop_enabled: v })}
+              />
+            </div>
+            {momentumSettings.volatility_chop_enabled && (
+              <div className="space-y-4 p-4 rounded-lg border border-blue-500/20 bg-blue-500/5">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>ATR Periods</Label>
+                    <Input
+                      type="number"
+                      value={momentumSettings.volatility_atr_periods ?? 14}
+                      onChange={(e) => setMomentumSettings({
+                        ...momentumSettings,
+                        volatility_atr_periods: parseInt(e.target.value) || 14
+                      })}
+                      min={5}
+                      max={50}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Standard is 14</p>
+                  </div>
+                  <div>
+                    <Label>Lookback Candles</Label>
+                    <Input
+                      type="number"
+                      value={momentumSettings.volatility_lookback_candles ?? 20}
+                      onChange={(e) => setMomentumSettings({
+                        ...momentumSettings,
+                        volatility_lookback_candles: parseInt(e.target.value) || 20
+                      })}
+                      min={10}
+                      max={100}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Candles to analyze</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Candle Interval (min)</Label>
+                    <select
+                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors"
+                      value={momentumSettings.volatility_candle_interval ?? 5}
+                      onChange={(e) => setMomentumSettings({
+                        ...momentumSettings,
+                        volatility_candle_interval: parseInt(e.target.value)
+                      })}
+                    >
+                      <option value={1}>1 min</option>
+                      <option value={5}>5 min</option>
+                      <option value={15}>15 min</option>
+                      <option value={30}>30 min</option>
+                      <option value={60}>1 hour</option>
+                    </select>
+                  </div>
+                  <div>
+                    <Label>ATR Threshold</Label>
+                    <div className="space-y-2 mt-2">
+                      <Slider
+                        value={momentumSettings.volatility_atr_threshold ?? 0.5}
+                        onValueChange={(value) => setMomentumSettings({ ...momentumSettings, volatility_atr_threshold: value })}
+                        min={0.2}
+                        max={0.8}
+                        step={0.05}
+                      />
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>0.2 (strict)</span>
+                        <span className="font-medium text-blue-500">{(momentumSettings.volatility_atr_threshold ?? 0.5).toFixed(2)}</span>
+                        <span>0.8 (loose)</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="text-xs text-muted-foreground bg-blue-500/10 p-2 rounded">
+                  <strong>How it works:</strong> If current ATR is less than {((momentumSettings.volatility_atr_threshold ?? 0.5) * 100).toFixed(0)}% of average ATR,
+                  the market is considered choppy and new entries will be paused.
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Position P&L Check */}
@@ -625,6 +750,76 @@ export default function RiskSettingsPage() {
                     onCheckedChange={(v) => setMomentumSettings({ ...momentumSettings, block_pnl_signals: v })}
                   />
                 </div>
+
+                {/* Profit Lock - Smart Exit */}
+                {momentumSettings.block_pnl_signals && (
+                  <div className="space-y-4 p-4 rounded-lg border border-green-500/20 bg-green-500/5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label className="flex items-center gap-2">
+                          <Lock className="h-4 w-4 text-green-500" />
+                          Profit Lock (Smart Exit)
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Allow flips when profit drops significantly from peak
+                        </p>
+                      </div>
+                      <Switch
+                        checked={momentumSettings.profit_lock_enabled}
+                        onCheckedChange={(v) => setMomentumSettings({ ...momentumSettings, profit_lock_enabled: v })}
+                      />
+                    </div>
+
+                    {momentumSettings.profit_lock_enabled && (
+                      <div className="space-y-4 pl-6 border-l-2 border-green-500/30">
+                        <div>
+                          <Label>Minimum Profit to Track ($)</Label>
+                          <Input
+                            type="number"
+                            value={momentumSettings.profit_lock_min_profit}
+                            onChange={(e) => setMomentumSettings({
+                              ...momentumSettings,
+                              profit_lock_min_profit: parseFloat(e.target.value) || 200
+                            })}
+                            placeholder="200"
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Only track peak profit after reaching ${momentumSettings.profit_lock_min_profit}
+                          </p>
+                        </div>
+
+                        <div>
+                          <Label>Allow Flip When Profit Drops (%)</Label>
+                          <div className="space-y-2 mt-2">
+                            <Slider
+                              value={momentumSettings.profit_lock_pct}
+                              onValueChange={(value) => setMomentumSettings({ ...momentumSettings, profit_lock_pct: value })}
+                              min={10}
+                              max={90}
+                              step={5}
+                            />
+                            <div className="flex justify-between text-xs text-muted-foreground">
+                              <span>10%</span>
+                              <span className="font-medium text-green-500">{momentumSettings.profit_lock_pct}%</span>
+                              <span>90%</span>
+                            </div>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            If peak was $800 and drops {momentumSettings.profit_lock_pct}% to ${(800 * (1 - momentumSettings.profit_lock_pct / 100)).toFixed(0)}, allow flip
+                          </p>
+                        </div>
+
+                        <Alert className="bg-green-500/10 border-green-500/20">
+                          <Info className="h-4 w-4 text-green-500" />
+                          <AlertDescription className="text-xs">
+                            <strong>How it works:</strong> Tracks your highest profit. If a flip signal comes in while profit is still near peak, it&apos;s blocked (likely noise).
+                            If profit dropped significantly, the flip is allowed (trend probably changed).
+                          </AlertDescription>
+                        </Alert>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>

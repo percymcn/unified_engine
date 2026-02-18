@@ -447,10 +447,13 @@ class ProjectXExecutor(BaseExecutor):
     async def _place_order_httpx(self, order: OrderRequest) -> OrderResponse:
         """Place order via httpx (fallback)."""
         try:
+            # Normalize symbol before sending to ProjectX API (strips TradingView formats like MYM1!, MYMH5 -> MYM)
+            from app.services.contract_resolver import ContractResolver
+            normalized_sym = ContractResolver.normalize_symbol(order.symbol)
             # First, get contract ID for symbol
             contract_response = await self._session.post(
                 "/api/Contract/Search",
-                json={"symbol": order.symbol}
+                json={"symbol": normalized_sym}
             )
 
             if contract_response.status_code != 200:
@@ -1026,10 +1029,13 @@ class ProjectXExecutor(BaseExecutor):
 
         # Fallback to httpx
         try:
+            # Normalize symbol before sending to ProjectX API (strips TradingView formats)
+            from app.services.contract_resolver import ContractResolver
+            normalized_instrument = ContractResolver.normalize_symbol(instrument)
             # Get contract ID for symbol
             contract_response = await self._session.post(
                 "/api/Contract/Search",
-                json={"symbol": instrument}
+                json={"symbol": normalized_instrument}
             )
 
             if contract_response.status_code != 200:
@@ -1040,7 +1046,7 @@ class ProjectXExecutor(BaseExecutor):
                 contracts = contracts.get("contracts", contracts.get("data", []))
 
             if not contracts:
-                return OrderResponse(success=False, error=f"Contract not found: {instrument}")
+                return OrderResponse(success=False, error=f"Contract not found: {normalized_instrument}")
 
             contract_id = contracts[0].get("id") or contracts[0].get("contract_id")
 

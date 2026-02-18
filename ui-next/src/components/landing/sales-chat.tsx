@@ -63,13 +63,13 @@ const SALES_FAQS: SalesFAQ[] = [
   {
     id: 'what-does-it-do',
     question: 'What does Tradeflow do?',
-    answer: 'Tradeflow automatically executes your TradingView alerts on your broker accounts. Set up an alert in TradingView, and we execute the trade on MT4, MT5, TradeLocker, Tradovate, or TopStep in under 50ms.',
+    answer: 'Tradeflow automatically executes your TradingView alerts on your broker accounts. Set up an alert in TradingView, and we execute the trade on MT4, MT5, TradeLocker, Tradovate, ProjectX, or TopStep in under 50ms.',
     category: 'features',
   },
   {
     id: 'supported-brokers',
     question: 'Which brokers do you support?',
-    answer: 'We support:\n\n- **MetaTrader 4 & 5** (via MetaAPI)\n- **TradeLocker** (direct integration)\n- **Tradovate** (direct integration)\n- **TopStep/ProjectX** (direct integration)\n\nMore brokers coming soon!',
+    answer: 'We support:\n\n- **MetaTrader 4 & 5** (MT4 & MT5)\n- **TradeLocker**\n- **Tradovate**\n- **ProjectX**\n- **TopStep** (funded accounts)\n\nMore brokers coming soon!',
     category: 'features',
   },
   {
@@ -79,16 +79,46 @@ const SALES_FAQS: SalesFAQ[] = [
     category: 'features',
   },
   {
+    id: 'signal-intelligence',
+    question: 'What is Signal Intelligence Guard?',
+    answer: 'Signal Intelligence Guard is our self-protecting execution layer. It includes:\n\n- **Chop Detection**: Detects sideways markets and pauses new entries\n- **Staleness Guard**: Rejects signals older than your threshold (e.g., 5 seconds)\n- **Position P&L Guard**: Blocks/warns when trading against profitable positions\n- **Profit Lock**: Tracks peak profit and only allows flips when profit drops significantly\n- **Auto-Breakeven**: Moves SL to entry when momentum shifts\n- **Trading Session Control**: Only trade during your defined hours\n\nThese features protect your winners and prevent whipsaw losses during consolidation.',
+    category: 'features',
+  },
+  {
+    id: 'profit-lock',
+    question: 'What is Profit Lock?',
+    answer: 'Profit Lock is our smart exit protection feature. It tracks your peak unrealized profit on each position.\n\n**How it works:**\n- You go LONG, profit runs to $800 (peak tracked)\n- Consolidation happens, flip signals start coming in\n- If profit is still near peak ($750): Signal BLOCKED (probably noise)\n- If profit dropped 50% to $400: Signal ALLOWED (trend likely changed)\n\nThis prevents you from closing winners during brief pullbacks while still allowing exits when trends actually reverse. You can configure:\n\n- **Min Profit to Track**: Only start tracking after $X profit (default: $200)\n- **Drop Threshold**: Allow flip after X% drop from peak (default: 50%)',
+    category: 'features',
+  },
+  {
+    id: 'risk-management',
+    question: 'What risk management controls are available?',
+    answer: 'Tradeflow has comprehensive per-account and global risk controls:\n\n**Daily Limits**\n- Max daily trades (e.g., stop after 10 trades)\n- Max daily loss in $ or %\n- Daily profit target — auto-halt when reached\n- Trade cooldown (e.g., wait 60s between trades)\n\n**Position Limits**\n- Max open positions across all symbols\n- Max positions per symbol\n- Max position size cap\n\n**Drawdown Protection**\n- Max drawdown % from peak equity — halts trading if hit\n\n**Position Sizing**\n- Fixed lot size\n- % of account balance\n- % of equity\n- Risk-based sizing (adjusts size based on stop loss distance)\n\nAll settings cascade: account setting → your global default → system default.',
+    category: 'features',
+  },
+  {
     id: 'ai-features',
     question: 'What is the AI Strategy Suite?',
-    answer: 'The AI Strategy Suite includes:\n\n- **AI-Powered Charts**: Advanced TradingView-style charts with pattern recognition\n- **Pine Script Editor**: Write and test custom indicators\n- **Backtest Engine**: Test strategies on historical data\n- **AI Coach** (Enterprise): Get personalized trading advice\n\nAvailable on Pro and Enterprise plans.',
+    answer: 'The AI Strategy Suite includes:\n\n- **Pine Script AI Fixer**: Paste your broken Pine Script, get a corrected version with an explanation\n- **Strategy Analyzer**: Get feedback on your strategy logic, risk-reward profile, and improvement suggestions\n- **AI Trading Coach** (Enterprise): Personalized advice, bias detection, and strategy refinement\n\nAvailable on Pro and Enterprise plans.',
+    category: 'features',
+  },
+  {
+    id: 'position-sizing',
+    question: 'How does position sizing work?',
+    answer: 'Each account can have its own sizing mode:\n\n- **Fixed**: Always use the same lot size (e.g., 0.1 lots)\n- **% of Balance**: Size scales with your account balance\n- **% of Equity**: Size scales with real-time equity\n- **Risk-Based** (most advanced): Lot size calculated from your risk % and stop loss distance — wider stop = smaller size, tighter stop = larger size\n\nYou can also set a max position size cap so no single order ever exceeds your limit.',
+    category: 'features',
+  },
+  {
+    id: 'symbol-mapping',
+    question: 'Does Tradeflow handle symbol name differences between brokers?',
+    answer: 'Yes. Symbol mapping is built in. When your TradingView alert fires for "US30", Tradeflow automatically maps it to the correct symbol format for each of your connected brokers. You can also create custom aliases for any symbol on any broker.',
     category: 'features',
   },
   // Getting Started
   {
     id: 'how-to-start',
     question: 'How do I get started?',
-    answer: '1. **Sign up** for a free account\n2. **Connect** your broker account (MT4/MT5, TradeLocker, etc.)\n3. **Copy** your webhook URL from the dashboard\n4. **Create** alerts in TradingView using your webhook\n5. **Done!** Trades execute automatically\n\nThe whole setup takes about 5 minutes.',
+    answer: '1. **Sign up** for a free account (no credit card needed)\n2. **Connect** your broker account from the Accounts page\n3. **Copy** your webhook URL from the dashboard\n4. **Create** alerts in TradingView using your webhook URL\n5. **Configure** risk management and Signal Intelligence settings\n6. **Done!** Trades execute automatically\n\nThe whole setup takes about 5 minutes.',
     category: 'getting-started',
   },
   {
@@ -97,24 +127,36 @@ const SALES_FAQS: SalesFAQ[] = [
     answer: 'TradingView is the most common signal source, but Tradeflow works with any system that can send webhooks. This includes custom scripts, other trading platforms, or any service that can make HTTP requests.',
     category: 'getting-started',
   },
+  {
+    id: 'webhook-format',
+    question: 'What format does the webhook payload need to be?',
+    answer: 'Your webhook payload should be a JSON object with these fields:\n\n```\n{\n  "action": "buy",\n  "symbol": "EURUSD",\n  "quantity": 0.1,\n  "sl": 1.0800,\n  "tp": 1.0950\n}\n```\n\nOnly `action` and `symbol` are required. Your webhook key authenticates the request — add it as a URL parameter or in the payload. TradingView variables like `{{ticker}}` and `{{close}}` work natively.',
+    category: 'getting-started',
+  },
   // Support
   {
     id: 'support-options',
     question: 'What support do you offer?',
-    answer: 'All plans include email support. Pro users get priority email support. Enterprise users get dedicated account management and direct access to our engineering team.\n\nWe also have comprehensive documentation and FAQ guides.',
+    answer: 'All plans include email support. Pro users get priority email support (24h response). Enterprise users get dedicated account management and direct access to our engineering team.\n\nWe also have comprehensive documentation, guides, and FAQ content.',
+    category: 'support',
+  },
+  {
+    id: 'signal-rejected',
+    question: 'Why was my signal rejected?',
+    answer: 'Signals can be rejected for several reasons:\n\n- **Risk limit hit**: Daily loss, daily trade count, max drawdown, or max positions exceeded\n- **Signal too old**: Staleness guard rejected a signal that arrived late\n- **Momentum warning**: Signal Intelligence detected market chop and you chose to discard\n- **Position limit**: You already have the maximum positions open for that symbol\n- **Outside trading hours**: Signal arrived outside your configured session\n\nCheck the Signal Log in your dashboard for the exact rejection reason on each signal.',
     category: 'support',
   },
   // Security
   {
     id: 'security',
     question: 'Is my data secure?',
-    answer: 'Yes! We use:\n\n- **AES-256 encryption** for all credentials\n- **TLS/SSL** for all connections\n- **SOC 2 compliant** infrastructure\n- We never store your trading passwords in plaintext\n\nYour broker credentials are encrypted and can only be used for trade execution.',
+    answer: 'Yes! We use:\n\n- **AES-256 encryption** for all credentials\n- **TLS/SSL** for all connections\n- We never store your trading passwords in plaintext\n- Your broker credentials are encrypted at rest and never exposed in logs\n\nYour credentials can only be used for trade execution on your behalf.',
     category: 'security',
   },
   {
     id: 'api-access',
     question: 'Do you have API access?',
-    answer: 'Yes! All plans include API access for programmatic signal submission. You can integrate Tradeflow into your custom trading systems, Python scripts, or any application that can make HTTP requests.',
+    answer: 'Yes! All plans include API access for programmatic signal submission. You can integrate Tradeflow into your custom trading systems or any application that can make HTTP requests.',
     category: 'features',
   },
 ];

@@ -896,7 +896,7 @@ class ProjectXSDKService:
                 result.append({
                     "id": str(getattr(pos, 'id', '')),
                     "contract_id": str(getattr(pos, 'contractId', getattr(pos, 'contract_id', ''))),
-                    "symbol": getattr(pos, 'contractName', getattr(pos, 'symbol', '')),
+                    "symbol": base_symbol or getattr(pos, 'contractName', getattr(pos, 'symbol', '')),
                     "side": side,
                     "size": abs(float(pos_size)),
                     "entry_price": entry_price,
@@ -952,8 +952,8 @@ class ProjectXSDKService:
                     else:
                         is_long = pos_size > 0
 
-                    # Long position needs sell order (side=0), Short needs buy order (side=1)
-                    close_side = 0 if is_long else 1  # SDK: 0=sell, 1=buy
+                    # Long position needs sell order (side=1), Short needs buy order (side=0)
+                    close_side = 1 if is_long else 0  # SDK: 0=buy, 1=sell
                     close_size = size if size else abs(int(pos_size)) or 1
 
                     logger.info(f"Closing position {pos_id}: direction={direction}, is_long={is_long}, close_side={close_side}, close_size={close_size}")

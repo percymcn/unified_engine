@@ -20,6 +20,7 @@ class DailyCounters:
     date: date
     signals_received: int = 0
     trades_executed: int = 0
+    trades_rejected: int = 0
     trades_by_symbol: Dict[str, int] = field(default_factory=dict)
     last_trade_at: Optional[datetime] = None
 

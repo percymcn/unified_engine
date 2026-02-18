@@ -298,6 +298,8 @@ services:
       - jwt_secret
       - credential_encryption_key
       - flower_auth
+      - stripe_secret_key
+      - stripe_webhook_secret
     deploy:
       replicas: 1
       restart_policy:

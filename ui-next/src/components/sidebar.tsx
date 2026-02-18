@@ -22,6 +22,7 @@ import {
   Crown,
   Sparkles,
   HelpCircle,
+  BarChart3,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUser } from '@/providers/user-provider';
@@ -29,6 +30,7 @@ import { Badge } from '@/components/ui/badge';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+  { name: 'Analytics', href: '/analytics', icon: BarChart3 },
   { name: 'Signals', href: '/signals', icon: Signal },
   { name: 'Trades', href: '/trades', icon: History },
 ];

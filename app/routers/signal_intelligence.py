@@ -38,9 +38,20 @@ class MomentumSettingsUpdate(BaseModel):
     warn_at: Optional[int] = None
     auto_breakeven: Optional[bool] = None
     pause_on_chop: Optional[bool] = None
+    # Volatility-based chop detection (live market data)
+    volatility_chop_enabled: Optional[bool] = None
+    volatility_atr_periods: Optional[int] = None
+    volatility_atr_threshold: Optional[float] = None
+    volatility_lookback_candles: Optional[int] = None
+    volatility_candle_interval: Optional[int] = None
     check_position_pnl: Optional[bool] = None  # Enable P&L-based momentum check
     profit_pnl_threshold: Optional[float] = None  # Warn if opposite signal and positions in $X+ profit
     block_pnl_signals: Optional[bool] = None  # Block signals (vs warn) when trading against profitable positions
+    # Profit Lock settings (smart exit when profit drops from peak)
+    profit_lock_enabled: Optional[bool] = None
+    profit_lock_pct: Optional[float] = None  # Allow flip if profit dropped X% from peak
+    profit_lock_min_profit: Optional[float] = None  # Only track after $X profit reached
+    profit_lock_action: Optional[str] = None  # 'allow_flip', 'breakeven', 'close'
     max_exposure: Optional[float] = None
     auto_pause_on_exposure: Optional[bool] = None
     allow_hedge: Optional[bool] = None
@@ -62,9 +73,20 @@ class MomentumSettingsResponse(BaseModel):
     warn_at: int
     auto_breakeven: bool
     pause_on_chop: bool
+    # Volatility-based chop detection (live market data)
+    volatility_chop_enabled: bool = True
+    volatility_atr_periods: int = 14
+    volatility_atr_threshold: float = 0.5
+    volatility_lookback_candles: int = 20
+    volatility_candle_interval: int = 5
     check_position_pnl: bool = True
     profit_pnl_threshold: float = 500.0
     block_pnl_signals: bool = False
+    # Profit Lock settings (smart exit when profit drops from peak)
+    profit_lock_enabled: bool = True
+    profit_lock_pct: float = 50.0
+    profit_lock_min_profit: float = 200.0
+    profit_lock_action: str = "allow_flip"
     max_exposure: float
     auto_pause_on_exposure: bool
     allow_hedge: bool

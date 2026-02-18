@@ -6,8 +6,10 @@ Repository for daily profit/loss records.
 
 from typing import Optional
 from datetime import date
+import inspect
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.models.database_models import DailyPnL
 
@@ -15,7 +17,7 @@ from app.models.database_models import DailyPnL
 class DailyPnLRepository:
     """Repository for daily P&L tracking"""
 
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session):
         self._session = session
 
     async def get_by_account_date(self, account_id: int, date_val: date) -> Optional[DailyPnL]:
@@ -33,7 +35,9 @@ class DailyPnLRepository:
             DailyPnL.account_id == account_id,
             DailyPnL.date == date_val
         )
-        result = await self._session.execute(stmt)
+        result = self._session.execute(stmt)
+        if inspect.isawaitable(result):
+            result = await result
         return result.scalar_one_or_none()
 
     async def create(
@@ -70,8 +74,12 @@ class DailyPnLRepository:
             is_trading_halted=False
         )
         self._session.add(record)
-        await self._session.commit()
-        await self._session.refresh(record)
+        commit_result = self._session.commit()
+        if inspect.isawaitable(commit_result):
+            await commit_result
+        refresh_result = self._session.refresh(record)
+        if inspect.isawaitable(refresh_result):
+            await refresh_result
         return record
 
     async def save(self, record: DailyPnL) -> DailyPnL:
@@ -85,8 +93,12 @@ class DailyPnLRepository:
             Updated record
         """
         self._session.add(record)
-        await self._session.commit()
-        await self._session.refresh(record)
+        commit_result = self._session.commit()
+        if inspect.isawaitable(commit_result):
+            await commit_result
+        refresh_result = self._session.refresh(record)
+        if inspect.isawaitable(refresh_result):
+            await refresh_result
         return record
 
     async def get_latest_for_account(self, account_id: int) -> Optional[DailyPnL]:
@@ -103,5 +115,7 @@ class DailyPnLRepository:
             DailyPnL.account_id == account_id
         ).order_by(DailyPnL.date.desc()).limit(1)
 
-        result = await self._session.execute(stmt)
+        result = self._session.execute(stmt)
+        if inspect.isawaitable(result):
+            result = await result
         return result.scalar_one_or_none()

@@ -87,7 +87,11 @@ def _load_account_credentials(db: Session, account: TradingAccount) -> Dict[str,
             # For MT4/MT5, also check extra_metadata.metaapi_account_id
             extra_meta_id = account.extra_metadata.get("metaapi_account_id") if account.extra_metadata and isinstance(account.extra_metadata, dict) else None
             matches_meta_account = extra_meta_id and str(data_account_id) == str(extra_meta_id)
-            if not matches_account_number and not matches_broker_account and not matches_meta_account:
+            # For brokers with multiple sub-accounts (e.g. ProjectX/TopStep), credential may be
+            # saved with any enabled sub-account ID — check the full enabled list
+            enabled_ids = account.enabled_broker_account_ids or []
+            matches_enabled = str(data_account_id) in [str(i) for i in enabled_ids]
+            if not matches_account_number and not matches_broker_account and not matches_meta_account and not matches_enabled:
                 continue
 
         credentials.update(data)
@@ -108,12 +112,18 @@ def _load_account_credentials(db: Session, account: TradingAccount) -> Dict[str,
     return credentials
 
 
-async def _create_account_executor(account: TradingAccount, db: Session):
+async def _create_account_executor(account: TradingAccount, db: Session, target_broker_account_id: Optional[str] = None):
     """Create a broker executor configured with account-specific credentials.
 
     Used for signal execution to ensure each account uses its own credentials.
     Returns (executor, needs_cleanup) tuple. If needs_cleanup is True, caller should
     call executor.disconnect() after use.
+
+    Args:
+        account: The TradingAccount (represents API credentials)
+        db: Database session
+        target_broker_account_id: Optional specific broker account to target
+            (for multi-account brokers like ProjectX where one credential set can have multiple accounts)
     """
     credentials = _load_account_credentials(db, account)
     broker_type = account.broker.value
@@ -151,8 +161,11 @@ async def _create_account_executor(account: TradingAccount, db: Session):
 
     elif broker_type in ("projectx", "topstep"):
         if credentials.get("username") and credentials.get("api_key"):
-            broker_account_id = account.default_broker_account_id or account.account_number or str(account.id)
-            account_name = account.account_name or broker_account_id
+            # Use target_broker_account_id if provided (for multi-account execution)
+            # Otherwise fall back to default_broker_account_id
+            broker_account_id = target_broker_account_id or account.default_broker_account_id or account.account_number or str(account.id)
+            account_name = broker_account_id  # Use broker account ID as name for SDK
+            logger.info(f"Creating ProjectX executor for broker account: {broker_account_id}")
             # Pass account_id + account_name for proper SDK scoping and fallback filtering
             executor = ProjectXExecutor(
                 account_id=broker_account_id,
@@ -711,11 +724,37 @@ class SignalProcessor:
             logger.error(f"Failed to log trial rejection: {e}")
             db.rollback()
 
+    async def _build_live_position_counter(self, broker, account) -> "InMemoryPositionCounter":
+        """
+        Fetch live positions from broker and return an InMemoryPositionCounter
+        populated with real counts. Falls back to empty counter on error.
+        """
+        from app.infrastructure.adapters.position_counter_adapter import InMemoryPositionCounter
+        counter = InMemoryPositionCounter()
+        try:
+            broker_account_id = account.default_broker_account_id or account.account_number or str(account.id)
+            try:
+                positions = await broker.get_positions(broker_account_id)
+            except TypeError:
+                positions = await broker.get_positions()
+
+            if positions:
+                for pos in positions:
+                    symbol = getattr(pos, 'symbol', None) or (pos.get('symbol') if isinstance(pos, dict) else None)
+                    if symbol:
+                        current = await counter.count_open_for_symbol(account.id, symbol)
+                        counter.set_position_count(account.id, symbol, current + 1)
+                logger.info(f"Live position count for account {account.id}: {len(positions)} positions across {len(counter._positions.get(account.id, {}))} symbols")
+        except Exception as e:
+            logger.warning(f"Could not fetch live positions for account {account.id}, using empty counter: {e}")
+        return counter
+
     async def _check_risk_limits(
         self,
         signal_request: SignalRequest,
         account,
-        signal_id: str
+        signal_id: str,
+        broker=None
     ) -> Dict[str, Any]:
         """
         Check all risk management limits before execution.
@@ -732,6 +771,7 @@ class SignalProcessor:
             signal_request: The signal request
             account: TradingAccount to check
             signal_id: Signal ID for logging
+            broker: Live broker executor for real-time position counting
 
         Returns:
             Dict with 'passed' bool and violation details if blocked
@@ -758,7 +798,12 @@ class SignalProcessor:
             # Create risk service dependencies
             counter_repo = get_daily_counter_repository()
             counter_service = DailyCounterService(counter_repo)
-            position_counter = PositionCounterAdapter(db)
+
+            # Use live broker positions if available (DB position table may be empty)
+            if broker and (risk_settings.max_open_positions or risk_settings.max_positions_per_symbol):
+                position_counter = await self._build_live_position_counter(broker, account)
+            else:
+                position_counter = PositionCounterAdapter(db)
 
             # Create risk enforcement service
             risk_service = RiskEnforcementService(
@@ -1323,11 +1368,12 @@ class SignalProcessor:
                     "status": "rejected"
                 }
 
-            # Risk management enforcement check
+            # Risk management enforcement check (pass live broker for position counting)
             risk_check = await self._check_risk_limits(
                 signal_request=signal_request,
                 account=account,
-                signal_id=signal_id
+                signal_id=signal_id,
+                broker=broker
             )
             if not risk_check["passed"]:
                 return {

@@ -96,6 +96,24 @@ class SignalIntelligenceGuard:
             if session_result.decision != GuardDecision.EXECUTE:
                 return session_result
 
+        # sg-009: Volatility-Based Chop Detection (new entry only)
+        if signal.action != SignalAction.CLOSE and getattr(settings, 'volatility_chop_enabled', False):
+            # Get first account to check volatility (same market data for all accounts)
+            if account_ids:
+                first_account = self.db.query(TradingAccount).filter(
+                    TradingAccount.id == account_ids[0],
+                    TradingAccount.is_active == True
+                ).first()
+
+                if first_account:
+                    volatility_result = await self._check_volatility_chop(
+                        signal, settings, first_account
+                    )
+                    if volatility_result.decision != GuardDecision.EXECUTE:
+                        return volatility_result
+                    # Merge annotations
+                    result.annotations.update(volatility_result.annotations)
+
         # Determine session key for momentum tracking
         session_key = self._get_session_key(user_id, signal)
 
@@ -153,10 +171,20 @@ class SignalIntelligenceGuard:
             settings = MomentumSettings(
                 user_id=user_id,
                 warn_at=6,
-                auto_breakeven=False,
+                auto_breakeven=True,
                 pause_on_chop=True,
+                volatility_chop_enabled=True,
+                volatility_atr_periods=14,
+                volatility_atr_threshold=0.5,
+                volatility_lookback_candles=20,
+                volatility_candle_interval=5,
                 check_position_pnl=True,
                 profit_pnl_threshold=500.0,
+                block_pnl_signals=True,
+                profit_lock_enabled=True,
+                profit_lock_pct=50.0,
+                profit_lock_min_profit=200.0,
+                profit_lock_action="allow_flip",
                 max_exposure=5000.0,
                 auto_pause_on_exposure=True,
                 allow_hedge=False,
@@ -270,6 +298,270 @@ class SignalIntelligenceGuard:
                 decision=GuardDecision.EXECUTE,
                 annotations={"trading_session_error": str(e)}
             )
+
+    async def _check_volatility_chop(
+        self,
+        signal: Signal,
+        settings: MomentumSettings,
+        account: TradingAccount
+    ) -> GuardResult:
+        """
+        sg-009: Volatility-Based Chop Detection
+
+        Uses live market data to calculate ATR (Average True Range).
+        If current ATR is significantly below average, market is choppy/ranging.
+        Blocks new entries in low volatility conditions.
+
+        Returns:
+            GuardResult with PAUSE_NEW_ENTRIES if choppy, EXECUTE otherwise
+        """
+        # Skip if disabled or not a new entry
+        if not getattr(settings, 'volatility_chop_enabled', False):
+            return GuardResult(decision=GuardDecision.EXECUTE, annotations={})
+
+        if signal.action == SignalAction.CLOSE:
+            return GuardResult(decision=GuardDecision.EXECUTE, annotations={})
+
+        broker_type = account.broker.value if hasattr(account.broker, 'value') else str(account.broker)
+        symbol = signal.symbol.value
+
+        try:
+            # Get settings with defaults
+            atr_periods = getattr(settings, 'volatility_atr_periods', 14)
+            atr_threshold = getattr(settings, 'volatility_atr_threshold', 0.5)
+            lookback_candles = getattr(settings, 'volatility_lookback_candles', 20)
+            candle_interval = getattr(settings, 'volatility_candle_interval', 5)
+
+            # Fetch market data based on broker type
+            candles = await self._fetch_market_candles(
+                broker_type=broker_type,
+                account=account,
+                symbol=symbol,
+                candle_count=lookback_candles,
+                interval_minutes=candle_interval
+            )
+
+            if not candles or len(candles) < atr_periods:
+                logger.debug(f"Volatility check: insufficient candles for {symbol} ({len(candles) if candles else 0})")
+                # Not enough data - allow execution (fail open)
+                return GuardResult(
+                    decision=GuardDecision.EXECUTE,
+                    annotations={"volatility_check": "insufficient_data"}
+                )
+
+            # Calculate ATR
+            current_atr, avg_atr = self._calculate_atr(candles, atr_periods)
+
+            if current_atr is None or avg_atr is None or avg_atr == 0:
+                return GuardResult(
+                    decision=GuardDecision.EXECUTE,
+                    annotations={"volatility_check": "calculation_error"}
+                )
+
+            # Calculate ATR ratio (current / average)
+            atr_ratio = current_atr / avg_atr
+
+            logger.info(
+                f"Volatility check for {symbol}: ATR={current_atr:.4f}, "
+                f"AvgATR={avg_atr:.4f}, Ratio={atr_ratio:.2f}, Threshold={atr_threshold}"
+            )
+
+            # If ATR is below threshold, market is choppy
+            if atr_ratio < atr_threshold:
+                logger.warning(
+                    f"CHOP DETECTED (volatility): {symbol} ATR ratio {atr_ratio:.2f} < {atr_threshold}"
+                )
+                return GuardResult(
+                    decision=GuardDecision.PAUSE_NEW_ENTRIES,
+                    annotations={
+                        "history_tag": f"volatility_chop – low ATR ({atr_ratio:.2f} < {atr_threshold})",
+                        "volatility_chop": True,
+                        "current_atr": round(current_atr, 4),
+                        "avg_atr": round(avg_atr, 4),
+                        "atr_ratio": round(atr_ratio, 2),
+                        "threshold": atr_threshold,
+                        "detection_type": "live_market_data"
+                    }
+                )
+
+            # Market is volatile enough - allow execution
+            return GuardResult(
+                decision=GuardDecision.EXECUTE,
+                annotations={
+                    "volatility_check": "passed",
+                    "atr_ratio": round(atr_ratio, 2)
+                }
+            )
+
+        except Exception as e:
+            logger.warning(f"Volatility chop check error for {symbol}: {e}")
+            # On error, allow execution (fail open)
+            return GuardResult(
+                decision=GuardDecision.EXECUTE,
+                annotations={"volatility_check_error": str(e)}
+            )
+
+    async def _fetch_market_candles(
+        self,
+        broker_type: str,
+        account: TradingAccount,
+        symbol: str,
+        candle_count: int = 20,
+        interval_minutes: int = 5
+    ) -> List[Dict]:
+        """
+        Fetch market candles from broker.
+
+        Returns list of dicts with: open, high, low, close, timestamp
+        """
+        try:
+            if broker_type in ("projectx", "topstep"):
+                # Use ProjectX SDK
+                from app.services.projectx_sdk_service import ProjectXSDKService, SDK_AVAILABLE
+                if SDK_AVAILABLE:
+                    # Load credentials
+                    from app.services.signal_processor import _load_account_credentials
+                    credentials = _load_account_credentials(self.db, account)
+                    username = credentials.get("username")
+                    api_key = credentials.get("api_key")
+
+                    if username and api_key:
+                        # Normalize symbol for ProjectX (strip TradingView format)
+                        from app.services.contract_resolver import ContractResolver
+                        normalized_symbol = ContractResolver.normalize_symbol(symbol)
+
+                        sdk = ProjectXSDKService(
+                            username=username,
+                            api_key=api_key,
+                            account_name=account.default_broker_account_id or account.account_name
+                        )
+
+                        if await sdk.connect():
+                            try:
+                                # Get market data (returns OHLC candles)
+                                data = await sdk.get_market_data(
+                                    instrument=normalized_symbol,
+                                    days=1,  # Just need recent data
+                                    interval=interval_minutes
+                                )
+                                await sdk.disconnect()
+
+                                if data:
+                                    # Return last N candles
+                                    return data[-candle_count:] if len(data) > candle_count else data
+                            finally:
+                                await sdk.disconnect()
+
+            elif broker_type == "mt5":
+                # Use MetaAPI for MT5
+                from app.brokers.mt5_executor import MT5Executor
+                from app.services.signal_processor import _load_account_credentials
+
+                credentials = _load_account_credentials(self.db, account)
+                metaapi_account_id = credentials.get("metaapi_account_id")
+                metaapi_token = credentials.get("metaapi_token") or credentials.get("api_token")
+
+                if metaapi_account_id and metaapi_token:
+                    executor = MT5Executor(
+                        metaapi_token=metaapi_token,
+                        metaapi_account_id=metaapi_account_id
+                    )
+                    await executor.initialize()
+
+                    if executor.is_connected:
+                        try:
+                            # Get candles via MetaAPI
+                            candles = await executor.get_candles(
+                                symbol=symbol,
+                                timeframe=f"{interval_minutes}m",
+                                count=candle_count
+                            )
+                            return candles
+                        finally:
+                            await executor.disconnect()
+
+            elif broker_type == "tradelocker":
+                # Use TradeLocker executor
+                from app.brokers.tradelocker_executor import TradeLockerExecutor
+                from app.services.signal_processor import _load_account_credentials
+
+                credentials = _load_account_credentials(self.db, account)
+                if credentials.get("username") and credentials.get("password"):
+                    executor = TradeLockerExecutor(
+                        username=credentials.get("username"),
+                        password=credentials.get("password"),
+                        server=credentials.get("server"),
+                        sdk_environment=credentials.get("sdk_environment") or credentials.get("environment"),
+                        account_id=account.default_broker_account_id
+                    )
+                    await executor.initialize()
+
+                    if executor.is_connected:
+                        try:
+                            candles = await executor.get_candles(
+                                symbol=symbol,
+                                timeframe=f"{interval_minutes}m",
+                                count=candle_count
+                            )
+                            return candles
+                        finally:
+                            await executor.disconnect()
+
+            return []
+
+        except Exception as e:
+            logger.warning(f"Failed to fetch candles from {broker_type} for {symbol}: {e}")
+            return []
+
+    def _calculate_atr(
+        self,
+        candles: List[Dict],
+        periods: int = 14
+    ) -> Tuple[Optional[float], Optional[float]]:
+        """
+        Calculate ATR (Average True Range) from candles.
+
+        Args:
+            candles: List of OHLC candles
+            periods: ATR period (default 14)
+
+        Returns:
+            Tuple of (current_atr, average_atr) or (None, None) on error
+        """
+        try:
+            if len(candles) < periods + 1:
+                return None, None
+
+            true_ranges = []
+
+            for i in range(1, len(candles)):
+                high = float(candles[i].get('high', candles[i].get('h', 0)))
+                low = float(candles[i].get('low', candles[i].get('l', 0)))
+                prev_close = float(candles[i-1].get('close', candles[i-1].get('c', 0)))
+
+                # True Range = max(high-low, |high-prev_close|, |low-prev_close|)
+                tr = max(
+                    high - low,
+                    abs(high - prev_close),
+                    abs(low - prev_close)
+                )
+                true_ranges.append(tr)
+
+            if len(true_ranges) < periods:
+                return None, None
+
+            # Calculate ATR (simple moving average of TR)
+            # Current ATR = average of last 'periods' TRs
+            current_atr = sum(true_ranges[-periods:]) / periods
+
+            # Average ATR = average of ALL TRs (for comparison)
+            avg_atr = sum(true_ranges) / len(true_ranges)
+
+            return current_atr, avg_atr
+
+        except Exception as e:
+            logger.warning(f"ATR calculation error: {e}")
+            return None, None
 
     async def _check_staleness(
         self,
@@ -611,25 +903,90 @@ class SignalIntelligenceGuard:
         # Check if block mode is enabled (auto-reject instead of warn)
         block_mode = getattr(settings, 'block_pnl_signals', False)
 
+        # Profit Lock settings - smart exit when profit drops from peak
+        profit_lock_enabled = getattr(settings, 'profit_lock_enabled', True)
+        profit_lock_pct = getattr(settings, 'profit_lock_pct', 50.0)  # Allow flip if dropped X%
+        profit_lock_min_profit = getattr(settings, 'profit_lock_min_profit', 200.0)  # Only after $X profit
+
+        # Get peak profit tracking from SignalCounter
+        session_key = f"{account_ids[0]}:{signal_symbol}:pnl" if account_ids else f"0:{signal_symbol}:pnl"
+        peak_tracker = self.db.query(SignalCounter).filter(
+            SignalCounter.session_key == session_key
+        ).first()
+
         # Check if trading against profitable positions
         if signal_side == "sell" and total_buy_pnl >= profit_threshold and total_buy_count > 0:
             # User has BUYs in profit and is trying to SELL - this might flip the position
             history_tag = f"profitable_position_warning – {total_buy_count} BUYs in ${total_buy_pnl:.2f} profit"
 
             if block_mode:
-                # Auto-block: skip the signal without prompting
-                logger.info(f"Position P&L BLOCKED: {total_buy_count} BUY positions on {signal_symbol} in ${total_buy_pnl:.2f} profit, SELL signal auto-rejected")
-                return GuardResult(
-                    decision=GuardDecision.SKIP,
-                    annotations={
-                        "history_tag": f"BLOCKED: {history_tag}",
-                        "skip_reason": f"Auto-blocked: trading against {total_buy_count} profitable BUY positions (${total_buy_pnl:.2f})",
-                        "existing_side": "buy",
-                        "existing_pnl": total_buy_pnl,
-                        "existing_count": total_buy_count,
-                        "signal_side": signal_side
-                    }
-                )
+                # Check Profit Lock: if profit dropped significantly, allow the flip
+                allow_due_to_profit_drop = False
+                peak_pnl = 0.0
+
+                if profit_lock_enabled and total_buy_pnl >= profit_lock_min_profit:
+                    # Get or create peak tracker
+                    if not peak_tracker:
+                        # First time seeing this symbol - store current as peak
+                        peak_tracker = SignalCounter(
+                            user_id=account_ids[0] if account_ids else 0,
+                            session_key=session_key,
+                            current_bias="buy",
+                            opposite_momentum=int(total_buy_pnl * 100),  # Store peak as cents
+                            last_signal_ts=datetime.utcnow(),
+                            last8_pattern="",
+                            chop_mode=False
+                        )
+                        self.db.add(peak_tracker)
+                        self.db.commit()
+                        peak_pnl = total_buy_pnl
+                    else:
+                        # Retrieve stored peak (stored as cents in opposite_momentum)
+                        peak_pnl = peak_tracker.opposite_momentum / 100.0
+
+                        # Update peak if current is higher
+                        if total_buy_pnl > peak_pnl:
+                            peak_tracker.opposite_momentum = int(total_buy_pnl * 100)
+                            peak_pnl = total_buy_pnl
+                            self.db.commit()
+
+                    # Check if profit dropped by profit_lock_pct%
+                    if peak_pnl > profit_lock_min_profit:
+                        drop_threshold = peak_pnl * (1 - profit_lock_pct / 100.0)
+                        if total_buy_pnl <= drop_threshold:
+                            allow_due_to_profit_drop = True
+                            logger.info(f"Profit Lock: BUY profit dropped from ${peak_pnl:.2f} to ${total_buy_pnl:.2f} ({((peak_pnl - total_buy_pnl) / peak_pnl * 100):.1f}% drop), ALLOWING flip to SELL")
+
+                if not allow_due_to_profit_drop:
+                    # Auto-block: skip the signal without prompting
+                    logger.info(f"Position P&L BLOCKED: {total_buy_count} BUY positions on {signal_symbol} in ${total_buy_pnl:.2f} profit (peak: ${peak_pnl:.2f}), SELL signal auto-rejected")
+                    return GuardResult(
+                        decision=GuardDecision.SKIP,
+                        annotations={
+                            "history_tag": f"BLOCKED: {history_tag}",
+                            "skip_reason": f"Auto-blocked: trading against {total_buy_count} profitable BUY positions (${total_buy_pnl:.2f}, peak: ${peak_pnl:.2f})",
+                            "existing_side": "buy",
+                            "existing_pnl": total_buy_pnl,
+                            "peak_pnl": peak_pnl,
+                            "existing_count": total_buy_count,
+                            "signal_side": signal_side
+                        }
+                    )
+                else:
+                    # Profit dropped significantly - allow the flip and reset tracker
+                    if peak_tracker:
+                        self.db.delete(peak_tracker)
+                        self.db.commit()
+                    logger.info(f"Profit Lock ALLOWED: Flip to SELL permitted due to profit drop from ${peak_pnl:.2f} to ${total_buy_pnl:.2f}")
+                    return GuardResult(
+                        decision=GuardDecision.EXECUTE,
+                        annotations={
+                            "history_tag": f"profit_lock_allowed – flip from BUY (profit dropped ${peak_pnl:.2f} → ${total_buy_pnl:.2f})",
+                            "profit_lock_triggered": True,
+                            "peak_pnl": peak_pnl,
+                            "current_pnl": total_buy_pnl
+                        }
+                    )
 
             # Warn mode: show modal for user decision
             modal_data = {
@@ -662,19 +1019,82 @@ class SignalIntelligenceGuard:
             history_tag = f"profitable_position_warning – {total_sell_count} SELLs in ${total_sell_pnl:.2f} profit"
 
             if block_mode:
-                # Auto-block: skip the signal without prompting
-                logger.info(f"Position P&L BLOCKED: {total_sell_count} SELL positions on {signal_symbol} in ${total_sell_pnl:.2f} profit, BUY signal auto-rejected")
-                return GuardResult(
-                    decision=GuardDecision.SKIP,
-                    annotations={
-                        "history_tag": f"BLOCKED: {history_tag}",
-                        "skip_reason": f"Auto-blocked: trading against {total_sell_count} profitable SELL positions (${total_sell_pnl:.2f})",
-                        "existing_side": "sell",
-                        "existing_pnl": total_sell_pnl,
-                        "existing_count": total_sell_count,
-                        "signal_side": signal_side
-                    }
-                )
+                # Check Profit Lock: if profit dropped significantly, allow the flip
+                allow_due_to_profit_drop = False
+                peak_pnl = 0.0
+
+                if profit_lock_enabled and total_sell_pnl >= profit_lock_min_profit:
+                    # Get or create peak tracker for SELL positions
+                    sell_session_key = f"{account_ids[0]}:{signal_symbol}:sell_pnl" if account_ids else f"0:{signal_symbol}:sell_pnl"
+                    sell_peak_tracker = self.db.query(SignalCounter).filter(
+                        SignalCounter.session_key == sell_session_key
+                    ).first()
+
+                    if not sell_peak_tracker:
+                        # First time seeing this symbol - store current as peak
+                        sell_peak_tracker = SignalCounter(
+                            user_id=account_ids[0] if account_ids else 0,
+                            session_key=sell_session_key,
+                            current_bias="sell",
+                            opposite_momentum=int(total_sell_pnl * 100),  # Store peak as cents
+                            last_signal_ts=datetime.utcnow(),
+                            last8_pattern="",
+                            chop_mode=False
+                        )
+                        self.db.add(sell_peak_tracker)
+                        self.db.commit()
+                        peak_pnl = total_sell_pnl
+                    else:
+                        # Retrieve stored peak (stored as cents in opposite_momentum)
+                        peak_pnl = sell_peak_tracker.opposite_momentum / 100.0
+
+                        # Update peak if current is higher
+                        if total_sell_pnl > peak_pnl:
+                            sell_peak_tracker.opposite_momentum = int(total_sell_pnl * 100)
+                            peak_pnl = total_sell_pnl
+                            self.db.commit()
+
+                    # Check if profit dropped by profit_lock_pct%
+                    if peak_pnl > profit_lock_min_profit:
+                        drop_threshold = peak_pnl * (1 - profit_lock_pct / 100.0)
+                        if total_sell_pnl <= drop_threshold:
+                            allow_due_to_profit_drop = True
+                            logger.info(f"Profit Lock: SELL profit dropped from ${peak_pnl:.2f} to ${total_sell_pnl:.2f} ({((peak_pnl - total_sell_pnl) / peak_pnl * 100):.1f}% drop), ALLOWING flip to BUY")
+
+                if not allow_due_to_profit_drop:
+                    # Auto-block: skip the signal without prompting
+                    logger.info(f"Position P&L BLOCKED: {total_sell_count} SELL positions on {signal_symbol} in ${total_sell_pnl:.2f} profit (peak: ${peak_pnl:.2f}), BUY signal auto-rejected")
+                    return GuardResult(
+                        decision=GuardDecision.SKIP,
+                        annotations={
+                            "history_tag": f"BLOCKED: {history_tag}",
+                            "skip_reason": f"Auto-blocked: trading against {total_sell_count} profitable SELL positions (${total_sell_pnl:.2f}, peak: ${peak_pnl:.2f})",
+                            "existing_side": "sell",
+                            "existing_pnl": total_sell_pnl,
+                            "peak_pnl": peak_pnl,
+                            "existing_count": total_sell_count,
+                            "signal_side": signal_side
+                        }
+                    )
+                else:
+                    # Profit dropped significantly - allow the flip and reset tracker
+                    sell_session_key = f"{account_ids[0]}:{signal_symbol}:sell_pnl" if account_ids else f"0:{signal_symbol}:sell_pnl"
+                    sell_peak_tracker = self.db.query(SignalCounter).filter(
+                        SignalCounter.session_key == sell_session_key
+                    ).first()
+                    if sell_peak_tracker:
+                        self.db.delete(sell_peak_tracker)
+                        self.db.commit()
+                    logger.info(f"Profit Lock ALLOWED: Flip to BUY permitted due to profit drop from ${peak_pnl:.2f} to ${total_sell_pnl:.2f}")
+                    return GuardResult(
+                        decision=GuardDecision.EXECUTE,
+                        annotations={
+                            "history_tag": f"profit_lock_allowed – flip from SELL (profit dropped ${peak_pnl:.2f} → ${total_sell_pnl:.2f})",
+                            "profit_lock_triggered": True,
+                            "peak_pnl": peak_pnl,
+                            "current_pnl": total_sell_pnl
+                        }
+                    )
 
             # Warn mode: show modal for user decision
             modal_data = {

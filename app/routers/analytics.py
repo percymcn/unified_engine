@@ -318,7 +318,7 @@ async def get_usage_by_tier(
 ):
     """Get usage statistics grouped by subscription tier"""
     start_date = datetime.utcnow() - timedelta(days=days)
-    
+
     # Join UsageMetric with UserSubscription to get tier
     usage_by_tier = db.query(
         UserSubscription.tier,
@@ -333,7 +333,7 @@ async def get_usage_by_tier(
     ).group_by(
         UserSubscription.tier
     ).all()
-    
+
     result = []
     for tier, api_calls, signals, users in usage_by_tier:
         result.append({
@@ -342,5 +342,456 @@ async def get_usage_by_tier(
             "signals": int(signals or 0),
             "users": int(users or 0)
         })
-    
+
     return {"usage_by_tier": result}
+
+
+# ============================================================================
+# TRADING PERFORMANCE ANALYTICS (User-level)
+# ============================================================================
+
+from app.models.database_models import (
+    CircuitBreakerSettings as CBSettings,
+    CircuitBreakerEvent as CBEvent,
+    NewsFilterSettings as NFSettings,
+    CorrelationFilterSettings as CFSettings,
+    DynamicSizingSettings as DSSettings,
+    StrategyPerformance,
+    TimeBasedStats,
+    TradeJournal,
+)
+
+# Import services
+try:
+    from app.services.trade_analytics_service import TradeAnalyticsService
+    from app.services.news_filter_service import NewsFilterService
+    from app.services.correlation_filter_service import CorrelationFilterService
+    ANALYTICS_SERVICES_AVAILABLE = True
+except ImportError:
+    ANALYTICS_SERVICES_AVAILABLE = False
+
+
+# Response models for trading analytics
+class TradingPerformanceResponse(BaseModel):
+    total_trades: int = 0
+    winning_trades: int = 0
+    losing_trades: int = 0
+    win_rate: float = 0
+    gross_profit: float = 0
+    gross_loss: float = 0
+    net_profit: float = 0
+    profit_factor: Optional[float] = None
+    expectancy: float = 0
+    max_drawdown: float = 0
+    max_drawdown_pct: float = 0
+    current_streak: int = 0
+    best_hour: Optional[int] = None
+    best_day: Optional[int] = None
+    sharpe_ratio: Optional[float] = None
+
+
+class TradeJournalResponse(BaseModel):
+    id: int
+    trade_uuid: str
+    account_id: int
+    symbol: str
+    side: str
+    quantity: float
+    entry_price: float
+    exit_price: Optional[float] = None
+    entry_time: Optional[str] = None
+    exit_time: Optional[str] = None
+    net_pnl: Optional[float] = None
+    is_winner: Optional[bool] = None
+    status: str
+    strategy_name: Optional[str] = None
+    holding_time_seconds: Optional[int] = None
+
+
+@router.get("/trading/performance", response_model=TradingPerformanceResponse)
+async def get_trading_performance(
+    strategy: Optional[str] = Query(None, description="Filter by strategy"),
+    account_id: Optional[int] = Query(None, description="Filter by account"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get trading performance metrics for the current user."""
+    if not ANALYTICS_SERVICES_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Analytics services not available")
+
+    service = TradeAnalyticsService(db)
+    metrics = service.calculate_performance_metrics(
+        user_id=current_user.id,
+        strategy_name=strategy,
+        account_id=account_id
+    )
+    return TradingPerformanceResponse(**metrics)
+
+
+@router.get("/trading/trades", response_model=List[TradeJournalResponse])
+async def get_trade_journal(
+    limit: int = Query(50, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    status: Optional[str] = Query(None, description="open or closed"),
+    strategy: Optional[str] = Query(None),
+    symbol: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get trade journal entries."""
+    if not ANALYTICS_SERVICES_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Analytics services not available")
+
+    service = TradeAnalyticsService(db)
+    trades = service.get_trade_history(
+        user_id=current_user.id,
+        limit=limit,
+        offset=offset,
+        status=status,
+        strategy=strategy,
+        symbol=symbol
+    )
+    return trades
+
+
+@router.get("/trading/strategies")
+async def get_strategy_stats(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get performance stats per strategy."""
+    strategies = db.query(StrategyPerformance).filter(
+        StrategyPerformance.user_id == current_user.id,
+        StrategyPerformance.period_type == 'all_time'
+    ).all()
+
+    return [{
+        'strategy_name': s.strategy_name,
+        'total_trades': s.total_trades,
+        'win_rate': s.win_rate,
+        'net_profit': s.net_profit,
+        'profit_factor': s.profit_factor,
+        'expectancy': s.expectancy,
+        'current_streak': s.current_streak,
+        'is_active': s.is_active,
+        'best_hour': s.best_hour,
+        'best_day': s.best_day
+    } for s in strategies]
+
+
+@router.get("/trading/time-analysis")
+async def get_time_analysis(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get performance by hour/day/session."""
+    stats = db.query(TimeBasedStats).filter(
+        TimeBasedStats.user_id == current_user.id
+    ).all()
+
+    hourly = []
+    daily = []
+    session = []
+
+    for s in stats:
+        entry = {
+            'value': s.stat_value,
+            'total_trades': s.total_trades,
+            'win_rate': s.win_rate,
+            'net_pnl': s.net_pnl,
+            'is_recommended': s.is_recommended
+        }
+
+        if s.stat_type == 'hourly':
+            hourly.append(entry)
+        elif s.stat_type == 'daily':
+            daily.append(entry)
+        elif s.stat_type == 'session':
+            session.append(entry)
+
+    return {'hourly': hourly, 'daily': daily, 'session': session}
+
+
+@router.get("/trading/circuit-breaker/status")
+async def get_circuit_breaker_status(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Check circuit breaker status."""
+    if not ANALYTICS_SERVICES_AVAILABLE:
+        return {'can_trade': True, 'block_reason': None, 'active_events': []}
+
+    service = TradeAnalyticsService(db)
+    can_trade, reason = service.check_circuit_breakers(current_user.id)
+
+    active_events = db.query(CBEvent).filter(
+        CBEvent.user_id == current_user.id,
+        CBEvent.is_active == True
+    ).all()
+
+    return {
+        'can_trade': can_trade,
+        'block_reason': reason,
+        'active_events': [{
+            'trigger_type': e.trigger_type,
+            'trigger_value': e.trigger_value,
+            'triggered_at': e.triggered_at.isoformat() if e.triggered_at else None
+        } for e in active_events]
+    }
+
+
+@router.get("/trading/circuit-breaker/settings")
+async def get_circuit_breaker_settings(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get circuit breaker settings."""
+    settings = db.query(CBSettings).filter(
+        CBSettings.user_id == current_user.id
+    ).first()
+
+    if not settings:
+        settings = CBSettings(user_id=current_user.id)
+        db.add(settings)
+        db.commit()
+        db.refresh(settings)
+
+    return {
+        'daily_loss_limit_enabled': settings.daily_loss_limit_enabled,
+        'daily_loss_limit_pct': settings.daily_loss_limit_pct,
+        'weekly_loss_limit_enabled': settings.weekly_loss_limit_enabled,
+        'weekly_loss_limit_pct': settings.weekly_loss_limit_pct,
+        'max_drawdown_enabled': settings.max_drawdown_enabled,
+        'max_drawdown_pct': settings.max_drawdown_pct,
+        'consecutive_loss_enabled': settings.consecutive_loss_enabled,
+        'max_consecutive_losses': settings.max_consecutive_losses,
+        'auto_resume_enabled': settings.auto_resume_enabled,
+        'auto_resume_after_hours': settings.auto_resume_after_hours
+    }
+
+
+@router.put("/trading/circuit-breaker/settings")
+async def update_circuit_breaker_settings(
+    settings_update: Dict[str, Any],
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update circuit breaker settings."""
+    settings = db.query(CBSettings).filter(
+        CBSettings.user_id == current_user.id
+    ).first()
+
+    if not settings:
+        settings = CBSettings(user_id=current_user.id)
+        db.add(settings)
+
+    for key, value in settings_update.items():
+        if hasattr(settings, key) and value is not None:
+            setattr(settings, key, value)
+
+    db.commit()
+    db.refresh(settings)
+    return {'status': 'updated'}
+
+
+@router.post("/trading/circuit-breaker/reset")
+async def reset_circuit_breakers(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Manually reset circuit breakers."""
+    import pytz
+
+    active_events = db.query(CBEvent).filter(
+        CBEvent.user_id == current_user.id,
+        CBEvent.is_active == True
+    ).all()
+
+    for event in active_events:
+        event.is_active = False
+        event.resumed_at = datetime.now(pytz.UTC)
+        event.resume_reason = 'manual'
+
+    db.commit()
+    return {'reset_count': len(active_events)}
+
+
+@router.get("/trading/equity-curve")
+async def get_equity_curve_status(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get equity curve trading status."""
+    if not ANALYTICS_SERVICES_AVAILABLE:
+        return {'is_trading_allowed': True, 'is_above_ma': True, 'cumulative_pnl': 0}
+
+    service = TradeAnalyticsService(db)
+    return service.get_equity_curve_status(current_user.id)
+
+
+@router.get("/trading/position-multiplier")
+async def get_position_multiplier(
+    base_size: float = Query(..., description="Base position size"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get dynamic position size multiplier."""
+    if not ANALYTICS_SERVICES_AVAILABLE:
+        return {'multiplier': 1.0, 'adjusted_size': base_size}
+
+    service = TradeAnalyticsService(db)
+    multiplier = service.get_position_size_multiplier(current_user.id, base_size)
+
+    return {
+        'base_size': base_size,
+        'multiplier': multiplier,
+        'adjusted_size': base_size * multiplier
+    }
+
+
+@router.get("/trading/news-filter/settings")
+async def get_news_settings(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get news filter settings."""
+    settings = db.query(NFSettings).filter(
+        NFSettings.user_id == current_user.id
+    ).first()
+
+    if not settings:
+        settings = NFSettings(user_id=current_user.id)
+        db.add(settings)
+        db.commit()
+        db.refresh(settings)
+
+    return {
+        'enabled': settings.enabled,
+        'filter_high_impact': settings.filter_high_impact,
+        'filter_medium_impact': settings.filter_medium_impact,
+        'pause_minutes_before': settings.pause_minutes_before,
+        'pause_minutes_after': settings.pause_minutes_after,
+        'action_on_news': settings.action_on_news
+    }
+
+
+@router.put("/trading/news-filter/settings")
+async def update_news_settings(
+    settings_update: Dict[str, Any],
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update news filter settings."""
+    settings = db.query(NFSettings).filter(
+        NFSettings.user_id == current_user.id
+    ).first()
+
+    if not settings:
+        settings = NFSettings(user_id=current_user.id)
+        db.add(settings)
+
+    for key, value in settings_update.items():
+        if hasattr(settings, key) and value is not None:
+            setattr(settings, key, value)
+
+    db.commit()
+    return {'status': 'updated'}
+
+
+@router.get("/trading/correlation-filter/settings")
+async def get_correlation_settings(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get correlation filter settings."""
+    settings = db.query(CFSettings).filter(
+        CFSettings.user_id == current_user.id
+    ).first()
+
+    if not settings:
+        settings = CFSettings(user_id=current_user.id)
+        db.add(settings)
+        db.commit()
+        db.refresh(settings)
+
+    return {
+        'enabled': settings.enabled,
+        'max_positive_correlation': settings.max_positive_correlation,
+        'max_negative_correlation': settings.max_negative_correlation,
+        'action_on_correlation': settings.action_on_correlation
+    }
+
+
+@router.put("/trading/correlation-filter/settings")
+async def update_correlation_settings(
+    settings_update: Dict[str, Any],
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update correlation filter settings."""
+    settings = db.query(CFSettings).filter(
+        CFSettings.user_id == current_user.id
+    ).first()
+
+    if not settings:
+        settings = CFSettings(user_id=current_user.id)
+        db.add(settings)
+
+    for key, value in settings_update.items():
+        if hasattr(settings, key) and value is not None:
+            setattr(settings, key, value)
+
+    db.commit()
+    return {'status': 'updated'}
+
+
+@router.get("/trading/dynamic-sizing/settings")
+async def get_dynamic_sizing_settings(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get dynamic position sizing settings."""
+    settings = db.query(DSSettings).filter(
+        DSSettings.user_id == current_user.id
+    ).first()
+
+    if not settings:
+        settings = DSSettings(user_id=current_user.id)
+        db.add(settings)
+        db.commit()
+        db.refresh(settings)
+
+    return {
+        'enabled': settings.enabled,
+        'method': settings.method,
+        'base_risk_pct': settings.base_risk_pct,
+        'increase_on_win_streak': settings.increase_on_win_streak,
+        'win_streak_threshold': settings.win_streak_threshold,
+        'decrease_on_loss_streak': settings.decrease_on_loss_streak,
+        'loss_streak_threshold': settings.loss_streak_threshold,
+        'equity_curve_enabled': settings.equity_curve_enabled,
+        'pause_below_ma': settings.pause_below_ma
+    }
+
+
+@router.put("/trading/dynamic-sizing/settings")
+async def update_dynamic_sizing_settings(
+    settings_update: Dict[str, Any],
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update dynamic sizing settings."""
+    settings = db.query(DSSettings).filter(
+        DSSettings.user_id == current_user.id
+    ).first()
+
+    if not settings:
+        settings = DSSettings(user_id=current_user.id)
+        db.add(settings)
+
+    for key, value in settings_update.items():
+        if hasattr(settings, key) and value is not None:
+            setattr(settings, key, value)
+
+    db.commit()
+    return {'status': 'updated'}
