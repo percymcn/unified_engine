@@ -159,6 +159,36 @@ const SALES_FAQS: SalesFAQ[] = [
     answer: 'Yes! All plans include API access for programmatic signal submission. You can integrate Tradeflow into your custom trading systems or any application that can make HTTP requests.',
     category: 'features',
   },
+  {
+    id: 'trading-analytics',
+    question: 'What analytics and performance tracking is included?',
+    answer: 'Tradeflow includes a comprehensive Trading Analytics Dashboard:\n\n**Performance Metrics**\n- Win rate, profit factor, expectancy\n- Sharpe ratio, max drawdown\n- Average win/loss, largest win/loss\n- Per-strategy performance breakdown\n\n**Time-Based Analysis**\n- Hourly performance heatmap\n- Daily/weekly performance stats\n- Session analysis (Asian, London, NY overlap)\n\nDiscover your best trading hours and optimize your schedule based on real data.',
+    category: 'features',
+  },
+  {
+    id: 'circuit-breakers',
+    question: 'What are Circuit Breakers?',
+    answer: 'Circuit Breakers automatically pause trading when risk limits are hit:\n\n**Daily Loss Limit**\n- Set a $ or % daily loss limit\n- Trading pauses automatically when reached\n\n**Consecutive Losses**\n- Pause after X consecutive losing trades\n- Prevents tilt trading\n\n**Auto Resume**\n- Optional cooling period before resuming\n- Or manually resume when ready\n\nThink of it as your automated risk manager that never sleeps.',
+    category: 'features',
+  },
+  {
+    id: 'news-filter',
+    question: 'Can I pause trading around news events?',
+    answer: 'Yes! The News Event Filter automatically pauses trading around high-impact economic events:\n\n**Supported Events**\n- FOMC meetings\n- Non-Farm Payroll (NFP)\n- CPI releases\n- Central bank decisions (ECB, BOE, BOJ)\n\n**Configurable Settings**\n- Minutes before event to pause\n- Minutes after event to resume\n- Filter by impact level (high/medium/low)\n\nNever get caught in a volatile news spike again.',
+    category: 'features',
+  },
+  {
+    id: 'correlation-filter',
+    question: 'What is the Correlation Filter?',
+    answer: 'The Correlation Filter prevents you from taking highly correlated trades simultaneously:\n\n**Example**: If you\'re long ES (S&P 500 futures), and a signal comes in to go long NQ (Nasdaq futures), the system knows they\'re 92% correlated and blocks the NQ signal.\n\n**Why it matters**:\n- Reduces concentrated risk exposure\n- Prevents "doubling down" on the same market move\n- Built-in correlations for major pairs (ES/NQ, EUR/GBP, Gold/Silver, etc.)\n\nSmarter position management, automatically.',
+    category: 'features',
+  },
+  {
+    id: 'dynamic-sizing',
+    question: 'Does Tradeflow support dynamic position sizing?',
+    answer: 'Yes! Dynamic Position Sizing automatically adjusts your trade size based on performance:\n\n**Streak-Based Sizing**\n- Increase size after consecutive wins\n- Decrease size after consecutive losses\n\n**Equity Curve Trading**\n- Reduce size when equity drops below moving average\n- Scale back up when equity curve recovers\n\nThis helps you ride winning streaks and protect capital during drawdowns.',
+    category: 'features',
+  },
 ];
 
 const CATEGORIES = [

@@ -344,6 +344,78 @@ TradeFlow automatically converts your configured SL/TP values to absolute prices
 
 // Platform Features Documentation
 const PLATFORM_FEATURES = {
+  tradingAnalytics: {
+    title: "Trading Analytics Dashboard",
+    description: "Comprehensive performance tracking and analysis tools",
+    features: [
+      {
+        name: "Performance Metrics",
+        description: "Track all key trading metrics in real-time",
+        settings: [
+          { name: "Win Rate", description: "Percentage of winning trades" },
+          { name: "Profit Factor", description: "Gross profit divided by gross loss" },
+          { name: "Expectancy", description: "Average expected profit per trade" },
+          { name: "Sharpe Ratio", description: "Risk-adjusted return metric" },
+          { name: "Max Drawdown", description: "Largest peak-to-trough decline" },
+        ],
+        example: "Track a 65% win rate with 1.8 profit factor to understand your edge.",
+        location: "Dashboard > Analytics > Performance",
+      },
+      {
+        name: "Circuit Breakers",
+        description: "Auto-pause trading when risk limits are hit",
+        settings: [
+          { name: "Daily Loss Limit", description: "Pause when daily loss exceeds $ or % threshold" },
+          { name: "Consecutive Losses", description: "Pause after X consecutive losing trades" },
+          { name: "Auto Resume", description: "Automatically resume after cooling period" },
+        ],
+        example: "Set $500 daily loss limit - trading pauses automatically when hit, protecting your account.",
+        location: "Dashboard > Analytics > Circuit Breakers",
+      },
+      {
+        name: "News Event Filter",
+        description: "Pause trading around high-impact economic events",
+        settings: [
+          { name: "Filter High Impact", description: "Pause for FOMC, NFP, CPI, etc." },
+          { name: "Minutes Before", description: "Pause X minutes before event" },
+          { name: "Minutes After", description: "Resume X minutes after event" },
+        ],
+        example: "Auto-pause 15 min before and after NFP to avoid volatility spikes.",
+        location: "Dashboard > Analytics > Filters",
+      },
+      {
+        name: "Correlation Filter",
+        description: "Prevent taking correlated positions simultaneously",
+        settings: [
+          { name: "Max Correlation", description: "Block trades above correlation threshold (0.7 = 70%)" },
+          { name: "Action on Correlation", description: "Block or warn when correlated trade detected" },
+        ],
+        example: "If you're long ES, the system blocks a long NQ signal (92% correlated) to reduce risk concentration.",
+        location: "Dashboard > Analytics > Filters",
+      },
+      {
+        name: "Time-Based Analysis",
+        description: "Discover your best trading hours and days",
+        settings: [
+          { name: "Hourly Heatmap", description: "Performance breakdown by hour of day" },
+          { name: "Daily Stats", description: "Performance by day of week" },
+          { name: "Session Analysis", description: "Asian, London, NY session performance" },
+        ],
+        example: "Discover you win 75% of trades during London session but only 45% during Asian - adjust your schedule.",
+        location: "Dashboard > Analytics > Time Analysis",
+      },
+      {
+        name: "Dynamic Position Sizing",
+        description: "Auto-adjust position size based on performance",
+        settings: [
+          { name: "Enable Dynamic Sizing", description: "Scale positions based on recent results" },
+          { name: "Equity Curve Trading", description: "Reduce size when below moving average" },
+        ],
+        example: "After 3 consecutive wins, increase size by 25%. After 2 losses, reduce by 50%.",
+        location: "Dashboard > Analytics > Position Sizing",
+      },
+    ],
+  },
   signalIntelligence: {
     title: "Signal Intelligence Guard",
     description: "Self-protecting execution layer with advanced signal filtering",

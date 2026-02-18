@@ -16,6 +16,12 @@ import {
   Target,
   Lock,
   Activity,
+  LineChart,
+  Newspaper,
+  GitBranch,
+  Pause,
+  Scale,
+  CalendarClock,
 } from "lucide-react";
 
 const features = [
@@ -102,6 +108,42 @@ const features = [
     title: "AI Trading Coach",
     description:
       "Get intelligent feedback on your strategies with bias detection and improvement suggestions.",
+  },
+  {
+    icon: LineChart,
+    title: "Trading Analytics Dashboard",
+    description:
+      "Track win rate, profit factor, expectancy, Sharpe ratio, and max drawdown. Know exactly how your strategies perform.",
+  },
+  {
+    icon: Pause,
+    title: "Circuit Breakers",
+    description:
+      "Auto-pause trading when daily loss limits or consecutive losses are hit. Resume manually or after cooling period.",
+  },
+  {
+    icon: Newspaper,
+    title: "News Event Filter",
+    description:
+      "Automatically pause trading around high-impact news events like FOMC, NFP, and CPI releases.",
+  },
+  {
+    icon: GitBranch,
+    title: "Correlation Filter",
+    description:
+      "Prevent correlated trades. If you're long ES, it blocks another long NQ signal to reduce risk concentration.",
+  },
+  {
+    icon: CalendarClock,
+    title: "Time-Based Analysis",
+    description:
+      "Discover your best trading hours and days with performance heatmaps. See which sessions (Asian, London, NY) work best.",
+  },
+  {
+    icon: Scale,
+    title: "Dynamic Position Sizing",
+    description:
+      "Automatically adjust position size based on recent performance. Scale up winners, scale down during drawdowns.",
   },
 ];
 
