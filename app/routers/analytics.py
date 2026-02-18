@@ -376,7 +376,7 @@ class TradingPerformanceResponse(BaseModel):
     total_trades: int = 0
     winning_trades: int = 0
     losing_trades: int = 0
-    win_rate: float = 0
+    win_rate: Optional[float] = 0
     gross_profit: float = 0
     gross_loss: float = 0
     net_profit: float = 0
@@ -388,6 +388,8 @@ class TradingPerformanceResponse(BaseModel):
     best_hour: Optional[int] = None
     best_day: Optional[int] = None
     sharpe_ratio: Optional[float] = None
+    data_source: Optional[str] = None
+    pnl_tracking_note: Optional[str] = None
 
 
 class TradeJournalResponse(BaseModel):
