@@ -44,7 +44,7 @@ from app.models.schemas import WebhookLogCreate
 from app.dependencies import get_container
 from app.application.dto.signal_dto import ProcessSignalRequest
 from app.domain.enums import SignalSource, SignalAction
-from app.services.signal_intelligence_guard import SignalIntelligenceGuard, GuardDecision
+from app.services.signal_intelligence_guard import SignalIntelligenceGuard, GuardDecision, GuardResult
 from app.domain.entities.signal import Signal
 from app.domain.value_objects import SignalId, Symbol, Volume, Price, StopLoss, TakeProfit, AccountId
 from app.domain.services.account_routing_service import AccountRoutingService
@@ -52,7 +52,8 @@ from app.domain.services.risk_unit_converter import RiskUnitConverter, RiskUnitM
 from app.domain.services.daily_counter_service import DailyCounterService
 from app.infrastructure.repositories import get_daily_counter_repository
 from app.services.compat_positions_cache import record_open, record_close, is_enabled as compat_positions_enabled
-from app.models.database_models import DailyPnL, AccountEquityHistory
+from app.models.database_models import DailyPnL, AccountEquityHistory, CircuitBreakerSettings, DynamicSizingSettings, EquityCurveState
+from app.services.trade_analytics_service import TradeAnalyticsService
 from datetime import date as date_type
 
 logger = logging.getLogger(__name__)
@@ -917,6 +918,166 @@ async def _execute_tradingview_signal_inner(
         annotations=guard_result.annotations
     )
 
+    # === TRADE ANALYTICS RISK MANAGEMENT ===
+    # These checks are only applied for new entries (buy/sell), not closes
+    risk_annotations = {}
+    position_size_multiplier = 1.0
+
+    if guard_result.decision == GuardDecision.EXECUTE and action_str.lower() != "close":
+        analytics_service = TradeAnalyticsService(db)
+
+        # 1. Circuit Breaker Check (daily loss limit, consecutive losses, win rate)
+        try:
+            cb_allowed, cb_reason = analytics_service.check_circuit_breakers(user_id)
+            if not cb_allowed:
+                log_event(
+                    "circuit_breaker_triggered",
+                    webhook_id=webhook_id,
+                    user_id=user_id,
+                    reason=cb_reason
+                )
+                risk_annotations["circuit_breaker"] = cb_reason
+                # Convert guard result to SKIP
+                guard_result = GuardResult(
+                    decision=GuardDecision.SKIP,
+                    annotations={"discard_reason": f"Circuit breaker: {cb_reason}", "circuit_breaker": True}
+                )
+        except Exception as cb_err:
+            logger.warning(f"Circuit breaker check failed: {cb_err}")
+
+        # 2. Equity Curve Trading Check (pause when below MA)
+        if guard_result.decision == GuardDecision.EXECUTE:
+            try:
+                eq_status = analytics_service.get_equity_curve_status(user_id)
+                # Check if equity curve filter is enabled and we're below MA
+                eq_settings = db.query(DynamicSizingSettings).filter(
+                    DynamicSizingSettings.user_id == user_id
+                ).first()
+
+                if eq_settings and eq_settings.equity_curve_enabled:
+                    if not eq_status.get('is_above_ma', True):
+                        if eq_settings.pause_below_ma:
+                            log_event(
+                                "equity_curve_pause",
+                                webhook_id=webhook_id,
+                                user_id=user_id,
+                                cumulative_pnl=eq_status.get('cumulative_pnl'),
+                                equity_ma=eq_status.get('equity_ma')
+                            )
+                            risk_annotations["equity_curve"] = "Below MA - trading paused"
+                            guard_result = GuardResult(
+                                decision=GuardDecision.SKIP,
+                                annotations={"discard_reason": "Equity curve below MA - trading paused", "equity_curve": True}
+                            )
+                        else:
+                            # Just reduce size, don't pause
+                            risk_annotations["equity_curve"] = "Below MA - size reduced"
+            except Exception as eq_err:
+                logger.warning(f"Equity curve check failed: {eq_err}")
+
+        # 3. Dynamic Position Sizing (apply multiplier based on streaks)
+        if guard_result.decision == GuardDecision.EXECUTE:
+            try:
+                position_size_multiplier = analytics_service.get_position_size_multiplier(user_id, float(quantity))
+                if position_size_multiplier != 1.0:
+                    log_event(
+                        "dynamic_sizing_applied",
+                        webhook_id=webhook_id,
+                        user_id=user_id,
+                        original_quantity=float(quantity),
+                        multiplier=position_size_multiplier,
+                        adjusted_quantity=float(quantity) * position_size_multiplier
+                    )
+                    risk_annotations["position_sizing"] = f"Multiplier: {position_size_multiplier:.2f}x"
+                    # Apply the multiplier to quantity
+                    quantity = float(quantity) * position_size_multiplier
+                    # Update signal entity volume
+                    signal_entity = Signal(
+                        id=signal_entity.id,
+                        source=signal_entity.source,
+                        symbol=signal_entity.symbol,
+                        action=signal_entity.action,
+                        volume=Volume(Decimal(str(quantity))),
+                        price=signal_entity.price,
+                        stop_loss=signal_entity.stop_loss,
+                        take_profit=signal_entity.take_profit,
+                        target_accounts=signal_entity.target_accounts,
+                        comment=signal_entity.comment,
+                        strategy_id=signal_entity.strategy_id,
+                        strategy_name=signal_entity.strategy_name,
+                        raw_payload=signal_entity.raw_payload,
+                    )
+            except Exception as ps_err:
+                logger.warning(f"Position sizing check failed: {ps_err}")
+
+        # 4. Correlation Filter Check (prevent correlated trades)
+        if guard_result.decision == GuardDecision.EXECUTE:
+            try:
+                # Built-in correlations
+                CORRELATION_PAIRS = {
+                    ("ES", "NQ"): 0.92, ("NQ", "ES"): 0.92,
+                    ("ES", "YM"): 0.95, ("YM", "ES"): 0.95,
+                    ("NQ", "YM"): 0.90, ("YM", "NQ"): 0.90,
+                    ("EURUSD", "GBPUSD"): 0.85, ("GBPUSD", "EURUSD"): 0.85,
+                    ("EURUSD", "USDCHF"): -0.90, ("USDCHF", "EURUSD"): -0.90,
+                    ("AUDUSD", "NZDUSD"): 0.88, ("NZDUSD", "AUDUSD"): 0.88,
+                    ("USDJPY", "USDCAD"): 0.75, ("USDCAD", "USDJPY"): 0.75,
+                    ("XAUUSD", "XAGUSD"): 0.85, ("XAGUSD", "XAUUSD"): 0.85,
+                }
+
+                # Check CorrelationFilterSettings for config
+                from app.models.database_models import CorrelationFilterSettings
+                corr_settings = db.query(CorrelationFilterSettings).filter(
+                    CorrelationFilterSettings.user_id == user_id
+                ).first()
+
+                correlation_enabled = corr_settings.enabled if corr_settings else False
+                max_correlation = corr_settings.max_positive_correlation if corr_settings else 0.70
+
+                if correlation_enabled:
+                    # Get current open positions
+                    from app.models.models import Position
+                    open_symbols = set()
+                    for account in accounts:
+                        positions = db.query(Position).filter(
+                            Position.account_id == account.id,
+                            Position.status == "open"
+                        ).all()
+                        for pos in positions:
+                            if pos.symbol:
+                                open_symbols.add(pos.symbol.upper())
+
+                    # Check if new symbol is highly correlated with any open position
+                    signal_symbol_upper = symbol.upper()
+                    for open_sym in open_symbols:
+                        correlation = CORRELATION_PAIRS.get((signal_symbol_upper, open_sym), 0)
+                        if abs(correlation) >= max_correlation:
+                            log_event(
+                                "correlation_filter_blocked",
+                                webhook_id=webhook_id,
+                                user_id=user_id,
+                                symbol=symbol,
+                                correlated_with=open_sym,
+                                correlation=correlation
+                            )
+                            risk_annotations["correlation_filter"] = f"Blocked: {symbol} correlated with {open_sym} ({correlation*100:.0f}%)"
+                            guard_result = GuardResult(
+                                decision=GuardDecision.SKIP,
+                                annotations={"discard_reason": f"Correlation filter: {symbol} highly correlated with open position {open_sym}", "correlation_filter": True}
+                            )
+                            break
+            except Exception as cf_err:
+                logger.warning(f"Correlation filter check failed: {cf_err}")
+
+        # Log risk annotations if any
+        if risk_annotations:
+            log_event(
+                "risk_management_applied",
+                webhook_id=webhook_id,
+                user_id=user_id,
+                annotations=risk_annotations
+            )
+
     # Handle guard decisions
     processing_time_ms = int((datetime.utcnow() - start_time).total_seconds() * 1000)
 
@@ -1520,20 +1681,48 @@ async def _execute_tradingview_signal_inner(
                         order_result = type('Result', (), {
                             'success': False,
                             'order_id': 'no_positions',
-                            'error': 'No matching positions to close'
+                            'error': 'No matching positions to close',
+                            'closed_positions': []
                         })()
                     else:
                         # Close each matching position
                         closed = 0
                         close_errors = []
+                        closed_positions_info = []  # Track closed positions for P&L
                         for pos in matching_positions:
                             pos_id = get_attr(pos, 'id') or get_attr(pos, 'position_id') or get_attr(pos, 'contract_id')
                             if pos_id:
+                                # Capture position info BEFORE closing
+                                pos_entry_price = float(get_attr(pos, 'entry_price', 0) or get_attr(pos, 'averagePrice', 0) or get_attr(pos, 'avgPrice', 0) or 0)
+                                pos_volume = float(get_attr(pos, 'volume', 0) or get_attr(pos, 'qty', 0) or get_attr(pos, 'quantity', 0) or get_attr(pos, 'size', 0) or 0)
+                                pos_side = str(get_attr(pos, 'side', '') or get_attr(pos, 'direction', '') or '').lower()
+                                pos_unrealized_pnl = float(get_attr(pos, 'unrealized_pnl', 0) or get_attr(pos, 'unrealizedPnl', 0) or get_attr(pos, 'pnl', 0) or 0)
+                                pos_current_price = float(get_attr(pos, 'currentPrice', 0) or get_attr(pos, 'lastPrice', 0) or get_attr(pos, 'price', 0) or 0)
+
                                 # Use explicit_close_quantity if provided (partial close), otherwise None (full close)
                                 close_qty = float(explicit_close_quantity) if explicit_close_quantity else None
                                 close_result = await executor.close_position(str(pos_id), close_qty)
                                 if close_result.success if hasattr(close_result, 'success') else close_result.get('success'):
                                     closed += 1
+                                    # Get realized P&L from close result if available
+                                    realized_pnl = None
+                                    if hasattr(close_result, 'pnl'):
+                                        realized_pnl = close_result.pnl
+                                    elif isinstance(close_result, dict) and 'pnl' in close_result:
+                                        realized_pnl = close_result['pnl']
+
+                                    # Fallback to unrealized P&L if realized not available
+                                    if realized_pnl is None and pos_unrealized_pnl:
+                                        realized_pnl = pos_unrealized_pnl
+
+                                    closed_positions_info.append({
+                                        'position_id': str(pos_id),
+                                        'entry_price': pos_entry_price,
+                                        'exit_price': pos_current_price,
+                                        'volume': pos_volume,
+                                        'side': pos_side,
+                                        'pnl': realized_pnl
+                                    })
                                 else:
                                     err = close_result.error if hasattr(close_result, 'error') else close_result.get('error')
                                     if err:
@@ -1542,7 +1731,8 @@ async def _execute_tradingview_signal_inner(
                         order_result = type('Result', (), {
                             'success': closed > 0,
                             'order_id': f'closed_{closed}',
-                            'error': '; '.join(close_errors) if close_errors and closed == 0 else None
+                            'error': '; '.join(close_errors) if close_errors and closed == 0 else None,
+                            'closed_positions': closed_positions_info
                         })()
                 except Exception as close_err:
                     logger.error(f"Error during close: {close_err}")
@@ -1833,6 +2023,32 @@ async def _execute_tradingview_signal_inner(
             # order_quantity is the actual quantity sent to the broker (adjusted for futures)
             try:
                 models_broker = ModelsBrokerType(broker_str.lower())
+
+                # For close actions, extract P&L info from closed positions
+                close_entry_price = None
+                close_exit_price = None
+                close_pnl = None
+                close_position_id = None
+
+                if action_str == "close" and hasattr(order_result, 'closed_positions') and order_result.closed_positions:
+                    # Sum up P&L from all closed positions
+                    total_pnl = 0
+                    first_entry = None
+                    first_exit = None
+                    for cp in order_result.closed_positions:
+                        if cp.get('pnl') is not None:
+                            total_pnl += cp['pnl']
+                        if first_entry is None and cp.get('entry_price'):
+                            first_entry = cp['entry_price']
+                        if first_exit is None and cp.get('exit_price'):
+                            first_exit = cp['exit_price']
+                        if close_position_id is None and cp.get('position_id'):
+                            close_position_id = cp['position_id']
+
+                    close_entry_price = first_entry
+                    close_exit_price = first_exit
+                    close_pnl = total_pnl if total_pnl != 0 else None
+
                 exec_log = ExecutionLog(
                     signal_id=signal_uuid,
                     account_id=account.id,
@@ -1849,7 +2065,12 @@ async def _execute_tradingview_signal_inner(
                     stop_loss=float(account_sl_price) if account_sl_price else None,
                     take_profit=float(account_tp_price) if account_tp_price else None,
                     trailing_stop=float(account_trailing_stop) if account_trailing_stop else None,
-                    entry_price=float(entry_price) if entry_price else None,
+                    # Entry price: from signal for BUY/SELL, from closed position for CLOSE
+                    entry_price=close_entry_price if action_str == "close" else (float(entry_price) if entry_price else None),
+                    exit_price=close_exit_price if action_str == "close" else None,
+                    pnl=close_pnl if action_str == "close" else None,
+                    closed_at=datetime.utcnow() if action_str == "close" and execution_success else None,
+                    position_id=close_position_id if action_str == "close" else None,
                     order_id=str(order_id) if order_id else None,
                 )
                 db.add(exec_log)

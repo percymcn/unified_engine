@@ -184,18 +184,18 @@ export default function WebhookLogsPage() {
   }
 
   return (
-    <div className="container mx-auto p-6 max-w-6xl">
-      <div className="flex items-center justify-between mb-6">
+    <div className="container mx-auto p-4 sm:p-6 max-w-6xl">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <History className="h-6 w-6" />
+          <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
+            <History className="h-5 w-5 sm:h-6 sm:w-6" />
             Webhook Logs
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             View history of all incoming webhooks and their execution status
           </p>
         </div>
-        <Button onClick={handleRefresh} disabled={refreshing} variant="outline">
+        <Button onClick={handleRefresh} disabled={refreshing} variant="outline" size="sm" className="w-fit">
           <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
           Refresh
         </Button>
@@ -224,25 +224,25 @@ export default function WebhookLogsPage() {
           <div className="space-y-4">
             {logs.map((log) => (
               <Card key={log.id} className="hover:border-primary/50 transition-colors">
-                <CardHeader className="pb-2">
-                  <div className="flex items-start justify-between">
+                <CardHeader className="pb-2 px-3 sm:px-6">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
                     <div className="space-y-1">
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <Badge variant="outline">{log.source || 'unknown'}</Badge>
-                        <span className="font-mono text-sm">{log.symbol || 'N/A'}</span>
-                        <Badge variant={log.action?.toLowerCase() === 'buy' ? 'default' : log.action?.toLowerCase() === 'sell' ? 'destructive' : 'secondary'}>
+                      <CardTitle className="text-sm sm:text-base flex flex-wrap items-center gap-1 sm:gap-2">
+                        <Badge variant="outline" className="text-xs">{log.source || 'unknown'}</Badge>
+                        <span className="font-mono text-xs sm:text-sm">{log.symbol || 'N/A'}</span>
+                        <Badge variant={log.action?.toLowerCase() === 'buy' ? 'default' : log.action?.toLowerCase() === 'sell' ? 'destructive' : 'secondary'} className="text-xs">
                           {log.action || 'N/A'}
                         </Badge>
                       </CardTitle>
-                      <CardDescription className="font-mono text-xs">
+                      <CardDescription className="font-mono text-xs truncate max-w-[200px] sm:max-w-none">
                         ID: {log.webhook_id}
                       </CardDescription>
                     </div>
                     {getStatusBadge(log)}
                   </div>
                 </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+                <CardContent className="px-3 sm:px-6">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4 text-sm">
                     <div>
                       <p className="text-muted-foreground text-xs">Quantity</p>
                       <p className="font-medium font-mono">{log.quantity ?? 'N/A'}</p>

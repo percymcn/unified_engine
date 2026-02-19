@@ -216,16 +216,16 @@ export default function AnalyticsPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-4 sm:space-y-6 p-4 sm:p-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Trading Analytics</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Trading Analytics</h1>
+          <p className="text-sm text-muted-foreground">
             Performance metrics, risk controls, and trading intelligence
           </p>
         </div>
-        <Button onClick={fetchAllData} variant="outline" size="sm">
+        <Button onClick={fetchAllData} variant="outline" size="sm" className="w-fit">
           <RefreshCw className="w-4 h-4 mr-2" />
           Refresh
         </Button>
@@ -386,26 +386,31 @@ export default function AnalyticsPage() {
 
       {/* Tabs for different sections */}
       <Tabs defaultValue="time" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="time">
-            <Clock className="w-4 h-4 mr-2" />
-            Time Analysis
+        <TabsList className="flex flex-wrap h-auto gap-1 p-1 md:grid md:w-full md:grid-cols-5">
+          <TabsTrigger value="time" className="flex-1 min-w-[80px] text-xs md:text-sm">
+            <Clock className="w-4 h-4 md:mr-2" />
+            <span className="hidden md:inline">Time Analysis</span>
+            <span className="md:hidden">Time</span>
           </TabsTrigger>
-          <TabsTrigger value="strategies">
-            <BarChart3 className="w-4 h-4 mr-2" />
-            Strategies
+          <TabsTrigger value="strategies" className="flex-1 min-w-[80px] text-xs md:text-sm">
+            <BarChart3 className="w-4 h-4 md:mr-2" />
+            <span className="hidden md:inline">Strategies</span>
+            <span className="md:hidden">Stats</span>
           </TabsTrigger>
-          <TabsTrigger value="circuit">
-            <Shield className="w-4 h-4 mr-2" />
-            Circuit Breakers
+          <TabsTrigger value="circuit" className="flex-1 min-w-[80px] text-xs md:text-sm">
+            <Shield className="w-4 h-4 md:mr-2" />
+            <span className="hidden md:inline">Circuit Breakers</span>
+            <span className="md:hidden">Limits</span>
           </TabsTrigger>
-          <TabsTrigger value="filters">
-            <Newspaper className="w-4 h-4 mr-2" />
-            Filters
+          <TabsTrigger value="filters" className="flex-1 min-w-[80px] text-xs md:text-sm">
+            <Newspaper className="w-4 h-4 md:mr-2" />
+            <span className="hidden md:inline">Filters</span>
+            <span className="md:hidden">Filter</span>
           </TabsTrigger>
-          <TabsTrigger value="sizing">
-            <Scale className="w-4 h-4 mr-2" />
-            Position Sizing
+          <TabsTrigger value="sizing" className="flex-1 min-w-[80px] text-xs md:text-sm">
+            <Scale className="w-4 h-4 md:mr-2" />
+            <span className="hidden md:inline">Position Sizing</span>
+            <span className="md:hidden">Size</span>
           </TabsTrigger>
         </TabsList>
 

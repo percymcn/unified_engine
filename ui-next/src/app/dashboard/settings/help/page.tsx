@@ -668,24 +668,41 @@ export default function HelpPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 px-2 sm:px-0">
       <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <HelpCircle className="h-6 w-6" />
+        <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
+          <HelpCircle className="h-5 w-5 sm:h-6 sm:w-6" />
           Help & Support
         </h1>
-        <p className="text-muted-foreground">
+        <p className="text-sm sm:text-base text-muted-foreground">
           Complete documentation for webhook signals and broker integrations
         </p>
       </div>
 
       <Tabs defaultValue="brokers" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="brokers">Broker Guides</TabsTrigger>
-          <TabsTrigger value="features">Platform Features</TabsTrigger>
-          <TabsTrigger value="sltp">SL/TP Guide</TabsTrigger>
-          <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
-          <TabsTrigger value="tradingview">TradingView</TabsTrigger>
+        <TabsList className="flex flex-wrap h-auto gap-1 p-1 md:grid md:w-full md:grid-cols-5">
+          <TabsTrigger value="brokers" className="flex-1 min-w-[70px] text-xs sm:text-sm">
+            <Book className="w-4 h-4 md:mr-1" />
+            <span className="hidden sm:inline">Broker Guides</span>
+            <span className="sm:hidden">Brokers</span>
+          </TabsTrigger>
+          <TabsTrigger value="features" className="flex-1 min-w-[70px] text-xs sm:text-sm">
+            <Zap className="w-4 h-4 md:mr-1" />
+            <span className="hidden sm:inline">Platform Features</span>
+            <span className="sm:hidden">Features</span>
+          </TabsTrigger>
+          <TabsTrigger value="sltp" className="flex-1 min-w-[70px] text-xs sm:text-sm">
+            <span className="hidden sm:inline">SL/TP Guide</span>
+            <span className="sm:hidden">SL/TP</span>
+          </TabsTrigger>
+          <TabsTrigger value="webhooks" className="flex-1 min-w-[70px] text-xs sm:text-sm">
+            <span className="hidden sm:inline">Webhooks</span>
+            <span className="sm:hidden">Hooks</span>
+          </TabsTrigger>
+          <TabsTrigger value="tradingview" className="flex-1 min-w-[70px] text-xs sm:text-sm">
+            <span className="hidden sm:inline">TradingView</span>
+            <span className="sm:hidden">TV</span>
+          </TabsTrigger>
         </TabsList>
 
         {/* Broker Documentation Tab */}
@@ -697,13 +714,15 @@ export default function HelpPage() {
                 Select Your Broker
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-3 sm:px-6">
               <div className="flex flex-wrap gap-2">
                 {Object.entries(BROKER_DOCS).map(([key, doc]) => (
                   <Button
                     key={key}
                     variant={selectedBroker === key ? "default" : "outline"}
                     onClick={() => setSelectedBroker(key as keyof typeof BROKER_DOCS)}
+                    size="sm"
+                    className="text-xs sm:text-sm"
                   >
                     {doc.name}
                   </Button>
@@ -714,11 +733,11 @@ export default function HelpPage() {
 
           {/* Selected Broker Documentation */}
           <Card>
-            <CardHeader>
-              <CardTitle>{broker.name}</CardTitle>
-              <CardDescription>{broker.description}</CardDescription>
+            <CardHeader className="px-3 sm:px-6">
+              <CardTitle className="text-lg sm:text-xl">{broker.name}</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">{broker.description}</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-6 px-3 sm:px-6">
               {/* Setup Steps */}
               <div>
                 <h3 className="font-semibold mb-3">Setup Steps</h3>
@@ -731,28 +750,29 @@ export default function HelpPage() {
 
               {/* Supported Order Types */}
               <div>
-                <h3 className="font-semibold mb-3">Supported Order Types</h3>
-                <div className="grid gap-3">
+                <h3 className="font-semibold mb-3 text-sm sm:text-base">Supported Order Types</h3>
+                <div className="grid gap-2 sm:gap-3">
                   {broker.orderTypes.map((order, i) => (
-                    <div key={i} className="border rounded-lg p-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
+                    <div key={i} className="border rounded-lg p-2 sm:p-3">
+                      <div className="flex items-center justify-between mb-2 gap-2">
+                        <div className="flex items-center gap-1 sm:gap-2 min-w-0">
                           {order.supported ? (
-                            <CheckCircle2 className="h-4 w-4 text-green-500" />
+                            <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4 text-green-500 flex-shrink-0" />
                           ) : (
-                            <XCircle className="h-4 w-4 text-red-500" />
+                            <XCircle className="h-3 w-3 sm:h-4 sm:w-4 text-red-500 flex-shrink-0" />
                           )}
-                          <span className="font-medium">{order.name}</span>
+                          <span className="font-medium text-xs sm:text-sm truncate">{order.name}</span>
                         </div>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => copyToClipboard(order.example)}
+                          className="flex-shrink-0 h-7 w-7 p-0"
                         >
-                          <Copy className="h-4 w-4" />
+                          <Copy className="h-3 w-3 sm:h-4 sm:w-4" />
                         </Button>
                       </div>
-                      <pre className="text-xs bg-muted p-2 rounded overflow-x-auto">
+                      <pre className="text-[10px] sm:text-xs bg-muted p-1.5 sm:p-2 rounded overflow-x-auto">
                         {order.example}
                       </pre>
                     </div>
@@ -762,11 +782,11 @@ export default function HelpPage() {
 
               {/* Field Descriptions */}
               <div>
-                <h3 className="font-semibold mb-3">Field Reference</h3>
+                <h3 className="font-semibold mb-3 text-sm sm:text-base">Field Reference</h3>
                 <div className="space-y-2">
                   {Object.entries(broker.fields).map(([field, desc]) => (
-                    <div key={field} className="flex gap-2 text-sm">
-                      <code className="bg-muted px-2 py-0.5 rounded font-mono text-xs">
+                    <div key={field} className="flex flex-col sm:flex-row gap-1 sm:gap-2 text-xs sm:text-sm">
+                      <code className="bg-muted px-2 py-0.5 rounded font-mono text-[10px] sm:text-xs w-fit">
                         {field}
                       </code>
                       <span className="text-muted-foreground">{desc}</span>
@@ -795,23 +815,23 @@ export default function HelpPage() {
         <TabsContent value="features" className="space-y-4">
           {Object.values(PLATFORM_FEATURES).map((section) => (
             <Card key={section.title}>
-              <CardHeader>
-                <CardTitle>{section.title}</CardTitle>
-                <CardDescription>{section.description}</CardDescription>
+              <CardHeader className="px-3 sm:px-6">
+                <CardTitle className="text-base sm:text-lg">{section.title}</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">{section.description}</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="space-y-4 sm:space-y-6 px-3 sm:px-6">
                 {section.features.map((feature) => (
-                  <div key={feature.name} className="border rounded-lg p-4">
-                    <h4 className="font-semibold mb-2">{feature.name}</h4>
-                    <p className="text-sm text-muted-foreground mb-3">{feature.description}</p>
+                  <div key={feature.name} className="border rounded-lg p-3 sm:p-4">
+                    <h4 className="font-semibold mb-2 text-sm sm:text-base">{feature.name}</h4>
+                    <p className="text-xs sm:text-sm text-muted-foreground mb-3">{feature.description}</p>
 
                     {/* Settings */}
                     <div className="mb-3">
-                      <p className="text-sm font-medium mb-2">Settings:</p>
+                      <p className="text-xs sm:text-sm font-medium mb-2">Settings:</p>
                       <div className="space-y-1">
                         {feature.settings.map((setting) => (
-                          <div key={setting.name} className="flex items-start gap-2 text-sm">
-                            <code className="bg-muted px-2 py-0.5 rounded text-xs whitespace-nowrap">
+                          <div key={setting.name} className="flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-2 text-xs sm:text-sm">
+                            <code className="bg-muted px-2 py-0.5 rounded text-[10px] sm:text-xs w-fit">
                               {setting.name}
                             </code>
                             <span className="text-muted-foreground">{setting.description}</span>
@@ -821,14 +841,14 @@ export default function HelpPage() {
                     </div>
 
                     {/* Example */}
-                    <div className="bg-muted/50 p-3 rounded-lg">
-                      <p className="text-sm">
+                    <div className="bg-muted/50 p-2 sm:p-3 rounded-lg">
+                      <p className="text-xs sm:text-sm">
                         <strong>Example:</strong> {feature.example}
                       </p>
                     </div>
 
                     {/* Location */}
-                    <p className="text-xs text-muted-foreground mt-2">
+                    <p className="text-[10px] sm:text-xs text-muted-foreground mt-2">
                       <strong>Location:</strong> {feature.location}
                     </p>
                   </div>
@@ -841,9 +861,9 @@ export default function HelpPage() {
         {/* SL/TP Configuration Guide Tab */}
         <TabsContent value="sltp" className="space-y-4">
           {/* Overview */}
-          <Alert>
+          <Alert className="text-xs sm:text-sm">
             <Info className="h-4 w-4" />
-            <AlertTitle>How SL/TP Works in TradeFlow</AlertTitle>
+            <AlertTitle className="text-sm sm:text-base">How SL/TP Works in TradeFlow</AlertTitle>
             <AlertDescription className="mt-2">
               {SLTP_GUIDE.overview}
             </AlertDescription>
@@ -851,22 +871,22 @@ export default function HelpPage() {
 
           {/* Unit Types */}
           <Card>
-            <CardHeader>
-              <CardTitle>SL/TP Unit Types</CardTitle>
-              <CardDescription>
+            <CardHeader className="px-3 sm:px-6">
+              <CardTitle className="text-base sm:text-lg">SL/TP Unit Types</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
                 Choose the right unit type for your trading style and symbol type
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-2">
+            <CardContent className="px-3 sm:px-6">
+              <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
                 {SLTP_GUIDE.unitTypes.map((unit) => (
-                  <div key={unit.type} className="border rounded-lg p-4">
+                  <div key={unit.type} className="border rounded-lg p-3 sm:p-4">
                     <div className="flex items-center gap-2 mb-2">
-                      <Badge variant="secondary" className="font-mono">{unit.type}</Badge>
+                      <Badge variant="secondary" className="font-mono text-xs">{unit.type}</Badge>
                     </div>
-                    <p className="text-sm text-muted-foreground mb-2">{unit.description}</p>
-                    <p className="text-sm"><strong>Best for:</strong> {unit.bestFor}</p>
-                    <code className="block mt-2 text-xs bg-muted p-2 rounded">{unit.example}</code>
+                    <p className="text-xs sm:text-sm text-muted-foreground mb-2">{unit.description}</p>
+                    <p className="text-xs sm:text-sm"><strong>Best for:</strong> {unit.bestFor}</p>
+                    <code className="block mt-2 text-[10px] sm:text-xs bg-muted p-1.5 sm:p-2 rounded overflow-x-auto">{unit.example}</code>
                   </div>
                 ))}
               </div>
@@ -875,35 +895,35 @@ export default function HelpPage() {
 
           {/* Symbol-Specific Settings */}
           <Card>
-            <CardHeader>
-              <CardTitle>Symbol-Specific Settings</CardTitle>
-              <CardDescription>
+            <CardHeader className="px-3 sm:px-6">
+              <CardTitle className="text-base sm:text-lg">Symbol-Specific Settings</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
                 Tick sizes and recommended SL/TP settings for each symbol type
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-4 sm:space-y-6 px-3 sm:px-6">
               {SLTP_GUIDE.symbolTypes.map((symbolType) => (
-                <div key={symbolType.category} className="border rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="font-semibold">{symbolType.category}</h4>
-                    <Badge>{symbolType.recommendedUnit}</Badge>
+                <div key={symbolType.category} className="border rounded-lg p-3 sm:p-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                    <h4 className="font-semibold text-sm sm:text-base">{symbolType.category}</h4>
+                    <Badge className="w-fit text-xs">{symbolType.recommendedUnit}</Badge>
                   </div>
                   <div className="flex flex-wrap gap-1 mb-3">
                     {symbolType.symbols.map((sym) => (
-                      <code key={sym} className="bg-muted px-2 py-0.5 rounded text-xs">{sym}</code>
+                      <code key={sym} className="bg-muted px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-xs">{sym}</code>
                     ))}
                   </div>
-                  <div className="text-sm space-y-2">
+                  <div className="text-xs sm:text-sm space-y-2">
                     <p><strong>Tick Size:</strong> {symbolType.tickSize}</p>
                     <p className="text-muted-foreground">{symbolType.notes}</p>
                   </div>
                   <div className="mt-3 space-y-2">
-                    <p className="text-sm font-medium">Examples:</p>
+                    <p className="text-xs sm:text-sm font-medium">Examples:</p>
                     {symbolType.examples.map((ex, i) => (
-                      <div key={i} className="bg-muted/50 p-2 rounded text-sm">
-                        <span className="font-mono text-xs">{ex.setting}</span>
-                        <span className="mx-2">→</span>
-                        <span className="text-muted-foreground">{ex.result}</span>
+                      <div key={i} className="bg-muted/50 p-1.5 sm:p-2 rounded text-xs sm:text-sm">
+                        <span className="font-mono text-[10px] sm:text-xs block sm:inline">{ex.setting}</span>
+                        <span className="mx-1 sm:mx-2 hidden sm:inline">→</span>
+                        <span className="text-muted-foreground block sm:inline mt-1 sm:mt-0">{ex.result}</span>
                       </div>
                     ))}
                   </div>
@@ -914,23 +934,23 @@ export default function HelpPage() {
 
           {/* Broker-Specific Behavior */}
           <Card>
-            <CardHeader>
-              <CardTitle>Broker-Specific Behavior</CardTitle>
-              <CardDescription>
+            <CardHeader className="px-3 sm:px-6">
+              <CardTitle className="text-base sm:text-lg">Broker-Specific Behavior</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
                 How each broker handles SL/TP and trailing stops
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3 sm:space-y-4 px-3 sm:px-6">
               {SLTP_GUIDE.brokerSpecific.map((brokerInfo) => (
-                <div key={brokerInfo.broker} className="border rounded-lg p-4">
-                  <h4 className="font-semibold mb-2">{brokerInfo.broker}</h4>
-                  <div className="space-y-2 text-sm">
+                <div key={brokerInfo.broker} className="border rounded-lg p-3 sm:p-4">
+                  <h4 className="font-semibold mb-2 text-sm sm:text-base">{brokerInfo.broker}</h4>
+                  <div className="space-y-2 text-xs sm:text-sm">
                     <p><strong>SL/TP Behavior:</strong> {brokerInfo.slTpBehavior}</p>
                     <p><strong>Trailing Stop:</strong> {brokerInfo.trailingStop}</p>
                   </div>
                   <div className="mt-3">
-                    <p className="text-sm font-medium mb-2">Tips:</p>
-                    <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+                    <p className="text-xs sm:text-sm font-medium mb-2">Tips:</p>
+                    <ul className="list-disc list-inside space-y-1 text-xs sm:text-sm text-muted-foreground">
                       {brokerInfo.tips.map((tip, i) => (
                         <li key={i}>{tip}</li>
                       ))}
@@ -943,40 +963,40 @@ export default function HelpPage() {
 
           {/* Common Issues */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-yellow-500" />
+            <CardHeader className="px-3 sm:px-6">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-500" />
                 Common SL/TP Issues
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="border-l-4 border-yellow-500 pl-4">
-                  <h5 className="font-medium">SL/TP too close to entry</h5>
-                  <p className="text-sm text-muted-foreground">
+            <CardContent className="px-3 sm:px-6">
+              <div className="space-y-3 sm:space-y-4">
+                <div className="border-l-4 border-yellow-500 pl-3 sm:pl-4">
+                  <h5 className="font-medium text-sm sm:text-base">SL/TP too close to entry</h5>
+                  <p className="text-xs sm:text-sm text-muted-foreground">
                     Many brokers have minimum distance requirements. If your SL/TP is rejected,
                     try increasing the distance. Typical minimums: 5-10 pips for forex, 5-20 points for indices.
                   </p>
                 </div>
-                <div className="border-l-4 border-yellow-500 pl-4">
-                  <h5 className="font-medium">Bracket order fill failures (ProjectX/TopStep)</h5>
-                  <p className="text-sm text-muted-foreground">
+                <div className="border-l-4 border-yellow-500 pl-3 sm:pl-4">
+                  <h5 className="font-medium text-sm sm:text-base">Bracket order fill failures (ProjectX/TopStep)</h5>
+                  <p className="text-xs sm:text-sm text-muted-foreground">
                     Bracket orders can fail if price moves during execution. The main position may fill
                     but SL/TP orders may be rejected. This is normal market behavior - monitor positions
                     and add SL/TP manually if needed.
                   </p>
                 </div>
-                <div className="border-l-4 border-yellow-500 pl-4">
-                  <h5 className="font-medium">Wrong unit type selected</h5>
-                  <p className="text-sm text-muted-foreground">
+                <div className="border-l-4 border-yellow-500 pl-3 sm:pl-4">
+                  <h5 className="font-medium text-sm sm:text-base">Wrong unit type selected</h5>
+                  <p className="text-xs sm:text-sm text-muted-foreground">
                     If your SL/TP values seem way off, check your unit type setting. Using &quot;pips&quot; for
                     futures or &quot;points&quot; for forex without understanding the conversion can result in
                     stops that are too tight or too wide.
                   </p>
                 </div>
-                <div className="border-l-4 border-yellow-500 pl-4">
-                  <h5 className="font-medium">JPY pairs have different pip values</h5>
-                  <p className="text-sm text-muted-foreground">
+                <div className="border-l-4 border-yellow-500 pl-3 sm:pl-4">
+                  <h5 className="font-medium text-sm sm:text-base">JPY pairs have different pip values</h5>
+                  <p className="text-xs sm:text-sm text-muted-foreground">
                     USDJPY, EURJPY, etc. use 0.01 as 1 pip (not 0.0001). If your stops are 100x too
                     tight or wide on JPY pairs, this is likely the cause.
                   </p>
@@ -989,33 +1009,34 @@ export default function HelpPage() {
         {/* Webhook Examples Tab */}
         <TabsContent value="webhooks" className="space-y-4">
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Zap className="h-5 w-5" />
+            <CardHeader className="px-3 sm:px-6">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <Zap className="h-4 w-4 sm:h-5 sm:w-5" />
                 Common Webhook Examples
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-xs sm:text-sm">
                 Copy and paste these examples into your TradingView alerts
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3 sm:space-y-4 px-3 sm:px-6">
               {COMMON_EXAMPLES.map((example, i) => (
-                <div key={i} className="border rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
+                <div key={i} className="border rounded-lg p-3 sm:p-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
                     <div>
-                      <h4 className="font-medium">{example.title}</h4>
-                      <p className="text-sm text-muted-foreground">{example.description}</p>
+                      <h4 className="font-medium text-sm sm:text-base">{example.title}</h4>
+                      <p className="text-xs sm:text-sm text-muted-foreground">{example.description}</p>
                     </div>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => copyToClipboard(JSON.stringify(example.json, null, 2))}
+                      className="w-fit text-xs"
                     >
-                      <Copy className="h-4 w-4 mr-2" />
+                      <Copy className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                       Copy
                     </Button>
                   </div>
-                  <pre className="text-sm bg-slate-900 text-green-400 p-3 rounded overflow-x-auto">
+                  <pre className="text-[10px] sm:text-sm bg-slate-900 text-green-400 p-2 sm:p-3 rounded overflow-x-auto">
                     {JSON.stringify(example.json, null, 2)}
                   </pre>
                 </div>
@@ -1025,17 +1046,17 @@ export default function HelpPage() {
 
           {/* PineScript Format Support */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Zap className="h-5 w-5 text-green-500" />
+            <CardHeader className="px-3 sm:px-6">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <Zap className="h-4 w-4 sm:h-5 sm:w-5 text-green-500" />
                 PineScript Format Support
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-xs sm:text-sm">
                 TradeFlow automatically translates PineScript strategy formats
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <Alert>
+            <CardContent className="space-y-4 px-3 sm:px-6">
+              <Alert className="text-xs sm:text-sm">
                 <Info className="h-4 w-4" />
                 <AlertDescription>
                   If your TradingView strategy uses PineScript format (data=&quot;long&quot;/&quot;short&quot;),
@@ -1044,7 +1065,7 @@ export default function HelpPage() {
               </Alert>
 
               <div className="space-y-3">
-                <h4 className="font-medium">Automatic Translations:</h4>
+                <h4 className="font-medium text-sm sm:text-base">Automatic Translations:</h4>
                 <div className="grid gap-2">
                   {[
                     { from: 'data: "long"', to: 'action: "buy"', note: "Entry long position" },
@@ -1054,19 +1075,19 @@ export default function HelpPage() {
                     { from: 'action: "sl"', to: 'action: "close"', note: "Stop loss hit" },
                     { from: 'action: "exit"', to: 'action: "close"', note: "Exit signal" },
                   ].map((item) => (
-                    <div key={item.from} className="flex items-center gap-3 bg-muted/50 p-2 rounded text-sm">
-                      <code className="bg-red-500/10 px-2 py-0.5 rounded text-red-600 dark:text-red-400">{item.from}</code>
-                      <span>→</span>
-                      <code className="bg-green-500/10 px-2 py-0.5 rounded text-green-600 dark:text-green-400">{item.to}</code>
-                      <span className="text-muted-foreground text-xs ml-auto">{item.note}</span>
+                    <div key={item.from} className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 bg-muted/50 p-2 rounded text-xs sm:text-sm">
+                      <code className="bg-red-500/10 px-1.5 sm:px-2 py-0.5 rounded text-red-600 dark:text-red-400 text-[10px] sm:text-xs w-fit">{item.from}</code>
+                      <span className="hidden sm:inline">→</span>
+                      <code className="bg-green-500/10 px-1.5 sm:px-2 py-0.5 rounded text-green-600 dark:text-green-400 text-[10px] sm:text-xs w-fit">{item.to}</code>
+                      <span className="text-muted-foreground text-[10px] sm:text-xs sm:ml-auto">{item.note}</span>
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div className="border rounded-lg p-4">
-                <h4 className="font-medium mb-2">PineScript Example (auto-converted)</h4>
-                <pre className="text-sm bg-slate-900 text-green-400 p-3 rounded overflow-x-auto">
+              <div className="border rounded-lg p-3 sm:p-4">
+                <h4 className="font-medium mb-2 text-sm sm:text-base">PineScript Example (auto-converted)</h4>
+                <pre className="text-[10px] sm:text-sm bg-slate-900 text-green-400 p-2 sm:p-3 rounded overflow-x-auto">
 {`{
   "symbol": "{{ticker}}",
   "data": "long",
@@ -1080,12 +1101,12 @@ export default function HelpPage() {
 
           {/* Action Reference */}
           <Card>
-            <CardHeader>
-              <CardTitle>Action Reference</CardTitle>
-              <CardDescription>All supported action values</CardDescription>
+            <CardHeader className="px-3 sm:px-6">
+              <CardTitle className="text-base sm:text-lg">Action Reference</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">All supported action values</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <CardContent className="px-3 sm:px-6">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
                 {[
                   { action: "buy", desc: "Market buy order" },
                   { action: "sell", desc: "Market sell order" },
@@ -1097,11 +1118,11 @@ export default function HelpPage() {
                   { action: "close_all", desc: "Close all positions" },
                   { action: "modify", desc: "Modify SL/TP/trailing" },
                 ].map((item) => (
-                  <div key={item.action} className="border rounded p-3">
-                    <code className="text-sm font-mono bg-primary/10 px-1.5 py-0.5 rounded">
+                  <div key={item.action} className="border rounded p-2 sm:p-3">
+                    <code className="text-xs sm:text-sm font-mono bg-primary/10 px-1 sm:px-1.5 py-0.5 rounded">
                       {item.action}
                     </code>
-                    <p className="text-xs text-muted-foreground mt-1">{item.desc}</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">{item.desc}</p>
                   </div>
                 ))}
               </div>
@@ -1112,67 +1133,67 @@ export default function HelpPage() {
         {/* TradingView Setup Tab */}
         <TabsContent value="tradingview" className="space-y-4">
           <Card>
-            <CardHeader>
-              <CardTitle>TradingView Webhook Setup</CardTitle>
-              <CardDescription>
+            <CardHeader className="px-3 sm:px-6">
+              <CardTitle className="text-base sm:text-lg">TradingView Webhook Setup</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
                 Step-by-step guide to connect TradingView alerts to Tradeflow
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-4 sm:space-y-6 px-3 sm:px-6">
               <div className="space-y-4">
-                <div className="flex gap-4">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">
+                <div className="flex gap-3 sm:gap-4">
+                  <div className="flex-shrink-0 w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-xs sm:text-base">
                     1
                   </div>
-                  <div>
-                    <h4 className="font-medium">Get Your Webhook URL</h4>
-                    <p className="text-sm text-muted-foreground">
+                  <div className="min-w-0 flex-1">
+                    <h4 className="font-medium text-sm sm:text-base">Get Your Webhook URL</h4>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
                       Find your webhook key in the dashboard Quick Actions section or Settings &gt; Webhooks.
                       Your webhook URL format is:
                     </p>
-                    <code className="block mt-2 p-2 bg-muted rounded text-sm break-all">
+                    <code className="block mt-2 p-1.5 sm:p-2 bg-muted rounded text-[10px] sm:text-sm break-all">
                       https://api.mytradeflow.app/api/v1/webhook/YOUR_WEBHOOK_KEY
                     </code>
                   </div>
                 </div>
 
-                <div className="flex gap-4">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">
+                <div className="flex gap-3 sm:gap-4">
+                  <div className="flex-shrink-0 w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-xs sm:text-base">
                     2
                   </div>
-                  <div>
-                    <h4 className="font-medium">Create a TradingView Alert</h4>
-                    <p className="text-sm text-muted-foreground">
+                  <div className="min-w-0 flex-1">
+                    <h4 className="font-medium text-sm sm:text-base">Create a TradingView Alert</h4>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
                       Open your chart in TradingView and click the &quot;Alert&quot; button (clock icon).
                       Set your alert conditions (price cross, indicator signal, etc.).
                     </p>
                   </div>
                 </div>
 
-                <div className="flex gap-4">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">
+                <div className="flex gap-3 sm:gap-4">
+                  <div className="flex-shrink-0 w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-xs sm:text-base">
                     3
                   </div>
-                  <div>
-                    <h4 className="font-medium">Configure Webhook Notification</h4>
-                    <p className="text-sm text-muted-foreground">
+                  <div className="min-w-0 flex-1">
+                    <h4 className="font-medium text-sm sm:text-base">Configure Webhook Notification</h4>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
                       In the alert dialog, go to &quot;Notifications&quot; tab. Enable &quot;Webhook URL&quot;
                       and paste your Tradeflow webhook URL.
                     </p>
                   </div>
                 </div>
 
-                <div className="flex gap-4">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">
+                <div className="flex gap-3 sm:gap-4">
+                  <div className="flex-shrink-0 w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-xs sm:text-base">
                     4
                   </div>
-                  <div>
-                    <h4 className="font-medium">Set Alert Message</h4>
-                    <p className="text-sm text-muted-foreground">
+                  <div className="min-w-0 flex-1">
+                    <h4 className="font-medium text-sm sm:text-base">Set Alert Message</h4>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
                       In the &quot;Message&quot; field, paste your webhook JSON. Use FlowGuard AI to generate
                       the correct format for your broker.
                     </p>
-                    <pre className="mt-2 p-3 bg-slate-900 text-green-400 rounded text-sm overflow-x-auto">
+                    <pre className="mt-2 p-2 sm:p-3 bg-slate-900 text-green-400 rounded text-[10px] sm:text-sm overflow-x-auto">
 {`{
   "symbol": "{{ticker}}",
   "action": "buy",
@@ -1183,13 +1204,13 @@ export default function HelpPage() {
                   </div>
                 </div>
 
-                <div className="flex gap-4">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">
+                <div className="flex gap-3 sm:gap-4">
+                  <div className="flex-shrink-0 w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-xs sm:text-base">
                     5
                   </div>
-                  <div>
-                    <h4 className="font-medium">Save and Test</h4>
-                    <p className="text-sm text-muted-foreground">
+                  <div className="min-w-0 flex-1">
+                    <h4 className="font-medium text-sm sm:text-base">Save and Test</h4>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
                       Click &quot;Create&quot; to save your alert. Check Webhook Logs in Tradeflow to verify
                       signals are being received and executed.
                     </p>
@@ -1197,9 +1218,9 @@ export default function HelpPage() {
                 </div>
               </div>
 
-              <Alert>
+              <Alert className="text-xs sm:text-sm">
                 <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>TradingView Plan Required</AlertTitle>
+                <AlertTitle className="text-sm sm:text-base">TradingView Plan Required</AlertTitle>
                 <AlertDescription>
                   Webhook alerts require a TradingView Pro, Pro+, or Premium subscription.
                   The free plan does not support webhook notifications.
@@ -1210,14 +1231,14 @@ export default function HelpPage() {
 
           {/* TradingView Variables */}
           <Card>
-            <CardHeader>
-              <CardTitle>TradingView Alert Variables</CardTitle>
-              <CardDescription>
+            <CardHeader className="px-3 sm:px-6">
+              <CardTitle className="text-base sm:text-lg">TradingView Alert Variables</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
                 Dynamic placeholders that TradingView replaces when the alert fires
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
+            <CardContent className="px-3 sm:px-6">
+              <div className="space-y-2 sm:space-y-3">
                 {[
                   { var: "{{ticker}}", desc: "Symbol name (e.g., EURUSD, BTCUSD)" },
                   { var: "{{timenow}}", desc: "Current timestamp (ISO format)" },
@@ -1229,11 +1250,11 @@ export default function HelpPage() {
                   { var: "{{interval}}", desc: "Chart timeframe (e.g., 1H, 4H, D)" },
                   { var: "{{exchange}}", desc: "Exchange name" },
                 ].map((item) => (
-                  <div key={item.var} className="flex items-start gap-3">
-                    <code className="bg-muted px-2 py-1 rounded text-sm font-mono whitespace-nowrap">
+                  <div key={item.var} className="flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-3">
+                    <code className="bg-muted px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-[10px] sm:text-sm font-mono w-fit">
                       {item.var}
                     </code>
-                    <span className="text-sm text-muted-foreground">{item.desc}</span>
+                    <span className="text-xs sm:text-sm text-muted-foreground">{item.desc}</span>
                   </div>
                 ))}
               </div>
@@ -1244,20 +1265,20 @@ export default function HelpPage() {
 
       {/* Support Links */}
       <Card>
-        <CardHeader>
-          <CardTitle>Need More Help?</CardTitle>
+        <CardHeader className="px-3 sm:px-6">
+          <CardTitle className="text-base sm:text-lg">Need More Help?</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-3">
-            <Button variant="outline" asChild>
+        <CardContent className="px-3 sm:px-6">
+          <div className="flex flex-wrap gap-2 sm:gap-3">
+            <Button variant="outline" asChild size="sm" className="text-xs sm:text-sm">
               <a href="mailto:support@mytradeflow.app">
-                <HelpCircle className="h-4 w-4 mr-2" />
+                <HelpCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                 Contact Support
               </a>
             </Button>
-            <Button variant="outline" asChild>
+            <Button variant="outline" asChild size="sm" className="text-xs sm:text-sm">
               <a href="https://discord.gg/tradeflow" target="_blank" rel="noopener noreferrer">
-                <ExternalLink className="h-4 w-4 mr-2" />
+                <ExternalLink className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                 Discord Community
               </a>
             </Button>

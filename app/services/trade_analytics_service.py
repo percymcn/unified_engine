@@ -337,7 +337,7 @@ class TradeAnalyticsService:
         user_id: int,
         account_id: Optional[int] = None
     ) -> Dict[str, Any]:
-        """Get basic metrics from execution_logs when trade_journal is empty."""
+        """Get metrics from execution_logs when trade_journal is empty."""
         from app.models.models import ExecutionLog
 
         # Get accounts for this user
@@ -367,51 +367,209 @@ class TradeAnalyticsService:
         entries = [l for l in logs if l.action.lower() in ('buy', 'sell')]
         exits = [l for l in logs if 'close' in l.action.lower()]
 
-        # Basic time analysis
-        hourly_counts = {}
-        daily_counts = {}
+        # Calculate P&L from close actions that have P&L data
+        closes_with_pnl = [l for l in exits if l.pnl is not None]
+        winning_trades = len([l for l in closes_with_pnl if l.pnl > 0])
+        losing_trades = len([l for l in closes_with_pnl if l.pnl < 0])
+        breakeven_trades = len([l for l in closes_with_pnl if l.pnl == 0])
 
-        for log in entries:
+        gross_profit = sum(l.pnl for l in closes_with_pnl if l.pnl > 0)
+        gross_loss = abs(sum(l.pnl for l in closes_with_pnl if l.pnl < 0))
+        net_profit = gross_profit - gross_loss
+
+        # Calculate win rate if we have closed trades with P&L
+        win_rate = None
+        if closes_with_pnl:
+            total_closed = winning_trades + losing_trades + breakeven_trades
+            if total_closed > 0:
+                win_rate = (winning_trades / total_closed) * 100
+
+        # Profit factor
+        profit_factor = None
+        if gross_loss > 0:
+            profit_factor = gross_profit / gross_loss
+
+        # Expectancy
+        expectancy = 0
+        if closes_with_pnl:
+            expectancy = net_profit / len(closes_with_pnl)
+
+        # Largest win/loss
+        wins = [l.pnl for l in closes_with_pnl if l.pnl > 0]
+        losses = [l.pnl for l in closes_with_pnl if l.pnl < 0]
+        largest_win = max(wins) if wins else 0
+        largest_loss = min(losses) if losses else 0  # Will be negative
+
+        # Time analysis based on closes with P&L
+        hourly_stats = {}  # {hour: {'pnl': [], 'wins': 0, 'losses': 0}}
+        daily_stats = {}   # {day: {'pnl': [], 'wins': 0, 'losses': 0}}
+        session_stats = {  # Session-based stats
+            'asian': {'pnl': 0, 'wins': 0, 'losses': 0, 'count': 0},
+            'london': {'pnl': 0, 'wins': 0, 'losses': 0, 'count': 0},
+            'overlap': {'pnl': 0, 'wins': 0, 'losses': 0, 'count': 0},
+            'new_york': {'pnl': 0, 'wins': 0, 'losses': 0, 'count': 0},
+        }
+
+        for log in closes_with_pnl:
             if log.created_at:
                 hour = log.created_at.hour
                 day = log.created_at.weekday()
-                hourly_counts[hour] = hourly_counts.get(hour, 0) + 1
-                daily_counts[day] = daily_counts.get(day, 0) + 1
+                pnl = log.pnl or 0
+                is_win = pnl > 0
+                is_loss = pnl < 0
 
-        best_hour = max(hourly_counts, key=hourly_counts.get) if hourly_counts else None
-        best_day = max(daily_counts, key=daily_counts.get) if daily_counts else None
+                # Hourly stats
+                if hour not in hourly_stats:
+                    hourly_stats[hour] = {'pnl': [], 'wins': 0, 'losses': 0}
+                hourly_stats[hour]['pnl'].append(pnl)
+                if is_win:
+                    hourly_stats[hour]['wins'] += 1
+                elif is_loss:
+                    hourly_stats[hour]['losses'] += 1
 
-        # Note: We can't calculate win rate without P&L data
+                # Daily stats
+                if day not in daily_stats:
+                    daily_stats[day] = {'pnl': [], 'wins': 0, 'losses': 0}
+                daily_stats[day]['pnl'].append(pnl)
+                if is_win:
+                    daily_stats[day]['wins'] += 1
+                elif is_loss:
+                    daily_stats[day]['losses'] += 1
+
+                # Session stats (UTC hours)
+                if 0 <= hour < 8:
+                    session = 'asian'
+                elif 8 <= hour < 13:
+                    session = 'london'
+                elif 13 <= hour < 17:
+                    session = 'overlap'
+                else:
+                    session = 'new_york'
+
+                session_stats[session]['pnl'] += pnl
+                session_stats[session]['count'] += 1
+                if is_win:
+                    session_stats[session]['wins'] += 1
+                elif is_loss:
+                    session_stats[session]['losses'] += 1
+
+        # Find best hour/day by P&L
+        best_hour = None
+        best_day = None
+        best_session = None
+
+        if hourly_stats:
+            best_hour = max(hourly_stats.keys(), key=lambda h: sum(hourly_stats[h]['pnl']))
+        if daily_stats:
+            best_day = max(daily_stats.keys(), key=lambda d: sum(daily_stats[d]['pnl']))
+        if session_stats:
+            sessions_with_trades = {k: v for k, v in session_stats.items() if v['count'] > 0}
+            if sessions_with_trades:
+                best_session = max(sessions_with_trades.keys(), key=lambda s: session_stats[s]['pnl'])
+
+        # Calculate streaks from close actions with P&L
+        current_streak = 0
+        max_consecutive_wins = 0
+        max_consecutive_losses = 0
+        current_win_streak = 0
+        current_loss_streak = 0
+
+        sorted_closes = sorted(closes_with_pnl, key=lambda x: x.created_at or datetime.min)
+        for log in sorted_closes:
+            if log.pnl > 0:
+                current_win_streak += 1
+                current_loss_streak = 0
+                max_consecutive_wins = max(max_consecutive_wins, current_win_streak)
+            elif log.pnl < 0:
+                current_loss_streak += 1
+                current_win_streak = 0
+                max_consecutive_losses = max(max_consecutive_losses, current_loss_streak)
+
+        # Current streak
+        if sorted_closes:
+            last_trade = sorted_closes[-1]
+            if last_trade.pnl > 0:
+                current_streak = current_win_streak
+            elif last_trade.pnl < 0:
+                current_streak = -current_loss_streak
+
+        pnl_note = None
+        if not closes_with_pnl:
+            pnl_note = 'P&L tracking active. Metrics will populate as new trades close.'
+
+        # Build hourly breakdown for UI (use string keys for JSON serialization)
+        hourly_breakdown = {}
+        for hour in range(24):
+            hour_key = str(hour)
+            if hour in hourly_stats:
+                stats = hourly_stats[hour]
+                total = stats['wins'] + stats['losses']
+                hourly_breakdown[hour_key] = {
+                    'win_rate': (stats['wins'] / total * 100) if total > 0 else 0,
+                    'pnl': sum(stats['pnl']),
+                    'trades': total
+                }
+            else:
+                hourly_breakdown[hour_key] = {'win_rate': 0, 'pnl': 0, 'trades': 0}
+
+        # Build daily breakdown for UI (0=Monday, 6=Sunday)
+        daily_breakdown = {}
+        day_names = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+        for day in range(7):
+            if day in daily_stats:
+                stats = daily_stats[day]
+                total = stats['wins'] + stats['losses']
+                daily_breakdown[day_names[day]] = {
+                    'win_rate': (stats['wins'] / total * 100) if total > 0 else 0,
+                    'pnl': sum(stats['pnl']),
+                    'trades': total
+                }
+            else:
+                daily_breakdown[day_names[day]] = {'win_rate': 0, 'pnl': 0, 'trades': 0}
+
+        # Build session breakdown for UI
+        session_breakdown = {}
+        for session_name, stats in session_stats.items():
+            total = stats['wins'] + stats['losses']
+            session_breakdown[session_name] = {
+                'win_rate': (stats['wins'] / total * 100) if total > 0 else 0,
+                'pnl': stats['pnl'],
+                'trades': stats['count']
+            }
+
         return {
             'total_trades': len(entries),
             'total_entries': len(entries),
             'total_exits': len(exits),
-            'winning_trades': 0,  # Unknown - no P&L data
-            'losing_trades': 0,   # Unknown - no P&L data
-            'breakeven_trades': 0,
-            'win_rate': None,  # Unknown - no P&L data in execution_logs
-            'gross_profit': 0,
-            'gross_loss': 0,
-            'net_profit': 0,  # Unknown
+            'winning_trades': winning_trades,
+            'losing_trades': losing_trades,
+            'breakeven_trades': breakeven_trades,
+            'win_rate': win_rate,
+            'gross_profit': gross_profit,
+            'gross_loss': gross_loss,
+            'net_profit': net_profit,
             'total_commission': 0,
-            'avg_win': 0,
-            'avg_loss': 0,
-            'largest_win': 0,
-            'largest_loss': 0,
-            'profit_factor': None,
-            'expectancy': 0,
-            'max_consecutive_wins': 0,
-            'max_consecutive_losses': 0,
-            'current_streak': 0,
+            'avg_win': gross_profit / winning_trades if winning_trades > 0 else 0,
+            'avg_loss': gross_loss / losing_trades if losing_trades > 0 else 0,
+            'largest_win': largest_win,
+            'largest_loss': largest_loss,
+            'profit_factor': profit_factor,
+            'expectancy': expectancy,
+            'max_consecutive_wins': max_consecutive_wins,
+            'max_consecutive_losses': max_consecutive_losses,
+            'current_streak': current_streak,
             'max_drawdown': 0,
             'max_drawdown_pct': 0,
             'avg_holding_time_seconds': 0,
             'best_hour': best_hour,
             'best_day': best_day,
-            'best_session': None,
+            'best_session': best_session,
             'sharpe_ratio': None,
-            'data_source': 'execution_logs',  # Indicate this is from execution_logs
-            'pnl_tracking_note': 'P&L tracking not yet available. Win rate and profit metrics will populate as new trades are closed.'
+            'hourly_stats': hourly_breakdown,
+            'daily_stats': daily_breakdown,
+            'session_stats': session_breakdown,
+            'data_source': 'execution_logs',
+            'pnl_tracking_note': pnl_note
         }
 
     def _empty_metrics(self) -> Dict[str, Any]:

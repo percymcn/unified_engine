@@ -372,6 +372,11 @@ except ImportError:
 
 
 # Response models for trading analytics
+class TimeStatEntry(BaseModel):
+    win_rate: float = 0
+    pnl: float = 0
+    trades: int = 0
+
 class TradingPerformanceResponse(BaseModel):
     total_trades: int = 0
     winning_trades: int = 0
@@ -387,7 +392,11 @@ class TradingPerformanceResponse(BaseModel):
     current_streak: int = 0
     best_hour: Optional[int] = None
     best_day: Optional[int] = None
+    best_session: Optional[str] = None
     sharpe_ratio: Optional[float] = None
+    hourly_stats: Optional[Dict[str, TimeStatEntry]] = None
+    daily_stats: Optional[Dict[str, TimeStatEntry]] = None
+    session_stats: Optional[Dict[str, TimeStatEntry]] = None
     data_source: Optional[str] = None
     pnl_tracking_note: Optional[str] = None
 
