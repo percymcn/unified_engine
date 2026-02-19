@@ -275,6 +275,9 @@ if settings.is_production:
             "api.mytradeflow.app",
             "tradeflow.fluxeo.net",
             "localhost",
+            "127.0.0.1",
+            "192.168.1.254",  # pharma5
+            "192.168.1.241",  # pharma4
             # Internal Docker service names for container-to-container communication
             "api",
             "api:8000",
