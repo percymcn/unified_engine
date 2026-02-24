@@ -1,0 +1,27 @@
+{
+  "enabled": true,
+  "alert_methods": {
+    "log": true,
+    "webhook": false,
+    "email": false
+  },
+  "webhook_url": "",
+  "email_config": {
+    "smtp_host": "",
+    "smtp_port": 587,
+    "from_email": "",
+    "to_email": "",
+    "password": ""
+  },
+  "thresholds": {
+    "cpu_load_avg": 3.0,
+    "memory_percent": 90.0,
+    "disk_percent": 85.0,
+    "service_restart_threshold": 3
+  },
+  "critical_services": [
+    "unified_api",
+    "unified_postgres",
+    "unified_redis"
+  ]
+}
