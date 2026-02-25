@@ -17,6 +17,8 @@ from app.models.pydantic_schemas import (
     OrderRequest, ExecutorOrderResponse as OrderResponse, ExecutorPosition as Position, Account,
     TradeRequest, ExecutorTradeResponse as TradeResponse
 )
+from app.services.broker_resilience import with_circuit_breaker, execute_with_timeout_and_breaker
+from app.core.circuit_breaker import CircuitBreakerOpenException
 
 logger = logging.getLogger(__name__)
 
@@ -415,8 +417,9 @@ class TradeLockerExecutor(BaseExecutor):
             logger.error(f"SDK get_positions failed: {e}")
             return []
 
+    @with_circuit_breaker("tradelocker")
     async def place_order(self, order: OrderRequest) -> OrderResponse:
-        """Place order with TradeLocker via SDK"""
+        """Place order with TradeLocker via SDK (with circuit breaker protection)"""
         if not self._use_sdk or not self._sdk_wrapper:
             logger.error("SDK not initialized")
             return OrderResponse(success=False, error="SDK not initialized")

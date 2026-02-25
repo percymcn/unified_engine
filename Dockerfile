@@ -35,8 +35,13 @@ RUN mkdir -p logs data/cache data/backtests /var/log/trading-engine
 # Expose port
 EXPOSE 8000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 CMD curl -f http://localhost:8000/health || exit 1
+# Health check - Increased resilience for external API timeouts
+# interval: Check every 45s (was 30s) - gives more time between checks
+# timeout: Wait up to 25s for response (was 10s) - handles slow external API calls
+# start-period: Wait 60s before first check (was 5s) - allows full initialization
+# retries: 5 attempts before marking unhealthy (was 3) - more tolerant of transient issues
+HEALTHCHECK --interval=45s --timeout=25s --start-period=60s --retries=5 \
+    CMD curl -f --max-time 20 http://localhost:8000/health || exit 1
 
 # Default command
 CMD ["python", "app/main.py"]
