@@ -4,10 +4,11 @@ ProjectX SDK Patches
 Patches for the project-x-py SDK to handle API changes that haven't been
 incorporated into the SDK yet.
 
-These patches should be applied before any SDK usage.
+These patches should be applied BEFORE any SDK usage.
 """
 
 import logging
+import sys
 
 logger = logging.getLogger(__name__)
 
@@ -19,19 +20,12 @@ def apply_position_model_patch():
     The ProjectX API started returning this field but the SDK v3.5.9
     doesn't have it in the Position dataclass, causing:
     'Position.__init__() got an unexpected keyword argument 'contractDisplayName''
+
+    This patch replaces Position in all relevant SDK modules.
     """
     try:
-        from project_x_py import models
         from dataclasses import dataclass, field
         from typing import Union
-
-        # Check if already patched
-        if hasattr(models.Position, '_patched'):
-            logger.debug("Position model already patched")
-            return True
-
-        # Store original class reference
-        OriginalPosition = models.Position
 
         @dataclass
         class PatchedPosition:
@@ -108,16 +102,47 @@ def apply_position_model_patch():
                 else:
                     return 0.0
 
-        # Replace the Position class in the models module
-        models.Position = PatchedPosition
+        # Patch all SDK modules that use Position
+        modules_to_patch = [
+            'project_x_py.models',
+            'project_x_py.client.trading',
+            'project_x_py.position_manager.core',
+            'project_x_py.position_manager.tracking',
+            'project_x_py.position_manager.operations',
+            'project_x_py.position_manager.analytics',
+            'project_x_py',
+        ]
 
-        # Also update __all__ export if needed
-        if 'Position' in models.__all__:
-            # Already exported, patched class will be used
+        patched_count = 0
+        for module_name in modules_to_patch:
+            if module_name in sys.modules:
+                module = sys.modules[module_name]
+                if hasattr(module, 'Position'):
+                    setattr(module, 'Position', PatchedPosition)
+                    patched_count += 1
+                    logger.debug(f"Patched Position in {module_name}")
+
+        # Also import and patch directly to ensure future imports get patched version
+        try:
+            import project_x_py.models as models
+            models.Position = PatchedPosition
+            patched_count += 1
+        except ImportError:
             pass
 
-        logger.info("ProjectX SDK Position model patched successfully (added contractDisplayName)")
-        return True
+        try:
+            import project_x_py.client.trading as trading
+            trading.Position = PatchedPosition
+            patched_count += 1
+        except ImportError:
+            pass
+
+        if patched_count > 0:
+            logger.info(f"ProjectX SDK Position model patched in {patched_count} locations (added contractDisplayName)")
+            return True
+        else:
+            logger.warning("No Position references found to patch")
+            return False
 
     except ImportError:
         logger.debug("project-x-py SDK not installed, skipping patch")

@@ -2,6 +2,10 @@
 Main FastAPI Application
 Unified Trading Engine - Complete trading system integration
 """
+# Apply SDK patches BEFORE any SDK imports
+from app.utils.projectx_sdk_patches import apply_all_patches
+apply_all_patches()
+
 import asyncio
 import logging
 from contextlib import asynccontextmanager

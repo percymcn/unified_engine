@@ -17,7 +17,9 @@ RUN pip install --no-cache-dir -r requirements.txt && \
     pip install --no-cache-dir --no-deps metaapi-cloud-metastats-sdk && \
     pip install --no-cache-dir iso8601 aiohttp websockets psutil rapidfuzz PyJWT pandas joblib && \
     pip install --no-cache-dir "python-socketio[asyncio_client]==4.6.1" "python-engineio==3.14.2" && \
-    pip install --no-cache-dir signalrcore lz4 msgpack-python websocket-client
+    pip install --no-cache-dir signalrcore lz4 msgpack-python websocket-client && \
+    # Patch ProjectX SDK to add contractDisplayName field to Position model (line 387)
+    sed -i '387 a\    contractDisplayName: str | None = None' /usr/local/lib/python3.12/site-packages/project_x_py/models.py
 
 # Copy application code
 COPY app/ ./app/
