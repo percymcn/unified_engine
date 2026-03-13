@@ -263,16 +263,16 @@ export function FlowGuardBot() {
 
   return (
     <>
-      {/* Floating bubble */}
+      {/* Floating bubble - Generate Webhook Payload */}
       <div className="fixed bottom-6 right-6 z-50">
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button
               size="lg"
-              className="rounded-full h-14 w-14 shadow-lg"
-              variant="default"
+              className="rounded-full h-16 w-16 shadow-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 border-2 border-white/20"
+              title="Generate Webhook Payload"
             >
-              <Bot className="h-6 w-6" />
+              <Bot className="h-7 w-7 text-white" />
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">

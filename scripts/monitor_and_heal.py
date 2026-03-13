@@ -88,11 +88,14 @@ def get_service_status() -> Dict[str, Dict]:
             status[service] = {"status": "not_found", "replicas": "0/0"}
             continue
 
-        # Parse replicas (e.g., "1/1" or "0/1")
+        # Parse replicas (e.g., "1/1" or "0/1" or "1/1 (max 1 per node)")
         try:
-            running, desired = replicas_output.split('/')
-            running = running.split()[0] if ' ' in running else running  # Handle "1/1 (max 1 per node)"
-            is_healthy = int(running) >= int(desired)
+            # Strip any parenthetical suffix like "(max 1 per node)"
+            replicas_clean = replicas_output.split('(')[0].strip()
+            running, desired = replicas_clean.split('/')
+            running = running.strip()
+            desired = desired.strip()
+            is_healthy = int(running) >= int(desired) and int(desired) > 0
         except (ValueError, IndexError):
             is_healthy = False
             running, desired = "0", "0"
@@ -137,6 +140,40 @@ def check_redis_connectivity() -> bool:
         timeout=10
     )
     return result == "PONG"
+
+
+def check_flowalgo_proxy() -> bool:
+    """Check if FlowAlgo proxy is running and healthy"""
+    result = run_command("curl -s --max-time 5 http://127.0.0.1:9001/health", timeout=10)
+    if result and "logged_in" in result:
+        try:
+            import json
+            data = json.loads(result)
+            return data.get("logged_in", False)
+        except:
+            return False
+    return False
+
+
+def restart_flowalgo_proxy() -> bool:
+    """Restart FlowAlgo proxy service"""
+    logger.info("Attempting to restart FlowAlgo proxy...")
+
+    # Try systemd first
+    result = run_command("sudo systemctl restart flow_confluence_proxy", timeout=30)
+    if result is not None:
+        logger.info("FlowAlgo proxy restarted via systemd")
+        return True
+
+    # Fallback: start directly
+    result = run_command(
+        "cd /home/pharma5/unified_engine && "
+        "source flow_venv/bin/activate && "
+        "nohup python3 flow_confluence_proxy.py > /tmp/flow_proxy.log 2>&1 &",
+        timeout=10
+    )
+    logger.info("FlowAlgo proxy started directly")
+    return True
 
 
 def can_restart_service(service: str) -> bool:
@@ -289,6 +326,16 @@ def check_and_heal():
         issues_found.append("redis_connectivity")
         if can_restart_service("unified_redis"):
             restart_service("unified_redis")
+
+    # Check FlowAlgo proxy (for SmartFlow indicator)
+    flowalgo_healthy = check_flowalgo_proxy()
+    if flowalgo_healthy:
+        logger.info("✓ FlowAlgo proxy: healthy and logged in")
+    else:
+        logger.warning("FlowAlgo proxy is not running or not logged in!")
+        issues_found.append("flowalgo_proxy")
+        if can_restart_service("flowalgo_proxy"):
+            restart_flowalgo_proxy()
 
     # Check system resources
     resources = check_system_resources()

@@ -70,6 +70,10 @@ from app.routers.emergency import router as emergency_router
 from app.routers.ai_suite import router as ai_suite_router
 from app.routers.support import router as support_router
 from app.routers.circuit_breaker_health import router as circuit_breaker_health_router
+from app.routers.smartflow import router as smartflow_router
+from app.routers.ai_strategy import router as ai_strategy_router
+from app.services.smartflow_service import smartflow_service
+from app.services.market_data_service import market_data_service
 from app.core.event_emitter import event_emitter
 from app.tasks.token_refresh import refresh_expiring_tokens
 
@@ -141,6 +145,7 @@ async def lifespan(app: FastAPI):
         asyncio.create_task(monitor_system_health())
         asyncio.create_task(tradovate_token_refresh_loop())
         asyncio.create_task(webhook_log_cleanup_loop())
+        asyncio.create_task(smartflow_background_loop())
 
         logger.info("🎉 Unified Trading Engine started successfully!")
         
@@ -335,6 +340,8 @@ app.include_router(emergency_router, tags=["emergency"])
 app.include_router(ai_suite_router, prefix="/api/v1", tags=["ai-suite"])
 app.include_router(support_router, tags=["support"])
 app.include_router(circuit_breaker_health_router, prefix="/api/v1", tags=["monitoring"])
+app.include_router(smartflow_router, prefix="/api/v1/smartflow", tags=["smartflow"])
+app.include_router(ai_strategy_router, tags=["ai-strategy"])
 
 # WebSocket endpoint
 @app.websocket("/ws")
@@ -697,6 +704,114 @@ async def webhook_log_cleanup_loop():
 
         # Wait before next cleanup
         await asyncio.sleep(CLEANUP_INTERVAL_SECONDS)
+
+
+async def smartflow_background_loop():
+    """
+    Background task for SmartFlow Indicator - optional AI-driven flow sentiment analysis.
+
+    Fetches FlowAlgo data from flow_confluence_proxy.py, computes sentiment scores,
+    and generates buy/sell/close signals based on institutional options flow.
+    """
+    try:
+        logger.info("🤖 Starting SmartFlow Indicator background task...")
+
+        # Load SmartFlow configuration from database on startup
+        from app.db.database import SessionLocal
+        from app.models.smartflow_models import SmartFlowConfig
+
+        try:
+            db = SessionLocal()
+            # Find any enabled SmartFlow configs
+            configs = db.query(SmartFlowConfig).filter(SmartFlowConfig.enabled == True).all()
+            for config in configs:
+                if config.webhook_urls:
+                    smartflow_service.enable(config.webhook_urls)
+                    smartflow_service.score_threshold_buy = config.buy_threshold
+                    smartflow_service.score_threshold_sell = config.sell_threshold
+                    smartflow_service.close_threshold = config.close_threshold
+                    smartflow_service.score_window_minutes = config.score_window_minutes
+                    smartflow_service.update_interval_seconds = config.update_interval_seconds
+                    smartflow_service.enable_vix_inverse = config.enable_vix_inverse
+                    smartflow_service.enable_golden_sweeps = config.enable_golden_sweeps
+                    smartflow_service.enable_leveraged_etfs = config.enable_leveraged_etfs
+                    smartflow_service.vix_golden_threshold = config.vix_golden_threshold
+                    smartflow_service.min_premium = config.min_premium
+                    smartflow_service.enable_price_confirmation = config.enable_price_confirmation
+                    smartflow_service.enable_rsi_filter = config.enable_rsi_filter
+                    smartflow_service.enable_volume_filter = config.enable_volume_filter
+                    smartflow_service.enable_time_filter = config.enable_time_filter
+                    smartflow_service.enable_fib_confluence = config.enable_fib_confluence
+                    smartflow_service.min_confidence_score = config.min_confidence_score
+                    smartflow_service.time_filter_start_hour = config.time_filter_start_hour
+                    smartflow_service.time_filter_start_minute = getattr(config, 'time_filter_start_minute', 30)
+                    smartflow_service.time_filter_end_hour = config.time_filter_end_hour
+                    smartflow_service.time_filter_end_minute = getattr(config, 'time_filter_end_minute', 0)
+                    # AI Strategy Suite settings
+                    smartflow_service.enable_ai_enhancement = getattr(config, 'enable_ai_enhancement', False)
+                    smartflow_service.ai_analysis_types = getattr(config, 'ai_analysis_types', ['technical', 'patterns'])
+                    smartflow_service.block_on_ai_disagree = getattr(config, 'block_on_ai_disagree', True)
+                    smartflow_service.check_market_trend = getattr(config, 'check_market_trend', True)
+                    smartflow_service.enable_bearish_bias = getattr(config, 'enable_bearish_bias', False)  # Solution 3
+                    smartflow_service.enable_ai_only_mode = getattr(config, 'enable_ai_only_mode', False)
+                    smartflow_service.ai_only_scan_interval = getattr(config, 'ai_only_scan_interval', 300)
+                    smartflow_service.ai_only_confidence_threshold = getattr(config, 'ai_only_confidence_threshold', 70.0)
+                    smartflow_service.ai_only_instruments = getattr(config, 'ai_only_instruments', ['MES', 'NQ', 'RTY'])
+                    logger.info(f"✅ Loaded SmartFlow config for user {config.user_id} from database (AI enhancement={smartflow_service.enable_ai_enhancement})")
+            db.close()
+        except Exception as e:
+            logger.warning(f"Could not load SmartFlow config from database: {e}")
+
+        # Initialize ProjectX real-time data integration for market_data_service
+        try:
+            from app.services.projectx_sdk_service import ProjectXSDKService, SDK_AVAILABLE
+
+            if SDK_AVAILABLE:
+                # Check if we have ProjectX credentials configured
+                # Read from environment or secrets (same way projectx_executor does it)
+                import os
+                username = os.getenv("PROJECTX_USERNAME") or os.getenv("TOPSTEP_USERNAME")
+                api_key = os.getenv("PROJECTX_API_KEY") or os.getenv("TOPSTEP_API_KEY")
+
+                # Try reading from Docker secrets
+                if not username:
+                    try:
+                        with open("/run/secrets/projectx_username", "r") as f:
+                            username = f.read().strip()
+                    except:
+                        pass
+
+                if not api_key:
+                    try:
+                        with open("/run/secrets/projectx_api_key", "r") as f:
+                            api_key = f.read().strip()
+                    except:
+                        pass
+
+                if username and api_key:
+                    # Initialize ProjectX service for market data
+                    projectx_service = ProjectXSDKService(
+                        username=username,
+                        api_key=api_key
+                    )
+
+                    success = await projectx_service.connect()
+                    if success:
+                        # Inject into market_data_service for real-time quotes
+                        market_data_service.set_projectx_service(projectx_service)
+                        logger.info("✅ ProjectX real-time market data enabled for AI Strategy Suite")
+                    else:
+                        logger.info("⚠️  ProjectX connection failed - using Polygon-only market data")
+                else:
+                    logger.info("ℹ️  ProjectX credentials not found - using Polygon-only market data")
+            else:
+                logger.info("ℹ️  ProjectX SDK not available - using Polygon-only market data")
+        except Exception as e:
+            logger.warning(f"Could not initialize ProjectX market data: {e}")
+
+        await smartflow_service.background_task()
+    except Exception as e:
+        logger.error(f"SmartFlow background task failed: {e}")
 
 
 # Enhanced Exception handlers

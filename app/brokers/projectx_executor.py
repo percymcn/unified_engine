@@ -311,14 +311,16 @@ class ProjectXExecutor(BaseExecutor):
 
     async def get_positions(self, account_id: Optional[str] = None) -> List[Position]:
         """Get open positions."""
+        logger.debug(f"ProjectX Executor: get_positions called, is_using_sdk={self.is_using_sdk}, account_name={self._account_name}")
         if self.is_using_sdk:
             try:
                 positions_data = await self._sdk_service.get_positions()
-                return [
+                logger.info(f"ProjectX Executor: SDK returned {len(positions_data) if positions_data else 0} positions")
+                result = [
                     Position(
                         id=pos.get("id", ""),
                         broker="projectx",
-                        account_id=account_id or "",
+                        account_id=account_id or self._account_id or "",
                         symbol=pos.get("symbol", ""),
                         side=pos.get("side", "buy"),
                         size=float(pos.get("size", 0)),
@@ -335,11 +337,13 @@ class ProjectXExecutor(BaseExecutor):
                     )
                     for pos in positions_data
                 ]
+                return result
             except Exception as e:
-                logger.error(f"SDK get_positions failed: {e}")
+                logger.error(f"ProjectX Executor: SDK get_positions failed: {e}", exc_info=True)
                 return []
 
         # Fallback to httpx
+        logger.info(f"ProjectX Executor: Using httpx fallback for positions")
         return await self._get_positions_httpx(account_id)
 
     async def _get_positions_httpx(self, account_id: Optional[str] = None) -> List[Position]:

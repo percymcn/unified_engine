@@ -5,8 +5,8 @@ Circuit Breaker Health Monitoring Endpoint
 from fastapi import APIRouter, Depends
 from typing import Dict, Any
 from app.services.broker_resilience import get_circuit_breaker_health, broker_circuit_breakers
-from app.core.auth import get_current_user
-from app.models.database import User
+from app.routers.auth import get_current_user
+from app.models.models import User
 
 router = APIRouter()
 

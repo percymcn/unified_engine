@@ -5,7 +5,7 @@ Tracks daily signal and trade counts per account for risk enforcement.
 Date-based counters reset automatically at midnight UTC.
 """
 
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import Dict, Optional, Protocol
 from dataclasses import dataclass, field
 import logging
@@ -32,7 +32,9 @@ class DailyCounters:
         """Increment daily trade count and per-symbol count"""
         self.trades_executed += 1
         self.trades_by_symbol[symbol] = self.trades_by_symbol.get(symbol, 0) + 1
-        self.last_trade_at = datetime.utcnow()
+        # Use local time - DB session timezone is America/New_York
+        # PostgreSQL will interpret naive datetime as local time
+        self.last_trade_at = datetime.now()
 
     def get_symbol_count(self, symbol: str) -> int:
         """Get trade count for a specific symbol"""

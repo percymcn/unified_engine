@@ -76,7 +76,7 @@ TIER_LIMITS = {
     ),
     "enterprise": SubscriptionLimits(
         tier="enterprise",
-        max_broker_connections=4,
+        max_broker_connections=-1,  # unlimited for enterprise
         max_signals_per_day=-1,  # unlimited
         max_webhooks=-1,  # unlimited
     ),
@@ -172,7 +172,10 @@ def _get_tier_display_name(tier: str) -> str:
         "tier_2": "Growth",
         "tier_3": "Pro",
         "tier_4": "Enterprise",
-        "pro": "Pro",  # Legacy
+        "starter": "Starter",
+        "trader": "Trader",
+        "pro": "Pro",
+        "enterprise": "Enterprise",
     }
     return names.get(tier, "Free")
 

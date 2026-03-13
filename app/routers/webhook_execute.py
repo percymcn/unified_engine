@@ -29,9 +29,10 @@ import logging
 import uuid
 import json
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from decimal import Decimal
 from typing import Optional, Dict, Any, List
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Request, HTTPException, status, Depends
 from sqlalchemy.orm import Session
@@ -57,6 +58,81 @@ from app.services.trade_analytics_service import TradeAnalyticsService
 from datetime import date as date_type
 
 logger = logging.getLogger(__name__)
+
+# EST timezone for market hours
+EST = ZoneInfo("America/New_York")
+
+
+def is_market_hours() -> tuple[bool, str]:
+    """
+    Check if current time is during US market hours (EST).
+
+    Returns:
+        (is_open: bool, session: str)
+        session can be: 'premarket', 'regular', 'afterhours', 'closed'
+    """
+    now_est = datetime.now(EST)
+    weekday = now_est.weekday()  # 0=Monday, 6=Sunday
+    hour = now_est.hour
+    minute = now_est.minute
+    current_minutes = hour * 60 + minute
+
+    # Weekend - market closed
+    if weekday >= 5:
+        return False, "closed"
+
+    # Premarket: 4:00am - 9:30am EST
+    if 4 * 60 <= current_minutes < 9 * 60 + 30:
+        return True, "premarket"
+
+    # Regular hours: 9:30am - 4:00pm EST
+    if 9 * 60 + 30 <= current_minutes < 16 * 60:
+        return True, "regular"
+
+    # Afterhours: 4:00pm - 8:00pm EST
+    if 16 * 60 <= current_minutes < 20 * 60:
+        return True, "afterhours"
+
+    return False, "closed"
+
+
+def get_market_hours_confidence_boost(source: str = None) -> float:
+    """
+    Get confidence boost based on market hours.
+
+    TradingView signals during regular hours get higher confidence.
+
+    Returns:
+        Confidence multiplier (1.0 = no boost, 1.2 = 20% boost, etc.)
+    """
+    is_open, session = is_market_hours()
+
+    if session == "regular":
+        # Regular market hours - highest confidence
+        return 1.2  # 20% boost
+    elif session == "premarket":
+        # Premarket - moderate confidence
+        return 1.1  # 10% boost
+    elif session == "afterhours":
+        # Afterhours - slight boost
+        return 1.05  # 5% boost
+    else:
+        # Market closed - no boost
+        return 1.0
+
+
+def utc_to_est(utc_dt: datetime) -> datetime:
+    """Convert UTC datetime to EST."""
+    if utc_dt.tzinfo is None:
+        utc_dt = utc_dt.replace(tzinfo=timezone.utc)
+    return utc_dt.astimezone(EST)
+
+
+def est_to_utc(est_dt: datetime) -> datetime:
+    """Convert EST datetime to UTC."""
+    if est_dt.tzinfo is None:
+        est_dt = est_dt.replace(tzinfo=EST)
+    return est_dt.astimezone(timezone.utc)
 
 
 # ============================================================================
@@ -509,6 +585,12 @@ async def execute_tradingview_signal(
     sl = raw_payload.get("sl") or raw_payload.get("stop_loss")
     tp = raw_payload.get("tp") or raw_payload.get("take_profit")
 
+    # Check market hours and apply confidence boost
+    market_open, market_session = is_market_hours()
+    confidence_boost = get_market_hours_confidence_boost()
+    now_est = datetime.now(EST)
+    logger.info(f"📊 Signal received: {symbol} {action_str} | Market: {market_session} | EST: {now_est.strftime('%H:%M')} | Confidence boost: {confidence_boost:.0%}")
+
     try:
         webhook_log = WebhookLog(
             webhook_id=webhook_id,
@@ -589,6 +671,12 @@ async def _execute_tradingview_signal_inner(
     explicit_close_quantity: Optional[str] = None
 ):
     """Inner implementation of webhook execution with all the main logic."""
+    # === SMARTFLOW ML TRACKING ===
+    # Extract signal_log_id if this is a SmartFlow signal for ML outcome tracking
+    smartflow_signal_log_id = raw_payload.get("smartflow_signal_log_id")
+    if smartflow_signal_log_id:
+        logger.info(f"📊 SmartFlow signal {smartflow_signal_log_id} received for ML tracking")
+
     # === MULTI-ACCOUNT ROUTING ===
     routing_service = AccountRoutingService(db)
     strategy_id = raw_payload.get("strategy_id")
@@ -1309,6 +1397,111 @@ async def _execute_tradingview_signal_inner(
     counter_repo = get_daily_counter_repository()
     counter_service = DailyCounterService(counter_repo)
 
+    # === PRE-AGGREGATE POSITIONS FOR MULTI-ACCOUNT BROKERS ===
+    # For ProjectX/TopStep, we need to check position limits ACROSS ALL sub-accounts,
+    # not per sub-account. Otherwise, max_positions_per_symbol=3 would allow 3*N positions
+    # where N is the number of enabled broker sub-accounts.
+    #
+    # This section pre-fetches positions from ALL enabled sub-accounts and stores aggregated
+    # counts that we use in the position check section below.
+
+    # Helper to normalize symbol for position matching (same as below, extracted for pre-aggregation)
+    import re
+    def _normalize_symbol_for_aggregation(sym: str) -> str:
+        """Normalize symbol for matching (strip suffixes, contract codes)."""
+        if not sym:
+            return ""
+        s = sym.upper().strip()
+        # Handle ProjectX CON.F.US.XXX.YYY format (e.g., CON.F.US.MYM.H26 -> MYM)
+        if s.startswith('CON.'):
+            parts = s.split('.')
+            if len(parts) >= 4:
+                s = parts[3]  # e.g., "MYM" from "CON.F.US.MYM.H26"
+        # Strip common suffixes
+        for suffix in ['.PRO', '.RAW', '.STD', '.I', '.S', '_SB', '.SB']:
+            if s.endswith(suffix):
+                s = s[:-len(suffix)]
+        # Strip futures contract month/year codes (e.g., H5, Z24, H25)
+        futures_pattern = re.compile(r'^([A-Z]+[A-Z0-9]*?)([FGHJKMNQUVXZ])(\d{1,4})$')
+        match = futures_pattern.match(s)
+        if match:
+            s = match.group(1)
+        # Strip trailing "1!" format from TradingView
+        if s.endswith('1!'):
+            s = s[:-2]
+        return s
+
+    # Dictionary to store aggregated positions per TradingAccount
+    # Format: {account_id: {"total": int, "by_symbol": {normalized_symbol: count}}}
+    aggregated_positions: Dict[int, Dict[str, Any]] = {}
+
+    for account in accounts:
+        broker_str = account.broker.value if hasattr(account.broker, 'value') else str(account.broker)
+
+        # Only pre-aggregate for ProjectX/TopStep with multiple enabled broker accounts
+        if broker_str in ("projectx", "topstep") and account.enabled_broker_account_ids and len(account.enabled_broker_account_ids) > 1:
+            logger.info(f"Account {account.id} ({broker_str}): Pre-aggregating positions across {len(account.enabled_broker_account_ids)} sub-accounts...")
+
+            all_positions = []
+            symbol_counts: Dict[str, int] = {}
+
+            for broker_acct_id in account.enabled_broker_account_ids:
+                try:
+                    # Create executor for this specific sub-account
+                    executor, needs_cleanup = await _create_account_executor(account, db, broker_acct_id)
+                    if not executor:
+                        logger.warning(f"Account {account.id}: Could not create executor for sub-account {broker_acct_id}")
+                        continue
+
+                    # Ensure connected
+                    is_conn_attr = getattr(executor, 'is_connected', None)
+                    is_connected = is_conn_attr() if callable(is_conn_attr) else bool(is_conn_attr)
+                    if not is_connected:
+                        try:
+                            await executor.initialize()
+                        except Exception as init_err:
+                            logger.warning(f"Executor init warning for sub-account {broker_acct_id}: {init_err}")
+
+                    # Fetch positions with timeout
+                    try:
+                        positions = await asyncio.wait_for(
+                            executor.get_positions(),
+                            timeout=10.0
+                        )
+                        if positions:
+                            logger.info(f"Account {account.id}, sub-account {broker_acct_id}: Found {len(positions)} positions")
+                            all_positions.extend(positions)
+                    except asyncio.TimeoutError:
+                        logger.error(f"Account {account.id}, sub-account {broker_acct_id}: get_positions() timed out")
+                    except Exception as e:
+                        logger.error(f"Account {account.id}, sub-account {broker_acct_id}: get_positions() failed: {e}")
+
+                    # Cleanup executor
+                    if needs_cleanup and hasattr(executor, 'disconnect'):
+                        try:
+                            await executor.disconnect()
+                        except:
+                            pass
+
+                except Exception as e:
+                    logger.error(f"Account {account.id}: Error fetching positions for sub-account {broker_acct_id}: {e}")
+
+            # Count positions by normalized symbol
+            for p in all_positions:
+                if isinstance(p, dict):
+                    pos_symbol = p.get('symbol', '')
+                else:
+                    pos_symbol = getattr(p, 'symbol', '')
+                normalized = _normalize_symbol_for_aggregation(pos_symbol)
+                if normalized:
+                    symbol_counts[normalized] = symbol_counts.get(normalized, 0) + 1
+
+            aggregated_positions[account.id] = {
+                "total": len(all_positions),
+                "by_symbol": symbol_counts
+            }
+            logger.info(f"Account {account.id}: Aggregated {len(all_positions)} total positions across all sub-accounts. By symbol: {symbol_counts}")
+
     # === EXPAND MULTI-ACCOUNT BROKERS ===
     # For ProjectX/TopStep, a single TradingAccount can have multiple enabled_broker_account_ids
     # We need to execute on ALL enabled broker accounts, not just the default
@@ -1327,6 +1520,10 @@ async def _execute_tradingview_signal_inner(
             execution_targets.append((account, None))
 
     logger.info(f"Execution targets: {len(execution_targets)} (expanded from {len(accounts)} accounts)")
+
+    # Track which accounts have passed cooldown check for this signal
+    # This prevents cooldown from blocking sub-accounts within the same signal
+    cooldown_checked_accounts: set = set()
 
     for account, target_broker_account_id in execution_targets:
         account_start = datetime.utcnow()
@@ -1348,11 +1545,24 @@ async def _execute_tradingview_signal_inner(
                     rejection_reason = f"Max daily trades exceeded ({counters.trades_executed}/{account.max_daily_trades})"
 
                 # 2. TRADE COOLDOWN CHECK
+                # Skip cooldown for sub-accounts if this account already passed cooldown in this signal
+                # This allows all ProjectX/TopStep sub-accounts to execute together
                 if not rejection_reason and account.trade_cooldown_seconds and counters.last_trade_at:
-                    elapsed = (datetime.utcnow() - counters.last_trade_at).total_seconds()
-                    if elapsed < account.trade_cooldown_seconds:
-                        remaining = int(account.trade_cooldown_seconds - elapsed)
-                        rejection_reason = f"Trade cooldown active ({remaining}s remaining of {account.trade_cooldown_seconds}s)"
+                    if account.id not in cooldown_checked_accounts:
+                        # Use local time for comparison (DB stores local time as naive datetime)
+                        now_local = datetime.now()
+                        last_trade = counters.last_trade_at
+                        # Strip timezone info if present to compare naive datetimes
+                        if last_trade.tzinfo is not None:
+                            last_trade = last_trade.replace(tzinfo=None)
+                        elapsed = (now_local - last_trade).total_seconds()
+                        if elapsed < account.trade_cooldown_seconds:
+                            remaining = int(account.trade_cooldown_seconds - elapsed)
+                            rejection_reason = f"Trade cooldown active ({remaining}s remaining of {account.trade_cooldown_seconds}s)"
+                        else:
+                            # Cooldown passed - mark this account as checked for this signal
+                            cooldown_checked_accounts.add(account.id)
+                    # If already in cooldown_checked_accounts, skip the cooldown check (allow execution)
 
                 # 2.5 MAX DAILY LOSS CHECK ($ and %)
                 if not rejection_reason and (account.max_daily_loss or account.max_daily_loss_pct):
@@ -1487,8 +1697,12 @@ async def _execute_tradingview_signal_inner(
                 raise Exception(f"Could not create executor for {broker_str}")
 
             # Ensure executor is initialized
-            if not getattr(executor, 'is_connected', False):
+            # Note: is_connected is a method in most executors, so call it if it's callable
+            is_conn_attr = getattr(executor, 'is_connected', None)
+            is_connected = is_conn_attr() if callable(is_conn_attr) else bool(is_conn_attr)
+            if not is_connected:
                 try:
+                    logger.debug(f"Account {account.id}: Executor not connected, calling initialize()")
                     await executor.initialize()
                 except Exception as init_err:
                     logger.warning(f"Executor init warning for account {account.id}: {init_err}")
@@ -1497,9 +1711,25 @@ async def _execute_tradingview_signal_inner(
             if action_str != "close":
                 position_rejection = None
                 try:
-                    # Get current open positions from broker
-                    current_positions = await executor.get_positions()
+                    # Get current open positions from broker with timeout
+                    logger.info(f"Account {account.id} ({broker_str}): Starting position check...")
+                    try:
+                        current_positions = await asyncio.wait_for(
+                            executor.get_positions(),
+                            timeout=10.0  # 10 second timeout for position check
+                        )
+                    except asyncio.TimeoutError:
+                        logger.error(f"Account {account.id} ({broker_str}): get_positions() TIMED OUT after 10s")
+                        current_positions = []
                     total_positions = len(current_positions) if current_positions else 0
+
+                    # DEBUG: Log positions returned by broker for troubleshooting
+                    logger.info(f"Account {account.id} ({broker_str}): get_positions() returned {total_positions} positions")
+                    if current_positions and total_positions > 0:
+                        for idx, p in enumerate(current_positions[:5]):  # Log first 5
+                            p_symbol = getattr(p, 'symbol', None) or (p.get('symbol') if isinstance(p, dict) else 'UNKNOWN')
+                            p_side = getattr(p, 'side', None) or (p.get('side') if isinstance(p, dict) else '?')
+                            logger.debug(f"  Position[{idx}]: symbol={p_symbol}, side={p_side}")
 
                     # Helper to get attribute from dict or object
                     def get_pos_attr(obj, key, default=''):
@@ -1538,29 +1768,55 @@ async def _execute_tradingview_signal_inner(
                     normalized_mapped_symbol = normalize_symbol_for_match(mapped_symbol)
 
                     # 3. MAX OPEN POSITIONS CHECK (with race condition prevention)
+                    # For ProjectX with multiple sub-accounts, use pre-aggregated counts
+                    use_aggregated = account.id in aggregated_positions
+                    if use_aggregated:
+                        agg_data = aggregated_positions[account.id]
+                        agg_total = agg_data["total"]
+                        agg_by_symbol = agg_data["by_symbol"]
+                        logger.info(f"Account {account.id}: Using AGGREGATED position counts - total={agg_total}, by_symbol={agg_by_symbol}")
+                    else:
+                        agg_total = total_positions
+                        agg_by_symbol = {}
+
                     if account.max_open_positions:
                         # Add pending orders that haven't been confirmed yet
                         pending_total_count = _pending_total_tracker.get_pending_count(account.id)
-                        total_with_pending = total_positions + pending_total_count
+                        # Use aggregated total for multi-account brokers
+                        effective_total = agg_total if use_aggregated else total_positions
+                        total_with_pending = effective_total + pending_total_count
 
                         if total_with_pending >= account.max_open_positions:
-                            position_rejection = f"Max open positions exceeded ({total_with_pending}/{account.max_open_positions}, broker={total_positions}, pending={pending_total_count})"
+                            position_rejection = f"Max open positions exceeded ({total_with_pending}/{account.max_open_positions}, aggregated={effective_total}, pending={pending_total_count})"
                         else:
                             # Reserve a slot by incrementing pending counter BEFORE placing order
                             _pending_total_tracker.increment(account.id)
-                            logger.info(f"Account {account.id}: Total position check passed ({total_positions} broker + {pending_total_count + 1} pending / {account.max_open_positions} max)")
+                            logger.info(f"Account {account.id}: Total position check passed ({effective_total} aggregated + {pending_total_count + 1} pending / {account.max_open_positions} max)")
 
                     # 4. MAX POSITIONS PER SYMBOL CHECK (with race condition prevention)
                     if not position_rejection and account.max_positions_per_symbol:
-                        # Count existing positions matching this symbol using normalized comparison
-                        symbol_positions = []
-                        for p in (current_positions or []):
-                            pos_symbol = get_pos_attr(p, 'symbol', '') or ''
-                            normalized_pos_symbol = normalize_symbol_for_match(pos_symbol)
-                            # Match if normalized symbols are equal (not substring!)
-                            if normalized_pos_symbol == normalized_signal_symbol or normalized_pos_symbol == normalized_mapped_symbol:
-                                symbol_positions.append(p)
-                        broker_position_count = len(symbol_positions)
+                        # For ProjectX with multiple sub-accounts, use pre-aggregated symbol counts
+                        if use_aggregated:
+                            # Use pre-aggregated counts - check both signal and mapped symbol
+                            broker_position_count = max(
+                                agg_by_symbol.get(normalized_signal_symbol, 0),
+                                agg_by_symbol.get(normalized_mapped_symbol, 0)
+                            )
+                            logger.info(f"Account {account.id}: Using AGGREGATED symbol count for {symbol}: {broker_position_count} (signal_norm={normalized_signal_symbol}, mapped_norm={normalized_mapped_symbol})")
+                        else:
+                            # Count existing positions matching this symbol using normalized comparison
+                            symbol_positions = []
+                            logger.debug(f"Account {account.id}: Checking symbol limit - signal={symbol}, mapped={mapped_symbol}, normalized_signal={normalized_signal_symbol}, normalized_mapped={normalized_mapped_symbol}")
+                            for p in (current_positions or []):
+                                pos_symbol = get_pos_attr(p, 'symbol', '') or ''
+                                normalized_pos_symbol = normalize_symbol_for_match(pos_symbol)
+                                logger.debug(f"  Comparing: pos_symbol={pos_symbol} -> normalized={normalized_pos_symbol} vs signal={normalized_signal_symbol}")
+                                # Match if normalized symbols are equal (not substring!)
+                                if normalized_pos_symbol == normalized_signal_symbol or normalized_pos_symbol == normalized_mapped_symbol:
+                                    symbol_positions.append(p)
+                                    logger.debug(f"  -> MATCHED!")
+                            broker_position_count = len(symbol_positions)
+                            logger.info(f"Account {account.id}: Symbol check for {symbol}: found {broker_position_count} matching positions out of {total_positions} total")
 
                         # Add pending orders that haven't been confirmed yet (race condition prevention)
                         # Use normalized_mapped_symbol as key so MYM1! and MYMH5 share the same counter
@@ -1568,11 +1824,11 @@ async def _execute_tradingview_signal_inner(
                         total_symbol_positions = broker_position_count + pending_count
 
                         if total_symbol_positions >= account.max_positions_per_symbol:
-                            position_rejection = f"Max positions for {symbol} exceeded ({total_symbol_positions}/{account.max_positions_per_symbol}, broker={broker_position_count}, pending={pending_count})"
+                            position_rejection = f"Max positions for {symbol} exceeded ({total_symbol_positions}/{account.max_positions_per_symbol}, aggregated={broker_position_count}, pending={pending_count})"
                         else:
                             # Reserve a slot by incrementing pending counter BEFORE placing order
                             _pending_tracker.increment(account.id, normalized_mapped_symbol)
-                            logger.info(f"Account {account.id}: Symbol position check passed for {mapped_symbol} ({broker_position_count} broker + {pending_count + 1} pending / {account.max_positions_per_symbol} max)")
+                            logger.info(f"Account {account.id}: Symbol position check passed for {mapped_symbol} ({broker_position_count} aggregated + {pending_count + 1} pending / {account.max_positions_per_symbol} max)")
 
                 except Exception as pos_err:
                     logger.error(f"Failed to check positions for account {account.id}: {pos_err} — rejecting as fail-safe")
@@ -2072,6 +2328,8 @@ async def _execute_tradingview_signal_inner(
                     closed_at=datetime.utcnow() if action_str == "close" and execution_success else None,
                     position_id=close_position_id if action_str == "close" else None,
                     order_id=str(order_id) if order_id else None,
+                    # SmartFlow ML tracking - links execution to signal for outcome learning
+                    smartflow_signal_log_id=smartflow_signal_log_id,
                 )
                 db.add(exec_log)
                 db.commit()
@@ -2092,6 +2350,84 @@ async def _execute_tradingview_signal_inner(
                         "volume": float(order_quantity or 0),
                         "unrealized_pnl": 0.0,
                     })
+
+            # === SMARTFLOW ML OUTCOME TRACKING ===
+            # Track outcomes for ALL executed SmartFlow signals (buy, sell, close)
+            # ML learns from: entries (to track execution success) and exits (for P&L)
+            if execution_success:
+                try:
+                    from app.services.smartflow_service import smartflow_service
+                    from app.services.smartflow_ml_service import SmartFlowMLService
+
+                    # Find the most recent SmartFlow signal for this ticker
+                    signal_log_id = smartflow_service.get_recent_signal_for_ticker(symbol)
+                    if signal_log_id:
+                        ml_service = SmartFlowMLService(db)
+
+                        if action_str == "close" and close_pnl is not None:
+                            # CLOSE action: record full outcome with P&L
+                            outcome_result = await ml_service.record_signal_outcome(
+                                signal_log_id=signal_log_id,
+                                trade_executed=True,
+                                entry_price=close_entry_price,
+                                exit_price=close_exit_price,
+                                pnl=close_pnl
+                            )
+                            logger.info(f"📈 SmartFlow CLOSE outcome: signal={signal_log_id} PnL={close_pnl:.2f} Winner={outcome_result.get('is_winner')}")
+                        else:
+                            # BUY/SELL action: record execution (entry signal)
+                            # This lets ML learn which signals actually got executed
+                            outcome_result = await ml_service.record_signal_outcome(
+                                signal_log_id=signal_log_id,
+                                trade_executed=True,
+                                entry_price=float(entry_price) if entry_price else None,
+                                exit_price=None,
+                                pnl=None  # No P&L yet - this is an entry
+                            )
+                            logger.info(f"📈 SmartFlow {action_str.upper()} executed: signal={signal_log_id} entry={entry_price}")
+                except Exception as e:
+                    logger.debug(f"SmartFlow outcome tracking skipped: {e}")
+
+            # === TRADE JOURNAL ENTRY FOR ANALYTICS ===
+            # Create journal entries for time analysis, strategy tracking, etc.
+            if execution_success:
+                try:
+                    analytics_service = TradeAnalyticsService(db)
+                    strategy_name = raw_payload.get("strategy") or raw_payload.get("strategy_name")
+
+                    if action_str.lower() in ["buy", "sell"]:
+                        # Create journal entry for new position
+                        analytics_service.create_journal_entry(
+                            user_id=user_id,
+                            account_id=account.id,
+                            symbol=mapped_symbol,
+                            side=action_str,
+                            quantity=float(order_quantity) if order_quantity else 1.0,
+                            entry_price=float(entry_price) if entry_price else 0.0,
+                            entry_time=datetime.utcnow(),
+                            execution_log_id=exec_log.id if exec_log else None,
+                            stop_loss=float(account_sl_price) if account_sl_price else None,
+                            take_profit=float(account_tp_price) if account_tp_price else None,
+                            strategy_name=strategy_name,
+                            broker_trade_id=str(order_id) if order_id else None,
+                            webhook_payload=raw_payload
+                        )
+                        logger.info(f"📊 Created trade journal entry for {action_str.upper()} {mapped_symbol}")
+
+                    elif action_str.lower() == "close" and close_pnl is not None:
+                        # Close existing journal entry or create a closed one
+                        analytics_service.close_journal_entry(
+                            account_id=account.id,
+                            symbol=mapped_symbol,
+                            exit_price=close_exit_price,
+                            exit_time=datetime.utcnow(),
+                            gross_pnl=close_pnl,
+                            execution_log_id=exec_log.id if exec_log else None
+                        )
+                        logger.info(f"📊 Closed trade journal entry for {mapped_symbol} PnL=${close_pnl:.2f}")
+
+                except Exception as journal_err:
+                    logger.warning(f"Trade journal update failed: {journal_err}")
 
             # Increment daily trade counter (only for non-close actions)
             if execution_success and action_str != "close":

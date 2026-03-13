@@ -33,6 +33,20 @@ celery_app.conf.beat_schedule = {
             'expires': 240,  # Task expires after 4 minutes
         }
     },
+    'reconcile-positions-every-10-minutes': {
+        'task': 'trading_tasks.sync_positions',
+        'schedule': 600.0,  # Every 10 minutes (in seconds)
+        'options': {
+            'expires': 540,  # Task expires after 9 minutes
+        }
+    },
+    'update-smartflow-ml-every-15-minutes': {
+        'task': 'trading_tasks.update_smartflow_outcomes',
+        'schedule': 900.0,  # Every 15 minutes (in seconds)
+        'options': {
+            'expires': 840,  # Task expires after 14 minutes
+        }
+    },
     'reset-daily-counters-at-market-close': {
         'task': 'trading_tasks.reset_daily_counters',
         'schedule': crontab(hour=18, minute=1),  # Daily at 6:01 PM EST/EDT (after 4pm close, before 6pm after-hours)

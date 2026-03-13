@@ -23,6 +23,8 @@ import {
   Sparkles,
   HelpCircle,
   BarChart3,
+  Zap,
+  Brain,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUser } from '@/providers/user-provider';
@@ -31,6 +33,8 @@ import { Badge } from '@/components/ui/badge';
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },
+  { name: 'SmartFlow AI', href: '/smartflow', icon: Zap, badge: 'ML' },
+  { name: 'AI Strategy', href: '/ai-strategy', icon: Brain, badge: 'NEW' },
   { name: 'Signals', href: '/signals', icon: Signal },
   { name: 'Trades', href: '/trades', icon: History },
 ];
@@ -103,8 +107,8 @@ export function Sidebar({ className }: SidebarProps) {
         </span>
       </div>
 
-      {/* Navigation Items */}
-      <nav className="flex-1 space-y-1 px-3 py-4">
+      {/* Navigation Items - Scrollable */}
+      <nav className="flex-1 min-h-0 overflow-y-auto space-y-1 px-3 py-4">
         {/* Main Navigation */}
         {navigation.map((item) => {
           const fullHref = `/dashboard${item.href === '/' ? '' : item.href}`;
@@ -124,7 +128,12 @@ export function Sidebar({ className }: SidebarProps) {
               )}
             >
               <item.icon className="h-5 w-5 pointer-events-none" />
-              {item.name}
+              <span className="flex-1">{item.name}</span>
+              {'badge' in item && item.badge && (
+                <Badge className="bg-gradient-to-r from-violet-500 to-purple-600 text-white text-[10px] px-1.5 py-0">
+                  {item.badge}
+                </Badge>
+              )}
             </Link>
           );
         })}

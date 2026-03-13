@@ -98,11 +98,17 @@ services:
       context: .
       dockerfile: Dockerfile.stack
     environment:
+      # Timezone - match host for consistent timestamps
+      - TZ=America/New_York
+      # Disable hot reload in production (prevents health check failures during file changes)
+      - RELOAD=false
       # Core Settings
       - DATABASE_URL=postgresql://trading_user@postgres:5432/trading_db
       - REDIS_URL=redis://redis:6379/0
       - NATS_URL=nats://nats:4222
       - ENVIRONMENT=production
+      # SmartFlow internal routing (localhost since it runs in same container)
+      - API_BASE_URL=http://localhost:8000
       - FRONTEND_URL=https://mytradeflow.app
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
@@ -138,6 +144,13 @@ services:
     volumes:
       - ./logs:/app/logs
       - ./data:/app/data
+      - ./app/main.py:/app/app/main.py:ro
+      - ./app/models/smartflow_models.py:/app/app/models/smartflow_models.py:ro
+      - ./app/services/ai_strategy_suite.py:/app/app/services/ai_strategy_suite.py:ro
+      - ./app/services/market_data_service.py:/app/app/services/market_data_service.py:ro
+      - ./app/services/smartflow_service.py:/app/app/services/smartflow_service.py:ro
+      - ./app/routers/ai_strategy.py:/app/app/routers/ai_strategy.py:ro
+      - ./app/routers/smartflow.py:/app/app/routers/smartflow.py:ro
     networks:
       - unified-network
     secrets:
@@ -151,6 +164,9 @@ services:
       - stripe_webhook_secret
       - anthropic_api_key
       - resend_api_key
+      - polygon_api_key
+      - projectx_username
+      - projectx_api_key
     deploy:
       replicas: 1
       placement:
@@ -164,20 +180,20 @@ services:
         window: 120s
       resources:
         limits:
-          memory: 512M
+          memory: 1024M
         reservations:
-          memory: 256M
+          memory: 512M
     ports:
       - target: 8000
         published: 8765
         protocol: tcp
         mode: ingress
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
+      interval: 60s
+      timeout: 30s
       retries: 3
-      start_period: 30s
+      start_period: 40s
 
   # Celery Worker
   celery-worker:
@@ -187,6 +203,7 @@ services:
       dockerfile: Dockerfile.stack
     command: ["celery", "-A", "app.tasks.celery_app", "worker", "--loglevel=info", "--concurrency=2"]
     environment:
+      - TZ=America/New_York
       - DATABASE_URL=postgresql://trading_user@postgres:5432/trading_db
       - REDIS_URL=redis://redis:6379/0
       - ENVIRONMENT=production
@@ -238,6 +255,7 @@ services:
       dockerfile: Dockerfile.stack
     command: ["celery", "-A", "app.tasks.celery_app", "beat", "--loglevel=info", "--pidfile=/tmp/celerybeat.pid"]
     environment:
+      - TZ=America/New_York
       - DATABASE_URL=postgresql://trading_user@postgres:5432/trading_db
       - REDIS_URL=redis://redis:6379/0
       - ENVIRONMENT=production
@@ -285,6 +303,7 @@ services:
     ports:
       - "5558:5555"
     environment:
+      - TZ=America/New_York
       - DATABASE_URL=postgresql://trading_user@postgres:5432/trading_db
       - REDIS_URL=redis://redis:6379/0
       - ENVIRONMENT=production
@@ -358,6 +377,7 @@ services:
       dockerfile: Dockerfile.stack
     command: ["python", "-c", "import asyncio; from app.services.funnel_automation import main; asyncio.run(main())"]
     environment:
+      - TZ=America/New_York
       - DATABASE_URL=postgresql://trading_user@postgres:5432/trading_db
       - REDIS_URL=redis://redis:6379/0
       - ENVIRONMENT=production
@@ -450,5 +470,12 @@ secrets:
     external: true
   anthropic_api_key:
     external: true
+    name: anthropic_api_key_new
   resend_api_key:
+    external: true
+  polygon_api_key:
+    external: true
+  projectx_username:
+    external: true
+  projectx_api_key:
     external: true

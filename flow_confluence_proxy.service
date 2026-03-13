@@ -1,0 +1,24 @@
+[Unit]
+Description=FlowAlgo Confluence Webhook Proxy
+After=network.target
+
+[Service]
+Type=simple
+User=pharma5
+WorkingDirectory=/home/pharma5/unified_engine
+Environment="PATH=/home/pharma5/unified_engine/flow_venv/bin:/usr/local/bin:/usr/bin:/bin"
+ExecStart=/home/pharma5/unified_engine/flow_venv/bin/python3 /home/pharma5/unified_engine/flow_confluence_proxy.py
+Restart=always
+RestartSec=10
+StandardOutput=append:/var/log/flow_confluence.log
+StandardError=append:/var/log/flow_confluence_error.log
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/pharma5/unified_engine
+
+[Install]
+WantedBy=multi-user.target

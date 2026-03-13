@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
+import { motion, useInView } from "framer-motion";
 import {
   Zap,
   Shield,
@@ -22,225 +23,305 @@ import {
   Pause,
   Scale,
   CalendarClock,
+  Boxes,
+  Bitcoin,
+  Coins,
 } from "lucide-react";
+
+/**
+ * Premium Bento Grid Features - Enterprise 2026
+ *
+ * Features:
+ * - Clean bento grid layout
+ * - Vibrant gradient color scheme (blue to violet to cyan)
+ * - Fixed card heights with full content visible
+ * - No distracting animations
+ */
 
 const features = [
   {
     icon: Globe,
     title: "Multi-Broker Support",
-    description:
-      "Connect to TradeLocker, Tradovate, TopStep, ProjectX, and MetaTrader from one dashboard.",
+    description: "TradeLocker, ProjectX, Tradovate, TopStep, MetaTrader - all from one unified dashboard.",
+    color: "blue",
   },
   {
     icon: Zap,
-    title: "Instant Execution",
-    description:
-      "Sub-55ms signal processing. Your trades execute before you blink.",
+    title: "Sub-55ms Execution",
+    description: "Lightning-fast signal processing. Your trades execute before you can blink.",
+    color: "violet",
+  },
+  {
+    icon: Coins,
+    title: "All Asset Classes",
+    description: "Futures, Forex, Crypto, Indices, Commodities - trade any market from one platform.",
+    color: "cyan",
   },
   {
     icon: Shield,
     title: "Signal Intelligence Guard",
-    description:
-      "Self-protecting execution layer. Blocks stale signals, detects choppy markets, and prevents trading against profitable positions.",
+    description: "Self-protecting execution layer. Blocks stale signals, detects choppy markets, prevents bad entries.",
+    color: "purple",
   },
   {
     icon: Lock,
     title: "Profit Lock Protection",
-    description:
-      "Smart exit protection. Tracks peak profits and only allows position flips when profits drop significantly - protecting your winners.",
+    description: "Smart exit protection tracks peak profits and only allows flips when profits drop significantly.",
+    color: "blue",
   },
   {
-    icon: ArrowRightLeft,
-    title: "TradingView Native",
-    description:
-      "Built for TradingView webhooks. Copy your URL and start routing signals.",
+    icon: TrendingDown,
+    title: "Complete Risk Suite",
+    description: "Daily loss limits, max drawdown, position limits, and trade cooldowns protect your capital.",
+    color: "violet",
   },
   {
     icon: BarChart3,
     title: "Smart Position Sizing",
-    description:
-      "Automatic lot sizing based on account balance, risk percentage, or fixed size.",
-  },
-  {
-    icon: Users,
-    title: "Multi-Account Routing",
-    description:
-      "Route one signal to multiple accounts across different brokers simultaneously.",
-  },
-  {
-    icon: Clock,
-    title: "Trading Session Control",
-    description:
-      "Define your active trading hours and days. Signals outside your session are automatically paused.",
-  },
-  {
-    icon: TrendingDown,
-    title: "Risk Management",
-    description:
-      "Set daily loss limits, max drawdown, position limits, and trade cooldowns to protect your capital.",
+    description: "Auto lot sizing based on balance, risk percentage, or fixed size.",
+    color: "cyan",
   },
   {
     icon: Activity,
     title: "Chop Detection",
-    description:
-      "Automatically detects sideways/choppy markets and pauses new entries to prevent whipsaw losses.",
-  },
-  {
-    icon: RefreshCw,
-    title: "Symbol Mapping",
-    description:
-      "Map TradingView symbols to broker-specific formats automatically. BTCUSD → BTC/USD per broker.",
-  },
-  {
-    icon: Target,
-    title: "Position Management",
-    description:
-      "View and close positions from any broker directly in your dashboard with one click.",
-  },
-  {
-    icon: Sparkles,
-    title: "AI Strategy Suite",
-    description:
-      "Build strategies with Pine Script, get AI-powered fixes, and deploy to live alerts instantly.",
-  },
-  {
-    icon: Brain,
-    title: "AI Trading Coach",
-    description:
-      "Get intelligent feedback on your strategies with bias detection and improvement suggestions.",
-  },
-  {
-    icon: LineChart,
-    title: "Trading Analytics Dashboard",
-    description:
-      "Track win rate, profit factor, expectancy, Sharpe ratio, and max drawdown. Know exactly how your strategies perform.",
+    description: "Detects sideways markets and pauses entries to prevent whipsaw losses.",
+    color: "purple",
   },
   {
     icon: Pause,
     title: "Circuit Breakers",
-    description:
-      "Auto-pause trading when daily loss limits or consecutive losses are hit. Resume manually or after cooling period.",
+    description: "Auto-pause when daily loss or consecutive losses hit limits. Resume after cooling.",
+    color: "blue",
   },
   {
-    icon: Newspaper,
-    title: "News Event Filter",
-    description:
-      "Automatically pause trading around high-impact news events like FOMC, NFP, and CPI releases.",
+    icon: Sparkles,
+    title: "AI Strategy Suite",
+    description: "Build strategies with Pine Script, get AI-powered fixes, deploy to live alerts instantly.",
+    color: "violet",
   },
   {
-    icon: GitBranch,
-    title: "Correlation Filter",
-    description:
-      "Prevent correlated trades. If you're long ES, it blocks another long NQ signal to reduce risk concentration.",
+    icon: Brain,
+    title: "AI Trading Coach",
+    description: "Intelligent feedback with bias detection and improvement suggestions.",
+    color: "cyan",
+  },
+  {
+    icon: Boxes,
+    title: "SmartFlow Indicator",
+    description: "AI-powered options flow analysis for institutional-grade signals.",
+    color: "purple",
+    isNew: true,
+  },
+  {
+    icon: LineChart,
+    title: "Trading Analytics",
+    description: "Win rate, profit factor, expectancy, Sharpe ratio - know exactly how you perform.",
+    color: "blue",
   },
   {
     icon: CalendarClock,
     title: "Time-Based Analysis",
-    description:
-      "Discover your best trading hours and days with performance heatmaps. See which sessions (Asian, London, NY) work best.",
+    description: "Performance heatmaps by hour, day, and trading session.",
+    color: "violet",
+  },
+  {
+    icon: Users,
+    title: "Multi-Account Routing",
+    description: "Route one signal to multiple accounts across different brokers simultaneously.",
+    color: "cyan",
+  },
+  {
+    icon: RefreshCw,
+    title: "Symbol Mapping",
+    description: "Auto-map symbols per broker. BTCUSD to BTC/USD seamlessly.",
+    color: "purple",
+  },
+  {
+    icon: Target,
+    title: "Position Management",
+    description: "View and close positions from any broker with one click.",
+    color: "blue",
+  },
+  {
+    icon: Newspaper,
+    title: "News Event Filter",
+    description: "Pause around FOMC, NFP, CPI releases automatically.",
+    color: "violet",
+  },
+  {
+    icon: GitBranch,
+    title: "Correlation Filter",
+    description: "Prevent correlated trades to reduce risk concentration.",
+    color: "cyan",
   },
   {
     icon: Scale,
-    title: "Dynamic Position Sizing",
-    description:
-      "Automatically adjust position size based on recent performance. Scale up winners, scale down during drawdowns.",
+    title: "Dynamic Sizing",
+    description: "Scale up winners, scale down during drawdowns automatically.",
+    color: "purple",
   },
 ];
 
-export function Features() {
-  const sectionRef = useRef<HTMLElement>(null);
-  const [isVisible, setIsVisible] = useState(false);
+const colorClasses = {
+  blue: {
+    bg: "from-blue-500/15 to-blue-600/5",
+    border: "border-blue-500/20 hover:border-blue-500/40",
+    icon: "from-blue-500/30 to-blue-600/20",
+    text: "text-blue-400",
+  },
+  violet: {
+    bg: "from-violet-500/15 to-violet-600/5",
+    border: "border-violet-500/20 hover:border-violet-500/40",
+    icon: "from-violet-500/30 to-violet-600/20",
+    text: "text-violet-400",
+  },
+  cyan: {
+    bg: "from-cyan-500/15 to-cyan-600/5",
+    border: "border-cyan-500/20 hover:border-cyan-500/40",
+    icon: "from-cyan-500/30 to-cyan-600/20",
+    text: "text-cyan-400",
+  },
+  purple: {
+    bg: "from-purple-500/15 to-purple-600/5",
+    border: "border-purple-500/20 hover:border-purple-500/40",
+    icon: "from-purple-500/30 to-purple-600/20",
+    text: "text-purple-400",
+  },
+};
 
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            setIsVisible(true);
-            observer.disconnect();
-          }
-        });
-      },
-      { threshold: 0.1 }
-    );
-
-    if (sectionRef.current) {
-      observer.observe(sectionRef.current);
-    }
-
-    return () => observer.disconnect();
-  }, []);
+function FeatureCard({
+  feature,
+  index,
+  isInView,
+}: {
+  feature: typeof features[0];
+  index: number;
+  isInView: boolean;
+}) {
+  const Icon = feature.icon;
+  const colors = colorClasses[feature.color as keyof typeof colorClasses];
 
   return (
-    <section
-      id="features"
-      ref={sectionRef}
-      className="py-20 bg-muted/30"
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={isInView ? { opacity: 1, y: 0 } : {}}
+      transition={{ duration: 0.4, delay: Math.min(index * 0.05, 0.5) }}
+      className={`
+        relative p-5 rounded-2xl
+        bg-gradient-to-br ${colors.bg}
+        border ${colors.border}
+        backdrop-blur-sm
+        transition-all duration-300 hover:scale-[1.02]
+        cursor-default
+      `}
     >
-      <div className="container mx-auto px-4">
-        <h2 className="text-3xl font-bold text-center mb-4">
-          Everything You Need to Automate Your Trading
-        </h2>
-        <p className="text-center text-muted-foreground mb-16 max-w-2xl mx-auto">
-          Built by traders, for traders. Tradeflow handles the complexity so you
-          can focus on your strategy.
-        </p>
+      {feature.isNew && (
+        <span className="absolute -top-2 -right-2 px-2 py-0.5 rounded-full bg-violet-500 text-[10px] font-bold text-white shadow-lg shadow-violet-500/30">
+          NEW
+        </span>
+      )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+      <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${colors.icon} flex items-center justify-center mb-4`}>
+        <Icon className={`w-5 h-5 ${colors.text}`} />
+      </div>
+
+      <h4 className="font-semibold text-base mb-2">{feature.title}</h4>
+      <p className="text-sm text-muted-foreground leading-relaxed">{feature.description}</p>
+    </motion.div>
+  );
+}
+
+// Animated stat
+function AnimatedStat({ value, label, suffix = "", color }: { value: number; label: string; suffix?: string; color: string }) {
+  const [count, setCount] = useState(0);
+  const ref = useRef<HTMLDivElement>(null);
+  const isInView = useInView(ref, { once: true });
+
+  useEffect(() => {
+    if (!isInView) return;
+    const duration = 1500;
+    const steps = 40;
+    let step = 0;
+    const timer = setInterval(() => {
+      step++;
+      const progress = step / steps;
+      const easeOut = 1 - Math.pow(1 - progress, 3);
+      setCount(Math.floor(value * easeOut));
+      if (step >= steps) {
+        setCount(value);
+        clearInterval(timer);
+      }
+    }, duration / steps);
+    return () => clearInterval(timer);
+  }, [value, isInView]);
+
+  return (
+    <div ref={ref} className="text-center">
+      <div className={`text-3xl md:text-4xl font-bold ${color}`}>
+        {count}{suffix}
+      </div>
+      <div className="text-sm text-muted-foreground mt-1">{label}</div>
+    </div>
+  );
+}
+
+export function Features() {
+  const sectionRef = useRef<HTMLElement>(null);
+  const isInView = useInView(sectionRef, { once: true, margin: "-100px" });
+
+  return (
+    <section ref={sectionRef} id="features" className="py-24 relative overflow-hidden">
+      {/* Background */}
+      <div className="absolute inset-0 -z-10">
+        <div className="absolute top-1/4 left-0 w-[500px] h-[500px] bg-gradient-to-r from-blue-500/5 to-violet-500/5 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 right-0 w-[400px] h-[400px] bg-gradient-to-l from-cyan-500/5 to-purple-500/5 rounded-full blur-3xl" />
+      </div>
+
+      <div className="container mx-auto px-4">
+        {/* Section header */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.6 }}
+          className="text-center mb-16"
+        >
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-blue-500/10 to-violet-500/10 border border-blue-500/20 backdrop-blur-sm mb-6">
+            <Sparkles className="h-4 w-4 text-blue-400" />
+            <span className="text-sm font-medium text-blue-400">Enterprise Features</span>
+          </div>
+
+          <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4">
+            Everything You Need to{" "}
+            <span className="bg-gradient-to-r from-blue-400 via-violet-400 to-cyan-400 bg-clip-text text-transparent">
+              Dominate Markets
+            </span>
+          </h2>
+
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            Built for professional traders. Trade any market, any asset, any broker — all from one powerful platform.
+          </p>
+        </motion.div>
+
+        {/* Stats bar */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.6, delay: 0.2 }}
+          className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-16 p-8 rounded-3xl bg-gradient-to-br from-slate-900/90 to-slate-800/50 backdrop-blur-xl border border-white/10"
+        >
+          <AnimatedStat value={20} label="Features" suffix="+" color="text-blue-400" />
+          <AnimatedStat value={5} label="Brokers" color="text-violet-400" />
+          <AnimatedStat value={1000} label="Instruments" suffix="+" color="text-cyan-400" />
+          <AnimatedStat value={99} label="Uptime" suffix="%" color="text-purple-400" />
+        </motion.div>
+
+        {/* Features grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {features.map((feature, index) => (
-            <FeatureCard
-              key={feature.title}
-              icon={feature.icon}
-              title={feature.title}
-              description={feature.description}
-              index={index}
-              isVisible={isVisible}
-            />
+            <FeatureCard key={feature.title} feature={feature} index={index} isInView={isInView} />
           ))}
         </div>
       </div>
     </section>
-  );
-}
-
-interface FeatureCardProps {
-  icon: React.ElementType;
-  title: string;
-  description: string;
-  index: number;
-  isVisible: boolean;
-}
-
-function FeatureCard({
-  icon: Icon,
-  title,
-  description,
-  index,
-  isVisible,
-}: FeatureCardProps) {
-  return (
-    <div
-      className={`
-        group p-6 rounded-xl bg-card border
-        transition-all duration-500 ease-out
-        hover:shadow-lg hover:border-primary/50 hover:-translate-y-1
-        ${
-          isVisible
-            ? "opacity-100 translate-y-0"
-            : "opacity-0 translate-y-4"
-        }
-      `}
-      style={{
-        transitionDelay: isVisible ? `${index * 100}ms` : "0ms",
-      }}
-    >
-      <div className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-primary/10 text-primary mb-4 group-hover:bg-primary/20 transition-colors">
-        <Icon className="w-6 h-6" />
-      </div>
-      <h3 className="font-semibold text-lg mb-2">{title}</h3>
-      <p className="text-muted-foreground text-sm leading-relaxed">
-        {description}
-      </p>
-    </div>
   );
 }

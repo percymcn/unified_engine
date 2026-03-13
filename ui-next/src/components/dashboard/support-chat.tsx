@@ -50,6 +50,7 @@ const KNOWLEDGE_BASE = {
     description: 'Automated trading signal router that connects TradingView alerts (or any webhook source) to broker accounts for automatic trade execution.',
     website: 'mytradeflow.app',
     supportEmail: 'support@mytradeflow.app',
+    discordLink: 'https://discord.gg/6jz94see',
   },
 
   // Subscription Tiers (matches lib/pricing.ts)
@@ -1001,9 +1002,9 @@ function generateAIResponse(question: string): { response: string; needsHuman: b
   }
 
   // Support / Contact
-  if (q.includes('support') || q.includes('contact') || q.includes('help') || q.includes('human') || q.includes('email')) {
+  if (q.includes('support') || q.includes('contact') || q.includes('help') || q.includes('human') || q.includes('email') || q.includes('discord')) {
     return {
-      response: `**Contact Support**\n\nI can answer most questions, but for complex issues:\n\n📧 **Email:** ${KNOWLEDGE_BASE.platform.supportEmail}\n\n**When to contact human support:**\n• Billing or payment issues\n• Account security concerns\n• Bug reports\n• Feature requests\n• Custom integrations\n\nWould you like me to help you send a support request?`,
+      response: `**Contact Support**\n\nI can answer most questions, but for complex issues:\n\n💬 **Discord Community:** ${KNOWLEDGE_BASE.platform.discordLink}\n📧 **Email:** ${KNOWLEDGE_BASE.platform.supportEmail}\n\n**When to contact human support:**\n• Billing or payment issues\n• Account security concerns\n• Bug reports\n• Feature requests\n• Custom integrations\n\nWould you like me to help you send a support request?`,
       needsHuman: true,
     };
   }
@@ -1012,7 +1013,7 @@ function generateAIResponse(question: string): { response: string; needsHuman: b
   if (q.includes('billing') || q.includes('payment') || q.includes('charge') || q.includes('refund') || q.includes('cancel subscription')) {
     needsHuman = true;
     return {
-      response: `**Billing Support**\n\nFor billing-related questions, I recommend contacting human support:\n\n📧 **Email:** ${KNOWLEDGE_BASE.platform.supportEmail}\n\n**Self-service options:**\n• **View invoices:** Settings > Billing\n• **Update payment method:** Settings > Billing > Payment Method\n• **Change plan:** Settings > Billing > Change Plan\n• **Cancel subscription:** Settings > Billing > Cancel\n\nWould you like me to connect you with billing support?`,
+      response: `**Billing Support**\n\nFor billing-related questions, I recommend contacting human support:\n\n💬 **Discord:** ${KNOWLEDGE_BASE.platform.discordLink}\n📧 **Email:** ${KNOWLEDGE_BASE.platform.supportEmail}\n\n**Self-service options:**\n• **View invoices:** Settings > Billing\n• **Update payment method:** Settings > Billing > Payment Method\n• **Change plan:** Settings > Billing > Change Plan\n• **Cancel subscription:** Settings > Billing > Cancel\n\nWould you like me to connect you with billing support?`,
       needsHuman: true,
     };
   }
@@ -1029,7 +1030,7 @@ function generateAIResponse(question: string): { response: string; needsHuman: b
   if (q.includes('login') || q.includes('password') || q.includes('account') && (q.includes('locked') || q.includes('access'))) {
     needsHuman = true;
     return {
-      response: `**Account Access Issues**\n\n**Forgot password?**\nUse the "Forgot Password" link on the login page.\n\n**Account locked?**\nThis can happen after multiple failed attempts. Wait 15 minutes or contact support.\n\n**Email verification issues?**\nCheck spam folder or request a new verification email.\n\n**Still locked out?**\nContact support: ${KNOWLEDGE_BASE.platform.supportEmail}`,
+      response: `**Account Access Issues**\n\n**Forgot password?**\nUse the "Forgot Password" link on the login page.\n\n**Account locked?**\nThis can happen after multiple failed attempts. Wait 15 minutes or contact support.\n\n**Email verification issues?**\nCheck spam folder or request a new verification email.\n\n**Still locked out?**\n💬 Discord: ${KNOWLEDGE_BASE.platform.discordLink}\n📧 Email: ${KNOWLEDGE_BASE.platform.supportEmail}`,
       needsHuman: true,
     };
   }

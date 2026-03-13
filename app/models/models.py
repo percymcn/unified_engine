@@ -317,6 +317,9 @@ class ExecutionLog(Base):
     order_id = Column(String(100), nullable=True)  # Broker order ID
     position_id = Column(String(100), nullable=True)  # Broker position ID
 
+    # SmartFlow ML tracking
+    smartflow_signal_log_id = Column(Integer, nullable=True)  # Links to SmartFlowSignalLog for ML outcome learning
+
 class SystemConfig(Base):
     __tablename__ = "system_config"
     __table_args__ = {'extend_existing': True}

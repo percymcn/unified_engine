@@ -45,6 +45,11 @@ try:
         calculate_williams_r, calculate_sharpe_ratio, calculate_max_drawdown
     )
     SDK_AVAILABLE = True
+
+    # Apply SDK patches for API compatibility
+    from app.utils.projectx_sdk_patches import apply_all_patches
+    apply_all_patches()
+
 except ImportError:
     SDK_AVAILABLE = False
     ProjectX = None
@@ -739,11 +744,14 @@ class ProjectXSDKService:
             List of position dicts with id, symbol, side, size, prices, pnl
         """
         if not self._client:
+            logger.error("ProjectX SDK: get_positions called but client not connected!")
             raise RuntimeError("Not connected")
 
         try:
             # Use client's search_open_positions directly (SDK v3.0+)
+            logger.debug(f"ProjectX SDK: Calling search_open_positions() for account {self.account_name}")
             positions = await self._client.search_open_positions()
+            logger.info(f"ProjectX SDK: search_open_positions() returned {len(positions) if positions else 0} positions")
 
             # Pre-fetch current prices for all unique symbols
             # SDK doesn't provide currentPrice in position data, so we fetch from market data
@@ -903,9 +911,10 @@ class ProjectXSDKService:
                     "current_price": current_price,
                     "unrealized_pnl": pnl_val,
                 })
+            logger.info(f"ProjectX SDK: Returning {len(result)} positions")
             return result
         except Exception as e:
-            logger.error(f"Error getting positions: {e}")
+            logger.error(f"ProjectX SDK: Error getting positions for {self.account_name}: {e}", exc_info=True)
             return []
 
     async def close_position(

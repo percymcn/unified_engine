@@ -6,6 +6,7 @@ import { PainPoints } from "@/components/landing/pain-points";
 import { SocialProof } from "@/components/landing/social-proof";
 import { SocialProofToast } from "@/components/landing/social-proof-toast";
 import { Features } from "@/components/landing/features";
+import { SmartFlowShowcase } from "@/components/landing/smartflow-showcase";
 import { Stats } from "@/components/landing/stats";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { SignalFlowAnimation } from "@/components/landing/signal-flow-animation";
@@ -52,6 +53,9 @@ export default function Home() {
 
         {/* Feature cards with benefit-first language */}
         <Features />
+
+        {/* SmartFlow AI Indicator showcase */}
+        <SmartFlowShowcase />
 
         {/* How it works - 4 step process */}
         <HowItWorks />

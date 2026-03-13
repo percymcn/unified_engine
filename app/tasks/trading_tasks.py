@@ -10,6 +10,7 @@ Celery tasks for asynchronous trading operations including:
 import logging
 from datetime import datetime, date as date_type, timedelta
 from typing import List, Dict, Any
+from collections import defaultdict
 from sqlalchemy.orm import Session
 
 from app.tasks.celery_app import celery_app
@@ -388,21 +389,336 @@ def sync_all_accounts() -> Dict[str, Any]:
 @celery_app.task(name="trading_tasks.sync_positions")
 def sync_positions() -> Dict[str, Any]:
     """
-    Sync open positions from all brokers.
+    Reconcile open positions in database with actual broker positions.
+    Marks trades as closed if they no longer exist on the broker side.
 
-    Future enhancement: Track position changes and call on_trade_closed
-    when positions close.
+    This handles:
+    - Stop-outs
+    - Manual closes
+    - TP/SL hits
+    - Broker-side position closures
 
     Returns:
-        Sync summary
+        Sync summary with reconciliation stats
     """
-    # TODO: Implement position tracking
-    # When a position closes:
-    # - Call hooks.on_trade_closed(account_id, pnl, is_win)
-    # - Updates daily_pnl trade counts
+    try:
+        with get_db_session() as db:
+            from app.models.database_models import TradeJournal, TradingAccount
+            from app.brokers.mt5_executor import MT5Executor
+            from app.brokers.mt4_executor import MT4Executor
+            from app.brokers.tradelocker_executor import TradeLockerExecutor
+            from app.brokers.projectx_executor import ProjectXExecutor
+            from datetime import datetime, timedelta
 
-    logger.info("Position sync not yet implemented")
-    return {"status": "not_implemented"}
+            # Get all open positions from last 30 days (ignore older ones)
+            cutoff_date = datetime.utcnow() - timedelta(days=30)
+            open_trades = db.query(TradeJournal).filter(
+                TradeJournal.status == "open",
+                TradeJournal.created_at >= cutoff_date
+            ).all()
+
+            logger.info(f"Reconciling {len(open_trades)} open positions")
+
+            results = {
+                "total_checked": len(open_trades),
+                "still_open": 0,
+                "marked_closed": 0,
+                "errors": 0,
+                "details": []
+            }
+
+            # Group trades by account for efficient broker queries
+            trades_by_account = defaultdict(list)
+            for trade in open_trades:
+                trades_by_account[trade.account_id].append(trade)
+
+            for account_id, trades in trades_by_account.items():
+                try:
+                    account = db.query(TradingAccount).filter(
+                        TradingAccount.id == account_id
+                    ).first()
+
+                    if not account or not account.is_active:
+                        continue
+
+                    # Load credentials and create executor
+                    credentials = _load_account_credentials(db, account)
+                    if not credentials:
+                        logger.warning(f"No credentials for account {account_id}")
+                        continue
+
+                    # Create appropriate executor
+                    executor = None
+                    try:
+                        if account.broker.value == "mt5":
+                            executor = MT5Executor(credentials)
+                        elif account.broker.value == "mt4":
+                            executor = MT4Executor(credentials)
+                        elif account.broker.value == "tradelocker":
+                            executor = TradeLockerExecutor(credentials)
+                        elif account.broker.value == "projectx":
+                            executor = ProjectXExecutor(credentials)
+                        else:
+                            continue
+
+                        # Get current open positions from broker
+                        import asyncio
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+
+                        broker_positions = loop.run_until_complete(executor.get_open_positions())
+                        loop.close()
+
+                        # Create lookup of broker position IDs
+                        broker_position_ids = {
+                            str(pos.get("id", pos.get("positionId", pos.get("ticket", ""))))
+                            for pos in broker_positions
+                        }
+
+                        # Check each trade
+                        for trade in trades:
+                            position_id = str(trade.broker_trade_id or "")
+
+                            # If position not found on broker, mark as closed
+                            if position_id and position_id not in broker_position_ids:
+                                trade.status = "closed"
+                                trade.exit_time = datetime.utcnow()
+                                trade.exit_reason = "auto_reconciled"
+
+                                # Set exit price to entry if we don't have it (unknown P&L)
+                                if not trade.exit_price:
+                                    trade.exit_price = trade.entry_price
+                                    trade.net_pnl = 0.0
+                                    trade.gross_pnl = 0.0
+
+                                results["marked_closed"] += 1
+                                results["details"].append({
+                                    "trade_id": trade.id,
+                                    "symbol": trade.symbol,
+                                    "account": account_id,
+                                    "reason": "not_found_on_broker"
+                                })
+
+                                logger.info(f"Marked trade {trade.id} ({trade.symbol}) as closed - not found on broker")
+                            else:
+                                results["still_open"] += 1
+
+                        db.commit()
+
+                    finally:
+                        if executor:
+                            try:
+                                loop = asyncio.new_event_loop()
+                                asyncio.set_event_loop(loop)
+                                loop.run_until_complete(executor.disconnect())
+                                loop.close()
+                            except:
+                                pass
+
+                except Exception as e:
+                    results["errors"] += 1
+                    logger.error(f"Error reconciling account {account_id}: {e}", exc_info=True)
+
+            logger.info(f"Position reconciliation complete: {results['marked_closed']} closed, {results['still_open']} still open")
+
+            return results
+
+    except Exception as e:
+        logger.error(f"Error in sync_positions: {e}", exc_info=True)
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+@celery_app.task(name="trading_tasks.update_smartflow_outcomes")
+def update_smartflow_outcomes() -> Dict[str, Any]:
+    """
+    Track SmartFlow signal outcomes and update ML analytics.
+
+    Checks closed trades from the last 24 hours and links them to SmartFlow signals.
+    Updates ML metrics and analytics for continuous improvement.
+
+    Returns:
+        Update summary with outcome tracking stats
+    """
+    try:
+        with get_db_session() as db:
+            from app.models.database_models import TradeJournal
+            from app.models.smartflow_models import SmartFlowSignalLog, SmartFlowSignalOutcome
+            from datetime import datetime, timedelta
+
+            # Get recently closed trades (last 24 hours)
+            cutoff_time = datetime.utcnow() - timedelta(hours=24)
+            closed_trades = db.query(TradeJournal).filter(
+                TradeJournal.status == "closed",
+                TradeJournal.exit_time.isnot(None),
+                TradeJournal.exit_time >= cutoff_time
+            ).all()
+
+            logger.info(f"Checking {len(closed_trades)} recently closed trades for SmartFlow outcome tracking")
+
+            results = {
+                "total_trades_checked": len(closed_trades),
+                "outcomes_created": 0,
+                "outcomes_updated": 0,
+                "signals_matched": 0,
+                "errors": 0
+            }
+
+            for trade in closed_trades:
+                try:
+                    # Look for matching SmartFlow signal within 5 minutes of trade entry
+                    signal_window_start = trade.entry_time - timedelta(minutes=5)
+                    signal_window_end = trade.entry_time + timedelta(minutes=5)
+
+                    # Try to find matching signal by symbol and time
+                    matching_signal = db.query(SmartFlowSignalLog).filter(
+                        SmartFlowSignalLog.ticker == trade.symbol,
+                        SmartFlowSignalLog.created_at >= signal_window_start,
+                        SmartFlowSignalLog.created_at <= signal_window_end
+                    ).order_by(
+                        func.abs(
+                            func.extract('epoch', SmartFlowSignalLog.created_at) -
+                            func.extract('epoch', trade.entry_time)
+                        )
+                    ).first()
+
+                    if not matching_signal:
+                        continue
+
+                    results["signals_matched"] += 1
+
+                    # Check if outcome already exists
+                    existing_outcome = db.query(SmartFlowSignalOutcome).filter(
+                        SmartFlowSignalOutcome.signal_log_id == matching_signal.id
+                    ).first()
+
+                    # Calculate metrics
+                    pnl = trade.net_pnl or trade.gross_pnl or 0.0
+                    is_winner = pnl > 0
+                    pnl_percent = None
+
+                    if trade.entry_price and trade.exit_price and trade.entry_price != 0:
+                        if trade.side == "buy":
+                            pnl_percent = ((trade.exit_price - trade.entry_price) / trade.entry_price) * 100
+                        elif trade.side == "sell":
+                            pnl_percent = ((trade.entry_price - trade.exit_price) / trade.entry_price) * 100
+
+                    time_in_trade = None
+                    if trade.exit_time and trade.entry_time:
+                        time_in_trade = int((trade.exit_time - trade.entry_time).total_seconds() / 60)  # minutes
+
+                    # Create or update outcome
+                    if existing_outcome:
+                        # Update existing
+                        existing_outcome.trade_executed = True
+                        existing_outcome.entry_price = trade.entry_price
+                        existing_outcome.exit_price = trade.exit_price
+                        existing_outcome.pnl = pnl
+                        existing_outcome.pnl_percent = pnl_percent
+                        existing_outcome.is_winner = is_winner
+                        existing_outcome.time_in_trade = time_in_trade
+                        existing_outcome.updated_at = datetime.utcnow()
+
+                        results["outcomes_updated"] += 1
+                        logger.debug(f"Updated outcome for signal {matching_signal.id}: {trade.symbol} PnL=${pnl:.2f}")
+                    else:
+                        # Create new outcome
+                        outcome = SmartFlowSignalOutcome(
+                            signal_log_id=matching_signal.id,
+                            trade_executed=True,
+                            entry_price=trade.entry_price,
+                            exit_price=trade.exit_price,
+                            pnl=pnl,
+                            pnl_percent=pnl_percent,
+                            is_winner=is_winner,
+                            time_in_trade=time_in_trade,
+                            hour_of_day=trade.entry_time.hour if trade.entry_time else None,
+                            day_of_week=trade.entry_time.weekday() if trade.entry_time else None
+                        )
+                        db.add(outcome)
+
+                        results["outcomes_created"] += 1
+                        logger.debug(f"Created outcome for signal {matching_signal.id}: {trade.symbol} PnL=${pnl:.2f}")
+
+                    db.commit()
+
+                except Exception as e:
+                    results["errors"] += 1
+                    logger.error(f"Error processing trade {trade.id} for SmartFlow outcomes: {e}")
+                    db.rollback()
+
+            # Update ML metrics summary
+            try:
+                from app.models.smartflow_models import SmartFlowMLMetrics
+
+                # Calculate win rate and performance metrics
+                total_outcomes = db.query(SmartFlowSignalOutcome).filter(
+                    SmartFlowSignalOutcome.trade_executed == True,
+                    SmartFlowSignalOutcome.is_winner.isnot(None)
+                ).count()
+
+                winning_outcomes = db.query(SmartFlowSignalOutcome).filter(
+                    SmartFlowSignalOutcome.trade_executed == True,
+                    SmartFlowSignalOutcome.is_winner == True
+                ).count()
+
+                win_rate = (winning_outcomes / total_outcomes * 100) if total_outcomes > 0 else 0.0
+
+                avg_winner = db.query(func.avg(SmartFlowSignalOutcome.pnl)).filter(
+                    SmartFlowSignalOutcome.is_winner == True
+                ).scalar() or 0.0
+
+                avg_loser = db.query(func.avg(SmartFlowSignalOutcome.pnl)).filter(
+                    SmartFlowSignalOutcome.is_winner == False
+                ).scalar() or 0.0
+
+                # Update or create ML metrics
+                ml_metrics = db.query(SmartFlowMLMetrics).order_by(
+                    desc(SmartFlowMLMetrics.created_at)
+                ).first()
+
+                if ml_metrics and (datetime.utcnow() - ml_metrics.created_at).total_seconds() < 3600:
+                    # Update existing if less than 1 hour old
+                    ml_metrics.win_rate = win_rate
+                    ml_metrics.total_signals = total_outcomes
+                    ml_metrics.avg_winner_pnl = float(avg_winner)
+                    ml_metrics.avg_loser_pnl = float(avg_loser)
+                    ml_metrics.updated_at = datetime.utcnow()
+                else:
+                    # Create new metrics record
+                    new_metrics = SmartFlowMLMetrics(
+                        win_rate=win_rate,
+                        total_signals=total_outcomes,
+                        avg_winner_pnl=float(avg_winner),
+                        avg_loser_pnl=float(avg_loser),
+                        confidence_calibration=1.0,  # Default
+                        model_version="v1.0"
+                    )
+                    db.add(new_metrics)
+
+                db.commit()
+
+                logger.info(f"SmartFlow ML metrics updated: WinRate={win_rate:.1f}%, TotalSignals={total_outcomes}")
+
+            except Exception as e:
+                logger.error(f"Error updating ML metrics: {e}")
+
+            logger.info(
+                f"SmartFlow outcome tracking complete: "
+                f"{results['outcomes_created']} created, {results['outcomes_updated']} updated, "
+                f"{results['signals_matched']} signals matched"
+            )
+
+            return results
+
+    except Exception as e:
+        logger.error(f"Error in update_smartflow_outcomes: {e}", exc_info=True)
+        return {
+            "success": False,
+            "error": str(e)
+        }
 
 
 @celery_app.task(name="trading_tasks.reset_daily_counters")

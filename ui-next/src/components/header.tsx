@@ -37,8 +37,8 @@ export function Header() {
               <span className="sr-only">Open menu</span>
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="w-64 p-0">
-            <Sidebar className="border-r-0" />
+          <SheetContent side="left" className="w-64 p-0 flex flex-col h-full">
+            <Sidebar className="border-r-0 h-full" />
           </SheetContent>
         </Sheet>
       </div>

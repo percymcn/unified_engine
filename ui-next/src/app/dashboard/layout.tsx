@@ -19,15 +19,17 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           <Sidebar className="hidden md:flex shrink-0 relative z-10" />
 
           {/* Main content area */}
-          <div className="flex flex-1 flex-col overflow-hidden">
+          <div className="flex flex-1 flex-col min-h-0 overflow-hidden">
             {/* Header with mobile menu, theme toggle, and user nav */}
             <Header />
 
-            {/* Page content */}
-            <main className="flex-1 overflow-auto overflow-x-hidden p-4 md:p-6">
-              {/* Upgrade prompt when trial is low/expired */}
-              <TrialPromptWrapper />
-              {children}
+            {/* Page content - scrollable container */}
+            <main className="flex-1 overflow-y-auto overflow-x-hidden">
+              <div className="min-h-full p-3 sm:p-4 md:p-6 pb-20 md:pb-6">
+                {/* Upgrade prompt when trial is low/expired */}
+                <TrialPromptWrapper />
+                {children}
+              </div>
             </main>
           </div>
         </div>
