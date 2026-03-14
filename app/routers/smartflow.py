@@ -758,3 +758,536 @@ async def run_full_optimization(
     )
 
     return result
+
+
+# ============================================================================
+# AI ANALYSIS HISTORY ENDPOINTS
+# ============================================================================
+
+@router.get("/ai/analysis")
+async def get_ai_analysis_history(
+    ticker: Optional[str] = None,
+    analysis_type: Optional[str] = None,
+    limit: int = 50,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get AI analysis history from cache.
+
+    Query parameters:
+    - ticker: Filter by ticker symbol (optional)
+    - analysis_type: Filter by analysis type (technical, patterns, sentiment)
+    - limit: Maximum results to return (default 50)
+
+    Returns list of AI analyses with recommendations, confidence, and summaries.
+    """
+    from sqlalchemy import text
+
+    try:
+        # Build query based on filters
+        query = """
+            SELECT id, ticker, analysis_type, recommendation, confidence,
+                   summary, data, created_at, hit_count
+            FROM ai_strategy_cache
+            WHERE 1=1
+        """
+        params = {"limit": limit}
+
+        if ticker:
+            query += " AND ticker ILIKE :ticker"
+            params["ticker"] = f"%{ticker}%"
+
+        if analysis_type:
+            query += " AND analysis_type = :analysis_type"
+            params["analysis_type"] = analysis_type
+
+        query += " ORDER BY created_at DESC LIMIT :limit"
+
+        result = db.execute(text(query), params)
+        rows = result.fetchall()
+
+        analyses = []
+        for row in rows:
+            analyses.append({
+                "id": row[0],
+                "ticker": row[1],
+                "analysis_type": row[2],
+                "recommendation": row[3],
+                "confidence": row[4],
+                "summary": row[5],
+                "data": row[6],
+                "created_at": row[7].isoformat() if row[7] else None,
+                "hit_count": row[8]
+            })
+
+        return {
+            "analyses": analyses,
+            "total": len(analyses)
+        }
+
+    except Exception as e:
+        logger.error(f"Error fetching AI analysis history: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch AI analysis history: {str(e)}"
+        )
+
+
+@router.get("/ai/analysis/stats")
+async def get_ai_analysis_stats(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get AI analysis statistics.
+    """
+    from sqlalchemy import text
+
+    try:
+        # Get counts by recommendation
+        rec_query = text("""
+            SELECT recommendation, COUNT(*) as count
+            FROM ai_strategy_cache
+            GROUP BY recommendation
+            ORDER BY count DESC
+        """)
+        rec_result = db.execute(rec_query)
+        recommendations = {row[0]: row[1] for row in rec_result.fetchall()}
+
+        # Get counts by ticker
+        ticker_query = text("""
+            SELECT ticker, COUNT(*) as count
+            FROM ai_strategy_cache
+            GROUP BY ticker
+            ORDER BY count DESC
+            LIMIT 10
+        """)
+        ticker_result = db.execute(ticker_query)
+        top_tickers = {row[0]: row[1] for row in ticker_result.fetchall()}
+
+        # Get average confidence by recommendation
+        conf_query = text("""
+            SELECT recommendation, AVG(confidence) as avg_conf
+            FROM ai_strategy_cache
+            GROUP BY recommendation
+        """)
+        conf_result = db.execute(conf_query)
+        avg_confidence = {row[0]: round(row[1], 1) for row in conf_result.fetchall()}
+
+        # Get total count
+        total_query = text("SELECT COUNT(*) FROM ai_strategy_cache")
+        total = db.execute(total_query).scalar()
+
+        return {
+            "total_analyses": total,
+            "by_recommendation": recommendations,
+            "top_tickers": top_tickers,
+            "avg_confidence_by_recommendation": avg_confidence
+        }
+
+    except Exception as e:
+        logger.error(f"Error fetching AI analysis stats: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch AI analysis stats: {str(e)}"
+        )
+
+
+@router.get("/trade-decisions")
+async def get_trade_decision_history(
+    ticker: Optional[str] = None,
+    limit: int = 50,
+    include_closed: bool = True,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get trade decision history with full AI analysis context.
+
+    Shows each trade taken with:
+    - Signal details (FSS score, flow counts)
+    - AI analysis that influenced the decision
+    - Confidence scores and reasoning
+    - Trade outcome (if closed)
+
+    Query parameters:
+    - ticker: Filter by ticker symbol
+    - limit: Maximum results (default 50)
+    - include_closed: Include trades with PnL data
+    """
+    from sqlalchemy import text
+
+    try:
+        query = """
+            SELECT
+                el.id as execution_id,
+                el.symbol,
+                el.action as trade_action,
+                el.entry_price,
+                el.exit_price,
+                el.pnl,
+                el.pnl_pct,
+                el.status,
+                el.close_reason,
+                el.created_at as trade_time,
+                el.closed_at,
+                el.broker,
+                sl.id as signal_id,
+                sl.ticker as signal_ticker,
+                sl.action as signal_action,
+                sl.score as fss_score,
+                sl.confidence,
+                sl.reason,
+                sl.bullish_flows,
+                sl.bearish_flows,
+                sl.total_premium,
+                sl.created_at as signal_time,
+                so.is_winner,
+                so.market_regime,
+                so.hour_of_day,
+                so.day_of_week
+            FROM execution_logs el
+            LEFT JOIN smartflow_signal_logs sl ON el.smartflow_signal_log_id = sl.id
+            LEFT JOIN smartflow_signal_outcomes so ON so.signal_log_id = sl.id
+            WHERE el.status = 'success'
+              AND el.action IN ('BUY', 'SELL')
+        """
+        params = {"limit": limit}
+
+        if ticker:
+            query += " AND (el.symbol ILIKE :ticker OR sl.ticker ILIKE :ticker)"
+            params["ticker"] = f"%{ticker}%"
+
+        if not include_closed:
+            query += " AND el.pnl IS NULL"
+
+        query += " ORDER BY el.created_at DESC LIMIT :limit"
+
+        result = db.execute(text(query), params)
+        rows = result.fetchall()
+
+        decisions = []
+        for row in rows:
+            # Parse the reason field to extract AI analysis details
+            reason = row[17] or ""
+            ai_mode = "hybrid"
+            ai_recommendation = None
+            ai_confidence_boost = 0
+
+            if "AI-Only:" in reason:
+                ai_mode = "ai_only"
+                # Parse AI-Only format: "AI-Only: bullish via SYMBOL (X buy / Y sell, Z% conf)"
+                if "bullish" in reason.lower():
+                    ai_recommendation = "buy"
+                elif "bearish" in reason.lower():
+                    ai_recommendation = "sell"
+                else:
+                    ai_recommendation = "neutral"
+            elif "AI " in reason:
+                # Parse hybrid format: "... | AI sell (+25%)"
+                if "AI buy" in reason or "AI bullish" in reason:
+                    ai_recommendation = "buy"
+                elif "AI sell" in reason or "AI bearish" in reason:
+                    ai_recommendation = "sell"
+                else:
+                    ai_recommendation = "neutral"
+                # Extract confidence boost
+                import re
+                boost_match = re.search(r'\(([+-]?\d+)%\)', reason.split("AI")[-1])
+                if boost_match:
+                    ai_confidence_boost = int(boost_match.group(1))
+
+            # Determine outcome - prefer signal outcome, fallback to execution PnL
+            pnl = row[5]
+            is_winner_from_outcome = row[22]
+            is_winner_from_pnl = pnl > 0 if pnl is not None else None
+            final_is_winner = is_winner_from_outcome if is_winner_from_outcome is not None else is_winner_from_pnl
+
+            # Determine trade status: open, winner, loser
+            trade_status = "open"
+            if pnl is not None or row[4] is not None:  # has pnl or exit_price
+                trade_status = "winner" if final_is_winner else "loser"
+            elif row[10]:  # has closed_at
+                trade_status = "closed"
+
+            decisions.append({
+                "execution_id": row[0],
+                "symbol": row[1],
+                "trade_action": row[2],
+                "entry_price": row[3],
+                "exit_price": row[4],
+                "pnl": row[5],
+                "pnl_pct": row[6],
+                "status": row[7],
+                "trade_status": trade_status,  # New field: open/winner/loser
+                "close_reason": row[8],
+                "trade_time": row[9].isoformat() if row[9] else None,
+                "closed_at": row[10].isoformat() if row[10] else None,
+                "broker": row[11],
+                "signal": {
+                    "id": row[12],
+                    "ticker": row[13],
+                    "action": row[14],
+                    "fss_score": row[15],
+                    "confidence": row[16],
+                    "reason": row[17],
+                    "bullish_flows": row[18],
+                    "bearish_flows": row[19],
+                    "total_premium": row[20],
+                    "time": row[21].isoformat() if row[21] else None
+                } if row[12] else None,
+                "outcome": {
+                    "is_winner": final_is_winner,
+                    "market_regime": row[23],
+                    "hour_of_day": row[24],
+                    "day_of_week": row[25]
+                } if final_is_winner is not None else None,
+                "ai_context": {
+                    "mode": ai_mode,
+                    "recommendation": ai_recommendation,
+                    "confidence_boost": ai_confidence_boost
+                },
+                "ai_analysis": None  # Will be populated below
+            })
+
+        # Enrich decisions with AI analysis data from cache
+        # This provides the full reasoning behind AI decisions
+        if decisions:
+            unique_tickers = set()
+            for d in decisions:
+                if d["signal"] and d["signal"]["ticker"]:
+                    ticker = d["signal"]["ticker"]
+                    unique_tickers.add(ticker)
+                    # Also add mapped versions for cross-market lookup
+                    ticker_mappings = {
+                        "MES": ["MES", "SPY", "ES"],
+                        "NQ": ["NQ", "QQQ", "MNQ"],
+                        "RTY": ["RTY", "IWM", "M2K"],
+                        "GLD": ["GLD", "C:XAUUSD", "MGC"],
+                        "BTCUSD": ["X:BTCUSD", "BTCUSD"],
+                        "ETHUSD": ["X:ETHUSD", "ETHUSD"],
+                    }
+                    for base, variants in ticker_mappings.items():
+                        if ticker in variants or ticker == base:
+                            unique_tickers.update(variants)
+
+            if unique_tickers:
+                ai_query = text("""
+                    SELECT DISTINCT ON (ticker)
+                        ticker,
+                        recommendation,
+                        confidence,
+                        summary,
+                        data,
+                        created_at
+                    FROM ai_strategy_cache
+                    WHERE ticker = ANY(:tickers)
+                    ORDER BY ticker, created_at DESC
+                """)
+                ai_result = db.execute(ai_query, {"tickers": list(unique_tickers)})
+                ai_cache = {}
+                for ai_row in ai_result.fetchall():
+                    ai_cache[ai_row[0]] = {
+                        "recommendation": ai_row[1],
+                        "confidence": ai_row[2],
+                        "summary": ai_row[3],
+                        "data": ai_row[4] if ai_row[4] else {},
+                        "analyzed_at": ai_row[5].isoformat() if ai_row[5] else None
+                    }
+
+                # Map AI analysis to decisions
+                for d in decisions:
+                    if d["signal"] and d["signal"]["ticker"]:
+                        ticker = d["signal"]["ticker"]
+                        # Try exact match first
+                        if ticker in ai_cache:
+                            d["ai_analysis"] = ai_cache[ticker]
+                        else:
+                            # Try mapped variants
+                            for ai_ticker, ai_data in ai_cache.items():
+                                if ticker in ai_ticker or ai_ticker in ticker:
+                                    d["ai_analysis"] = ai_data
+                                    break
+
+        return {
+            "decisions": decisions,
+            "total": len(decisions)
+        }
+
+    except Exception as e:
+        logger.error(f"Error fetching trade decisions: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch trade decisions: {str(e)}"
+        )
+
+
+@router.get("/trade-decisions/stats")
+async def get_trade_decision_stats(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get trade decision statistics.
+    """
+    from sqlalchemy import text
+
+    try:
+        # Get AI mode breakdown - use COALESCE to fallback to pnl-based winner detection
+        mode_query = text("""
+            SELECT
+                CASE
+                    WHEN sl.reason LIKE '%AI-Only:%' THEN 'ai_only'
+                    WHEN sl.reason LIKE '%AI %' THEN 'hybrid'
+                    ELSE 'flow_only'
+                END as mode,
+                COUNT(*) as count,
+                SUM(CASE
+                    WHEN COALESCE(so.is_winner, el.pnl > 0) = true THEN 1
+                    ELSE 0
+                END) as winners,
+                SUM(CASE
+                    WHEN el.pnl IS NOT NULL AND COALESCE(so.is_winner, el.pnl > 0) = false THEN 1
+                    ELSE 0
+                END) as losers,
+                SUM(CASE WHEN el.pnl IS NULL AND el.exit_price IS NULL THEN 1 ELSE 0 END) as open_trades
+            FROM execution_logs el
+            JOIN smartflow_signal_logs sl ON el.smartflow_signal_log_id = sl.id
+            LEFT JOIN smartflow_signal_outcomes so ON so.signal_log_id = sl.id
+            WHERE el.status = 'success' AND el.action IN ('BUY', 'SELL')
+            GROUP BY mode
+        """)
+        mode_result = db.execute(mode_query)
+        modes = {}
+        for row in mode_result.fetchall():
+            winners = row[2] or 0
+            losers = row[3] or 0
+            open_trades = row[4] or 0
+            closed_total = winners + losers
+            win_rate = round(winners / closed_total * 100, 1) if closed_total > 0 else 0
+            modes[row[0]] = {
+                "count": row[1],
+                "winners": winners,
+                "losers": losers,
+                "open_trades": open_trades,
+                "win_rate": win_rate
+            }
+
+        # Get ticker breakdown - fallback to pnl-based winner detection
+        ticker_query = text("""
+            SELECT
+                sl.ticker,
+                COUNT(*) as trades,
+                SUM(CASE WHEN COALESCE(so.is_winner, el.pnl > 0) = true THEN 1 ELSE 0 END) as winners,
+                SUM(CASE WHEN el.pnl IS NOT NULL AND COALESCE(so.is_winner, el.pnl > 0) = false THEN 1 ELSE 0 END) as losers,
+                SUM(COALESCE(el.pnl, 0)) as total_pnl
+            FROM execution_logs el
+            JOIN smartflow_signal_logs sl ON el.smartflow_signal_log_id = sl.id
+            LEFT JOIN smartflow_signal_outcomes so ON so.signal_log_id = sl.id
+            WHERE el.status = 'success' AND el.action IN ('BUY', 'SELL')
+            GROUP BY sl.ticker
+            ORDER BY trades DESC
+            LIMIT 10
+        """)
+        ticker_result = db.execute(ticker_query)
+        tickers = {}
+        for row in ticker_result.fetchall():
+            winners = row[2] or 0
+            losers = row[3] or 0
+            closed_total = winners + losers
+            tickers[row[0]] = {
+                "trades": row[1],
+                "winners": winners,
+                "losers": losers,
+                "total_pnl": round(row[4] or 0, 2),
+                "win_rate": round(winners / closed_total * 100, 1) if closed_total > 0 else 0
+            }
+
+        # Get recent performance - fallback to pnl-based winner detection
+        recent_query = text("""
+            SELECT
+                COUNT(*) as total,
+                SUM(CASE WHEN COALESCE(so.is_winner, el.pnl > 0) = true THEN 1 ELSE 0 END) as winners,
+                SUM(CASE WHEN el.pnl IS NOT NULL AND COALESCE(so.is_winner, el.pnl > 0) = false THEN 1 ELSE 0 END) as losers,
+                SUM(COALESCE(el.pnl, 0)) as total_pnl,
+                SUM(CASE WHEN el.pnl IS NULL AND el.exit_price IS NULL THEN 1 ELSE 0 END) as open_trades
+            FROM execution_logs el
+            JOIN smartflow_signal_logs sl ON el.smartflow_signal_log_id = sl.id
+            LEFT JOIN smartflow_signal_outcomes so ON so.signal_log_id = sl.id
+            WHERE el.status = 'success'
+              AND el.action IN ('BUY', 'SELL')
+              AND el.created_at > NOW() - INTERVAL '7 days'
+        """)
+        recent = db.execute(recent_query).fetchone()
+
+        winners = recent[1] or 0
+        losers = recent[2] or 0
+        closed_total = winners + losers
+
+        return {
+            "by_mode": modes,
+            "by_ticker": tickers,
+            "last_7_days": {
+                "total_trades": recent[0] or 0,
+                "winners": winners,
+                "losers": losers,
+                "open_trades": recent[4] or 0,
+                "win_rate": round(winners / closed_total * 100, 1) if closed_total > 0 else 0,
+                "total_pnl": round(recent[3] or 0, 2)
+            }
+        }
+
+    except Exception as e:
+        logger.error(f"Error fetching trade decision stats: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch stats: {str(e)}"
+        )
+
+
+@router.get("/ai/analysis/{analysis_id}")
+async def get_ai_analysis_detail(
+    analysis_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get detailed AI analysis by ID.
+    """
+    from sqlalchemy import text
+
+    try:
+        query = text("""
+            SELECT id, ticker, analysis_type, recommendation, confidence,
+                   summary, data, created_at, hit_count
+            FROM ai_strategy_cache
+            WHERE id = :id
+        """)
+
+        result = db.execute(query, {"id": analysis_id})
+        row = result.fetchone()
+
+        if not row:
+            raise HTTPException(status_code=404, detail="Analysis not found")
+
+        return {
+            "id": row[0],
+            "ticker": row[1],
+            "analysis_type": row[2],
+            "recommendation": row[3],
+            "confidence": row[4],
+            "summary": row[5],
+            "data": row[6],
+            "created_at": row[7].isoformat() if row[7] else None,
+            "hit_count": row[8]
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching AI analysis detail: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch AI analysis: {str(e)}"
+        )

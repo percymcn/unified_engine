@@ -150,33 +150,49 @@ export default function AnalyticsPage() {
 
   const fetchAllData = async () => {
     setLoading(true);
-    try {
-      const [perfRes, stratRes, timeRes, cbRes, eqRes, cbSettingsRes, newsRes, corrRes, dsRes] = await Promise.all([
-        fetch('/api/analytics/trading/performance'),
-        fetch('/api/analytics/trading/strategies'),
-        fetch('/api/analytics/trading/time-analysis'),
-        fetch('/api/analytics/trading/circuit-breaker/status'),
-        fetch('/api/analytics/trading/equity-curve'),
-        fetch('/api/analytics/trading/circuit-breaker/settings'),
-        fetch('/api/analytics/trading/news-filter/settings'),
-        fetch('/api/analytics/trading/correlation-filter/settings'),
-        fetch('/api/analytics/trading/dynamic-sizing/settings'),
-      ]);
+    const errors: string[] = [];
 
-      if (perfRes.ok) setPerformance(await perfRes.json());
-      if (stratRes.ok) setStrategies(await stratRes.json());
-      if (timeRes.ok) setTimeAnalysis(await timeRes.json());
-      if (cbRes.ok) setCircuitBreaker(await cbRes.json());
-      if (eqRes.ok) setEquityCurve(await eqRes.json());
-      if (cbSettingsRes.ok) setCbSettings(await cbSettingsRes.json());
-      if (newsRes.ok) setNewsSettings(await newsRes.json());
-      if (corrRes.ok) setCorrelationSettings(await corrRes.json());
-      if (dsRes.ok) setDynamicSizing(await dsRes.json());
-    } catch (error) {
-      console.error('Error fetching analytics:', error);
-    } finally {
-      setLoading(false);
+    // Helper to safely fetch each endpoint
+    const safeFetch = async <T,>(url: string, setter: (data: T) => void, name: string) => {
+      try {
+        const res = await fetch(url);
+        if (res.ok) {
+          const data = await res.json();
+          setter(data);
+        } else if (res.status === 401) {
+          errors.push(`${name}: Authentication required`);
+        } else {
+          errors.push(`${name}: Failed (${res.status})`);
+        }
+      } catch (err) {
+        console.error(`Error fetching ${name}:`, err);
+        errors.push(`${name}: Network error`);
+      }
+    };
+
+    // Fetch all endpoints in parallel with individual error handling
+    await Promise.all([
+      safeFetch('/api/analytics/trading/performance', setPerformance, 'Performance'),
+      safeFetch('/api/analytics/trading/strategies', setStrategies, 'Strategies'),
+      safeFetch('/api/analytics/trading/time-analysis', setTimeAnalysis, 'Time Analysis'),
+      safeFetch('/api/analytics/trading/circuit-breaker/status', setCircuitBreaker, 'Circuit Breaker'),
+      safeFetch('/api/analytics/trading/equity-curve', setEquityCurve, 'Equity Curve'),
+      safeFetch('/api/analytics/trading/circuit-breaker/settings', setCbSettings, 'CB Settings'),
+      safeFetch('/api/analytics/trading/news-filter/settings', setNewsSettings, 'News Filter'),
+      safeFetch('/api/analytics/trading/correlation-filter/settings', setCorrelationSettings, 'Correlation'),
+      safeFetch('/api/analytics/trading/dynamic-sizing/settings', setDynamicSizing, 'Dynamic Sizing'),
+    ]);
+
+    // Show toast if there were errors
+    if (errors.length > 0) {
+      toast({
+        title: 'Some data failed to load',
+        description: errors.slice(0, 3).join(', ') + (errors.length > 3 ? ` (+${errors.length - 3} more)` : ''),
+        variant: 'destructive',
+      });
     }
+
+    setLoading(false);
   };
 
   const updateSettings = async (endpoint: string, data: Record<string, unknown>) => {

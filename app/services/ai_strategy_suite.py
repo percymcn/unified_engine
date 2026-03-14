@@ -394,18 +394,39 @@ Format your response as JSON with these fields:
         # Build context with live data if available
         live_data_section = ""
         if enriched_context.get('live_market_data'):
+            live_data = enriched_context['live_market_data']
             live_data_section = f"""
 LIVE MARKET DATA (from Polygon):
-{json.dumps(enriched_context['live_market_data'], indent=2)}
+{json.dumps(live_data, indent=2)}
 
-Use this real-time data for accurate analysis. The EMA, RSI, and Fibonacci levels are calculated from actual 5-minute bars.
+Use this real-time data for accurate analysis. The EMA, RSI, and Fibonacci levels are calculated from actual bars.
+"""
+            # Add multi-timeframe analysis if available
+            if live_data.get('multi_timeframe'):
+                mtf = live_data['multi_timeframe']
+                live_data_section += f"""
+MULTI-TIMEFRAME ANALYSIS (Day Trading Focus):
+- Overall Bias: {mtf.get('overall_bias', 'unknown')}
+- Bullish Alignment: {mtf.get('bullish_alignment', 0)}%
+- Bearish Alignment: {mtf.get('bearish_alignment', 0)}%
+- Confluences: {', '.join(mtf.get('confluences', [])) or 'None detected'}
+
+Timeframe Breakdown:
+{json.dumps(mtf.get('timeframes', {}), indent=2)}
+
+IMPORTANT: Use this multi-timeframe analysis for day trading decisions.
+- 5m timeframe is PRIMARY for entry timing
+- 15m and 30m confirm intraday momentum
+- 1h and 4h provide structure context
+- Trade WITH the overall bias alignment
 """
 
-        user_prompt = f"""Analyze {ticker} technically.
+        user_prompt = f"""Analyze {ticker} technically for day trading.
 {live_data_section}
 Additional context:
 {json.dumps(context or {"note": "Use your knowledge of recent market conditions"}, indent=2)}
 
+Consider ALL timeframes (5m, 15m, 30m, 1h, 4h) for your analysis.
 Provide the technical analysis as specified JSON format."""
 
         try:

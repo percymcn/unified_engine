@@ -30,7 +30,9 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MLDashboard } from '@/components/smartflow/ml-dashboard';
-import { Lock, Crown, ArrowRight } from 'lucide-react';
+import { AIAnalysisDashboard } from '@/components/smartflow/ai-analysis-dashboard';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Lock, Crown, ArrowRight, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 
 interface SentimentScore {
@@ -511,22 +513,39 @@ export default function SmartFlowPage() {
         })}
       </div>
 
-      {/* ML Learning Dashboard */}
+      {/* AI & ML Dashboard Tabs */}
       <Card className="border-2 border-violet-500/20 bg-gradient-to-br from-violet-500/5 to-purple-500/5">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Brain className="h-5 w-5 text-violet-400" />
-            AI Learning Engine
+            AI Intelligence Suite
             <Badge className="bg-gradient-to-r from-violet-500 to-purple-600 text-white">
               NEW
             </Badge>
           </CardTitle>
           <CardDescription>
-            SmartFlow learns from your trade outcomes to improve win rate over time
+            Machine learning insights and AI analysis history
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <MLDashboard />
+          <Tabs defaultValue="ml-learning" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-4">
+              <TabsTrigger value="ml-learning" className="flex items-center gap-2">
+                <Brain className="h-4 w-4" />
+                ML Learning Engine
+              </TabsTrigger>
+              <TabsTrigger value="ai-analysis" className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4" />
+                AI Analysis History
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="ml-learning">
+              <MLDashboard />
+            </TabsContent>
+            <TabsContent value="ai-analysis">
+              <AIAnalysisDashboard />
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
 
@@ -555,7 +574,7 @@ export default function SmartFlowPage() {
                 {status.recent_signals.slice(0, 10).map((signal, idx) => (
                   <TableRow key={idx}>
                     <TableCell className="text-sm text-muted-foreground">
-                      {new Date(signal.timestamp).toLocaleTimeString()}
+                      {signal.timestamp}
                     </TableCell>
                     <TableCell className="font-semibold">{signal.ticker}</TableCell>
                     <TableCell>{getActionBadge(signal.action)}</TableCell>

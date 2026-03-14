@@ -174,6 +174,11 @@ class SmartFlowService:
         self.enable_ai_only_mode = False  # Trade using only AI analysis when no flow data
         self.ai_only_scan_interval = 900  # Scan every 15 minutes in AI-only mode (cost optimization: 66% reduction)
         self.ai_only_confidence_threshold = 70.0  # Minimum AI confidence to trade
+
+        # DUPLICATE PREVENTION: Track recent signals to prevent spam
+        self.signal_cooldown_seconds = 300  # 5 minutes between same ticker+action signals
+        self.recent_signal_cache: Dict[str, datetime] = {}  # key: "ticker:action" -> last_sent_time
+
         self.ai_only_instruments = [
             # Futures (your most traded)
             'MES', 'NQ', 'RTY', 'MNQ', 'MYM', 'GC', 'MGC',  # Added Gold futures
@@ -251,6 +256,68 @@ class SmartFlowService:
             'BTCUSD': 'X:BTCUSD',
             'ETHUSD': 'X:ETHUSD',
         }
+
+    def is_duplicate_signal(self, ticker: str, action: str) -> bool:
+        """
+        Check if this signal is a duplicate (same ticker+action within cooldown period).
+        This prevents sending multiple identical signals in quick succession.
+
+        IMPORTANT: Uses DATABASE to check for recent signals because in-memory cache
+        gets cleared when service restarts (which happens frequently in Docker Swarm).
+
+        Returns True if this is a duplicate that should be skipped.
+        """
+        cache_key = f"{ticker.upper()}:{action.lower()}"
+        # Use EST for all time operations
+        from zoneinfo import ZoneInfo
+        est = ZoneInfo('America/New_York')
+        now = datetime.now(est).replace(tzinfo=None)  # EST without tzinfo for comparison
+
+        # STEP 1: Check in-memory cache first (fastest)
+        # Clean up old entries (older than 2x cooldown)
+        cleanup_threshold = now - timedelta(seconds=self.signal_cooldown_seconds * 2)
+        self.recent_signal_cache = {
+            k: v for k, v in self.recent_signal_cache.items()
+            if v > cleanup_threshold
+        }
+
+        last_sent = self.recent_signal_cache.get(cache_key)
+        if last_sent:
+            elapsed = (now - last_sent).total_seconds()
+            if elapsed < self.signal_cooldown_seconds:
+                logger.info(f"⏸️ DUPLICATE (cache): {ticker} {action} sent {elapsed:.0f}s ago - SKIPPING")
+                return True
+
+        # STEP 2: Check DATABASE for recent signals (survives restarts)
+        # This catches duplicates that would slip through after service restart
+        try:
+            from app.db.database import SessionLocal
+            from app.models.smartflow_models import SmartFlowSignalLog
+            db = SessionLocal()
+            try:
+                # DB stores UTC, so convert cutoff to UTC for query
+                utc = ZoneInfo('UTC')
+                now_utc = datetime.now(utc).replace(tzinfo=None)
+                cutoff_utc = now_utc - timedelta(seconds=self.signal_cooldown_seconds)
+
+                recent_signal = db.query(SmartFlowSignalLog).filter(
+                    SmartFlowSignalLog.ticker == ticker.upper(),
+                    SmartFlowSignalLog.action == action.lower(),
+                    SmartFlowSignalLog.created_at >= cutoff_utc
+                ).order_by(SmartFlowSignalLog.created_at.desc()).first()
+
+                if recent_signal:
+                    elapsed = (now_utc - recent_signal.created_at).total_seconds()
+                    logger.info(f"⏸️ DUPLICATE (DB): {ticker} {action} sent {elapsed:.0f}s ago - SKIPPING")
+                    return True
+            finally:
+                db.close()
+        except Exception as e:
+            logger.warning(f"DB duplicate check failed: {e} - relying on cache only")
+
+        # Not a duplicate - record this signal in cache
+        self.recent_signal_cache[cache_key] = now
+        return False
 
     def enable(self, webhook_urls: List[str]):
         """Enable SmartFlow with user's webhook URLs"""
@@ -544,6 +611,41 @@ class SmartFlowService:
 
         except Exception as e:
             logger.error(f"Failed to get recent signal for {ticker}: {e}")
+            return None
+
+    def get_recent_entry_signal_for_ticker(self, ticker: str) -> Optional[int]:
+        """
+        Get the most recent ENTRY (buy/sell) signal_log_id for a ticker.
+        Used when a trade closes to link the outcome back to the entry signal.
+        This excludes 'close' signals to ensure we record P&L against entries.
+        """
+        try:
+            db = SessionLocal()
+            try:
+                from app.models.smartflow_models import SmartFlowSignalLog
+
+                # Map ticker variants (same as get_recent_signal_for_ticker)
+                ticker_variants = [ticker.upper()]
+                if ticker.upper() in ['MES', 'MESM6', 'SPY']:
+                    ticker_variants = ['MES', 'MESM6', 'SPY', 'ES']
+                elif ticker.upper() in ['NQ', 'MNQM6', 'QQQ']:
+                    ticker_variants = ['NQ', 'MNQM6', 'QQQ', 'MNQ']
+                elif ticker.upper() in ['RTY', 'M2KM6', 'IWM']:
+                    ticker_variants = ['RTY', 'M2KM6', 'IWM', 'M2K']
+
+                # Get most recent ENTRY signal (buy or sell only, not close)
+                signal = db.query(SmartFlowSignalLog).filter(
+                    SmartFlowSignalLog.ticker.in_(ticker_variants),
+                    SmartFlowSignalLog.action.in_(['buy', 'sell'])  # Exclude 'close'
+                ).order_by(SmartFlowSignalLog.created_at.desc()).first()
+
+                return signal.id if signal else None
+
+            finally:
+                db.close()
+
+        except Exception as e:
+            logger.error(f"Failed to get recent entry signal for {ticker}: {e}")
             return None
 
     async def fetch_flow_data(self) -> List[FlowEntry]:
@@ -1260,11 +1362,25 @@ class SmartFlowService:
         Supports two formats:
         1. TradingView format (for routing): webhook_key string
         2. Legacy format (for custom webhooks): full http:// URL
+
+        SAFETY CHECKS:
+        1. Block 0% confidence signals
+        2. Block duplicate signals within cooldown period
         """
         webhooks_posted = []
         post_errors = []
         all_successful = True
         signal_log_id = None  # Initialize for ML tracking
+
+        # SAFETY CHECK 1: Block signals with 0% or very low confidence
+        if signal.confidence is not None and signal.confidence < 10:
+            logger.warning(f"🚫 BLOCKED: {signal.ticker} {signal.action} - confidence {signal.confidence}% too low (min 10%)")
+            return
+
+        # SAFETY CHECK 2: Block duplicate signals (same ticker+action within cooldown)
+        if self.is_duplicate_signal(signal.ticker, signal.action):
+            logger.info(f"⏸️ SKIPPED: {signal.ticker} {signal.action} - duplicate within cooldown period")
+            return
 
         if not self.webhook_urls:
             logger.warning("No webhook URLs configured for SmartFlow")
@@ -1423,6 +1539,24 @@ class SmartFlowService:
                 # Run AI analysis using Polygon ticker
                 logger.info(f"🤖 AI-Only: Analyzing {instrument} (data: {polygon_ticker} → trade: {trading_ticker})")
 
+                # Get multi-timeframe analysis for day trading context
+                mtf_bias = 'neutral'
+                mtf_bullish_pct = 0
+                mtf_bearish_pct = 0
+                mtf_confluences = []
+                try:
+                    mtf_analysis = market_data_service.get_multi_timeframe_analysis(polygon_ticker)
+                    if mtf_analysis and 'error' not in mtf_analysis:
+                        overall = mtf_analysis.get('overall', {})
+                        mtf_bias = overall.get('bias', 'neutral')
+                        mtf_bullish_pct = overall.get('bullish_alignment', 0)
+                        mtf_bearish_pct = overall.get('bearish_alignment', 0)
+                        mtf_confluences = mtf_analysis.get('confluences', [])
+                        tfs_analyzed = mtf_analysis.get('timeframes', {})
+                        logger.info(f"📊 MTF Analysis {polygon_ticker}: {mtf_bias} ({mtf_bullish_pct:.0f}% bull / {mtf_bearish_pct:.0f}% bear) - {len(tfs_analyzed)} TFs")
+                except Exception as e:
+                    logger.debug(f"MTF analysis failed for {polygon_ticker}: {e}")
+
                 # Run technical and pattern analysis using Polygon ticker
                 analyses = []
                 for analysis_type in self.ai_analysis_types:
@@ -1488,14 +1622,27 @@ class SmartFlowService:
                     if (now - last_signal.timestamp).total_seconds() < 1800:
                         continue
 
+                # Check if MTF bias conflicts with AI direction - require alignment
+                mtf_aligned = False
+                if direction == 'bullish' and mtf_bias in ['bullish', 'strong_bullish']:
+                    mtf_aligned = True
+                elif direction == 'bearish' and mtf_bias in ['bearish', 'strong_bearish']:
+                    mtf_aligned = True
+                elif mtf_bias == 'neutral':
+                    mtf_aligned = True  # Neutral doesn't conflict
+
                 # Generate signal with TRADING ticker (not data ticker)
+                mtf_str = f"MTF: {mtf_bias} ({mtf_bullish_pct:.0f}%↑/{mtf_bearish_pct:.0f}%↓)"
+                confluences_str = f" | {', '.join(mtf_confluences)}" if mtf_confluences else ""
+                aligned_str = "✓aligned" if mtf_aligned else "⚠️conflicting"
+
                 signal = SmartFlowSignal(
                     ticker=trading_ticker,  # Use futures/trading ticker
                     action=action,
                     score=avg_confidence,  # Use confidence as score
                     price=None,
                     source='SmartFlow-AI',
-                    reason=f"AI-Only: {direction} via {polygon_ticker} ({buy_votes} buy / {sell_votes} sell, {avg_confidence:.0f}% conf)",
+                    reason=f"AI-Only: {direction} ({buy_votes}B/{sell_votes}S) {mtf_str} [{aligned_str}]{confluences_str}",
                     confidence=avg_confidence,
                 )
 
@@ -1602,6 +1749,23 @@ class SmartFlowService:
                 setattr(self, key, value)
                 logger.info(f"Updated SmartFlow config: {key}={value}")
 
+    def _format_signal_with_est(self, v) -> dict:
+        """Format a signal with EST timestamp"""
+        from zoneinfo import ZoneInfo
+        utc = ZoneInfo('UTC')
+        est = ZoneInfo('America/New_York')
+        ts_utc = v.timestamp.replace(tzinfo=utc)
+        ts_est = ts_utc.astimezone(est).strftime('%I:%M:%S %p')
+
+        return {
+            'ticker': v.ticker,
+            'action': v.action,
+            'score': v.score,
+            'confidence': getattr(v, 'confidence', None),
+            'reason': getattr(v, 'reason', None) or (f"Bull={getattr(v, 'bullish_flows', 0)}, Bear={getattr(v, 'bearish_flows', 0)}" if hasattr(v, 'bullish_flows') else None),
+            'timestamp': ts_est
+        }
+
     def _get_recent_signals(self) -> list:
         """Get recent signals from memory or database"""
         # If we have signals in memory, use those
@@ -1615,13 +1779,20 @@ class SmartFlowService:
                 if reason is None and hasattr(s, 'bullish_flows') and hasattr(s, 'bearish_flows'):
                     reason = f"Bull={s.bullish_flows}, Bear={s.bearish_flows}"
 
+                # Convert timestamp to EST
+                from zoneinfo import ZoneInfo
+                utc = ZoneInfo('UTC')
+                est = ZoneInfo('America/New_York')
+                ts_utc = s.timestamp.replace(tzinfo=utc)
+                ts_est = ts_utc.astimezone(est)
+
                 results.append({
                     'ticker': s.ticker,
                     'action': s.action,
                     'score': s.score,
                     'confidence': confidence,  # None shows as N/A in UI
                     'reason': reason,          # None shows as "No details" in UI
-                    'timestamp': s.timestamp.isoformat()
+                    'timestamp': ts_est.strftime('%I:%M:%S %p')  # EST time like "9:33:54 PM"
                 })
             return results
 
@@ -1636,14 +1807,26 @@ class SmartFlowService:
                     SmartFlowSignalLog.created_at.desc()
                 ).limit(20).all()
 
-                return [{
-                    'ticker': s.ticker,
-                    'action': s.action,
-                    'score': s.score,
-                    'confidence': s.confidence,  # From AI or None
-                    'reason': s.reason or f"Bull={s.bullish_flows or 0}, Bear={s.bearish_flows or 0}",
-                    'timestamp': s.created_at.isoformat() if s.created_at else ''
-                } for s in signals]
+                from zoneinfo import ZoneInfo
+                utc = ZoneInfo('UTC')
+                est = ZoneInfo('America/New_York')
+
+                results = []
+                for s in signals:
+                    ts_est = ''
+                    if s.created_at:
+                        ts_utc = s.created_at.replace(tzinfo=utc)
+                        ts_est = ts_utc.astimezone(est).strftime('%I:%M:%S %p')
+
+                    results.append({
+                        'ticker': s.ticker,
+                        'action': s.action,
+                        'score': s.score,
+                        'confidence': s.confidence,
+                        'reason': s.reason or f"Bull={s.bullish_flows or 0}, Bear={s.bearish_flows or 0}",
+                        'timestamp': ts_est  # EST time like "9:33:54 PM"
+                    })
+                return results
             finally:
                 db.close()
         except Exception as e:
@@ -1663,12 +1846,19 @@ class SmartFlowService:
         for ticker in tracked_tickers:
             if self.score_history[ticker]:
                 latest = self.score_history[ticker][-1]
+                # Convert to EST
+                from zoneinfo import ZoneInfo
+                utc = ZoneInfo('UTC')
+                est = ZoneInfo('America/New_York')
+                ts_utc = latest.timestamp.replace(tzinfo=utc)
+                ts_est = ts_utc.astimezone(est).strftime('%I:%M:%S %p')
+
                 latest_scores[ticker] = {
                     'score': latest.score,
                     'bullish_flows': latest.bullish_flows,
                     'bearish_flows': latest.bearish_flows,
                     'total_premium': latest.total_premium,
-                    'timestamp': latest.timestamp.isoformat()
+                    'timestamp': ts_est  # EST time
                 }
 
         # Check for VIX bearish bias
@@ -1684,14 +1874,7 @@ class SmartFlowService:
             'enabled': self.enabled,
             'latest_scores': latest_scores,
             'vix_bias': vix_bias,  # New field for dashboard
-            'last_signals': {k: {
-                'ticker': v.ticker,
-                'action': v.action,
-                'score': v.score,
-                'confidence': getattr(v, 'confidence', None),
-                'reason': getattr(v, 'reason', None) or (f"Bull={getattr(v, 'bullish_flows', 0)}, Bear={getattr(v, 'bearish_flows', 0)}" if hasattr(v, 'bullish_flows') else None),
-                'timestamp': v.timestamp.isoformat()
-            } for k, v in self.last_signal.items()},
+            'last_signals': {k: self._format_signal_with_est(v) for k, v in self.last_signal.items()},
             'recent_signals': self._get_recent_signals(),  # Last 20 signals from memory or DB
             'webhook_count': len(self.webhook_urls),
             'update_interval': self.update_interval_seconds,

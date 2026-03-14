@@ -29,9 +29,15 @@ RUN npm run build
 FROM node:20-alpine AS runner
 WORKDIR /app
 
+# Install timezone data for proper timezone support
+RUN apk add --no-cache tzdata && \
+    cp /usr/share/zoneinfo/America/New_York /etc/localtime && \
+    echo "America/New_York" > /etc/timezone
+
 # Set production environment
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV TZ=America/New_York
 
 # Create non-root user for security
 RUN addgroup --system --gid 1001 nodejs

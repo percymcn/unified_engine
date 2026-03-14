@@ -1,0 +1,1044 @@
+<!DOCTYPE html><html class="no-js wf-din2014-n2-active wf-din2014-n3-active wf-din2014-i4-active wf-din2014-n4-active wf-din2014-n6-active wf-din2014-n7-active wf-active" lang="en" xml:lang="en" xmlns="http://www.w3.org/1999/xhtml"><head>
+    <title>FlowAlgo</title>
+    
+    <!-- Metas -->
+    <meta charset="UTF-8">
+	 <meta name="google" content="notranslate"> 
+	 <meta http-equiv="Content-Language" content="en">  
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, minimal-ui">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+
+    <!-- Favicon -->
+    <link rel="shortcut icon" href="/app/themes/flowalgo-sandbox/assets/images/favicon.png">
+
+		<!-- Fonts -->
+		<script type="text/javascript" async="" src="https://widget.intercom.io/widget/dtoll8e6"></script><script type="text/javascript" async="" src="https://www.google-analytics.com/analytics.js"></script><script type="text/javascript" async="" src="https://www.googletagmanager.com/gtag/js?id=G-B071655DS5&amp;cx=c&amp;gtm=4e6331"></script><script type="text/javascript" async="" src="//cdn4.mxpnl.com/libs/mixpanel-2-latest.min.js"></script><script src="https://use.typekit.net/btb5zvd.js"></script>
+		<style type="text/css">.tk-din-2014{font-family:"din-2014",sans-serif;}</style><style type="text/css">@font-face{font-family:din-2014;src:url(https://use.typekit.net/af/81aa16/00000000000000003b9aee0a/27/l?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=n2&v=3) format("woff2"),url(https://use.typekit.net/af/81aa16/00000000000000003b9aee0a/27/d?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=n2&v=3) format("woff"),url(https://use.typekit.net/af/81aa16/00000000000000003b9aee0a/27/a?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=n2&v=3) format("opentype");font-weight:200;font-style:normal;font-stretch:normal;font-display:auto;}@font-face{font-family:din-2014;src:url(https://use.typekit.net/af/e0ec02/00000000000000003b9aee0c/27/l?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=n3&v=3) format("woff2"),url(https://use.typekit.net/af/e0ec02/00000000000000003b9aee0c/27/d?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=n3&v=3) format("woff"),url(https://use.typekit.net/af/e0ec02/00000000000000003b9aee0c/27/a?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=n3&v=3) format("opentype");font-weight:300;font-style:normal;font-stretch:normal;font-display:auto;}@font-face{font-family:din-2014;src:url(https://use.typekit.net/af/44dd86/00000000000000003b9aee0e/27/l?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=i4&v=3) format("woff2"),url(https://use.typekit.net/af/44dd86/00000000000000003b9aee0e/27/d?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=i4&v=3) format("woff"),url(https://use.typekit.net/af/44dd86/00000000000000003b9aee0e/27/a?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=i4&v=3) format("opentype");font-weight:400;font-style:italic;font-stretch:normal;font-display:auto;}@font-face{font-family:din-2014;src:url(https://use.typekit.net/af/8b1331/00000000000000003b9aee0f/27/l?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=n4&v=3) format("woff2"),url(https://use.typekit.net/af/8b1331/00000000000000003b9aee0f/27/d?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=n4&v=3) format("woff"),url(https://use.typekit.net/af/8b1331/00000000000000003b9aee0f/27/a?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=n4&v=3) format("opentype");font-weight:400;font-style:normal;font-stretch:normal;font-display:auto;}@font-face{font-family:din-2014;src:url(https://use.typekit.net/af/b014c2/00000000000000003b9aee10/27/l?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=n6&v=3) format("woff2"),url(https://use.typekit.net/af/b014c2/00000000000000003b9aee10/27/d?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=n6&v=3) format("woff"),url(https://use.typekit.net/af/b014c2/00000000000000003b9aee10/27/a?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=n6&v=3) format("opentype");font-weight:600;font-style:normal;font-stretch:normal;font-display:auto;}@font-face{font-family:din-2014;src:url(https://use.typekit.net/af/3ed33d/00000000000000003b9aee13/27/l?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=n7&v=3) format("woff2"),url(https://use.typekit.net/af/3ed33d/00000000000000003b9aee13/27/d?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=n7&v=3) format("woff"),url(https://use.typekit.net/af/3ed33d/00000000000000003b9aee13/27/a?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=n7&v=3) format("opentype");font-weight:700;font-style:normal;font-stretch:normal;font-display:auto;}</style><script>try{Typekit.load({ async: false });}catch(e){}</script>
+
+		<!-- Stylesheets -->
+		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" type="text/css">
+
+
+		<link rel="stylesheet" href="/app/themes/flowalgo/assets/css/vendor/datedropper.min.css" type="text/css">
+		
+		<link rel="stylesheet" href="/app/themes/flowalgo/assets/css/vendor/iziToast.css" type="text/css">
+		<link rel="stylesheet" href="/app/themes/flowalgo/assets/css/vendor/iziModal.min.css" type="text/css">
+		<link rel="stylesheet" href="/app/themes/flowalgo/assets/css/vendor/tippy.min.css" type="text/css">
+		
+				
+		<link rel="stylesheet" href="/app/themes/flowalgo/assets/css/plugs.min.css" type="text/css">
+		<link rel="stylesheet" href="/app/themes/flowalgo/assets/css/app.css?v=452070" type="text/css">
+		
+		<link rel="stylesheet" href="/app/themes/flowalgo/assets/css/mobile.css?v=463953" type="text/css">
+		<style>html,.component-body,.data-body,.ps,#payload,.tablepress-scroll-wrapper,.messages-container{-webkit-overflow-scrolling: touch !important}</style>
+		
+    <meta name="robots" content="noindex, nofollow">
+<link rel="dns-prefetch" href="//ajax.googleapis.com">
+<script type="text/javascript">
+window._wpemojiSettings = {"baseUrl":"https:\/\/s.w.org\/images\/core\/emoji\/14.0.0\/72x72\/","ext":".png","svgUrl":"https:\/\/s.w.org\/images\/core\/emoji\/14.0.0\/svg\/","svgExt":".svg","source":{"concatemoji":"https:\/\/app.flowalgo.com\/wp-includes\/js\/wp-emoji-release.min.js?ver=6.1.9"}};
+/*! This file is auto-generated */
+!function(e,a,t){var n,r,o,i=a.createElement("canvas"),p=i.getContext&&i.getContext("2d");function s(e,t){var a=String.fromCharCode,e=(p.clearRect(0,0,i.width,i.height),p.fillText(a.apply(this,e),0,0),i.toDataURL());return p.clearRect(0,0,i.width,i.height),p.fillText(a.apply(this,t),0,0),e===i.toDataURL()}function c(e){var t=a.createElement("script");t.src=e,t.defer=t.type="text/javascript",a.getElementsByTagName("head")[0].appendChild(t)}for(o=Array("flag","emoji"),t.supports={everything:!0,everythingExceptFlag:!0},r=0;r<o.length;r++)t.supports[o[r]]=function(e){if(p&&p.fillText)switch(p.textBaseline="top",p.font="600 32px Arial",e){case"flag":return s([127987,65039,8205,9895,65039],[127987,65039,8203,9895,65039])?!1:!s([55356,56826,55356,56819],[55356,56826,8203,55356,56819])&&!s([55356,57332,56128,56423,56128,56418,56128,56421,56128,56430,56128,56423,56128,56447],[55356,57332,8203,56128,56423,8203,56128,56418,8203,56128,56421,8203,56128,56430,8203,56128,56423,8203,56128,56447]);case"emoji":return!s([129777,127995,8205,129778,127999],[129777,127995,8203,129778,127999])}return!1}(o[r]),t.supports.everything=t.supports.everything&&t.supports[o[r]],"flag"!==o[r]&&(t.supports.everythingExceptFlag=t.supports.everythingExceptFlag&&t.supports[o[r]]);t.supports.everythingExceptFlag=t.supports.everythingExceptFlag&&!t.supports.flag,t.DOMReady=!1,t.readyCallback=function(){t.DOMReady=!0},t.supports.everything||(n=function(){t.readyCallback()},a.addEventListener?(a.addEventListener("DOMContentLoaded",n,!1),e.addEventListener("load",n,!1)):(e.attachEvent("onload",n),a.attachEvent("onreadystatechange",function(){"complete"===a.readyState&&t.readyCallback()})),(e=t.source||{}).concatemoji?c(e.concatemoji):e.wpemoji&&e.twemoji&&(c(e.twemoji),c(e.wpemoji)))}(window,document,window._wpemojiSettings);
+</script><script src="https://app.flowalgo.com/wp-includes/js/wp-emoji-release.min.js?ver=6.1.9" type="text/javascript" defer=""></script>
+<style type="text/css">
+img.wp-smiley,
+img.emoji {
+	display: inline !important;
+	border: none !important;
+	box-shadow: none !important;
+	height: 1em !important;
+	width: 1em !important;
+	margin: 0 0.07em !important;
+	vertical-align: -0.1em !important;
+	background: none !important;
+	padding: 0 !important;
+}
+</style>
+	<link rel="stylesheet" id="wp-block-library-css" href="https://app.flowalgo.com/wp-includes/css/dist/block-library/style.min.css?ver=6.1.9" type="text/css" media="all">
+<link rel="stylesheet" id="classic-theme-styles-css" href="https://app.flowalgo.com/wp-includes/css/classic-themes.min.css?ver=1" type="text/css" media="all">
+<style id="global-styles-inline-css" type="text/css">
+body{--wp--preset--color--black: #000000;--wp--preset--color--cyan-bluish-gray: #abb8c3;--wp--preset--color--white: #ffffff;--wp--preset--color--pale-pink: #f78da7;--wp--preset--color--vivid-red: #cf2e2e;--wp--preset--color--luminous-vivid-orange: #ff6900;--wp--preset--color--luminous-vivid-amber: #fcb900;--wp--preset--color--light-green-cyan: #7bdcb5;--wp--preset--color--vivid-green-cyan: #00d084;--wp--preset--color--pale-cyan-blue: #8ed1fc;--wp--preset--color--vivid-cyan-blue: #0693e3;--wp--preset--color--vivid-purple: #9b51e0;--wp--preset--gradient--vivid-cyan-blue-to-vivid-purple: linear-gradient(135deg,rgba(6,147,227,1) 0%,rgb(155,81,224) 100%);--wp--preset--gradient--light-green-cyan-to-vivid-green-cyan: linear-gradient(135deg,rgb(122,220,180) 0%,rgb(0,208,130) 100%);--wp--preset--gradient--luminous-vivid-amber-to-luminous-vivid-orange: linear-gradient(135deg,rgba(252,185,0,1) 0%,rgba(255,105,0,1) 100%);--wp--preset--gradient--luminous-vivid-orange-to-vivid-red: linear-gradient(135deg,rgba(255,105,0,1) 0%,rgb(207,46,46) 100%);--wp--preset--gradient--very-light-gray-to-cyan-bluish-gray: linear-gradient(135deg,rgb(238,238,238) 0%,rgb(169,184,195) 100%);--wp--preset--gradient--cool-to-warm-spectrum: linear-gradient(135deg,rgb(74,234,220) 0%,rgb(151,120,209) 20%,rgb(207,42,186) 40%,rgb(238,44,130) 60%,rgb(251,105,98) 80%,rgb(254,248,76) 100%);--wp--preset--gradient--blush-light-purple: linear-gradient(135deg,rgb(255,206,236) 0%,rgb(152,150,240) 100%);--wp--preset--gradient--blush-bordeaux: linear-gradient(135deg,rgb(254,205,165) 0%,rgb(254,45,45) 50%,rgb(107,0,62) 100%);--wp--preset--gradient--luminous-dusk: linear-gradient(135deg,rgb(255,203,112) 0%,rgb(199,81,192) 50%,rgb(65,88,208) 100%);--wp--preset--gradient--pale-ocean: linear-gradient(135deg,rgb(255,245,203) 0%,rgb(182,227,212) 50%,rgb(51,167,181) 100%);--wp--preset--gradient--electric-grass: linear-gradient(135deg,rgb(202,248,128) 0%,rgb(113,206,126) 100%);--wp--preset--gradient--midnight: linear-gradient(135deg,rgb(2,3,129) 0%,rgb(40,116,252) 100%);--wp--preset--duotone--dark-grayscale: url('#wp-duotone-dark-grayscale');--wp--preset--duotone--grayscale: url('#wp-duotone-grayscale');--wp--preset--duotone--purple-yellow: url('#wp-duotone-purple-yellow');--wp--preset--duotone--blue-red: url('#wp-duotone-blue-red');--wp--preset--duotone--midnight: url('#wp-duotone-midnight');--wp--preset--duotone--magenta-yellow: url('#wp-duotone-magenta-yellow');--wp--preset--duotone--purple-green: url('#wp-duotone-purple-green');--wp--preset--duotone--blue-orange: url('#wp-duotone-blue-orange');--wp--preset--font-size--small: 13px;--wp--preset--font-size--medium: 20px;--wp--preset--font-size--large: 36px;--wp--preset--font-size--x-large: 42px;--wp--preset--spacing--20: 0.44rem;--wp--preset--spacing--30: 0.67rem;--wp--preset--spacing--40: 1rem;--wp--preset--spacing--50: 1.5rem;--wp--preset--spacing--60: 2.25rem;--wp--preset--spacing--70: 3.38rem;--wp--preset--spacing--80: 5.06rem;}:where(.is-layout-flex){gap: 0.5em;}body .is-layout-flow > .alignleft{float: left;margin-inline-start: 0;margin-inline-end: 2em;}body .is-layout-flow > .alignright{float: right;margin-inline-start: 2em;margin-inline-end: 0;}body .is-layout-flow > .aligncenter{margin-left: auto !important;margin-right: auto !important;}body .is-layout-constrained > .alignleft{float: left;margin-inline-start: 0;margin-inline-end: 2em;}body .is-layout-constrained > .alignright{float: right;margin-inline-start: 2em;margin-inline-end: 0;}body .is-layout-constrained > .aligncenter{margin-left: auto !important;margin-right: auto !important;}body .is-layout-constrained > :where(:not(.alignleft):not(.alignright):not(.alignfull)){max-width: var(--wp--style--global--content-size);margin-left: auto !important;margin-right: auto !important;}body .is-layout-constrained > .alignwide{max-width: var(--wp--style--global--wide-size);}body .is-layout-flex{display: flex;}body .is-layout-flex{flex-wrap: wrap;align-items: center;}body .is-layout-flex > *{margin: 0;}:where(.wp-block-columns.is-layout-flex){gap: 2em;}.has-black-color{color: var(--wp--preset--color--black) !important;}.has-cyan-bluish-gray-color{color: var(--wp--preset--color--cyan-bluish-gray) !important;}.has-white-color{color: var(--wp--preset--color--white) !important;}.has-pale-pink-color{color: var(--wp--preset--color--pale-pink) !important;}.has-vivid-red-color{color: var(--wp--preset--color--vivid-red) !important;}.has-luminous-vivid-orange-color{color: var(--wp--preset--color--luminous-vivid-orange) !important;}.has-luminous-vivid-amber-color{color: var(--wp--preset--color--luminous-vivid-amber) !important;}.has-light-green-cyan-color{color: var(--wp--preset--color--light-green-cyan) !important;}.has-vivid-green-cyan-color{color: var(--wp--preset--color--vivid-green-cyan) !important;}.has-pale-cyan-blue-color{color: var(--wp--preset--color--pale-cyan-blue) !important;}.has-vivid-cyan-blue-color{color: var(--wp--preset--color--vivid-cyan-blue) !important;}.has-vivid-purple-color{color: var(--wp--preset--color--vivid-purple) !important;}.has-black-background-color{background-color: var(--wp--preset--color--black) !important;}.has-cyan-bluish-gray-background-color{background-color: var(--wp--preset--color--cyan-bluish-gray) !important;}.has-white-background-color{background-color: var(--wp--preset--color--white) !important;}.has-pale-pink-background-color{background-color: var(--wp--preset--color--pale-pink) !important;}.has-vivid-red-background-color{background-color: var(--wp--preset--color--vivid-red) !important;}.has-luminous-vivid-orange-background-color{background-color: var(--wp--preset--color--luminous-vivid-orange) !important;}.has-luminous-vivid-amber-background-color{background-color: var(--wp--preset--color--luminous-vivid-amber) !important;}.has-light-green-cyan-background-color{background-color: var(--wp--preset--color--light-green-cyan) !important;}.has-vivid-green-cyan-background-color{background-color: var(--wp--preset--color--vivid-green-cyan) !important;}.has-pale-cyan-blue-background-color{background-color: var(--wp--preset--color--pale-cyan-blue) !important;}.has-vivid-cyan-blue-background-color{background-color: var(--wp--preset--color--vivid-cyan-blue) !important;}.has-vivid-purple-background-color{background-color: var(--wp--preset--color--vivid-purple) !important;}.has-black-border-color{border-color: var(--wp--preset--color--black) !important;}.has-cyan-bluish-gray-border-color{border-color: var(--wp--preset--color--cyan-bluish-gray) !important;}.has-white-border-color{border-color: var(--wp--preset--color--white) !important;}.has-pale-pink-border-color{border-color: var(--wp--preset--color--pale-pink) !important;}.has-vivid-red-border-color{border-color: var(--wp--preset--color--vivid-red) !important;}.has-luminous-vivid-orange-border-color{border-color: var(--wp--preset--color--luminous-vivid-orange) !important;}.has-luminous-vivid-amber-border-color{border-color: var(--wp--preset--color--luminous-vivid-amber) !important;}.has-light-green-cyan-border-color{border-color: var(--wp--preset--color--light-green-cyan) !important;}.has-vivid-green-cyan-border-color{border-color: var(--wp--preset--color--vivid-green-cyan) !important;}.has-pale-cyan-blue-border-color{border-color: var(--wp--preset--color--pale-cyan-blue) !important;}.has-vivid-cyan-blue-border-color{border-color: var(--wp--preset--color--vivid-cyan-blue) !important;}.has-vivid-purple-border-color{border-color: var(--wp--preset--color--vivid-purple) !important;}.has-vivid-cyan-blue-to-vivid-purple-gradient-background{background: var(--wp--preset--gradient--vivid-cyan-blue-to-vivid-purple) !important;}.has-light-green-cyan-to-vivid-green-cyan-gradient-background{background: var(--wp--preset--gradient--light-green-cyan-to-vivid-green-cyan) !important;}.has-luminous-vivid-amber-to-luminous-vivid-orange-gradient-background{background: var(--wp--preset--gradient--luminous-vivid-amber-to-luminous-vivid-orange) !important;}.has-luminous-vivid-orange-to-vivid-red-gradient-background{background: var(--wp--preset--gradient--luminous-vivid-orange-to-vivid-red) !important;}.has-very-light-gray-to-cyan-bluish-gray-gradient-background{background: var(--wp--preset--gradient--very-light-gray-to-cyan-bluish-gray) !important;}.has-cool-to-warm-spectrum-gradient-background{background: var(--wp--preset--gradient--cool-to-warm-spectrum) !important;}.has-blush-light-purple-gradient-background{background: var(--wp--preset--gradient--blush-light-purple) !important;}.has-blush-bordeaux-gradient-background{background: var(--wp--preset--gradient--blush-bordeaux) !important;}.has-luminous-dusk-gradient-background{background: var(--wp--preset--gradient--luminous-dusk) !important;}.has-pale-ocean-gradient-background{background: var(--wp--preset--gradient--pale-ocean) !important;}.has-electric-grass-gradient-background{background: var(--wp--preset--gradient--electric-grass) !important;}.has-midnight-gradient-background{background: var(--wp--preset--gradient--midnight) !important;}.has-small-font-size{font-size: var(--wp--preset--font-size--small) !important;}.has-medium-font-size{font-size: var(--wp--preset--font-size--medium) !important;}.has-large-font-size{font-size: var(--wp--preset--font-size--large) !important;}.has-x-large-font-size{font-size: var(--wp--preset--font-size--x-large) !important;}
+.wp-block-navigation a:where(:not(.wp-element-button)){color: inherit;}
+:where(.wp-block-columns.is-layout-flex){gap: 2em;}
+.wp-block-pullquote{font-size: 1.5em;line-height: 1.6;}
+</style>
+<link rel="stylesheet" id="tablepress-tabletools-css-css" href="/app/plugins/tablepress-datatables-tabletools/css/TableTools.min.css?ver=2.1.5" type="text/css" media="all">
+<link rel="stylesheet" id="tablepress-responsive-tables-css" href="/app/plugins/tablepress-responsive-tables/css/responsive.dataTables.min.css?ver=1.4" type="text/css" media="all">
+<link rel="stylesheet" id="tablepress-default-css" href="/app/plugins/tablepress/css/default.min.css?ver=1.8" type="text/css" media="all">
+<!--[if !IE]><!-->
+<link rel="stylesheet" id="tablepress-responsive-tables-flip-css" href="/app/plugins/tablepress-responsive-tables/css/tablepress-responsive-flip.min.css?ver=1.4" type="text/css" media="all">
+<!--<![endif]-->
+<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.4/jquery.min.js?ver=6.1.9" id="jquery-js"></script>
+<link rel="https://api.w.org/" href="https://app.flowalgo.com/wp-json/"><link rel="alternate" type="application/json" href="https://app.flowalgo.com/wp-json/wp/v2/pages/443112"><link rel="EditURI" type="application/rsd+xml" href="https://app.flowalgo.com/xmlrpc.php?rsd" data-tooltipped="" aria-describedby="tippy-tooltip-1" data-original-title="RSD">
+<link rel="wlwmanifest" type="application/wlwmanifest+xml" href="https://app.flowalgo.com/wp-includes/wlwmanifest.xml">
+
+<link rel="canonical" href="https://app.flowalgo.com/dashboard-overview/">
+<link rel="shortlink" href="https://app.flowalgo.com/?p=443112">
+<link rel="alternate" type="application/json+oembed" href="https://app.flowalgo.com/wp-json/oembed/1.0/embed?url=https%3A%2F%2Fapp.flowalgo.com%2Fdashboard-overview%2F">
+<link rel="alternate" type="text/xml+oembed" href="https://app.flowalgo.com/wp-json/oembed/1.0/embed?url=https%3A%2F%2Fapp.flowalgo.com%2Fdashboard-overview%2F&amp;format=xml">
+<script type="text/javascript">
+jQuery(document).ready(function($){
+    $('.am4-ajax-widget').each(function(){
+            $(this).load('//app.flowalgo.com/wp-admin/admin-ajax.php',
+            {
+                action: 'am4-show-widget',
+                id: $(this).attr('id')
+            });
+        });
+});
+</script>    
+    <!-- mixpanel --> 
+	<script>(function(c,a){if(!a.__SV){var b=window;try{var d,m,j,k=b.location,f=k.hash;d=function(a,b){return(m=a.match(RegExp(b+"=([^&]*)")))?m[1]:null};f&&d(f,"state")&&(j=JSON.parse(decodeURIComponent(d(f,"state"))),"mpeditor"===j.action&&(b.sessionStorage.setItem("_mpcehash",f),history.replaceState(j.desiredHash||"",c.title,k.pathname+k.search)))}catch(n){}var l,h;window.mixpanel=a;a._i=[];a.init=function(b,d,g){function c(b,i){var a=i.split(".");2==a.length&&(b=b[a[0]],i=a[1]);b[i]=function(){b.push([i].concat(Array.prototype.slice.call(arguments,
+0)))}}var e=a;"undefined"!==typeof g?e=a[g]=[]:g="mixpanel";e.people=e.people||[];e.toString=function(b){var a="mixpanel";"mixpanel"!==g&&(a+="."+g);b||(a+=" (stub)");return a};e.people.toString=function(){return e.toString(1)+".people (stub)"};l="disable time_event track track_pageview track_links track_forms track_with_groups add_group set_group remove_group register register_once alias unregister identify name_tag set_config reset opt_in_tracking opt_out_tracking has_opted_in_tracking has_opted_out_tracking clear_opt_in_out_tracking people.set people.set_once people.unset people.increment people.append people.union people.track_charge people.clear_charges people.delete_user people.remove".split(" ");
+for(h=0;h<l.length;h++)c(e,l[h]);var f="set set_once union unset remove delete".split(" ");e.get_group=function(){function a(c){b[c]=function(){call2_args=arguments;call2=[c].concat(Array.prototype.slice.call(call2_args,0));e.push([d,call2])}}for(var b={},d=["get_group"].concat(Array.prototype.slice.call(arguments,0)),c=0;c<f.length;c++)a(f[c]);return b};a._i.push([b,d,g])};a.__SV=1.2;b=c.createElement("script");b.type="text/javascript";b.async=!0;b.src="undefined"!==typeof MIXPANEL_CUSTOM_LIB_URL?
+MIXPANEL_CUSTOM_LIB_URL:"file:"===c.location.protocol&&"//cdn4.mxpnl.com/libs/mixpanel-2-latest.min.js".match(/^\/\//)?"https://cdn4.mxpnl.com/libs/mixpanel-2-latest.min.js":"//cdn4.mxpnl.com/libs/mixpanel-2-latest.min.js";d=c.getElementsByTagName("script")[0];d.parentNode.insertBefore(b,d)}})(document,window.mixpanel||[]);
+mixpanel.init("cef79b4c5c48fb3ec3efe8059605ec56")
+</script><!-- end::mixpanel -->
+
+ 
+	
+<style>.chat-component .message.mentioned{border-left: 3px solid #fd9700; background: #312c24} .message .contents b{color: #96abf7; font-weight: 600;}</style>
+    
+  <script async="true" type="text/javascript" src="https://s.adroll.com/j/roundtrip.js"></script><meta http-equiv="origin-trial" content="A41wt2Lsq30A9Ox/WehogvJckPI4aY9RoSxhb8FMtVnqaUle1AtI6Yf7Wk+7+Wm0AfDDOkMX+Wn6wnDpBWYgWwYAAAB8eyJvcmlnaW4iOiJodHRwczovL2Fkcm9sbC5jb206NDQzIiwiZmVhdHVyZSI6IkludGVyZXN0Q29ob3J0QVBJIiwiZXhwaXJ5IjoxNjI2MjIwNzk5LCJpc1N1YmRvbWFpbiI6dHJ1ZSwiaXNUaGlyZFBhcnR5Ijp0cnVlfQ=="><script type="text/javascript" src="https://s.adroll.com/j/pre/EWEJP57Y6NEUVKJVXOCEJP/JURQBX5ZWNGNLAFB4ISSVP/fpconsent.js"></script><script type="text/javascript" src="https://s.adroll.com/j/pre/EWEJP57Y6NEUVKJVXOCEJP/JURQBX5ZWNGNLAFB4ISSVP/index.js"></script><script type="text/javascript" src="https://d.adroll.com/consent/check/EWEJP57Y6NEUVKJVXOCEJP?pv=21629677041.941246&amp;arrfrr=https%3A%2F%2Fapp.flowalgo.com%2Fdashboard-overview%2F&amp;_s=55763db46e2c345972505fcb37f4f2a6&amp;_b=2"></script></head>
+  <body class="is-logged-in is-active is-page-dashboard-overview userpage- dark-theme has-no-page-controls has-no-page-nav">
+	
+		<header id="mobile-header">
+			<div class="inner">
+				<div id="toggle-mobile-nav">
+					<span></span>
+					<span></span>
+					<span></span>
+				</div>
+				<a href="" class="mobile-logo"><img src="/app/uploads/flowalgo-logo-new-1.png"></a>
+			<div id="mobile-page-nav">
+				<a href="#" id="toggle-optionflow" class="active">Option Flow</a>
+				<a href="#" id="toggle-equityflow">Equity Flow</a>
+				<a href="#" class="hidden" id="toggle-stats">Stats</a>
+			</div>
+			</div>
+		</header>
+		 
+		<nav id="mobile-nav">
+			<div class="nav-main">
+				<a href="/" class="icon-link animated fadeIn "><i class="fa fa-dashboard" data-position="right" data-tooltipped="" aria-describedby="tippy-tooltip-2" data-original-title="Dashboard"></i><span>Dashboard</span></a>
+				<a href="/snapshot/?period=today" class="icon-link animated fadeIn "><i class="fa fa-th" data-position="right" data-tooltipped="" aria-describedby="tippy-tooltip-3" data-original-title="Snapshot"></i><span>Snapshot</span></a>
+				<a href="/unusual-volume" class="icon-link animated fadeIn "><i class="fa fa-exclamation-circle" data-position="right" data-tooltipped="" aria-describedby="tippy-tooltip-4" data-original-title="Unusual Volume"></i><span>Unusual Volume</span></a>
+				<a href="/top-oi-change" class="icon-link animated fadeIn "><i class="fa fa-adjust" data-position="right" data-tooltipped="" aria-describedby="tippy-tooltip-5" data-original-title="Top OI Changes"></i><span>Top OI Change</span></a>
+				<a href="/historical/?show=30" class="icon-link animated fadeIn "><i class="fa fa-clock-o" data-position="right" data-tooltipped="" aria-describedby="tippy-tooltip-6" data-original-title="Historical Flow"></i><span>Historical</span></a>
+<!-- 				<a href="/watchlist" class="icon-link animated fadeIn "><i class="fa fa-tasks" title="Watchlist" data-position="right"></i><span>Watchlist</span></a> -->
+				<a href="/charts" class="icon-link animated fadeIn "><i class="fa fa-bar-chart" data-position="right" data-tooltipped="" aria-describedby="tippy-tooltip-7" data-original-title="Charts"></i><span>Charts</span></a>
+				<a href="https://app.flowalgo.com/chat/?fullscreen" target="_blank"><i class="fa fa-comments" data-position="right" data-tooltipped="" aria-describedby="tippy-tooltip-8" data-original-title="Charts"></i><span>Chat</span></a>
+				<a href="http://help.flowalgo.com/" target="_blank" class="icon-link animated fadeIn"><i class="fa fa-question-circle" data-position="right" data-tooltipped="" aria-describedby="tippy-tooltip-9" data-original-title="Help"></i><span>Help</span></a>
+				<a href="/users/" class="icon-link animated fadeIn "><i class="fa fa-user-circle" data-position="right" data-tooltipped="" aria-describedby="tippy-tooltip-10" data-original-title="My Account"></i><span>My Account</span></a>
+				
+				<a id="logout" href="/users/logout" class="button is-primary is-block is-large"><i class="fa fa-power-off" data-position="right" data-tooltipped="" aria-describedby="tippy-tooltip-11" data-original-title="Log Out"></i><span>Logout</span></a>
+
+			</div>
+		</nav>
+		
+
+		
+			
+			
+
+
+<div id="app" style="height: 1080px;">
+	
+<nav id="primary" class="">
+<!-- 	<a href="/" class="logo"><img src="/app/themes/flowalgo/assets/images/logo.png"></a> -->
+	<a href="/" class="icon-link animated fadeIn "><i class="fa fa-dashboard" data-position="right" data-tooltipped="" aria-describedby="tippy-tooltip-12" data-original-title="Dashboard"></i><span>Dashboard</span></a>
+	<a href="/snapshot/?period=today" class="icon-link animated fadeIn "><i class="fa fa-th" data-position="right" data-tooltipped="" aria-describedby="tippy-tooltip-13" data-original-title="Snapshot"></i><span>Snapshot</span></a>
+	<a href="/historical/?show=30" class="icon-link animated fadeIn "><i class="fa fa-clock-o" data-position="right" data-tooltipped="" aria-describedby="tippy-tooltip-14" data-original-title="Historical Flow"></i><span>Historical</span></a>
+	<a href="/levels/?symbol=SPY&amp;date=01%2F01%2F2020&amp;min_strength=20" class="icon-link animated fadeIn "><i class="fa fa-align-left" data-position="right" data-tooltipped="" aria-describedby="tippy-tooltip-15" data-original-title="Equity Levels"></i><span>Equity Levels</span></a>
+	<a href="/equity-radar" class="icon-link animated fadeIn"><i class="fa fa-bullseye" data-position="right" data-tooltipped="" aria-describedby="tippy-tooltip-16" data-original-title="Radar"></i><span>Radar</span></a>
+	 
+	<a href="/unusual-volume" class="icon-link animated fadeIn "><i class="fa fa-exclamation-circle" data-position="right" data-tooltipped="" aria-describedby="tippy-tooltip-17" data-original-title="Unusual Volume"></i><span>Unusual Volume</span></a>
+	<a href="/top-oi-change" class="icon-link animated fadeIn "><i class="fa fa-adjust" data-position="right" data-tooltipped="" aria-describedby="tippy-tooltip-18" data-original-title="Top OI Changes"></i><span>Top OI Change</span></a>
+	
+<!-- 	<a href="/watchlist" class="icon-link animated fadeIn "><i class="fa fa-eye" title="Watchlist" data-position="right"></i><span>Watchlist</span></a> -->
+<!-- 	<a href="/trade-ideas" class="icon-link animated fadeIn "><i class="fa fa-line-chart" title="Trade Ideas" data-position="right"></i><span>Trade Ideas</span></a> -->
+	
+	<!-- 	<a href="/resources" class="icon-link animated fadeIn "><i class="fa fa-book"></i><span>Resources</span></a> -->
+	<a href="/options-export-beta/" class="icon-link animated fadeIn"><i class="fa fa-download" data-position="right" data-tooltipped="" aria-describedby="tippy-tooltip-19" data-original-title="Export Tool"></i><span>Export Tool</span></a>
+		<a href="/charts" class="icon-link animated fadeIn "><i class="fa fa-bar-chart" data-position="right" data-tooltipped="" aria-describedby="tippy-tooltip-20" data-original-title="Charts"></i><span>Charts</span></a>
+ 
+	<a href="/learn" class="icon-link animated fadeIn "><i class="fa fa-file-text-o" data-position="right" data-tooltipped="" aria-describedby="tippy-tooltip-21" data-original-title="Learn"></i><span>Learn</span></a>
+	<a href="http://help.flowalgo.com/" target="_blank" class="icon-link animated fadeIn"><i class="fa fa-question-circle" data-position="right" data-tooltipped="" aria-describedby="tippy-tooltip-22" data-original-title="Help"></i><span>Help</span></a>
+	
+	
+	<a href="/users/" class="icon-link animated fadeIn "><i class="fa fa-user-circle" data-position="right" data-tooltipped="" aria-describedby="tippy-tooltip-23" data-original-title="My Account"></i><span>My Account</span></a>
+	<div class="pos-base">
+		<a id="fa-updates-link" class="animated bounce" href="/updates" data-position="right" style="animation-delay: 10s; -webkit-animation-delay: 10s; border-color: #14bfb9 !important; border-width: 2px !important; border-style: solid !important" data-tooltipped="" aria-describedby="tippy-tooltip-24" data-original-title="Platform Updates"><i class="fa fa-code" style="color: #14bfb9; font-weight: bold"></i></a>
+		<span id="toggle-nav-state" data-position="right" data-tooltipped="" aria-describedby="tippy-tooltip-25" data-original-title="Expand Nav"><i class="fa fa-arrow-right" data-position="right"></i></span>
+		<a id="logout" data-position="right" href="/users/logout" class="button is-primary is-block is-large" data-tooltipped="" aria-describedby="tippy-tooltip-26" data-original-title="Log out"><span>Logout</span><i class="fa fa-power-off" data-position="right"></i></a>
+	</div>
+</nav>
+
+<script>
+	var navState = function (){
+		if(localStorage.navState == 'expanded'){
+			document.body.classList.add("nav-is-expanded");
+			document.getElementById('toggle-nav-state').children[0].classList.add('fa-flip-horizontal');
+		}
+		return localStorage.navState; 
+	}();
+		
+</script>
+
+<style>
+	#fa-updates-link{border-radius: 10px !important }
+	#fa-updates-link:hover{background: #14bfb9 !important; color: #fff !important}
+	#fa-updates-link:hover i.fa{color: #fff !important} 
+	#fa-updates-link i.fa:hover{color: #fff !important}  
+</style>
+
+<script>
+	
+	$(document).ready( function(){
+		function updateBounce(){ $('#fa-updates-link').toggleClass('bounce'); }
+		setInterval(updateBounce, 450000);
+	});
+	
+</script>
+
+
+
+ 
+	<div id="payload"> 
+		
+		<div class="flex-h" id="app-controls">
+			<h1 class="page-title">Dashboard Overview</h1>
+					</div>
+		
+				
+				
+				
+		<div class="flex-h page-container ">
+						<style>#app-controls, #mobile-page-nav{display: none !important} .page-container{display: block; text-align: center} .page-container img{width: 1200px; height: auto; max-width: 100%;     box-shadow: 0 0 50px rgba(0,0,0,0.15); margin-bottom: 2rem;} #primary{background: #03070D !important} @media (max-width: 768px){ .is-logged-in{padding-top: 44px;} .is-logged-in header#mobile-header{height: 44px;}}  .dpi-btn:hover{background: #41CBCD !important; color: #fff !important} .page-container{margin: 0 !important} body{background: #111623}</style>
+<p><a href="https://downloads.intercomcdn.com/i/o/96586366/240c7eb6456ca138aa9735aa/flowalgo-dash.jpg" target="_blank"><img decoding="async" src="https://downloads.intercomcdn.com/i/o/96586366/240c7eb6456ca138aa9735aa/flowalgo-dash.jpg" style="width: auto; max-height: 88vh"></a></p>
+<p><img decoding="async" src="/app/uploads/dash-intelligence-layer.jpg"><br>
+<img decoding="async" src="/app/uploads/dash-dot-indicators.jpg"><br>
+<img decoding="async" src="/app/uploads/dash-smart-filters.jpg"></p>
+															
+																		
+			
+					</div>
+		
+	</div>
+
+</div>
+
+
+		
+  
+	
+				
+				
+
+	<script>
+		var currentUser = (function(){	
+			
+			var user = {
+				id: 40140,
+				firstname: 'percyval',
+				lastname: 'mcneil',
+				username: 'benzemm110',
+				avatar: '<span class="gen-avatar c1">pm</span>',
+				displayname: 'benzemm110',
+				email: 'benzemm110@gmail.com',
+				nonce: 'e0cb855f4a',
+				watchlist: [],
+				chatbanned: 'false',  
+				signedupdaysago: 1,
+				signupdate: '2026-03-04 21:45:11',
+				affid: 0			};
+			
+			function getUser(d){ 
+				var data;
+				d === 'id' ? data = user.id : false;
+				d === 'firstname' ? data = user.firstname : false;
+				d === 'lastname' ? data = user.lastname : false;
+				d === 'fullname' ? data = user.firstname +' '+ user.lastname : false;
+				d === 'username' ? data = user.username : false;
+				d === 'avatar' ? data = user.avatar : false;			
+				d === 'displayname' ? data = user.displayname : false;
+				d === 'email' ? data = user.email : false;
+				d === 'nonce' ? data = user.nonce : false;
+				d === 'watchlist' ? data = user.watchlist : false;
+				d === 'chatbanned' ? data = user.chatbanned : false;
+				d === 'signedupdaysago' ? data = user.signedupdaysago : false;
+				d === 'signupdate' ? data = user.signupdate : false;    
+				d === 'affid' ? data = user.affid : false;     
+				
+				
+				
+				return data;
+			};
+			
+			return{
+				getUser: getUser
+			}
+			
+		})();	
+		
+		var blockedUsers = "",
+			blockedUsersArray = blockedUsers.replace(/\s/g, '').split(','); 
+			$('#blocked_chat_users-0').attr('placeholder','username1, username2');
+		
+		
+		//CUSTOM USER JS 
+		function customUserJS(){
+					    
+		    $('#chat h6').append('<span style="margin-left: 5px;color: #838ca2;font-weight: 600;">:: @' + currentUser.getUser('username') + '</span>');				
+		}
+		
+		setTimeout(customUserJS, 3000);  
+		
+		
+		if( $('#member-main-links').length == 1 && currentUser.getUser('affid') == 3049 ){
+			$('#member-main-links').append('<span style="display: inline-block; background: #1b7bcf; color: #fff; padding: 0.65em 2em; border-radius: 30px; margin-top: 3em">Referred by Blue Deer Trading</span>');
+		}
+		
+		
+		//filter sector
+		$('.item .sector').on('click', function(){
+			sector = $(this).text();
+			
+			switch(sector) {
+				case 'TECH': sector = "IT"; break;
+				case 'FINS': sector = "FIN"; break;
+				case 'ENERG': sector = "ENER"; break; 
+				case 'DISCR': sector = "CONDI"; break;
+				case 'INDUS': sector = "IND"; break;
+				
+			  	default:  
+			}   
+			
+			$('.item').hide();
+			$('.item[data-sector="'+sector+'"]').fadeIn();
+			$('#optionflow.is-scroll .component-body').perfectScrollbar('update');
+			flowModule.calcSentiment();
+			$('body').addClass('smart-filtered');
+		});
+		
+		
+	</script>
+	
+	
+	
+	
+	
+		<style>
+		
+	[data-username='']{display: none !important;}	#row-blocked_chat_users-0 .element-title .comment, #row-email-0 .element-title .comment{font-size: 1rem !important; color: #685f82 !important}
+	
+	
+	 
+	
+		[data-username="username123"]{display: none !important}   
+	
+		
+	  
+		
+    
+    
+        
+    
+    	[data-username="zentrader"],[data-username="uberamd"],[data-username="themandude"],[data-username="rocky3"],[data-username="theshadow"]{display: none !important}    
+    
+        
+      
+	 	[data-username="kzooman25"]{display: none !important}   
+     
+	
+	 
+	
+	
+    
+    
+    [data-username="colin0021"],[data-username="imsrikar"],[data-username="tonytreez"]{display: none !important}  
+    
+    
+    
+		/* addd 2026-03-04 21:45:11 */ 	
+	    
+	</style>
+	
+	 
+	
+	
+
+
+	
+	
+	
+	
+	
+		
+	
+	
+	
+		
+	
+	
+	
+	
+	
+		
+	
+		
+	<style>
+	 
+		[data-username="luckyg"]{display: none !important} 
+	 
+		
+	 
+		[data-username="sarveshsadhoo"]{display: none !important} 
+	  
+	</style>     
+	
+		
+	
+	
+	
+	
+	
+	
+	
+	
+
+	<style>
+		.snapshot-components{
+			max-width: 1400px !important;
+			margin: 50px auto !important;
+			padding: 0 2rem;
+		}
+		.snapshot-component.snapshot-bull{ 
+			margin-right: 2rem;
+		} 
+		.snapshot-component.snapshot-bull,
+		.snapshot-component.snapshot-bear{
+			box-shadow: 0px 17px 30px rgba(0,0,0,0.75);
+			border-radius: 5px;
+			overflow: hidden; 
+		}
+		
+		.is-page-levels #faLevels{
+			border-radius: 8px;
+			box-shadow: 0px 20px 30px rgba(0,0,0,0.75);
+			width: 750px !important;
+		}
+		.is-page-levels #faLevels #faLevels_meta #faLevels-controls button{
+			background-image: linear-gradient(-211deg, #FE3265 0%, #FE6632 100%);
+			border-radius: 0 3px 3px 0;
+			font-weight: 900;
+		}
+		
+		.snap-item-orders .snap-orders-body .snap-order{
+			font-size: 1rem;
+		}
+		
+		#option-flow-filters strong#filters-applied{
+			position: absolute;
+			top: -20px;
+			right: 0;
+			line-height: 20px;
+			padding: 0 1rem;
+			background: #815fff;
+			border-radius: 5px 0 0 0;
+			font-weight: 700;
+			letter-spacing: 0.025em; 
+			font-size: 10px
+		}
+		
+		body.smart-filtered strong#filters-applied{
+			display: inline-block !important
+		}
+	</style>
+	
+	
+	
+			
+	
+
+				
+
+			
+	
+
+	<script type="text/javascript" src="https://js.pusher.com/4.0/pusher.min.js"></script>
+	
+		
+	<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/knockout/3.4.2/knockout-min.js"></script>
+	<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/knockout.mapping/2.4.1/knockout.mapping.min.js"></script>
+	
+	 
+	
+		
+	<script src="https://code.responsivevoice.org/responsivevoice.js?key=3O2o8ahv"></script> 
+	<script type="text/javascript" src="/app/themes/flowalgo/assets/js/vendor/handlebars.js"></script>
+	<script type="text/javascript" src="/app/themes/flowalgo/assets/js/vendor/moment.js"></script>
+	<script type="text/javascript" src="/app/themes/flowalgo/assets/js/vendor/underscore.min.js"></script>
+	<script type="text/javascript" src="/app/themes/flowalgo/assets/js/vendor/iziToast.min.js"></script>
+	<script type="text/javascript" src="/app/themes/flowalgo/assets/js/vendor/iziModal.min.js"></script>
+	<script type="text/javascript" src="/app/themes/flowalgo/assets/js/vendor/tippy.min.js"></script> 
+	
+
+	
+	<script type="text/javascript" src="/app/themes/flowalgo/assets/js/vendor/datedropper.min.js"></script>
+	<script type="text/javascript" src="/app/themes/flowalgo/assets/js/vendor/plugs.min.js"></script>
+	<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/tinysort/2.3.6/tinysort.min.js"></script>
+	<script type="text/javascript" src="/app/themes/flowalgo/assets/js/scripts.js?v=1772722440"></script>
+	
+		  
+	<script type="text/javascript" src="/app/themes/flowalgo/assets/js/modules/module.filterable.js?v=1772722440"></script>
+	
+		
+	<script type="text/javascript" src="/app/themes/flowalgo/assets/js/mobile.js"></script>
+	<script type="text/javascript" src="/app/themes/flowalgo/assets/js/vendor/perfect-scrollbar.jquery.min.js"></script>
+	<script type="text/javascript" src="/app/themes/flowalgo/assets/js/vendor/progressbar.min.js"></script>
+	<script type="text/javascript" src="/app/themes/flowalgo/assets/js/vendor/chartist.min.js"></script>
+	<script type="text/javascript" src="/app/themes/flowalgo/assets/js/widgets.js?v=1772722440"></script>
+	<script type="text/javascript" src="/app/themes/flowalgo/assets/js/modules/module.magnitude.js"></script>
+	
+		
+		
+	<style>.message[data-username="gagarin"]{display: none !important}</style>	<style>.message[data-username="knowfun"]{display: none !important}</style>	
+	
+	
+	
+	<script type="text/javascript" src="/app/themes/flowalgo/assets/js/modules/module.components.js?v=1772722440"></script>
+	
+	
+	
+	
+		
+
+	
+		<script>
+		var viewportW = $(window).width();
+		if( viewportW > 768 ){ $('.is-scroll .component-body').perfectScrollbar(); }
+	</script>
+	
+	<style>.am-copyright{display: none !important}</style>
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async="" src="https://www.googletagmanager.com/gtag/js?id=UA-105239038-2"></script>
+<script>  
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-105239038-2');
+</script>
+
+
+
+<!-- Mixpanel -->
+<script>
+
+var mx_signup_date = new Date(currentUser.getUser('signupdate')).toISOString();
+mixpanel.identify(currentUser.getUser('id'));
+mixpanel.people.set({
+  "$email": currentUser.getUser('email'),     
+  "Sign up date": mx_signup_date,    
+  "$name": currentUser.getUser('firstname') +' '+ currentUser.getUser('lastname'),
+  "Username": currentUser.getUser('username')     
+});
+
+</script> 
+
+ 
+
+<!-- Adroll -->
+<script type="text/javascript">
+    adroll_adv_id = "EWEJP57Y6NEUVKJVXOCEJP";
+    adroll_pix_id = "JURQBX5ZWNGNLAFB4ISSVP";
+    (function () {
+        var _onload = function(){
+            if (document.readyState && !/loaded|complete/.test(document.readyState)){setTimeout(_onload, 10);return}
+            if (!window.__adroll_loaded){__adroll_loaded=true;setTimeout(_onload, 50);return}
+            var scr = document.createElement("script");
+            var host = (("https:" == document.location.protocol) ? "https://s.adroll.com" : "http://a.adroll.com");
+            scr.setAttribute('async', 'true');
+            scr.type = "text/javascript";
+            scr.src = host + "/j/roundtrip.js";
+            ((document.getElementsByTagName('head') || [null])[0] ||
+                document.getElementsByTagName('script')[0].parentNode).appendChild(scr);
+        };
+        if (window.addEventListener) {window.addEventListener('load', _onload, false);}
+        else {window.attachEvent('onload', _onload)}
+    }());
+</script>
+<script>
+  window.intercomSettings = {
+    app_id: "dtoll8e6",
+		name: currentUser.getUser('fullname'),
+	email: "benzemm110@gmail.com",
+	user_id: currentUser.getUser('username'),
+	user_hash: "b13a9132621db64319f6514fda8a73c7750fac9e65108b42d09bec05a87a0158"
+	    
+  };
+</script>
+
+<script>(function(){var w=window;var ic=w.Intercom;if(typeof ic==="function"){ic('reattach_activator');ic('update',intercomSettings);}else{var d=document;var i=function(){i.c(arguments)};i.q=[];i.c=function(args){i.q.push(args)};w.Intercom=i;function l(){var s=d.createElement('script');s.type='text/javascript';s.async=true;s.src='https://widget.intercom.io/widget/dtoll8e6';var x=d.getElementsByTagName('script')[0];x.parentNode.insertBefore(s,x);}if(w.attachEvent){w.attachEvent('onload',l);}else{w.addEventListener('load',l,false);}}})()</script>
+
+<script>
+	
+	
+	Intercom('trackEvent', 'page-view-/dashboard-overview/', {
+		page: '/dashboard-overview/',
+			});
+	
+	
+</script>	
+	<div id="modal-chart" aria-hidden="true" aria-labelledby="modal-chart" role="dialog" class="iziModal" style="z-index: 999; border-radius: 3px; max-width: 600px;"><div class="iziModal-wrap"><div class="iziModal-content" style="padding: 0px;"><iframe class="iziModal-iframe" style="height: 720px;"></iframe><span class="notice">Charts are not realtime and may be delayed 10-15 minutes. Powered by TradingView.</span></div></div></div>
+	<div id="granular-card" aria-hidden="true" aria-labelledby="granular-card" role="dialog" class="iziModal" style="z-index: 999; border-radius: 6px; max-width: 360px;"><div class="iziModal-wrap"><div class="iziModal-content" style="padding: 0px;"></div></div></div>
+	
+	<script>
+		$(document).on('click','.show-chart-modal', function(e){
+			e.preventDefault();
+			$('#modal-chart').iziModal('open', e);
+		});
+		
+		$("#modal-chart").iziModal({
+		    iframe: true,
+		    iframeHeight: 720,
+		});
+		
+		$("#granular-card").iziModal({
+			width: 360,
+			radius: 6
+		});
+		
+		$(document).on('click','.show-granular', function(e){
+
+			e.preventDefault();
+			
+			var flowID = $(this).closest('.item').attr('data-flowid');
+			var flowType = $(this).closest('.item').hasClass('option-flow') ? 'option_flow' : 'equity_blocks';
+			console.log(flowID,flowType); var flowAct = '?act=detail'; 
+			
+			$.get('https://app.flowalgo.com/wp-json/wp/v2/'+flowType+'/'+flowID+flowAct, function(data) {
+					showGranular(data);
+					console.log(data);
+	    });
+	    
+	    function showGranular(d){
+		    var granular_modal = $('#granular-card');
+		    var data = d.acf;
+		    data.option_call_or_put = data.option_call_or_put.toUpperCase();
+		    var direction = data.option_call_or_put == "CALLS" || data.option_call_or_put == "CALL" ? "up up" : "down down"; 
+		    var orderType = data.option_order_type;
+		    var orderDetails = data.additional_details == undefined ? "n/a" : data.additional_details;
+		    var granular_template = `
+		    
+		    <div class="card_header ${data.option_call_or_put.toLowerCase()}">
+			    <h6 class="card_ticker">${data.flow_ticker}</h6>
+			    <h5 class="card_premium">$${numeral(data.option_bet_size).format('0,0')}</h5>
+			    <i class="fa fa-long-arrow-${direction} direction"></i>
+		    </div>
+		    <div class="card_body">
+					<ul>
+						<li id="g_contract_type"><label>C/P</label><span class="val">${data.option_call_or_put}</span></li>
+						<li id="g_order_type"><label>Order Type</label><span class="val">${orderType}</span></li>
+						<li id="g_expiry"><label>Expiry</label><span class="val">${data.option_expiration}</span></li>
+						<li id="g_strike"><label>Strike</label><span class="val">${data.option_strike}</span></li>
+						<li id="g_spot"><label>Underlying Price</label><span class="val">$${data.option_reference_price}</span></li>
+						<li id="g_quantity"><label>Quantity</label><span class="val">${numeral(data.option_contract_amount).format('0,0')}</span></li>
+						<li id="g_price"><label>Contract Price</label><span class="val">$${data.option_contract_price}</span></li>
+						<li id="g_volume"><label>Day Volume</label><span class="val">${numeral(data.option_volume).format('0,0')}</span></li>
+						<li id="g_open_interest"><label>Open Interest</label><span class="val">${numeral(data.option_open_interest).format('0,0')}</span></li>
+						<li id="g_delta"><label>Delta</label><span class="val">${numeral(data.option_delta).format('0.00')}</span></li>
+						<li id="g_theta"><label>Theta</label><span class="val">${numeral(data.option_theta).format('0.00')}</span></li>
+						<li id="g_vega"><label>Vega</label><span class="val">${numeral(data.option_vega).format('0.00')}</span></li>
+						<li id="g_ivol"><label>iVol</label><span class="val">${numeral(data.option_ivol).format('0.00')}</span></li>
+						<li id="g_ivol_change"><label>iVol Change</label><span class="val">${numeral(data.ivol_change).format('0.000')}%</span></li>
+						<li id="g_detail"><label>Details</label><span class="val" style="font-size: 0.6rem;">${orderDetails}</span></li>
+						
+					</ul>
+				</div>
+		    
+		    `;
+		    granular_modal.html(granular_template);
+		    $("#granular-card").iziModal('open');
+	    }
+	    
+		});
+		
+		tippy('[title]');
+	</script>
+	
+	
+
+
+	
+
+		<script>
+			$(document).ready( function(){
+				$('#toggle-mobile-nav').click( function(){
+					$('body').toggleClass('mobile-nav-active');
+				});
+				
+				$('#toggle-equityflow').on('click', function(e){
+					e.preventDefault();
+					$('#mobile-page-nav a').removeClass('active');
+					$(this).addClass('active');
+					$('#optionflow,.widgets').fadeOut(100);
+					$('#darkflow').delay(100).fadeIn(200);
+				});
+				
+				$('#toggle-optionflow').on('click', function(e){
+					e.preventDefault();
+					$('#mobile-page-nav a').removeClass('active');
+					$(this).addClass('active');
+					$('#darkflow,.widgets').fadeOut(100);
+					$('#optionflow').delay(100).fadeIn(200);
+				});
+				
+				$('#toggle-stats').on('click', function(e){
+					e.preventDefault();
+					$('#mobile-page-nav a').removeClass('active');
+					$(this).addClass('active');
+					$('#optionflow,#darkflow').fadeOut(100);
+					$('.widgets').delay(100).fadeIn(200);
+					
+				});
+				
+				//def invpg
+				if( $('input[value="Pay"]').length && $('.am-receipt-content').length ){ 
+					$('body').addClass('invoice-page'); 
+					$('.am-receipt').prepend('<img src="https://app.flowalgo.com/app/uploads/flowalgo-logo-new-1.png" style="width: 100px; height: auto; margin-bottom: 2rem;">');
+				}	
+				
+				if( $('h1.page-title').text() == "Payment Details" ){
+					$('body').removeClass('is-active').addClass('not-active'); 
+				} 
+				
+				if( $('#row-email-confirm-message-0') ){
+					$('#row-email-confirm-message-0 .element')
+					.html('<div style="text-align: center; font-size: 1.1rem; padding-bottom: 2rem"><img src="/app/uploads/email-icon.png" style="width: 64px; height: auto; opacity: 0.75; margin: 2rem auto; display: block;" alt="Email Icon"/><strong style="font-size: 1.35rem;">Please verify your email to continue.</strong><br /> If you do not receive an email verification from us within the next 5 minutes, please contact us.</div>');
+					$('#nav-primary').hide();
+				}
+				
+						
+	
+				
+			});
+			
+			
+
+		</script>
+
+
+<style>
+.invoice-page .am-body-contents{
+	max-width: 540px;
+	background: #0e1118;
+	padding: 3rem;
+	border-radius: 5px;
+	margin: 5rem auto 0 auto;
+	font-size: 1.1rem;
+	text-align: left;
+}	
+
+.invoice-page .am-body-contents .am-receipt-table{width: 100%;}  
+
+.invoice-page #Am_Form{
+	margin-top: 1rem;
+}
+
+.invoice-page thead, .invoice-page .am-receipt-total, .invoice-page .am-receipt-total, .invoice-page .am-receipt-terms strong{
+	color: #8DA2B9;
+}
+
+.invoice-page thead{
+	text-transform: uppercase;
+	font-size: 0.95rem;
+}
+
+.invoice-page #subscription_terms{
+	border: 1px solid rgba(255,255,255,0.25);
+	padding: 10px 6px;
+	border-radius: 4px;
+	text-align: center;
+	margin-top: 1rem;
+    font-size: 0.99rem;
+}
+
+.invoice-page .am-receipt-row-terms{display: none}
+
+.invoice-page input[value="Pay"]{
+	background: #40CACC;
+	font-weight: 700;
+}
+
+#modal-chart .notice{font-size: inherit !important} 
+.tablepress-scroll-wrapper{min-height: 90vh; font-size: 1.2rem}
+.tablepress tr td:nth-child(odd){background: rgba(255,255,255,.035) !important }
+.item.show-options {
+    z-index: 999 !important;
+}
+</style>
+
+
+
+
+
+ 
+
+ 
+
+
+
+
+
+
+		
+		<!-- {"need_session_refresh":"","opra_addendum_1a":"1","opra_addendum_1b":"1","opra_addendum_1c":"1","opra_addendum_2":"1","opra_agreement":"1","opra_tos":"1","signup_email_sent":"1","user_id":40140,"login":"benzemm110","pass":"$P$BHOWA\/4UO1KEI6UAtYgnNF8i3tlVfS.","remember_key":"a3b0f730587f03efe2e56327e43de197b7d70d12","pass_dattm":"2026-03-04 21:45:11","email":"benzemm110@gmail.com","name_f":"percyval","name_l":"mcneil","street":"145-90 222nd Street","street2":null,"city":"jamaica","state":"NY","zip":"11413","country":"US","phone":null,"added":"2026-03-04 21:45:11","remote_addr":"69.122.168.61","user_agent":"Mozilla\/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/146.0.0.0 Safari\/537.36","saved_form_id":31,"status":1,"unsubscribed":0,"lang":"en","i_agree":0,"is_approved":1,"is_locked":0,"disable_lock_until":null,"reseller_id":null,"comment":null,"tax_id":null,"last_login":"2026-03-05 09:51:01","last_ip":"69.206.22.77","last_user_agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/120.0.0.0 Safari\/537.36","last_session":"e617332d193177d77048c5b013420d7b","aff_id":null,"aff_added":null,"is_affiliate":1,"aff_payout_type":null,"avatar":null,"aff_custom_redirect":0,"email_confirmed":0,"email_confirmation_date":null,"subusers_parent_id":0} -->
+	
+<iframe id="intercom-frame" style="position: absolute !important; opacity: 0 !important; width: 1px !important; height: 1px !important; top: 0 !important; left: 0 !important; border: none !important; display: block !important; z-index: -1 !important; pointer-events: none;" aria-hidden="true" tabindex="-1" title="Intercom"></iframe><div class="intercom-lightweight-app"><div class="intercom-lightweight-app-launcher intercom-launcher" role="button" tabindex="0" aria-label="Open Intercom Messenger" aria-live="polite"><div class="intercom-lightweight-app-launcher-icon intercom-lightweight-app-launcher-icon-open"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 32"><path d="M28 32s-4.714-1.855-8.527-3.34H3.437C1.54 28.66 0 27.026 0 25.013V3.644C0 1.633 1.54 0 3.437 0h21.125c1.898 0 3.437 1.632 3.437 3.645v18.404H28V32zm-4.139-11.982a.88.88 0 00-1.292-.105c-.03.026-3.015 2.681-8.57 2.681-5.486 0-8.517-2.636-8.571-2.684a.88.88 0 00-1.29.107 1.01 1.01 0 00-.219.708.992.992 0 00.318.664c.142.128 3.537 3.15 9.762 3.15 6.226 0 9.621-3.022 9.763-3.15a.992.992 0 00.317-.664 1.01 1.01 0 00-.218-.707z"></path></svg></div><div class="intercom-lightweight-app-launcher-icon intercom-lightweight-app-launcher-icon-minimize"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path fill-rule="evenodd" clip-rule="evenodd" d="M18.601 8.39897C18.269 8.06702 17.7309 8.06702 17.3989 8.39897L12 13.7979L6.60099 8.39897C6.26904 8.06702 5.73086 8.06702 5.39891 8.39897C5.06696 8.73091 5.06696 9.2691 5.39891 9.60105L11.3989 15.601C11.7309 15.933 12.269 15.933 12.601 15.601L18.601 9.60105C18.9329 9.2691 18.9329 8.73091 18.601 8.39897Z" fill="currentColor"></path>
+</svg>
+</div></div><style id="intercom-lightweight-app-style" type="text/css">
+  @keyframes intercom-lightweight-app-launcher {
+    from {
+      opacity: 0;
+      transform: scale(0.5);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  @keyframes intercom-lightweight-app-gradient {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes intercom-lightweight-app-messenger {
+    0% {
+      opacity: 0;
+      transform: scale(0);
+    }
+    40% {
+      opacity: 1;
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+
+  .intercom-lightweight-app {
+    position: fixed;
+    z-index: 2147483001;
+    width: 0;
+    height: 0;
+    font-family: system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  }
+
+  .intercom-lightweight-app-gradient {
+    position: fixed;
+    z-index: 2147483002;
+    width: 500px;
+    height: 500px;
+    bottom: 0;
+    right: 0;
+    pointer-events: none;
+    background: radial-gradient(
+      ellipse at bottom right,
+      rgba(29, 39, 54, 0.16) 0%,
+      rgba(29, 39, 54, 0) 72%);
+    animation: intercom-lightweight-app-gradient 200ms ease-out;
+  }
+
+  .intercom-lightweight-app-launcher {
+    position: fixed;
+    z-index: 2147483003;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none;
+    bottom: 20px;
+    right: 20px;
+    max-width: 48px;
+    width: 48px;
+    max-height: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: #43cdc5;
+    cursor: pointer;
+    box-shadow: 0 1px 6px 0 rgba(0, 0, 0, 0.06), 0 2px 32px 0 rgba(0, 0, 0, 0.16);
+    transition: transform 167ms cubic-bezier(0.33, 0.00, 0.00, 1.00);
+    box-sizing: content-box;
+  }
+
+
+  .intercom-lightweight-app-launcher:hover {
+    transition: transform 250ms cubic-bezier(0.33, 0.00, 0.00, 1.00);
+    transform: scale(1.1)
+  }
+
+  .intercom-lightweight-app-launcher:active {
+    transform: scale(0.85);
+    transition: transform 134ms cubic-bezier(0.45, 0, 0.2, 1);
+  }
+
+
+  .intercom-lightweight-app-launcher:focus {
+    outline: none;
+
+    
+  }
+
+  .intercom-lightweight-app-launcher-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 48px;
+    height: 48px;
+    transition: transform 100ms linear, opacity 80ms linear;
+  }
+
+  .intercom-lightweight-app-launcher-icon-open {
+    
+        opacity: 1;
+        transform: rotate(0deg) scale(1);
+      
+  }
+
+  .intercom-lightweight-app-launcher-icon-open svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .intercom-lightweight-app-launcher-icon-open svg path {
+    fill: rgb(255, 255, 255);
+  }
+
+  .intercom-lightweight-app-launcher-icon-self-serve {
+    
+        opacity: 1;
+        transform: rotate(0deg) scale(1);
+      
+  }
+
+  .intercom-lightweight-app-launcher-icon-self-serve svg {
+    height: 44px;
+  }
+
+  .intercom-lightweight-app-launcher-icon-self-serve svg path {
+    fill: rgb(255, 255, 255);
+  }
+
+  .intercom-lightweight-app-launcher-custom-icon-open {
+    max-height: 24px;
+    max-width: 24px;
+
+    
+        opacity: 1;
+        transform: rotate(0deg) scale(1);
+      
+  }
+
+  .intercom-lightweight-app-launcher-icon-minimize {
+    
+        opacity: 0;
+        transform: rotate(-60deg) scale(0);
+      
+  }
+
+  .intercom-lightweight-app-launcher-icon-minimize svg path {
+    fill: rgb(255, 255, 255);
+  }
+
+  /* Extended launcher styles */
+  .intercom-lightweight-app-launcher.intercom-launcher-extended {
+    width: calc(180px - 30px);
+    max-width: calc(180px - 30px);
+    height: calc(45px - 26px);
+    max-height: calc(45px - 26px);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 12px 16px 12px 12px !important;
+    gap: 6px;
+    /* Use theme background instead of hardcoded gradient */
+    background: #43cdc5;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0px -2px 50px rgba(0, 0, 0, 0.1);
+    
+  }
+
+  .intercom-lightweight-app-launcher.intercom-launcher-extended .intercom-lightweight-app-launcher-icon {
+    position: relative;
+    width: 24px;
+    height: 24px;
+  }
+
+  .intercom-lightweight-app-launcher-text {
+    /* Match text color with launcher icon */
+    color: rgb(255, 255, 255);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.5;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 140px;
+    opacity: 1;
+    transition: opacity 80ms linear;
+  }
+
+  .intercom-lightweight-app-messenger {
+    position: fixed;
+    z-index: 2147483003;
+    overflow: hidden;
+    background-color: #ffffff;
+    animation: intercom-lightweight-app-messenger 250ms cubic-bezier(0, 1, 1, 1);
+    transform-origin: bottom right;
+
+    
+        width: 400px;
+        height: calc(100% - 104px);
+        max-height: 704px;
+        min-height: 250px;
+        right: 20px;
+        bottom: 84px;
+        box-shadow: 0 5px 40px rgba(0,0,0,0.16);
+      
+
+    border-radius: 24px;
+  }
+
+  .intercom-lightweight-app-messenger-header {
+    height: 64px;
+    border-bottom: none;
+    background: #ffffff;
+  }
+
+  .intercom-lightweight-app-messenger-footer{
+    position:absolute;
+    bottom:0;
+    width: 100%;
+    height: 80px;
+    background: #ffffff;
+    font-size: 14px;
+    line-height: 21px;
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
+    box-shadow: 0px 0px 25px rgba(0, 0, 0, 0.05);
+  }
+
+  @media print {
+    .intercom-lightweight-app {
+      display: none;
+    }
+  }
+</style></div><iframe name="__tcfapiLocator" style="width: 0px; height: 0px; border: 0px; padding: 0px; visibility: hidden; position: absolute; margin: 0px 0px 0px -1000px;"></iframe></body></html>

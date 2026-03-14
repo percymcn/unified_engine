@@ -23,6 +23,7 @@ import {
   ArrowDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 interface ModelState {
   ticker: string;
@@ -74,7 +75,9 @@ export function MLDashboard() {
   const [loading, setLoading] = useState(true);
   const [optimizing, setOptimizing] = useState(false);
   const [data, setData] = useState<MLDashboardData | null>(null);
-  const [selectedTicker, setSelectedTicker] = useState('SPY');
+  const [selectedTicker, setSelectedTicker] = useState('MES');
+  const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     loadDashboard();
@@ -90,9 +93,18 @@ export function MLDashboard() {
       if (response.ok) {
         const result = await response.json();
         setData(result);
+        setError(null);
+      } else if (response.status === 401) {
+        setError('Please log in to view ML dashboard');
+      } else if (response.status === 402) {
+        setError('ML features require Pro tier or higher');
+      } else {
+        const errData = await response.json().catch(() => ({}));
+        setError(errData.detail || `Failed to load ML data (${response.status})`);
       }
-    } catch (error) {
-      console.error('Failed to load ML dashboard:', error);
+    } catch (err) {
+      console.error('Failed to load ML dashboard:', err);
+      setError('Network error - please check your connection');
     } finally {
       setLoading(false);
     }
@@ -101,15 +113,32 @@ export function MLDashboard() {
   const runOptimization = async () => {
     setOptimizing(true);
     try {
-      await fetch('/api/v1/smartflow/ml/run-optimization', {
+      const response = await fetch('/api/v1/smartflow/ml/run-optimization', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tickers: ['SPY', 'QQQ', 'IWM', 'DIA', 'GLD'] }),
+        body: JSON.stringify({ tickers: ['MES', 'NQ', 'RTY', 'QQQ', 'GLD'] }),
       });
-      await loadDashboard();
-    } catch (error) {
-      console.error('Optimization failed:', error);
+      if (response.ok) {
+        toast({
+          title: 'Optimization Started',
+          description: 'ML model is being retrained with latest data',
+        });
+        await loadDashboard();
+      } else {
+        toast({
+          title: 'Optimization Failed',
+          description: 'Could not start optimization - try again later',
+          variant: 'destructive',
+        });
+      }
+    } catch (err) {
+      console.error('Optimization failed:', err);
+      toast({
+        title: 'Optimization Failed',
+        description: 'Network error - please check your connection',
+        variant: 'destructive',
+      });
     } finally {
       setOptimizing(false);
     }
@@ -119,6 +148,24 @@ export function MLDashboard() {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 text-center gap-4">
+        <AlertCircle className="h-12 w-12 text-yellow-500" />
+        <div>
+          <p className="text-lg font-medium">{error}</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            ML learning features will display data once SmartFlow generates signals
+          </p>
+        </div>
+        <Button variant="outline" size="sm" onClick={loadDashboard}>
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Retry
+        </Button>
       </div>
     );
   }
@@ -157,9 +204,9 @@ export function MLDashboard() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {/* Ticker selector */}
+          {/* Ticker selector - use actual traded symbols */}
           <div className="flex gap-1">
-            {['SPY', 'QQQ', 'IWM', 'DIA'].map((ticker) => (
+            {['MES', 'NQ', 'RTY', 'QQQ'].map((ticker) => (
               <Button
                 key={ticker}
                 variant={selectedTicker === ticker ? 'default' : 'outline'}
@@ -510,7 +557,7 @@ export function MLDashboard() {
                       )
                     )}
                     <span className="text-xs text-muted-foreground">
-                      {signal.time ? new Date(signal.time).toLocaleTimeString() : ''}
+                      {signal.time ? new Date(signal.time).toLocaleTimeString('en-US', { timeZone: 'America/New_York' }) : ''}
                     </span>
                   </div>
                 </div>

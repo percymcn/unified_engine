@@ -26,6 +26,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Note: python-socketio/python-engineio versions already compatible in requirements.txt
 RUN pip install --no-cache-dir metaapi-cloud-sdk>=29.0.0 tradelocker>=0.56.0
 
+# Patch ProjectX SDK models.py - fix dataclass field ordering error
+# The SDK has fields without defaults after fields with defaults (int | None implies default=None)
+# This causes: TypeError: non-default argument 'updateTimestamp' follows default argument
+RUN MODELS_FILE=$(python -c "import project_x_py; print(project_x_py.__file__.replace('__init__.py', 'models.py'))") && \
+    if [ -f "$MODELS_FILE" ]; then \
+        sed -i 's/updateTimestamp: str$/updateTimestamp: str = ""/' "$MODELS_FILE" && \
+        echo "Patched ProjectX SDK models.py: added default to updateTimestamp fields"; \
+    fi
+
 # Copy application code
 COPY . .
 

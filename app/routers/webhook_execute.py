@@ -2303,7 +2303,42 @@ async def _execute_tradingview_signal_inner(
 
                     close_entry_price = first_entry
                     close_exit_price = first_exit
-                    close_pnl = total_pnl if total_pnl != 0 else None
+                    # Record P&L even if 0 (it's a valid outcome, just breakeven)
+                    close_pnl = total_pnl
+
+                    # Update the original ENTRY execution log with exit data
+                    try:
+                        from sqlalchemy import or_
+                        import re
+
+                        # Build symbol variants for matching futures contracts
+                        base_symbol = mapped_symbol.upper().replace('.', '')
+                        futures_match = re.match(r'^([A-Z]+)', base_symbol)
+                        symbol_base = futures_match.group(1) if futures_match else base_symbol
+
+                        symbol_patterns = [
+                            f"%{symbol_base}%",
+                            f"%{mapped_symbol}%",
+                            f"%{symbol}%",
+                        ]
+
+                        entry_exec_to_update = db.query(ExecutionLog).filter(
+                            ExecutionLog.account_id == account.id,
+                            or_(*[ExecutionLog.symbol.ilike(p) for p in symbol_patterns]),
+                            ExecutionLog.action.in_(['BUY', 'SELL', 'buy', 'sell']),
+                            ExecutionLog.status == 'success',
+                            ExecutionLog.exit_price.is_(None)  # Not yet closed
+                        ).order_by(ExecutionLog.created_at.desc()).first()
+
+                        if entry_exec_to_update:
+                            entry_exec_to_update.exit_price = close_exit_price
+                            entry_exec_to_update.pnl = close_pnl
+                            entry_exec_to_update.closed_at = datetime.utcnow()
+                            db.commit()
+                            pnl_display = f"{close_pnl:.2f}" if close_pnl is not None else "Unknown"
+                            logger.info(f"📊 Updated entry execution {entry_exec_to_update.id} ({entry_exec_to_update.symbol}) with exit: PnL={pnl_display}")
+                    except Exception as update_err:
+                        logger.debug(f"Could not update entry execution: {update_err}")
 
                 exec_log = ExecutionLog(
                     signal_id=signal_uuid,
@@ -2359,24 +2394,70 @@ async def _execute_tradingview_signal_inner(
                     from app.services.smartflow_service import smartflow_service
                     from app.services.smartflow_ml_service import SmartFlowMLService
 
-                    # Find the most recent SmartFlow signal for this ticker
-                    signal_log_id = smartflow_service.get_recent_signal_for_ticker(symbol)
-                    if signal_log_id:
-                        ml_service = SmartFlowMLService(db)
+                    ml_service = SmartFlowMLService(db)
 
-                        if action_str == "close" and close_pnl is not None:
-                            # CLOSE action: record full outcome with P&L
+                    if action_str == "close":
+                        # CLOSE action: Find the ENTRY signal to record P&L against
+                        # We need the original buy/sell signal, not a close signal
+                        # Record even if P&L is None/0 - the trade still closed
+
+                        # First try: Find entry execution_log for this symbol/account
+                        entry_signal_log_id = None
+                        entry_exec = None
+                        try:
+                            from sqlalchemy import or_
+
+                            # Build symbol variants for matching futures contracts
+                            base_symbol = mapped_symbol.upper().replace('.', '')
+                            # Extract base (e.g., MES from MESH6, MNQ from MNQM6)
+                            import re
+                            futures_match = re.match(r'^([A-Z]+)', base_symbol)
+                            symbol_base = futures_match.group(1) if futures_match else base_symbol
+
+                            # Build list of patterns to match
+                            symbol_patterns = [
+                                f"%{symbol_base}%",  # MES matches MESH6, MES
+                                f"%{mapped_symbol}%",  # Exact mapped symbol
+                                f"%{symbol}%",  # Original symbol from webhook
+                            ]
+
+                            # Query with any matching pattern
+                            entry_exec = db.query(ExecutionLog).filter(
+                                ExecutionLog.account_id == account.id,
+                                or_(*[ExecutionLog.symbol.ilike(p) for p in symbol_patterns]),
+                                ExecutionLog.action.in_(['BUY', 'SELL', 'buy', 'sell']),
+                                ExecutionLog.status == 'success',
+                                ExecutionLog.smartflow_signal_log_id.isnot(None),
+                                ExecutionLog.exit_price.is_(None)  # Not yet closed
+                            ).order_by(ExecutionLog.created_at.desc()).first()
+
+                            if entry_exec:
+                                entry_signal_log_id = entry_exec.smartflow_signal_log_id
+                                logger.info(f"📈 Found entry signal {entry_signal_log_id} from execution {entry_exec.id} ({entry_exec.symbol})")
+                        except Exception as lookup_err:
+                            logger.debug(f"Entry execution lookup failed: {lookup_err}")
+
+                        # Fallback: Find most recent ENTRY (buy/sell) signal for this ticker
+                        if not entry_signal_log_id:
+                            entry_signal_log_id = smartflow_service.get_recent_entry_signal_for_ticker(symbol)
+
+                        if entry_signal_log_id:
                             outcome_result = await ml_service.record_signal_outcome(
-                                signal_log_id=signal_log_id,
+                                signal_log_id=entry_signal_log_id,
                                 trade_executed=True,
                                 entry_price=close_entry_price,
                                 exit_price=close_exit_price,
                                 pnl=close_pnl
                             )
-                            logger.info(f"📈 SmartFlow CLOSE outcome: signal={signal_log_id} PnL={close_pnl:.2f} Winner={outcome_result.get('is_winner')}")
+                            pnl_str = f"{close_pnl:.2f}" if close_pnl is not None else "Unknown"
+                            logger.info(f"📈 SmartFlow CLOSE outcome: signal={entry_signal_log_id} PnL={pnl_str} Winner={outcome_result.get('is_winner')}")
                         else:
-                            # BUY/SELL action: record execution (entry signal)
-                            # This lets ML learn which signals actually got executed
+                            logger.warning(f"⚠️ No entry signal found for {symbol} to record P&L outcome")
+                    else:
+                        # BUY/SELL action: record execution (entry signal)
+                        # This lets ML learn which signals actually got executed
+                        signal_log_id = smartflow_service.get_recent_signal_for_ticker(symbol)
+                        if signal_log_id:
                             outcome_result = await ml_service.record_signal_outcome(
                                 signal_log_id=signal_log_id,
                                 trade_executed=True,

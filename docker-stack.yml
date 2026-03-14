@@ -4,8 +4,10 @@ services:
   # PostgreSQL Database
   postgres:
     image: postgres:15
-    command: postgres -c max_connections=300 -c shared_buffers=128MB
+    command: postgres -c max_connections=300 -c shared_buffers=128MB -c timezone='America/New_York'
     environment:
+      TZ: America/New_York
+      PGTZ: America/New_York
       POSTGRES_DB: trading_db
       POSTGRES_USER: trading_user
       POSTGRES_PASSWORD_FILE: /run/secrets/db_password
@@ -38,6 +40,8 @@ services:
   redis:
     image: redis:7-alpine
     command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    environment:
+      TZ: America/New_York
     volumes:
       - unified_redis_data:/data
     networks:
@@ -68,6 +72,8 @@ services:
     command:
       - "--cluster_name=trading"
       - "--http_port=8223"
+    environment:
+      TZ: America/New_York
     ports:
       - "4223:4222"  # Client connections (external:internal)
       - "8223:8223"  # HTTP monitoring
@@ -344,6 +350,7 @@ services:
       context: ./ui-next
       dockerfile: Dockerfile
     environment:
+      - TZ=America/New_York
       - BACKEND_URL=http://api:8000
       - NEXT_PUBLIC_BACKEND_URL=https://api.mytradeflow.app
     ports:
@@ -415,6 +422,8 @@ services:
   # Nginx Reverse Proxy
   nginx:
     image: nginx:alpine
+    environment:
+      TZ: America/New_York
     ports:
       - "3013:80"
     configs:

@@ -784,6 +784,21 @@ class MarketDataService:
                     'nearest_level': self._find_nearest_fib(data['current_price'], fib),
                 }
 
+            # Add multi-timeframe analysis for day trading
+            try:
+                mtf_analysis = self.get_multi_timeframe_analysis(ticker)
+                if mtf_analysis and 'error' not in mtf_analysis:
+                    result['multi_timeframe'] = {
+                        'overall_bias': mtf_analysis.get('overall', {}).get('bias', 'unknown'),
+                        'bullish_alignment': mtf_analysis.get('overall', {}).get('bullish_alignment', 0),
+                        'bearish_alignment': mtf_analysis.get('overall', {}).get('bearish_alignment', 0),
+                        'timeframes': mtf_analysis.get('timeframes', {}),
+                        'confluences': mtf_analysis.get('confluences', []),
+                    }
+                    logger.debug(f"Added MTF analysis for {ticker}: {result['multi_timeframe']['overall_bias']}")
+            except Exception as e:
+                logger.warning(f"Failed to get MTF analysis for {ticker}: {e}")
+
             return result
 
         except Exception as e:
@@ -828,6 +843,201 @@ class MarketDataService:
             'distance_pct': round(distance, 2),
             'position': 'above' if price > nearest[1] else 'below',
         }
+
+    def get_multi_timeframe_bars(self, ticker: str) -> Dict[str, List[Bar]]:
+        """
+        Get bars for multiple timeframes for comprehensive day trading analysis.
+
+        Timeframes:
+        - 5m: Short-term scalping/momentum (20 bars = ~1.5 hours)
+        - 15m: Intraday momentum (20 bars = ~5 hours)
+        - 30m: Intraday trend structure (20 bars = ~10 hours / 1.5 days)
+        - 1h: Daily structure context (20 bars = ~20 hours / 3 days)
+        - 4h: Weekly context for day trading (12 bars = ~2 days)
+
+        Returns dict with timeframe keys and bar lists.
+        """
+        # Convert futures to ETF for Polygon data
+        data_ticker = self.FUTURES_TO_ETF.get(ticker, ticker)
+        if data_ticker != ticker:
+            logger.debug(f"MTF ticker mapping: {ticker} → {data_ticker}")
+
+        timeframes = {}
+
+        # 5-minute bars (20 bars) - PRIMARY for day trading
+        bars_5m = self.get_bars(data_ticker, timespan='minute', multiplier=5, limit=20)
+        if bars_5m:
+            timeframes['5m'] = bars_5m
+
+        # 15-minute bars (20 bars)
+        bars_15m = self.get_bars(data_ticker, timespan='minute', multiplier=15, limit=20)
+        if bars_15m:
+            timeframes['15m'] = bars_15m
+
+        # 30-minute bars (20 bars)
+        bars_30m = self.get_bars(data_ticker, timespan='minute', multiplier=30, limit=20)
+        if bars_30m:
+            timeframes['30m'] = bars_30m
+
+        # 1-hour bars (20 bars)
+        bars_1h = self.get_bars(data_ticker, timespan='hour', multiplier=1, limit=20)
+        if bars_1h:
+            timeframes['1h'] = bars_1h
+
+        # 4-hour bars (12 bars) - daily context
+        bars_4h = self.get_bars(data_ticker, timespan='hour', multiplier=4, limit=12)
+        if bars_4h:
+            timeframes['4h'] = bars_4h
+
+        logger.info(f"📊 Multi-TF bars for {ticker} (via {data_ticker}): " + ", ".join(f"{tf}={len(bars)}" for tf, bars in timeframes.items()))
+        return timeframes
+
+    def _analyze_timeframe(self, bars: List[Bar], timeframe: str) -> Dict:
+        """
+        Analyze a single timeframe's bars and return indicators.
+        Used for multi-timeframe analysis.
+        """
+        if not bars or len(bars) < 2:
+            return {'error': 'Insufficient data', 'timeframe': timeframe}
+
+        current_price = bars[-1].close
+        prev_price = bars[-2].close
+
+        # Calculate indicators
+        ema_9 = self.calculate_ema(bars, 9) if len(bars) >= 9 else None
+        ema_20 = self.calculate_ema(bars, 20) if len(bars) >= 20 else None
+        rsi = self.calculate_rsi(bars, 14) if len(bars) >= 14 else None
+
+        # Determine trend
+        if ema_9 and ema_20:
+            ema_trend = 'bullish' if ema_9 > ema_20 else 'bearish'
+        else:
+            ema_trend = 'unknown'
+
+        # Price change
+        first_bar = bars[0]
+        change_pct = ((current_price - first_bar.close) / first_bar.close) * 100
+
+        # Candle analysis (last 5 candles)
+        recent = bars[-5:] if len(bars) >= 5 else bars
+        bullish_candles = sum(1 for b in recent if b.close > b.open)
+        bearish_candles = len(recent) - bullish_candles
+
+        # Volume trend
+        if len(bars) >= 10:
+            recent_vol_avg = sum(b.volume for b in bars[-5:]) / 5
+            older_vol_avg = sum(b.volume for b in bars[-10:-5]) / 5
+            vol_trend = 'increasing' if recent_vol_avg > older_vol_avg * 1.1 else ('decreasing' if recent_vol_avg < older_vol_avg * 0.9 else 'stable')
+        else:
+            vol_trend = 'unknown'
+
+        return {
+            'timeframe': timeframe,
+            'price': round(current_price, 2),
+            'change_pct': round(change_pct, 2),
+            'ema_9': round(ema_9, 2) if ema_9 else None,
+            'ema_20': round(ema_20, 2) if ema_20 else None,
+            'ema_trend': ema_trend,
+            'price_vs_ema9': 'above' if ema_9 and current_price > ema_9 else ('below' if ema_9 else 'unknown'),
+            'price_vs_ema20': 'above' if ema_20 and current_price > ema_20 else ('below' if ema_20 else 'unknown'),
+            'rsi_14': round(rsi, 1) if rsi else None,
+            'rsi_signal': 'overbought' if rsi and rsi > 70 else ('oversold' if rsi and rsi < 30 else 'neutral') if rsi else 'unknown',
+            'momentum': 'bullish' if bullish_candles > bearish_candles else ('bearish' if bearish_candles > bullish_candles else 'neutral'),
+            'volume_trend': vol_trend,
+            'bars_analyzed': len(bars),
+        }
+
+    def get_multi_timeframe_analysis(self, ticker: str) -> Dict:
+        """
+        Get comprehensive multi-timeframe technical analysis for day trading.
+
+        Returns analysis for 5m, 15m, 30m, 1h, 4h timeframes with:
+        - EMA 9/20 and trend
+        - RSI 14
+        - Momentum direction
+        - Volume trend
+        - Overall bias calculation
+        """
+        mtf_bars = self.get_multi_timeframe_bars(ticker)
+
+        if not mtf_bars:
+            return {'error': 'No multi-timeframe data available', 'ticker': ticker}
+
+        analysis = {
+            'ticker': ticker,
+            'timestamp': datetime.now().isoformat(),
+            'timeframes': {},
+        }
+
+        # Analyze each timeframe
+        bullish_count = 0
+        bearish_count = 0
+        total_weight = 0
+
+        # Weights for each timeframe (higher = more important for day trading)
+        weights = {'5m': 3, '15m': 2.5, '30m': 2, '1h': 1.5, '4h': 1}
+
+        for tf, bars in mtf_bars.items():
+            tf_analysis = self._analyze_timeframe(bars, tf)
+            analysis['timeframes'][tf] = tf_analysis
+
+            # Calculate weighted bias
+            weight = weights.get(tf, 1)
+            if tf_analysis.get('ema_trend') == 'bullish':
+                bullish_count += weight
+            elif tf_analysis.get('ema_trend') == 'bearish':
+                bearish_count += weight
+            total_weight += weight
+
+        # Calculate overall bias
+        if total_weight > 0:
+            bullish_pct = (bullish_count / total_weight) * 100
+            bearish_pct = (bearish_count / total_weight) * 100
+
+            if bullish_pct > 70:
+                overall_bias = 'strong_bullish'
+            elif bullish_pct > 55:
+                overall_bias = 'bullish'
+            elif bearish_pct > 70:
+                overall_bias = 'strong_bearish'
+            elif bearish_pct > 55:
+                overall_bias = 'bearish'
+            else:
+                overall_bias = 'neutral'
+
+            analysis['overall'] = {
+                'bias': overall_bias,
+                'bullish_alignment': round(bullish_pct, 1),
+                'bearish_alignment': round(bearish_pct, 1),
+                'timeframes_analyzed': len(mtf_bars),
+            }
+
+        # Add confluence signals
+        confluences = []
+        tfs = analysis['timeframes']
+
+        # Check for EMA trend confluence
+        bullish_ema_tfs = [tf for tf, data in tfs.items() if data.get('ema_trend') == 'bullish']
+        bearish_ema_tfs = [tf for tf, data in tfs.items() if data.get('ema_trend') == 'bearish']
+
+        if len(bullish_ema_tfs) >= 4:
+            confluences.append(f"✅ Bullish EMA confluence across {len(bullish_ema_tfs)} timeframes")
+        if len(bearish_ema_tfs) >= 4:
+            confluences.append(f"🔴 Bearish EMA confluence across {len(bearish_ema_tfs)} timeframes")
+
+        # Check for RSI oversold/overbought across timeframes
+        oversold_tfs = [tf for tf, data in tfs.items() if data.get('rsi_signal') == 'oversold']
+        overbought_tfs = [tf for tf, data in tfs.items() if data.get('rsi_signal') == 'overbought']
+
+        if len(oversold_tfs) >= 2:
+            confluences.append(f"📈 RSI oversold on {oversold_tfs} - potential bounce")
+        if len(overbought_tfs) >= 2:
+            confluences.append(f"📉 RSI overbought on {overbought_tfs} - potential pullback")
+
+        analysis['confluences'] = confluences
+
+        logger.info(f"📊 Multi-TF Analysis {ticker}: {analysis['overall']['bias']} ({analysis['overall']['bullish_alignment']:.1f}% bull)")
+        return analysis
 
     def get_multi_ticker_context(self, tickers: List[str]) -> Dict[str, Dict]:
         """

@@ -1,0 +1,99 @@
+{
+  "flows": [
+    {
+      "ticker": "SPY",
+      "flowType": "SWEEP",
+      "strike": "680",
+      "expiry": "2026-03-23",
+      "callPut": "CALLS",
+      "premium": "$1,120,703",
+      "rowText": "3/13/26 | 16:06:48.711 | SPY | 2026-03-23 | 680 | CALLS | 661.77 | 5000 | 2.24 | SWEEP | 11269 | 801 | $1,120,703 | ETF/ETN | FALSE"
+    },
+    {
+      "ticker": "META",
+      "flowType": "BLOCK",
+      "strike": "620",
+      "expiry": "2026-03-20",
+      "callPut": "CALLS",
+      "premium": "$1,363,380",
+      "rowText": "3/13/26 | 15:27:43.469 | META | 2026-03-20 | 620 | CALLS | 612.19 | 1466 | 9.30 | BLOCK | 7232 | 984 | $1,363,380 | TECHNOLOGY | FALSE"
+    },
+    {
+      "ticker": "QQQ",
+      "flowType": "SWEEP",
+      "strike": "587",
+      "expiry": "2026-03-16",
+      "callPut": "PUTS",
+      "premium": "$154,018",
+      "rowText": "3/13/26 | 15:27:11.340 | QQQ | 2026-03-16 | 587 | PUTS | 593.11 | 612 | 2.52 | SWEEP | 6330 | 989 | $154,018 | ETF/ETN | FALSE"
+    },
+    {
+      "ticker": "SPY",
+      "flowType": "SWEEP",
+      "strike": "663",
+      "expiry": "2026-03-13",
+      "callPut": "PUTS",
+      "premium": "$105,978",
+      "rowText": "3/13/26 | 15:22:06.973 | SPY | 2026-03-13 | 663 | PUTS | 662.73 | 964 | 1.10 | SWEEP | 382136 | 5951 | $105,978 | ETF/ETN | FALSE"
+    },
+    {
+      "ticker": "SPY",
+      "flowType": "SWEEP",
+      "strike": "662",
+      "expiry": "2026-03-13",
+      "callPut": "PUTS",
+      "premium": "$35,554",
+      "rowText": "3/13/26 | 15:21:05.900 | SPY | 2026-03-13 | 662 | PUTS | 662.93 | 659 | 0.54 | SWEEP | 330947 | 6875 | $35,554 | ETF/ETN | FALSE"
+    },
+    {
+      "ticker": "QQQ",
+      "flowType": "SWEEP",
+      "strike": "594",
+      "expiry": "2026-03-13",
+      "callPut": "PUTS",
+      "premium": "$61,735",
+      "rowText": "3/13/26 | 15:20:52.335 | QQQ | 2026-03-13 | 594 | PUTS | 593.85 | 703 | 0.88 | SWEEP | 185893 | 6058 | $61,735 | ETF/ETN | FALSE"
+    },
+    {
+      "ticker": "MSFT",
+      "flowType": "SWEEP",
+      "strike": "397.5",
+      "expiry": "2026-03-13",
+      "callPut": "CALLS",
+      "premium": "$30,850",
+      "rowText": "3/13/26 | 14:44:10.082 | MSFT | 2026-03-13 | 397.5 | CALLS | 395.93 | 1234 | 0.25 | SWEEP | 16874 | 883 | $30,850 | TECHNOLOGY | FALSE"
+    },
+    {
+      "ticker": "SPY",
+      "flowType": "SWEEP",
+      "strike": "662",
+      "expiry": "2026-03-13",
+      "callPut": "PUTS",
+      "premium": "$66,317",
+      "rowText": "3/13/26 | 14:23:14.638 | SPY | 2026-03-13 | 662 | PUTS | 662.64 | 699 | 0.95 | SWEEP | 228073 | 6875 | $66,317 | ETF/ETN | FALSE"
+    },
+    {
+      "ticker": "QQQ",
+      "flowType": "SWEEP",
+      "strike": "591",
+      "expiry": "2026-03-13",
+      "callPut": "CALLS",
+      "premium": "$137,916",
+      "rowText": "3/13/26 | 14:23:07.417 | QQQ | 2026-03-13 | 591 | CALLS | 593.13 | 518 | 2.66 | SWEEP | 7928 | 395 | $137,916 | ETF/ETN | FALSE"
+    },
+    {
+      "ticker": "SPY",
+      "flowType": "SWEEP",
+      "strike": "663",
+      "expiry": "2026-03-13",
+      "callPut": "PUTS",
+      "premium": "$137,150",
+      "rowText": "3/13/26 | 14:18:46.827 | SPY | 2026-03-13 | 663 | PUTS | 663 | 1143 | 1.20 | SWEEP | 274904 | 5951 | $137,150 | ETF/ETN | FALSE"
+    }
+  ],
+  "debug": {
+    "tableRows": 582,
+    "dataRows": 581,
+    "parsedRows": 268
+  }
+}
