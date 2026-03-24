@@ -300,29 +300,48 @@ async def get_webhook_history(
 
 @router.get("/status")
 async def get_webhook_status(current_user: User = Depends(get_debug_route_user)):
-    """Get webhook processing status"""
+    """Get webhook processing status."""
     try:
-        # Get broker connection status
         broker_status = {}
-        for broker_name, broker in signal_processor.brokers.items():
+        brokers = getattr(signal_processor, "brokers", {}) or {}
+        for broker_name, broker in brokers.items():
+            try:
+                connected_attr = getattr(broker, "is_connected", False)
+                if callable(connected_attr):
+                    connected = bool(connected_attr())
+                else:
+                    connected = bool(connected_attr)
+            except Exception as exc:
+                connected = False
+                logger.warning(f"Broker status check failed for {broker_name}: {exc}")
+
             broker_status[broker_name] = {
-                "connected": broker.is_connected,
+                "connected": connected,
+                "class": broker.__class__.__name__,
                 "last_check": datetime.now().isoformat()
             }
-        
+
+        webhook_configs = getattr(webhook_router, "webhook_configs", {}) or {}
+        config_summary = {
+            "type": type(webhook_configs).__name__,
+            "count": len(webhook_configs) if hasattr(webhook_configs, "__len__") else None,
+        }
+        if isinstance(webhook_configs, dict):
+            config_summary["keys"] = list(webhook_configs.keys())[:20]
+
         return JSONResponse(
             status_code=200,
             content={
                 "status": "active",
-                "supported_sources": webhook_router.supported_sources,
+                "supported_sources": list(getattr(webhook_router, "supported_sources", [])),
                 "broker_connections": broker_status,
-                "webhook_config": webhook_router.webhook_configs,
+                "webhook_config_summary": config_summary,
                 "timestamp": datetime.now().isoformat()
             }
         )
-        
+
     except Exception as e:
-        logger.error(f"Error getting webhook status: {e}")
+        logger.exception(f"Error getting webhook status: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.post("/test")

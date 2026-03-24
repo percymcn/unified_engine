@@ -91,6 +91,7 @@ class ProjectXSDKService:
         self._suite: Optional[Any] = None  # TradingSuite
         self._contract_resolver: ContractResolver = get_contract_resolver()
         self._is_connected = False
+        self._loop: Optional[asyncio.AbstractEventLoop] = None
 
     async def connect(self) -> bool:
         """
@@ -115,6 +116,7 @@ class ProjectXSDKService:
             await self._client.authenticate()
 
             self._is_connected = True
+            self._loop = asyncio.get_running_loop()
             account_info = self._client.account_info
             account_display = getattr(account_info, 'name', 'Unknown') if account_info else 'Unknown'
             logger.info(f"ProjectX SDK connected: {account_display}")
@@ -139,6 +141,7 @@ class ProjectXSDKService:
             self._client = None
 
         self._is_connected = False
+        self._loop = None
         logger.info("ProjectX SDK disconnected")
 
     @staticmethod
@@ -1070,6 +1073,16 @@ class ProjectXSDKService:
         Returns:
             List of OHLCV data dicts
         """
+        current_loop = asyncio.get_running_loop()
+        if self._client and self._loop and self._loop is not current_loop:
+            logger.warning("ProjectX client loop mismatch detected; reconnecting client on current loop")
+            try:
+                await self.disconnect()
+            except Exception:
+                pass
+            if not await self.connect():
+                raise RuntimeError("Failed to reconnect ProjectX client on current loop")
+
         if not self._client:
             raise RuntimeError("Not connected")
 
