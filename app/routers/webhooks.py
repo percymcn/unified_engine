@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request, HTTPException, status, Depends
+from fastapi import APIRouter, Request, HTTPException, status, Depends, Header
 from sqlalchemy.orm import Session
 from typing import Dict, Any, List, Optional
 from datetime import datetime
@@ -12,7 +12,7 @@ from app.db.database import get_db
 from app.models.models import WebhookLog, User, Position, Signal as SignalORM, SignalSource as ModelsSignalSource
 from app.models.database_models import WebhookConfig, TradingAccount, RejectedSignal, RejectedSignalReason, BrokerType as DBBrokerType
 from app.models.schemas import WebhookLog as WebhookLogSchema, WebhookLogCreate
-from app.routers.auth import get_current_user
+from app.routers.auth import get_current_user, get_current_user_optional, verify_api_key
 from app.dependencies import get_container
 from app.application.dto.signal_dto import ProcessSignalRequest
 from app.domain.enums import SignalSource, SignalAction, SignalStatus, BrokerType
@@ -33,6 +33,23 @@ from app.infrastructure.adapters.position_counter_adapter import PositionCounter
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+async def get_debug_route_user(
+    bearer_user: Optional[User] = Depends(get_current_user_optional),
+    api_key: Optional[str] = Header(None, alias="X-API-Key"),
+    db: Session = Depends(get_db),
+) -> User:
+    """Allow bearer auth for user-facing debug routes while keeping API-key fallback."""
+    if bearer_user:
+        return bearer_user
+    if api_key:
+        return await verify_api_key(api_key=api_key, db=db)
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Authentication required",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
 
 async def execute_metaapi_trade(
@@ -1072,10 +1089,19 @@ async def get_webhook_log(
     return log
 
 @router.post("/test")
-async def test_webhook(request: Request, db: Session = Depends(get_db)):
+async def test_webhook(
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_debug_route_user),
+):
     """Test webhook endpoint"""
     try:
-        payload = await request.json()
+        try:
+            payload = await request.json()
+        except Exception:
+            payload = {}
+        if payload is None:
+            payload = {}
 
         # Create test webhook log
         webhook_id = str(uuid.uuid4())

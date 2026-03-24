@@ -27,20 +27,31 @@ Rate Limit Strategy (Free Tier - 5 calls/min):
 - Smart refresh: Only refresh stale data
 """
 
-import os
+import asyncio
 import logging
-import requests
-from datetime import datetime, timedelta
-from typing import List, Dict, Optional, Tuple, TYPE_CHECKING
-from dataclasses import dataclass, asdict
-import time
+import os
 import threading
+import time
 from collections import deque
+from dataclasses import dataclass, asdict
+from datetime import datetime, timedelta
+from typing import List, Dict, Optional, Tuple, TYPE_CHECKING, Any
+
+import httpx
 
 if TYPE_CHECKING:
     from app.services.projectx_sdk_service import ProjectXSDKService
 
 logger = logging.getLogger(__name__)
+
+_polygon_request_semaphore: Optional[asyncio.Semaphore] = None
+
+
+def _get_polygon_request_semaphore() -> asyncio.Semaphore:
+    global _polygon_request_semaphore
+    if _polygon_request_semaphore is None:
+        _polygon_request_semaphore = asyncio.Semaphore(2)
+    return _polygon_request_semaphore
 
 
 class RateLimiter:
@@ -178,6 +189,24 @@ class MarketDataService:
 
     # Reverse mapping
     ETF_TO_FUTURES = {v: k for k, v in FUTURES_TO_ETF.items() if k.startswith('M')}  # Prefer micros
+    CRYPTO_TICKERS = {'BTCUSD', 'ETHUSD', 'X:BTCUSD', 'X:ETHUSD'}
+    KRAKEN_PAIR_MAP = {
+        'BTCUSD': 'XXBTZUSD',
+        'ETHUSD': 'XETHZUSD',
+        'X:BTCUSD': 'XXBTZUSD',
+        'X:ETHUSD': 'XETHZUSD',
+    }
+    FUTURES_TICKERS = {
+        'MES', 'MNQ', 'MYM', 'MGC', 'M2K',
+        'ES', 'NQ', 'YM', 'RTY', 'GC',
+    }
+    FOREX_TICKERS = {
+        'XAUUSD', 'GBPJPY', 'USDJPY',
+        'C:XAUUSD', 'C:GBPJPY', 'C:USDJPY',
+    }
+    POLYGON_CALLS_PER_MINUTE = 4
+    FOREX_CALL_INTERVAL_SECONDS = 15
+    FOREX_MAX_TICKERS_PER_MINUTE = 4
 
     def __init__(self, projectx_service: Optional['ProjectXSDKService'] = None):
         # ProjectX service for real-time data
@@ -199,13 +228,22 @@ class MarketDataService:
 
         self.base_url = "https://api.polygon.io"
         self.cache: Dict[str, Dict] = {}  # ticker -> data cache
-        self.cache_ttl = 120  # Cache for 2 minutes (balance freshness vs rate limits)
-        self.extended_cache_ttl = 300  # 5 min cache for less critical data
-        self.realtime_cache_ttl = 10  # Cache real-time quotes for 10 seconds only
+        self.cache_ttl = 300  # Cache for 5 minutes (aggressive caching for free tier)
+        self.extended_cache_ttl = 600  # 10 min cache for less critical data (MTF analysis)
+        self.realtime_cache_ttl = 30  # Cache real-time quotes for 30 seconds
+        self.mtf_cache_ttl = 600  # Cache multi-timeframe analysis for 10 minutes
 
         # Rate limiter: 5 calls/min for free tier, 100+ for paid
         calls_per_min = int(os.getenv("POLYGON_RATE_LIMIT", "5"))
         self.rate_limiter = RateLimiter(calls_per_minute=calls_per_min)
+        self._polygon_call_times: deque = deque()
+        self._polygon_lock = threading.Lock()
+        self._forex_last_call_time = 0.0
+        self._forex_recent_tickers: deque = deque()
+        self._http_client: Optional[httpx.AsyncClient] = None
+        self._http_client_loop: Optional[asyncio.AbstractEventLoop] = None
+        self._http_loop: Optional[asyncio.AbstractEventLoop] = None
+        self._http_thread: Optional[threading.Thread] = None
 
         data_sources = []
         if self.projectx_service:
@@ -226,8 +264,56 @@ class MarketDataService:
         self.projectx_service = projectx_service
         logger.info("✅ ProjectX real-time data integration enabled")
 
+    def _ensure_http_loop(self) -> asyncio.AbstractEventLoop:
+        if self._http_loop and self._http_loop.is_running():
+            return self._http_loop
+
+        loop = asyncio.new_event_loop()
+        self._http_loop = loop
+        ready = threading.Event()
+
+        def _run_loop() -> None:
+            asyncio.set_event_loop(loop)
+            ready.set()
+            loop.run_forever()
+
+        self._http_thread = threading.Thread(
+            target=_run_loop,
+            name="market-data-http-loop",
+            daemon=True,
+        )
+        self._http_thread.start()
+        ready.wait()
+        return loop
+
+    async def _get_client(self) -> httpx.AsyncClient:
+        current_loop = asyncio.get_running_loop()
+        if (
+            self._http_client is not None
+            and not self._http_client.is_closed
+            and self._http_client_loop is not current_loop
+        ):
+            logger.warning("Recreating AsyncClient on a new event loop for market data service")
+            try:
+                await self._http_client.aclose()
+            except Exception:
+                pass
+            self._http_client = None
+            self._http_client_loop = None
+
+        if self._http_client is None or self._http_client.is_closed:
+            limits = httpx.Limits(max_connections=20, max_keepalive_connections=5)
+            self._http_client = httpx.AsyncClient(timeout=15.0, limits=limits)
+            self._http_client_loop = current_loop
+        return self._http_client
+
+    def _run_http(self, coro):
+        loop = self._ensure_http_loop()
+        future = asyncio.run_coroutine_threadsafe(coro, loop)
+        return future.result()
+
     def _get_cache(self, ticker: str, data_type: str) -> Optional[dict]:
-        """Get cached data if still valid"""
+        """Get cached data if still valid, using appropriate TTL for data type"""
         if ticker not in self.cache:
             return None
 
@@ -235,8 +321,19 @@ class MarketDataService:
         if not cache_entry:
             return None
 
+        # Use appropriate TTL based on data type
+        if data_type.startswith('realtime'):
+            ttl = self.realtime_cache_ttl
+        elif data_type.startswith('mtf') or data_type.startswith('multi'):
+            ttl = self.mtf_cache_ttl
+        elif data_type.startswith('fib') or data_type.startswith('ai_context'):
+            ttl = self.extended_cache_ttl
+        else:
+            ttl = self.cache_ttl
+
         # Check if cache is still valid
-        if time.time() - cache_entry['timestamp'] < self.cache_ttl:
+        if time.time() - cache_entry['timestamp'] < ttl:
+            logger.debug(f"Cache hit: {ticker}/{data_type} (age: {time.time() - cache_entry['timestamp']:.0f}s, ttl: {ttl}s)")
             return cache_entry['data']
 
         return None
@@ -251,7 +348,155 @@ class MarketDataService:
             'timestamp': time.time()
         }
 
+    def _is_crypto_ticker(self, ticker: str) -> bool:
+        return ticker.upper() in self.CRYPTO_TICKERS
+
+    def _is_futures_ticker(self, ticker: str) -> bool:
+        return ticker.upper() in self.FUTURES_TICKERS
+
+    def _is_forex_ticker(self, ticker: str) -> bool:
+        return ticker.upper() in self.FOREX_TICKERS
+
+    def _normalize_forex_ticker(self, ticker: str) -> str:
+        symbol = ticker.upper()
+        if symbol.startswith('C:'):
+            return symbol
+        return f"C:{symbol}"
+
+    def normalize_forex_ticker(self, ticker: str) -> str:
+        return self._normalize_forex_ticker(ticker)
+
+    def is_polygon_only_ticker(self, ticker: str) -> bool:
+        return self._is_forex_ticker(ticker)
+
+    def is_supported_ticker(self, ticker: str) -> bool:
+        return self._is_futures_ticker(ticker) or self._is_crypto_ticker(ticker) or self._is_forex_ticker(ticker)
+
+    def _prune_polygon_calls(self, now: float) -> None:
+        while self._polygon_call_times and (now - self._polygon_call_times[0]) > 60:
+            self._polygon_call_times.popleft()
+
+    def _polygon_calls_remaining(self) -> int:
+        with self._polygon_lock:
+            now = time.time()
+            self._prune_polygon_calls(now)
+            return max(0, self.POLYGON_CALLS_PER_MINUTE - len(self._polygon_call_times))
+
+    def get_polygon_rate_limit_remaining(self) -> int:
+        return self._polygon_calls_remaining()
+
+    def _reserve_polygon_call(self) -> bool:
+        with self._polygon_lock:
+            now = time.time()
+            self._prune_polygon_calls(now)
+            if len(self._polygon_call_times) >= self.POLYGON_CALLS_PER_MINUTE:
+                return False
+            self._polygon_call_times.append(now)
+            return True
+
+    def _can_call_forex(self, ticker: str) -> bool:
+        now = time.time()
+        if (now - self._forex_last_call_time) < self.FOREX_CALL_INTERVAL_SECONDS:
+            return False
+
+        while self._forex_recent_tickers and (now - self._forex_recent_tickers[0][0]) > 60:
+            self._forex_recent_tickers.popleft()
+
+        active_tickers = {t for _, t in self._forex_recent_tickers}
+        normalized = self._normalize_forex_ticker(ticker)
+        if normalized not in active_tickers and len(active_tickers) >= self.FOREX_MAX_TICKERS_PER_MINUTE:
+            return False
+
+        return True
+
+    def _record_forex_call(self, ticker: str) -> None:
+        now = time.time()
+        self._forex_last_call_time = now
+        self._forex_recent_tickers.append((now, self._normalize_forex_ticker(ticker)))
+
+    async def _get_kraken_bars(self, ticker: str, multiplier: int, limit: int) -> List[Bar]:
+        """Get OHLCV bars from Kraken for crypto tickers."""
+        pair = self.KRAKEN_PAIR_MAP.get(ticker.upper())
+        if not pair:
+            return []
+
+        try:
+            url = "https://api.kraken.com/0/public/OHLC"
+            params = {'pair': pair, 'interval': multiplier}
+            client = await self._get_client()
+            response = await client.get(url, params=params, timeout=10.0)
+            response.raise_for_status()
+            data = response.json()
+
+            if data.get('error'):
+                logger.warning(f"Kraken API error for {ticker}: {data.get('error')}")
+                return []
+
+            result = data.get('result', {})
+            pair_key = next((key for key in result.keys() if key != 'last'), None)
+            if not pair_key:
+                logger.warning(f"Kraken response missing pair data for {ticker}")
+                return []
+
+            ohlc_data = result.get(pair_key, [])
+            if not ohlc_data:
+                return []
+
+            bars = []
+            for row in ohlc_data[-limit:]:
+                bars.append(Bar(
+                    timestamp=datetime.fromtimestamp(int(row[0])),
+                    open=float(row[1]),
+                    high=float(row[2]),
+                    low=float(row[3]),
+                    close=float(row[4]),
+                    volume=int(float(row[6]))
+                ))
+
+            logger.debug(f"Fetched {len(bars)} Kraken bars for {ticker} ({pair})")
+            return bars
+        except Exception as e:
+            logger.warning(f"Kraken fetch failed for {ticker}: {e}")
+            return []
+
+    async def _polygon_get_with_backoff(
+        self,
+        url: str,
+        params: Dict[str, Any],
+        timeout: int = 10,
+        max_retries: int = 4,
+        base_delay: float = 1.0
+    ) -> Optional[httpx.Response]:
+        """GET with exponential backoff on Polygon 429 responses."""
+        response = None
+        client = await self._get_client()
+        for attempt in range(max_retries + 1):
+            if not self._reserve_polygon_call():
+                logger.warning("Polygon rate limit reached - skipping request")
+                return None
+            async with _get_polygon_request_semaphore():
+                response = await client.get(url, params=params, timeout=float(timeout))
+            if response.status_code != 429:
+                return response
+
+            retry_after = response.headers.get("Retry-After")
+            try:
+                delay = float(retry_after)
+            except (TypeError, ValueError):
+                delay = base_delay * (2 ** attempt)
+
+            logger.warning(
+                f"Polygon 429 for {url} (attempt {attempt + 1}/{max_retries + 1}); "
+                f"backing off {delay:.1f}s"
+            )
+            await asyncio.sleep(delay)
+
+        return response
+
     def get_bars(self, ticker: str, timespan: str = 'minute', multiplier: int = 5, limit: int = 50) -> List[Bar]:
+        return self._run_http(self._get_bars_async(ticker, timespan, multiplier, limit))
+
+    async def _get_bars_async(self, ticker: str, timespan: str = 'minute', multiplier: int = 5, limit: int = 50) -> List[Bar]:
         """
         Get OHLCV bars from Polygon.io
 
@@ -264,24 +509,80 @@ class MarketDataService:
         Returns:
             List of Bar objects
         """
-        if not self.api_key:
-            return []
-
         # Check cache first
         cache_key = f"bars_{timespan}_{multiplier}_{limit}"
         cached = self._get_cache(ticker, cache_key)
         if cached:
             return cached
 
+        symbol = ticker.upper()
+
+        if self._is_futures_ticker(symbol) and self.projectx_service:
+            try:
+                interval_minutes = multiplier if timespan == 'minute' else 60 * multiplier
+                bars_data = await self.projectx_service.get_market_data(symbol, days=1, interval=interval_minutes)
+                if bars_data:
+                    bars = []
+                    for row in bars_data[-limit:]:
+                        ts = row.get('timestamp') or row.get('time') or row.get('datetime')
+                        if isinstance(ts, (int, float)):
+                            ts = datetime.fromtimestamp(ts)
+                        elif isinstance(ts, str):
+                            try:
+                                ts = datetime.fromisoformat(ts)
+                            except ValueError:
+                                ts = datetime.now()
+                        else:
+                            ts = datetime.now()
+                        bars.append(Bar(
+                            timestamp=ts,
+                            open=float(row.get('open', row.get('Open', 0))),
+                            high=float(row.get('high', row.get('High', 0))),
+                            low=float(row.get('low', row.get('Low', 0))),
+                            close=float(row.get('close', row.get('Close', 0))),
+                            volume=int(row.get('volume', row.get('Volume', 0))),
+                        ))
+                    if bars:
+                        self._set_cache(ticker, cache_key, bars)
+                        return bars
+            except Exception as e:
+                logger.debug(f"ProjectX bars failed for {symbol}: {e}")
+
+        if self._is_crypto_ticker(symbol):
+            if timespan != 'minute':
+                logger.debug(f"Kraken only supports minute timespan via interval; using Polygon for {ticker}")
+            else:
+                bars = await self._get_kraken_bars(symbol, multiplier=multiplier, limit=limit)
+                if bars:
+                    self._set_cache(ticker, cache_key, bars)
+                    return bars
+                logger.info(f"Kraken unavailable for {ticker}, falling back to Polygon")
+
+        if not self._is_futures_ticker(symbol) and not self._is_crypto_ticker(symbol) and not self._is_forex_ticker(symbol):
+            return []
+
+        if not self.api_key:
+            return []
+
         try:
-            # Wait for rate limiter before making API call
-            self.rate_limiter.wait_if_needed()
+            if self._is_forex_ticker(symbol):
+                data_ticker = self._normalize_forex_ticker(symbol)
+            elif self._is_futures_ticker(symbol):
+                data_ticker = self.FUTURES_TO_ETF.get(symbol, symbol)
+            else:
+                data_ticker = symbol
+
+            if self._is_forex_ticker(symbol):
+                if not self._can_call_forex(symbol):
+                    logger.info(f"Forex rate limit reached - skipping {symbol}")
+                    return []
+                self._record_forex_call(symbol)
 
             # Get bars from last 2 days to ensure we have enough data
             to_date = datetime.now()
             from_date = to_date - timedelta(days=2)
 
-            url = f"{self.base_url}/v2/aggs/ticker/{ticker}/range/{multiplier}/{timespan}/{from_date.strftime('%Y-%m-%d')}/{to_date.strftime('%Y-%m-%d')}"
+            url = f"{self.base_url}/v2/aggs/ticker/{data_ticker}/range/{multiplier}/{timespan}/{from_date.strftime('%Y-%m-%d')}/{to_date.strftime('%Y-%m-%d')}"
 
             params = {
                 'apiKey': self.api_key,
@@ -289,7 +590,13 @@ class MarketDataService:
                 'sort': 'desc'  # Most recent first
             }
 
-            response = requests.get(url, params=params, timeout=10)
+            max_retries = 0 if self._is_forex_ticker(symbol) else 4
+            response = await self._polygon_get_with_backoff(url, params=params, timeout=10, max_retries=max_retries)
+            if response is None:
+                return []
+            if response.status_code == 429:
+                logger.error(f"Polygon rate limit exceeded for {ticker} after retries")
+                return []
             response.raise_for_status()
             data = response.json()
 
@@ -611,7 +918,7 @@ class MarketDataService:
                 return cached
 
         # Try ProjectX first for futures
-        if self.projectx_service and symbol in ['MES', 'MNQ', 'MYM', 'MGC', 'ES', 'NQ', 'YM', 'GC']:
+        if self.projectx_service and symbol in ['MES', 'MNQ', 'MYM', 'MGC', 'ES', 'NQ', 'YM', 'GC', 'RTY']:
             try:
                 # Get 1-minute bars to get current price
                 bars_data = await self.projectx_service.get_market_data(symbol, days=1, interval=1)
@@ -722,8 +1029,15 @@ class MarketDataService:
         Get comprehensive market context for AI Strategy Suite analysis.
         Returns human-readable data that Claude can use for analysis.
 
-        This uses cached data aggressively to avoid hitting rate limits.
+        CACHED for 10 minutes to avoid rate limit issues on free tier.
         """
+        # Check cache first
+        cache_key = f"ai_context_{ticker}"
+        cached = self._get_cache(ticker, cache_key)
+        if cached:
+            logger.debug(f"Using cached AI context for {ticker}")
+            return cached
+
         if not self.api_key:
             return {'error': 'Polygon API key not configured', 'ticker': ticker}
 
@@ -799,6 +1113,8 @@ class MarketDataService:
             except Exception as e:
                 logger.warning(f"Failed to get MTF analysis for {ticker}: {e}")
 
+            # Cache the result
+            self._set_cache(ticker, cache_key, result)
             return result
 
         except Exception as e:
@@ -844,50 +1160,70 @@ class MarketDataService:
             'position': 'above' if price > nearest[1] else 'below',
         }
 
-    def get_multi_timeframe_bars(self, ticker: str) -> Dict[str, List[Bar]]:
+    def get_multi_timeframe_bars(self, ticker: str, force_minimal: bool = False) -> Dict[str, List[Bar]]:
         """
         Get bars for multiple timeframes for comprehensive day trading analysis.
 
-        Timeframes:
+        RATE LIMIT AWARE: Will reduce timeframes if rate limit is low.
+
+        Timeframes (when not rate limited):
         - 5m: Short-term scalping/momentum (20 bars = ~1.5 hours)
         - 15m: Intraday momentum (20 bars = ~5 hours)
-        - 30m: Intraday trend structure (20 bars = ~10 hours / 1.5 days)
         - 1h: Daily structure context (20 bars = ~20 hours / 3 days)
-        - 4h: Weekly context for day trading (12 bars = ~2 days)
+
+        Minimal mode (rate limited or force_minimal=True):
+        - Only 5m bars (single API call)
 
         Returns dict with timeframe keys and bar lists.
         """
-        # Convert futures to ETF for Polygon data
-        data_ticker = self.FUTURES_TO_ETF.get(ticker, ticker)
-        if data_ticker != ticker:
-            logger.debug(f"MTF ticker mapping: {ticker} → {data_ticker}")
+        # Check cache first for the entire MTF result
+        cache_key = f"mtf_bars_{ticker}"
+        cached = self._get_cache(ticker, cache_key)
+        if cached:
+            logger.debug(f"Using cached MTF bars for {ticker}")
+            return cached
+
+        data_ticker = self._normalize_forex_ticker(ticker) if self._is_forex_ticker(ticker) else ticker
 
         timeframes = {}
+
+        # Check rate limit status - be conservative for Polygon-only tickers
+        use_polygon = self._is_forex_ticker(data_ticker) or (self._is_futures_ticker(ticker) and not self.projectx_service)
+        remaining = self.get_polygon_rate_limit_remaining() if use_polygon else 999
+
+        # Minimal mode: only 5m bars if rate limited or forced
+        if force_minimal or remaining <= 2:
+            logger.info(f"⚠️ Rate limit low ({remaining} remaining), using minimal MTF for {ticker}")
+            bars_5m = self.get_bars(data_ticker, timespan='minute', multiplier=5, limit=20)
+            if bars_5m:
+                timeframes['5m'] = bars_5m
+            self._set_cache(ticker, cache_key, timeframes)
+            return timeframes
 
         # 5-minute bars (20 bars) - PRIMARY for day trading
         bars_5m = self.get_bars(data_ticker, timespan='minute', multiplier=5, limit=20)
         if bars_5m:
             timeframes['5m'] = bars_5m
 
-        # 15-minute bars (20 bars)
-        bars_15m = self.get_bars(data_ticker, timespan='minute', multiplier=15, limit=20)
-        if bars_15m:
-            timeframes['15m'] = bars_15m
+        # Only fetch additional timeframes if we have calls remaining
+        remaining = self.rate_limiter.calls_remaining()
 
-        # 30-minute bars (20 bars)
-        bars_30m = self.get_bars(data_ticker, timespan='minute', multiplier=30, limit=20)
-        if bars_30m:
-            timeframes['30m'] = bars_30m
+        if remaining >= 2:
+            # 15-minute bars (20 bars)
+            bars_15m = self.get_bars(data_ticker, timespan='minute', multiplier=15, limit=20)
+            if bars_15m:
+                timeframes['15m'] = bars_15m
 
-        # 1-hour bars (20 bars)
-        bars_1h = self.get_bars(data_ticker, timespan='hour', multiplier=1, limit=20)
-        if bars_1h:
-            timeframes['1h'] = bars_1h
+        remaining = self.rate_limiter.calls_remaining()
 
-        # 4-hour bars (12 bars) - daily context
-        bars_4h = self.get_bars(data_ticker, timespan='hour', multiplier=4, limit=12)
-        if bars_4h:
-            timeframes['4h'] = bars_4h
+        if remaining >= 1:
+            # 1-hour bars (20 bars) - skip 30m and 4h to save calls
+            bars_1h = self.get_bars(data_ticker, timespan='hour', multiplier=1, limit=20)
+            if bars_1h:
+                timeframes['1h'] = bars_1h
+
+        # Cache the result
+        self._set_cache(ticker, cache_key, timeframes)
 
         logger.info(f"📊 Multi-TF bars for {ticker} (via {data_ticker}): " + ", ".join(f"{tf}={len(bars)}" for tf, bars in timeframes.items()))
         return timeframes
@@ -951,13 +1287,22 @@ class MarketDataService:
         """
         Get comprehensive multi-timeframe technical analysis for day trading.
 
-        Returns analysis for 5m, 15m, 30m, 1h, 4h timeframes with:
+        CACHED for 10 minutes to avoid rate limit issues.
+
+        Returns analysis for available timeframes (5m, 15m, 1h) with:
         - EMA 9/20 and trend
         - RSI 14
         - Momentum direction
         - Volume trend
         - Overall bias calculation
         """
+        # Check cache first
+        cache_key = f"mtf_analysis_{ticker}"
+        cached = self._get_cache(ticker, cache_key)
+        if cached:
+            logger.debug(f"Using cached MTF analysis for {ticker}")
+            return cached
+
         mtf_bars = self.get_multi_timeframe_bars(ticker)
 
         if not mtf_bars:
@@ -1016,13 +1361,13 @@ class MarketDataService:
         confluences = []
         tfs = analysis['timeframes']
 
-        # Check for EMA trend confluence
+        # Check for EMA trend confluence (adjusted for 3 timeframes max)
         bullish_ema_tfs = [tf for tf, data in tfs.items() if data.get('ema_trend') == 'bullish']
         bearish_ema_tfs = [tf for tf, data in tfs.items() if data.get('ema_trend') == 'bearish']
 
-        if len(bullish_ema_tfs) >= 4:
+        if len(bullish_ema_tfs) >= 2:
             confluences.append(f"✅ Bullish EMA confluence across {len(bullish_ema_tfs)} timeframes")
-        if len(bearish_ema_tfs) >= 4:
+        if len(bearish_ema_tfs) >= 2:
             confluences.append(f"🔴 Bearish EMA confluence across {len(bearish_ema_tfs)} timeframes")
 
         # Check for RSI oversold/overbought across timeframes
@@ -1035,6 +1380,9 @@ class MarketDataService:
             confluences.append(f"📉 RSI overbought on {overbought_tfs} - potential pullback")
 
         analysis['confluences'] = confluences
+
+        # Cache the result
+        self._set_cache(ticker, cache_key, analysis)
 
         logger.info(f"📊 Multi-TF Analysis {ticker}: {analysis['overall']['bias']} ({analysis['overall']['bullish_alignment']:.1f}% bull)")
         return analysis
@@ -1055,6 +1403,8 @@ class MarketDataService:
             'calls_remaining': self.rate_limiter.calls_remaining(),
             'calls_per_minute': self.rate_limiter.calls_per_minute,
             'cache_ttl_seconds': self.cache_ttl,
+            'polygon_calls_remaining': self.get_polygon_rate_limit_remaining(),
+            'polygon_calls_per_minute': self.POLYGON_CALLS_PER_MINUTE,
         }
 
 

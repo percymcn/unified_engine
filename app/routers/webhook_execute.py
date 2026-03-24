@@ -451,6 +451,24 @@ def resolve_symbol_for_broker(
         logger.info(f"Symbol mapped: {source_symbol} -> {alias.target_symbol} for {broker_type}")
         return alias.target_symbol
 
+    normalized_source = source_upper.replace("/", "").replace("-", "").replace("_", "")
+
+    if broker_lower in {"projectx", "topstep"}:
+        try:
+            from app.services.contract_resolver import ContractResolver
+            resolved_symbol = ContractResolver.normalize_symbol(source_upper)
+            if resolved_symbol and resolved_symbol != source_symbol:
+                logger.info(f"Contract-normalized symbol: {source_symbol} -> {resolved_symbol} for {broker_type}")
+                return resolved_symbol
+        except Exception:
+            pass
+
+    if broker_lower == "tradelocker" and normalized_source in CRYPTO_SYMBOL_HINTS:
+        base = normalized_source[:-3] if normalized_source.endswith("USD") else normalized_source
+        mapped = f"{base}/USD"
+        logger.info(f"Heuristic crypto symbol map: {source_symbol} -> {mapped} for {broker_type}")
+        return mapped
+
     # No alias found - return original symbol
     return source_symbol
 
@@ -478,13 +496,15 @@ class TradingViewPayload(BaseModel):
 
 
 class AccountExecutionResult(BaseModel):
-    """Result for a single account execution"""
+    """Result for a single account execution target."""
     account_id: int
     broker: str
     success: bool
     status: str
     error: Optional[str] = None
     execution_id: Optional[str] = None
+    target_broker_account_id: Optional[str] = None
+    target_label: Optional[str] = None
 
 
 class ExecuteResponse(BaseModel):
@@ -496,8 +516,11 @@ class ExecuteResponse(BaseModel):
     routing_strategy: str = "default_only"
     routing_reason: Optional[str] = None
     total_accounts: int = 0
+    total_execution_targets: int = 0
     successful_accounts: int = 0
     failed_accounts: int = 0
+    successful_targets: int = 0
+    failed_targets: int = 0
     account_results: List[AccountExecutionResult] = []
     # Legacy single-account fields for backwards compatibility
     account_id: Optional[int] = None
@@ -1745,7 +1768,8 @@ async def _execute_tradingview_signal_inner(
         # Single execution target (default behavior)
         execution_targets.append((account, None))
 
-    logger.info(f"Execution targets: {len(execution_targets)} (expanded from {len(accounts)} accounts)")
+    total_execution_targets = len(execution_targets)
+    logger.info(f"Execution targets: {total_execution_targets} (expanded from {len(accounts)} accounts)")
 
     # Track which accounts have passed cooldown check for this signal
     # This prevents cooldown from blocking sub-accounts within the same signal
@@ -1893,8 +1917,9 @@ async def _execute_tradingview_signal_inner(
                     broker=broker_str,
                     success=False,
                     status="rejected",
-                    executions=0,
-                    errors=[rejection_reason]
+                    error=rejection_reason,
+                    target_broker_account_id=_normalize_execution_target_broker_account_id(target_broker_account_id),
+                    target_label=target_label,
                 ))
                 failed_count += 1
                 all_errors.append(rejection_reason)
@@ -1936,7 +1961,9 @@ async def _execute_tradingview_signal_inner(
                         broker=broker_str,
                         success=False,
                         status="duplicate",
-                        error=dedup_reason
+                        error=dedup_reason,
+                        target_broker_account_id=_normalize_execution_target_broker_account_id(target_broker_account_id),
+                        target_label=target_label,
                     ))
                     failed_count += 1
                     all_errors.append(f"{target_label}: {dedup_reason}")
@@ -2157,8 +2184,9 @@ async def _execute_tradingview_signal_inner(
                         broker=broker_str,
                         success=False,
                         status="rejected",
-                        executions=0,
-                        errors=[position_rejection]
+                        error=position_rejection,
+                        target_broker_account_id=_normalize_execution_target_broker_account_id(target_broker_account_id),
+                        target_label=target_label,
                     ))
                     failed_count += 1
                     all_errors.append(position_rejection)
@@ -2503,8 +2531,9 @@ async def _execute_tradingview_signal_inner(
                                     broker=broker_str,
                                     success=False,
                                     status="rejected",
-                                    executions=0,
-                                    errors=[rr_rejection]
+                                    error=rr_rejection,
+                                    target_broker_account_id=_normalize_execution_target_broker_account_id(target_broker_account_id),
+                                    target_label=target_label,
                                 ))
                                 failed_count += 1
                                 all_errors.append(rr_rejection)
@@ -2838,7 +2867,9 @@ async def _execute_tradingview_signal_inner(
                     broker=broker_str,
                     success=True,
                     status="executed",
-                    execution_id=use_case_result.signal_id
+                    execution_id=use_case_result.signal_id,
+                    target_broker_account_id=_normalize_execution_target_broker_account_id(target_broker_account_id),
+                    target_label=target_label,
                 ))
             else:
                 failed_count += 1
@@ -2849,7 +2880,9 @@ async def _execute_tradingview_signal_inner(
                     broker=broker_str,
                     success=False,
                     status="failed",
-                    error=error_msg
+                    error=error_msg,
+                    target_broker_account_id=_normalize_execution_target_broker_account_id(target_broker_account_id),
+                    target_label=target_label,
                 ))
 
         except Exception as e:
@@ -2889,13 +2922,15 @@ async def _execute_tradingview_signal_inner(
                 broker=broker_str,
                 success=False,
                 status="failed",
-                error=error_msg
+                error=error_msg,
+                target_broker_account_id=_normalize_execution_target_broker_account_id(target_broker_account_id),
+                target_label=target_label,
             ))
 
     # Determine overall status
     processing_time_ms = int((datetime.utcnow() - start_time).total_seconds() * 1000)
 
-    if successful_count == len(accounts):
+    if successful_count == total_execution_targets:
         overall_status = "executed"
         overall_success = True
     elif successful_count > 0:
@@ -2918,6 +2953,7 @@ async def _execute_tradingview_signal_inner(
                 **(signal_to_update.signal_data or {}),
                 "execution_results": {
                     "total_accounts": len(accounts),
+                    "total_execution_targets": total_execution_targets,
                     "successful": successful_count,
                     "failed": failed_count,
                     "errors": all_errors,
@@ -2939,6 +2975,7 @@ async def _execute_tradingview_signal_inner(
             "signal_id": signal_uuid,
             "status": overall_status,
             "total_accounts": len(accounts),
+            "total_execution_targets": total_execution_targets,
             "successful": successful_count,
             "failed": failed_count,
             "errors": all_errors[:3] if all_errors else [],  # Limit errors stored
@@ -2970,6 +3007,7 @@ async def _execute_tradingview_signal_inner(
         webhook_id=webhook_id,
         signal_id=signal_uuid,
         total_accounts=len(accounts),
+        total_execution_targets=total_execution_targets,
         successful=successful_count,
         failed=failed_count,
         routing_strategy=routing_strategy
@@ -2983,8 +3021,11 @@ async def _execute_tradingview_signal_inner(
         routing_strategy=routing_strategy,
         routing_reason=routing_reason,
         total_accounts=len(accounts),
+        total_execution_targets=total_execution_targets,
         successful_accounts=successful_count,
         failed_accounts=failed_count,
+        successful_targets=successful_count,
+        failed_targets=failed_count,
         account_results=account_results,
         # Legacy single-account fields (first account)
         account_id=first_account.id,
