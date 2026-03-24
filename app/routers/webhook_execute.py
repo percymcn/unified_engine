@@ -53,6 +53,7 @@ from app.domain.services.risk_unit_converter import RiskUnitConverter, RiskUnitM
 from app.domain.services.daily_counter_service import DailyCounterService
 from app.infrastructure.repositories import get_daily_counter_repository
 from app.services.compat_positions_cache import record_open, record_close, is_enabled as compat_positions_enabled
+from app.services.position_sync_service import sync_positions_before_check
 from app.models.database_models import DailyPnL, AccountEquityHistory, CircuitBreakerSettings, DynamicSizingSettings, EquityCurveState
 from app.services.trade_analytics_service import TradeAnalyticsService
 from datetime import date as date_type
@@ -119,6 +120,38 @@ def get_market_hours_confidence_boost(source: str = None) -> float:
     else:
         # Market closed - no boost
         return 1.0
+
+
+def normalize_confidence(confidence_value: Any) -> Optional[float]:
+    """Normalize confidence values to a percentage (0-100)."""
+    if confidence_value is None:
+        return None
+    try:
+        value = float(confidence_value)
+    except (TypeError, ValueError):
+        return None
+    if value <= 0:
+        return 0.0
+    if value <= 1:
+        return value * 100
+    return value
+
+
+FOREX_CURRENCIES = {"USD", "EUR", "GBP", "JPY", "AUD", "CHF"}
+
+
+def is_forex_symbol(symbol: str) -> bool:
+    """Detect common 6-letter forex pairs (optionally prefixed with C:)."""
+    if not symbol:
+        return False
+    normalized = symbol.upper().replace("/", "").replace("-", "").replace("_", "")
+    if normalized.startswith("C:"):
+        normalized = normalized[2:]
+    if len(normalized) < 6:
+        return False
+    base = normalized[:3]
+    quote = normalized[3:6]
+    return base in FOREX_CURRENCIES and quote in FOREX_CURRENCIES
 
 
 def utc_to_est(utc_dt: datetime) -> datetime:
@@ -343,6 +376,44 @@ def validate_sl_tp_distance(
             validated_tp = None
 
     return validated_sl, validated_tp, warnings
+
+
+CRYPTO_SYMBOL_HINTS = {
+    "BTCUSD", "ETHUSD", "BTC", "ETH", "XBTUSD", "XETHUSD", "BTCUSDT", "ETHUSDT", "SOLUSD", "SOLUSDT",
+}
+
+
+def _normalize_execution_target_broker_account_id(raw_target: Any) -> Optional[str]:
+    """Normalize broker subaccount ids and drop empty/invalid placeholders."""
+    if raw_target is None:
+        return None
+    normalized = str(raw_target).strip()
+    if not normalized:
+        return None
+    if normalized.lower() in {"none", "null", "undefined", "nan"}:
+        return None
+    return normalized
+
+
+def _execution_target_key(account_id: int, target_broker_account_id: Optional[Any]) -> str:
+    normalized_target = _normalize_execution_target_broker_account_id(target_broker_account_id)
+    return f"{account_id}:{normalized_target or 'parent'}"
+
+
+def _execution_target_label(account_id: int, broker: str, target_broker_account_id: Optional[Any]) -> str:
+    normalized_target = _normalize_execution_target_broker_account_id(target_broker_account_id)
+    if normalized_target:
+        return f"account={account_id} broker={broker} subaccount={normalized_target}"
+    return f"account={account_id} broker={broker} subaccount=parent"
+
+
+def _is_obviously_unsupported_for_broker(symbol: str, broker: str) -> Optional[str]:
+    normalized_symbol = (symbol or "").upper().replace("/", "").replace("-", "").replace("_", "")
+    if normalized_symbol.startswith("X:"):
+        normalized_symbol = normalized_symbol[2:]
+    if broker.lower() in {"projectx", "topstep"} and normalized_symbol in CRYPTO_SYMBOL_HINTS:
+        return f"{broker} does not support crypto symbol {symbol}"
+    return None
 
 
 def resolve_symbol_for_broker(
@@ -736,6 +807,35 @@ async def _execute_tradingview_signal_inner(
             )
             routing_reason += f" (symbol blocked on {len(blocked_account_ids)} account(s))"
 
+    # === FOREX BROKER VALIDATION ===
+    if symbol_upper and accounts and is_forex_symbol(symbol_upper):
+        filtered_accounts = []
+        skipped_accounts = []
+        for account in accounts:
+            broker_str = account.broker.value if hasattr(account.broker, "value") else str(account.broker)
+            if broker_str.lower() != "mt5":
+                skipped_accounts.append((account.id, broker_str))
+                continue
+            filtered_accounts.append(account)
+        if skipped_accounts:
+            skipped_ids = [account_id for account_id, _ in skipped_accounts]
+            logger.warning(
+                "Forex routing skip: symbol=%s skipped_accounts=%s brokers=%s",
+                symbol_upper,
+                skipped_ids,
+                [broker for _, broker in skipped_accounts],
+            )
+            log_event(
+                "forex_broker_skipped",
+                webhook_id=webhook_id,
+                symbol=symbol,
+                skipped_account_ids=skipped_ids,
+                skipped_brokers=[broker for _, broker in skipped_accounts],
+                remaining_accounts=len(filtered_accounts),
+            )
+            routing_reason += f" (forex restricted to MT5, skipped {len(skipped_accounts)} account(s))"
+        accounts = filtered_accounts
+
     # Log routing decision
     log_event(
         "routing_decision",
@@ -800,6 +900,7 @@ async def _execute_tradingview_signal_inner(
         brokers=[a.broker.value if hasattr(a.broker, 'value') else str(a.broker) for a in accounts],
         routing_strategy=routing_strategy
     )
+    first_account = accounts[0]
 
     # Map action
     action_map = {
@@ -939,6 +1040,103 @@ async def _execute_tradingview_signal_inner(
             detail=f"Failed to persist signal: {e}"
         )
 
+    # === CONFIDENCE THRESHOLD CHECK ===
+    # Skip executions with missing/zero confidence, or below minimum threshold.
+    if action_str.lower() != "close" and raw_payload.get("source") == "SmartFlow":
+        confidence_raw = (
+            raw_payload.get("confidence")
+            or raw_payload.get("confidence_score")
+            or raw_payload.get("confidenceScore")
+            or raw_payload.get("signal_confidence")
+        )
+        confidence_pct = normalize_confidence(confidence_raw)
+        min_confidence = 60.0
+
+        if confidence_pct is None or confidence_pct <= 0:
+            confidence_reason = "Confidence missing or zero"
+        elif confidence_pct < min_confidence:
+            confidence_reason = f"Confidence below minimum ({confidence_pct:.1f}% < {min_confidence:.0f}%)"
+        else:
+            confidence_reason = None
+
+        if confidence_reason:
+            logger.warning(
+                f"Skipping execution for {symbol} {action_str.upper()}: {confidence_reason}"
+            )
+            log_event(
+                "confidence_rejected",
+                webhook_id=webhook_id,
+                signal_id=signal_entity.id.value,
+                confidence=confidence_pct,
+                reason=confidence_reason
+            )
+            processing_time_ms = int((datetime.utcnow() - start_time).total_seconds() * 1000)
+            try:
+                webhook_log.processed = False
+                webhook_log.response_status = 200
+                webhook_log.processing_time_ms = processing_time_ms
+                webhook_log.response_body = json.dumps({
+                    "signal_id": signal_entity.id.value,
+                    "status": "rejected",
+                    "guard_decision": "skip",
+                    "guard_reason": confidence_reason,
+                    "total_accounts": len(accounts),
+                    "successful": 0,
+                    "failed": len(accounts),
+                })
+                db.commit()
+
+                for account in accounts:
+                    try:
+                        broker_str = account.broker.value if hasattr(account.broker, 'value') else str(account.broker)
+                        models_broker = ModelsBrokerType(broker_str.lower())
+                        exec_log = ExecutionLog(
+                            signal_id=signal_entity.id.value,
+                            account_id=account.id,
+                            broker=models_broker,
+                            action=action_str.upper(),
+                            symbol=symbol,
+                            volume=float(quantity),
+                            status="failed",
+                            error_message=f"Confidence rejected: {confidence_reason}",
+                            execution_time_ms=processing_time_ms,
+                        )
+                        db.add(exec_log)
+                    except Exception as e:
+                        logger.warning(f"Failed to create confidence rejection ExecutionLog: {e}")
+                db.commit()
+            except Exception as e:
+                logger.warning(f"Failed to update webhook_log for confidence rejection: {e}")
+
+            # Update WebhookConfig stats for rejection
+            try:
+                webhook_config = db.query(WebhookConfig).filter(
+                    WebhookConfig.webhook_key == webhook_key
+                ).first()
+                if webhook_config:
+                    webhook_config.total_signals = (webhook_config.total_signals or 0) + 1
+                    webhook_config.failed_signals = (webhook_config.failed_signals or 0) + 1
+                    webhook_config.last_signal_at = datetime.utcnow()
+                    db.commit()
+            except Exception as e:
+                logger.warning(f"Failed to update WebhookConfig stats for confidence rejection: {e}")
+                db.rollback()
+
+            return ExecuteResponse(
+                success=False,
+                signal_id=signal_entity.id.value,
+                status="rejected",
+                webhook_id=webhook_id,
+                routing_strategy=routing_strategy,
+                routing_reason=routing_reason,
+                total_accounts=len(accounts),
+                account_id=first_account.id,
+                broker=first_account.broker.value if hasattr(first_account.broker, 'value') else str(first_account.broker),
+                guard_decision="skip",
+                guard_reason=confidence_reason,
+                processing_time_ms=processing_time_ms
+            )
+
     # === SIGNAL INTELLIGENCE GUARD ===
     guard = SignalIntelligenceGuard(db)
 
@@ -951,7 +1149,7 @@ async def _execute_tradingview_signal_inner(
         for account in accounts:
             positions = db.query(Position).filter(
                 Position.account_id == account.id,
-                Position.status == "open"
+                Position.is_active == True
             ).all()
             total_margin = sum(p.margin or 0.0 for p in positions) if positions else (account.margin or 0.0)
 
@@ -988,7 +1186,6 @@ async def _execute_tradingview_signal_inner(
             open_positions_summary[account.id] = {"total_margin": account.margin or 0.0, "positions_count": 0, "symbol_pnl": {}}
 
     # Evaluate guard (using first account for user context)
-    first_account = accounts[0]
     guard_result = await guard.evaluate(
         signal=signal_entity,
         user_id=first_account.user_id,
@@ -1129,7 +1326,7 @@ async def _execute_tradingview_signal_inner(
                     for account in accounts:
                         positions = db.query(Position).filter(
                             Position.account_id == account.id,
-                            Position.status == "open"
+                            Position.is_active == True
                         ).all()
                         for pos in positions:
                             if pos.symbol:
@@ -1511,13 +1708,42 @@ async def _execute_tradingview_signal_inner(
 
         # For ProjectX/TopStep with multiple enabled broker accounts
         if broker_str in ("projectx", "topstep") and account.enabled_broker_account_ids:
-            # Execute on EACH enabled broker account
-            for broker_acct_id in account.enabled_broker_account_ids:
-                execution_targets.append((account, broker_acct_id))
-                logger.info(f"Expanded {broker_str} account {account.id} -> broker account: {broker_acct_id}")
-        else:
-            # Single execution target (default behavior)
-            execution_targets.append((account, None))
+            normalized_targets = []
+            invalid_targets = []
+            for raw_target in account.enabled_broker_account_ids:
+                normalized_target = _normalize_execution_target_broker_account_id(raw_target)
+                if normalized_target:
+                    normalized_targets.append(normalized_target)
+                else:
+                    invalid_targets.append(raw_target)
+
+            if invalid_targets:
+                logger.warning(
+                    "Skipping invalid broker subaccounts for account %s (%s): %s",
+                    account.id,
+                    broker_str,
+                    invalid_targets,
+                )
+
+            if normalized_targets:
+                for broker_acct_id in normalized_targets:
+                    execution_targets.append((account, broker_acct_id))
+                    logger.info(
+                        "Expanded execution target: parent_account=%s broker=%s subaccount=%s",
+                        account.id,
+                        broker_str,
+                        broker_acct_id,
+                    )
+                continue
+
+            logger.warning(
+                "No valid broker subaccounts found for account %s (%s); falling back to parent target",
+                account.id,
+                broker_str,
+            )
+
+        # Single execution target (default behavior)
+        execution_targets.append((account, None))
 
     logger.info(f"Execution targets: {len(execution_targets)} (expanded from {len(accounts)} accounts)")
 
@@ -1528,6 +1754,8 @@ async def _execute_tradingview_signal_inner(
     for account, target_broker_account_id in execution_targets:
         account_start = datetime.utcnow()
         broker_str = account.broker.value if hasattr(account.broker, 'value') else str(account.broker)
+        target_label = _execution_target_label(account.id, broker_str, target_broker_account_id)
+        target_key = _execution_target_key(account.id, target_broker_account_id)
 
         # === RISK MANAGEMENT ENFORCEMENT (only for non-close actions) ===
         risk_mgmt_enabled = getattr(account, 'risk_management_enabled', True)
@@ -1681,6 +1909,41 @@ async def _execute_tradingview_signal_inner(
             broker_type=broker_str
         )
 
+        # === DUPLICATE TRADE DEDUPLICATION ===
+        if action_str != "close":
+            try:
+                dedup_window_start = datetime.utcnow() - timedelta(seconds=5)
+                recent_executions = db.query(ExecutionLog).filter(
+                    ExecutionLog.account_id == account.id,
+                    ExecutionLog.symbol == mapped_symbol,
+                    ExecutionLog.action.in_([action_str.upper(), action_str.lower()]),
+                    ExecutionLog.created_at >= dedup_window_start
+                ).all()
+                duplicate_execution = None
+                for recent_execution in recent_executions:
+                    broker_response = recent_execution.broker_response or {}
+                    recent_target = None
+                    if isinstance(broker_response, dict):
+                        recent_target = broker_response.get("target_broker_account_id")
+                    if _execution_target_key(account.id, recent_target) == target_key:
+                        duplicate_execution = recent_execution
+                        break
+                if duplicate_execution:
+                    dedup_reason = f"Duplicate trade detected within 5 seconds for {target_label}"
+                    logger.warning("%s: %s %s", target_label, dedup_reason, mapped_symbol)
+                    account_results.append(AccountExecutionResult(
+                        account_id=account.id,
+                        broker=broker_str,
+                        success=False,
+                        status="duplicate",
+                        error=dedup_reason
+                    ))
+                    failed_count += 1
+                    all_errors.append(f"{target_label}: {dedup_reason}")
+                    continue
+            except Exception as dedup_err:
+                logger.warning("Deduplication check failed for %s: %s", target_label, dedup_err)
+
         # Initialize SL/TP/trailing_stop variables (before try block for exception handler access)
         account_sl_price = sl_price
         account_tp_price = tp_price
@@ -1689,6 +1952,11 @@ async def _execute_tradingview_signal_inner(
         order_quantity = quantity  # Will be adjusted for futures brokers in the else block
 
         try:
+            capability_error = _is_obviously_unsupported_for_broker(mapped_symbol, broker_str)
+            if capability_error:
+                logger.warning("Capability gate rejected %s symbol=%s mapped_symbol=%s reason=%s", target_label, symbol, mapped_symbol, capability_error)
+                raise Exception(capability_error)
+
             # Create account-specific executor with credentials
             # Pass target_broker_account_id for multi-account brokers like ProjectX
             executor, needs_cleanup = await _create_account_executor(account, db, target_broker_account_id)
@@ -1730,6 +1998,19 @@ async def _execute_tradingview_signal_inner(
                             p_symbol = getattr(p, 'symbol', None) or (p.get('symbol') if isinstance(p, dict) else 'UNKNOWN')
                             p_side = getattr(p, 'side', None) or (p.get('side') if isinstance(p, dict) else '?')
                             logger.debug(f"  Position[{idx}]: symbol={p_symbol}, side={p_side}")
+
+                    # SYNC: Reconcile database positions with broker (clean up stale positions)
+                    try:
+                        sync_result = await sync_positions_before_check(
+                            db, account.id, current_positions, force=False
+                        )
+                        if sync_result.get('stale_closed', 0) > 0:
+                            logger.info(
+                                f"Account {account.id}: Position sync cleaned up {sync_result['stale_closed']} "
+                                f"stale DB positions (broker has {total_positions})"
+                            )
+                    except Exception as sync_err:
+                        logger.warning(f"Account {account.id}: Position sync failed (non-fatal): {sync_err}")
 
                     # Helper to get attribute from dict or object
                     def get_pos_attr(obj, key, default=''):
@@ -1787,6 +2068,17 @@ async def _execute_tradingview_signal_inner(
                         total_with_pending = effective_total + pending_total_count
 
                         if total_with_pending >= account.max_open_positions:
+                            # Enhanced logging: Show actual broker positions for debugging
+                            broker_symbols = []
+                            for p in (current_positions or [])[:10]:  # First 10
+                                p_sym = getattr(p, 'symbol', None) or (p.get('symbol') if isinstance(p, dict) else '?')
+                                broker_symbols.append(p_sym)
+                            logger.warning(
+                                f"Account {account.id}: MAX POSITIONS REJECTION - "
+                                f"total_with_pending={total_with_pending}, max={account.max_open_positions}, "
+                                f"broker_returned={total_positions}, pending_tracker={pending_total_count}, "
+                                f"broker_symbols={broker_symbols}"
+                            )
                             position_rejection = f"Max open positions exceeded ({total_with_pending}/{account.max_open_positions}, aggregated={effective_total}, pending={pending_total_count})"
                         else:
                             # Reserve a slot by incrementing pending counter BEFORE placing order
@@ -1933,11 +2225,14 @@ async def _execute_tradingview_signal_inner(
                             logger.info(f"  MATCHED: {pos_sym} (normalized: {norm_pos})")
 
                     if not matching_positions:
-                        # No positions to close - mark as skipped, not success
+                        # No positions to close - treat as SUCCESS since position likely
+                        # already closed via TP/SL on broker side (expected behavior)
+                        logger.info(f"No matching positions to close for {symbol} - position likely already closed via TP/SL")
                         order_result = type('Result', (), {
-                            'success': False,
-                            'order_id': 'no_positions',
-                            'error': 'No matching positions to close',
+                            'success': True,
+                            'order_id': 'already_closed',
+                            'error': None,
+                            'message': 'Position already closed (likely via TP/SL)',
                             'closed_positions': []
                         })()
                     else:
@@ -2237,6 +2532,23 @@ async def _execute_tradingview_signal_inner(
             execution_error = order_result.error if hasattr(order_result, 'error') else order_result.get('error')
             order_id = order_result.order_id if hasattr(order_result, 'order_id') else order_result.get('order_id')
 
+            # Ensure entry price is captured for logging/journals
+            if action_str != "close" and entry_price is None:
+                try:
+                    if isinstance(order_result, dict):
+                        entry_price = order_result.get("price") or order_result.get("entry_price")
+                    else:
+                        entry_price = getattr(order_result, "price", None) or getattr(order_result, "entry_price", None)
+                    if entry_price is None and hasattr(executor, 'get_quote'):
+                        quote = await executor.get_quote(mapped_symbol)
+                        if quote:
+                            if action_str == "buy":
+                                entry_price = quote.get('ask') or quote.get('price')
+                            else:
+                                entry_price = quote.get('bid') or quote.get('price')
+                except Exception as entry_err:
+                    logger.debug(f"Failed to fetch entry price for {mapped_symbol}: {entry_err}")
+
             # Decrement pending position counters after order completes (success or failure)
             # This releases the "reservations" made during position checks
             if action_str != "close":
@@ -2268,6 +2580,7 @@ async def _execute_tradingview_signal_inner(
                 webhook_id=webhook_id,
                 signal_id=signal_uuid,
                 account_id=account.id,
+                target_broker_account_id=_normalize_execution_target_broker_account_id(target_broker_account_id),
                 broker=broker_str,
                 success=execution_success,
                 status=use_case_result.status.value,
@@ -2349,7 +2662,7 @@ async def _execute_tradingview_signal_inner(
                     volume=order_quantity,
                     price=None,
                     status="success" if execution_success else "failed",
-                    broker_response={"executions": use_case_result.executions, "original_symbol": symbol} if execution_success else None,
+                    broker_response={"executions": use_case_result.executions, "original_symbol": symbol, "target_broker_account_id": _normalize_execution_target_broker_account_id(target_broker_account_id)} if execution_success else {"target_broker_account_id": _normalize_execution_target_broker_account_id(target_broker_account_id)},
                     error_message="; ".join(use_case_result.errors) if use_case_result.errors else None,
                     execution_time_ms=int((datetime.utcnow() - account_start).total_seconds() * 1000),
                     # Enhanced risk management tracking (migration 027)
@@ -2540,7 +2853,7 @@ async def _execute_tradingview_signal_inner(
                 ))
 
         except Exception as e:
-            logger.exception(f"Execution error for account {account.id}: {e}")
+            logger.exception("Execution error for %s: %s", target_label, e)
             failed_count += 1
             error_msg = str(e)
             all_errors.append(f"Account {account.id}: {error_msg}")

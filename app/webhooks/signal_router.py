@@ -11,7 +11,7 @@ import json
 import logging
 from typing import Dict, List, Optional, Any
 from datetime import datetime
-from fastapi import APIRouter, Request, HTTPException, Depends, BackgroundTasks
+from fastapi import APIRouter, Request, HTTPException, Depends, BackgroundTasks, Header, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from app.services.signal_processor import signal_processor
@@ -19,7 +19,25 @@ from app.models.pydantic_schemas import WebhookRequest, WebhookResponse
 from app.models.database_models import WebhookConfig
 from app.db.database import get_db
 from app.core.config import settings
-from app.routers.auth import verify_api_key
+from app.routers.auth import verify_api_key, get_current_user_optional
+from app.models.models import User
+
+
+async def get_debug_route_user(
+    bearer_user: Optional[User] = Depends(get_current_user_optional),
+    api_key: Optional[str] = Header(None, alias="X-API-Key"),
+    db: Session = Depends(get_db),
+) -> User:
+    """Allow bearer auth for user-facing debug routes while keeping API-key fallback."""
+    if bearer_user:
+        return bearer_user
+    if api_key:
+        return await verify_api_key(api_key=api_key, db=db)
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Authentication required",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
@@ -261,7 +279,7 @@ async def custom_webhook(
 @router.get("/history")
 async def get_webhook_history(
     limit: int = 100,
-    api_key: str = Depends(verify_api_key)
+    current_user: User = Depends(get_debug_route_user)
 ):
     """Get webhook processing history"""
     try:
@@ -281,7 +299,7 @@ async def get_webhook_history(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.get("/status")
-async def get_webhook_status(api_key: str = Depends(verify_api_key)):
+async def get_webhook_status(current_user: User = Depends(get_debug_route_user)):
     """Get webhook processing status"""
     try:
         # Get broker connection status
@@ -310,12 +328,17 @@ async def get_webhook_status(api_key: str = Depends(verify_api_key)):
 @router.post("/test")
 async def test_webhook(
     request: Request,
-    api_key: str = Depends(verify_api_key)
+    current_user: User = Depends(get_debug_route_user)
 ):
     """Test webhook processing"""
     try:
         # Parse test payload
-        payload = await request.json()
+        try:
+            payload = await request.json()
+        except Exception:
+            payload = {}
+        if payload is None:
+            payload = {}
         
         # Create test webhook request
         webhook_request = WebhookRequest(
@@ -342,7 +365,7 @@ async def test_webhook(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.get("/config")
-async def get_webhook_config(api_key: str = Depends(verify_api_key)):
+async def get_webhook_config(current_user: User = Depends(get_debug_route_user)):
     """Get webhook configuration"""
     try:
         return JSONResponse(
