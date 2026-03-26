@@ -91,8 +91,10 @@ class SmartFlowMLService:
             # Calculate derived metrics
             is_winner = pnl > 0 if pnl is not None else None
             pnl_percent = None
-            if entry_price and exit_price and entry_price != 0:
-                pnl_percent = ((exit_price - entry_price) / entry_price) * 100
+            if pnl is not None and entry_price and entry_price != 0:
+                # Use realized P&L whenever available so long/short direction and partial sizing
+                # do not corrupt percentage performance stats.
+                pnl_percent = (pnl / entry_price) * 100
 
             # Get current market context
             hour_of_day = datetime.utcnow().hour

@@ -1,99 +1,99 @@
 {
   "flows": [
     {
-      "ticker": "SPY",
+      "ticker": "TSLA",
       "flowType": "SWEEP",
-      "strike": "680",
-      "expiry": "2026-03-23",
-      "callPut": "CALLS",
-      "premium": "$1,120,703",
-      "rowText": "3/13/26 | 16:06:48.711 | SPY | 2026-03-23 | 680 | CALLS | 661.77 | 5000 | 2.24 | SWEEP | 11269 | 801 | $1,120,703 | ETF/ETN | FALSE"
-    },
-    {
-      "ticker": "META",
-      "flowType": "BLOCK",
-      "strike": "620",
-      "expiry": "2026-03-20",
-      "callPut": "CALLS",
-      "premium": "$1,363,380",
-      "rowText": "3/13/26 | 15:27:43.469 | META | 2026-03-20 | 620 | CALLS | 612.19 | 1466 | 9.30 | BLOCK | 7232 | 984 | $1,363,380 | TECHNOLOGY | FALSE"
+      "strike": "385",
+      "expiry": "2026-03-27",
+      "callPut": "PUTS",
+      "premium": "$226,253",
+      "rowText": "3/25/26 | 15:32:53.217 | TSLA | 2026-03-27 | 385 | PUTS | 385.38 | 456 | 4.96 | SWEEP | 23328 | 4757 | $226,253 | STAPLES | FALSE"
     },
     {
       "ticker": "QQQ",
       "flowType": "SWEEP",
       "strike": "587",
-      "expiry": "2026-03-16",
-      "callPut": "PUTS",
-      "premium": "$154,018",
-      "rowText": "3/13/26 | 15:27:11.340 | QQQ | 2026-03-16 | 587 | PUTS | 593.11 | 612 | 2.52 | SWEEP | 6330 | 989 | $154,018 | ETF/ETN | FALSE"
-    },
-    {
-      "ticker": "SPY",
-      "flowType": "SWEEP",
-      "strike": "663",
-      "expiry": "2026-03-13",
-      "callPut": "PUTS",
-      "premium": "$105,978",
-      "rowText": "3/13/26 | 15:22:06.973 | SPY | 2026-03-13 | 663 | PUTS | 662.73 | 964 | 1.10 | SWEEP | 382136 | 5951 | $105,978 | ETF/ETN | FALSE"
-    },
-    {
-      "ticker": "SPY",
-      "flowType": "SWEEP",
-      "strike": "662",
-      "expiry": "2026-03-13",
-      "callPut": "PUTS",
-      "premium": "$35,554",
-      "rowText": "3/13/26 | 15:21:05.900 | SPY | 2026-03-13 | 662 | PUTS | 662.93 | 659 | 0.54 | SWEEP | 330947 | 6875 | $35,554 | ETF/ETN | FALSE"
+      "expiry": "2026-03-25",
+      "callPut": "CALLS",
+      "premium": "$67,456",
+      "rowText": "3/25/26 | 15:25:41.579 | QQQ | 2026-03-25 | 587 | CALLS | 587.72 | 613 | 1.10 | SWEEP | 91242 | 5777 | $67,456 | ETF/ETN | FALSE"
     },
     {
       "ticker": "QQQ",
       "flowType": "SWEEP",
-      "strike": "594",
-      "expiry": "2026-03-13",
-      "callPut": "PUTS",
-      "premium": "$61,735",
-      "rowText": "3/13/26 | 15:20:52.335 | QQQ | 2026-03-13 | 594 | PUTS | 593.85 | 703 | 0.88 | SWEEP | 185893 | 6058 | $61,735 | ETF/ETN | FALSE"
-    },
-    {
-      "ticker": "MSFT",
-      "flowType": "SWEEP",
-      "strike": "397.5",
-      "expiry": "2026-03-13",
+      "strike": "588",
+      "expiry": "2026-03-25",
       "callPut": "CALLS",
-      "premium": "$30,850",
-      "rowText": "3/13/26 | 14:44:10.082 | MSFT | 2026-03-13 | 397.5 | CALLS | 395.93 | 1234 | 0.25 | SWEEP | 16874 | 883 | $30,850 | TECHNOLOGY | FALSE"
+      "premium": "$48,339",
+      "rowText": "3/25/26 | 15:19:54.712 | QQQ | 2026-03-25 | 588 | CALLS | 587.71 | 879 | 0.55 | SWEEP | 155081 | 4507 | $48,339 | ETF/ETN | FALSE"
     },
     {
       "ticker": "SPY",
       "flowType": "SWEEP",
-      "strike": "662",
-      "expiry": "2026-03-13",
+      "strike": "656",
+      "expiry": "2026-03-25",
       "callPut": "PUTS",
-      "premium": "$66,317",
-      "rowText": "3/13/26 | 14:23:14.638 | SPY | 2026-03-13 | 662 | PUTS | 662.64 | 699 | 0.95 | SWEEP | 228073 | 6875 | $66,317 | ETF/ETN | FALSE"
+      "premium": "$81,014",
+      "rowText": "3/25/26 | 15:16:10.427 | SPY | 2026-03-25 | 656 | PUTS | 656.77 | 1884 | 0.43 | SWEEP | 471964 | 3125 | $81,014 | ETF/ETN | FALSE"
     },
     {
       "ticker": "QQQ",
       "flowType": "SWEEP",
-      "strike": "591",
-      "expiry": "2026-03-13",
+      "strike": "587",
+      "expiry": "2026-03-25",
+      "callPut": "PUTS",
+      "premium": "$171,983",
+      "rowText": "3/25/26 | 15:14:10.218 | QQQ | 2026-03-25 | 587 | PUTS | 586.92 | 2177 | 0.79 | SWEEP | 203803 | 3639 | $171,983 | ETF/ETN | FALSE"
+    },
+    {
+      "ticker": "TSLA",
+      "flowType": "BLOCK",
+      "strike": "392.5",
+      "expiry": "2026-03-27",
       "callPut": "CALLS",
-      "premium": "$137,916",
-      "rowText": "3/13/26 | 14:23:07.417 | QQQ | 2026-03-13 | 591 | CALLS | 593.13 | 518 | 2.66 | SWEEP | 7928 | 395 | $137,916 | ETF/ETN | FALSE"
+      "premium": "$90,000",
+      "rowText": "3/25/26 | 15:07:02.229 | TSLA | 2026-03-27 | 392.5 | CALLS | 385.22 | 400 | 2.25 | BLOCK | 19134 | 11905 | $90,000 | STAPLES | FALSE"
+    },
+    {
+      "ticker": "TSLA",
+      "flowType": "BLOCK",
+      "strike": "385",
+      "expiry": "2026-03-25",
+      "callPut": "PUTS",
+      "premium": "$31,590",
+      "rowText": "3/25/26 | 15:03:29.518 | TSLA | 2026-03-25 | 385 | PUTS | 385.19 | 405 | 0.78 | BLOCK | 80974 | 3566 | $31,590 | STAPLES | FALSE"
+    },
+    {
+      "ticker": "TSLA",
+      "flowType": "BLOCK",
+      "strike": "390",
+      "expiry": "2026-04-01",
+      "callPut": "CALLS",
+      "premium": "$342,000",
+      "rowText": "3/25/26 | 15:02:12.769 | TSLA | 2026-04-01 | 390 | CALLS | 385.46 | 500 | 6.84 | BLOCK | 8904 | 416 | $342,000 | STAPLES | FALSE"
+    },
+    {
+      "ticker": "QQQ",
+      "flowType": "SWEEP",
+      "strike": "587",
+      "expiry": "2026-03-25",
+      "callPut": "PUTS",
+      "premium": "$62,501",
+      "rowText": "3/25/26 | 15:01:49.382 | QQQ | 2026-03-25 | 587 | PUTS | 586.78 | 614 | 1.02 | SWEEP | 193551 | 3639 | $62,501 | ETF/ETN | FALSE"
     },
     {
       "ticker": "SPY",
       "flowType": "SWEEP",
-      "strike": "663",
-      "expiry": "2026-03-13",
-      "callPut": "PUTS",
-      "premium": "$137,150",
-      "rowText": "3/13/26 | 14:18:46.827 | SPY | 2026-03-13 | 663 | PUTS | 663 | 1143 | 1.20 | SWEEP | 274904 | 5951 | $137,150 | ETF/ETN | FALSE"
+      "strike": "657",
+      "expiry": "2026-04-24",
+      "callPut": "CALLS",
+      "premium": "$2,712,514",
+      "rowText": "3/25/26 | 14:57:59.783 | SPY | 2026-04-24 | 657 | CALLS | 656.25 | 1600 | 16.95 | SWEEP | 8471 | 654 | $2,712,514 | ETF/ETN | FALSE"
     }
   ],
   "debug": {
-    "tableRows": 582,
-    "dataRows": 581,
-    "parsedRows": 268
+    "tableRows": 691,
+    "dataRows": 690,
+    "parsedRows": 340
   }
 }

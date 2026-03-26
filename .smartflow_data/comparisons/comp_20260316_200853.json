@@ -1,0 +1,178 @@
+{
+  "comparison_id": "comp_20260316_200853",
+  "timestamp": "2026-03-16T20:13:23.028383",
+  "ticker": "MES",
+  "start_date": "2026-02-18",
+  "end_date": "2026-03-16",
+  "engines_compared": [
+    "quick",
+    "unified",
+    "deterministic",
+    "breakout",
+    "trend",
+    "mean_reversion",
+    "liquidity_reversal",
+    "ai",
+    "flow"
+  ],
+  "leaderboard": [
+    {
+      "engine": "breakout",
+      "total_return_pct": 1.6948924624351787,
+      "net_profit": 423.7231156087946,
+      "sharpe_ratio": 14.117684351349267,
+      "win_rate": 75.0,
+      "max_drawdown_pct": 0.3924845471646531,
+      "profit_factor": 5.2297290877462475,
+      "total_trades": 4,
+      "avg_trade": 105.93077890219865,
+      "avg_holding_time_hours": 6.50904033388889,
+      "rank": 1
+    },
+    {
+      "engine": "quick",
+      "total_return_pct": 52.408044125159655,
+      "net_profit": 13102.011031289916,
+      "sharpe_ratio": 7.296658436397291,
+      "win_rate": 73.54260089686099,
+      "max_drawdown_pct": 4.862646034877067,
+      "profit_factor": 2.5082030318993422,
+      "total_trades": 223,
+      "avg_trade": 58.753412696367334,
+      "avg_holding_time_hours": 2.0117627247633285,
+      "rank": 2
+    },
+    {
+      "engine": "unified",
+      "total_return_pct": 129.66231415637276,
+      "net_profit": 32415.57853909319,
+      "sharpe_ratio": 5.6095898172464285,
+      "win_rate": 53.03030303030303,
+      "max_drawdown_pct": 23.483077421733505,
+      "profit_factor": 2.4758757882466,
+      "total_trades": 66,
+      "avg_trade": 491.1451293801998,
+      "avg_holding_time_hours": 27.523074977950337,
+      "rank": 3
+    },
+    {
+      "engine": "mean_reversion",
+      "total_return_pct": 0.0,
+      "net_profit": 0.0,
+      "sharpe_ratio": 0.0,
+      "win_rate": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0.0,
+      "total_trades": 0,
+      "avg_trade": 0.0,
+      "avg_holding_time_hours": 0.0,
+      "rank": 4
+    },
+    {
+      "engine": "flow",
+      "total_return_pct": 0.0,
+      "net_profit": 0.0,
+      "sharpe_ratio": 0.0,
+      "win_rate": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0.0,
+      "total_trades": 0,
+      "avg_trade": 0.0,
+      "avg_holding_time_hours": 0.0,
+      "rank": 5
+    },
+    {
+      "engine": "deterministic",
+      "total_return_pct": -1.0535018425097404,
+      "net_profit": -263.37546062743513,
+      "sharpe_ratio": -0.2128192420993063,
+      "win_rate": 30.82706766917293,
+      "max_drawdown_pct": 11.570260667953374,
+      "profit_factor": 0.9703267839705977,
+      "total_trades": 133,
+      "avg_trade": -1.9802666212589108,
+      "avg_holding_time_hours": 7.054911269835006,
+      "rank": 6
+    },
+    {
+      "engine": "ai",
+      "total_return_pct": -1.0535018425097404,
+      "net_profit": -263.37546062743513,
+      "sharpe_ratio": -0.2128192420993063,
+      "win_rate": 30.82706766917293,
+      "max_drawdown_pct": 11.570260667953374,
+      "profit_factor": 0.9703267839705977,
+      "total_trades": 133,
+      "avg_trade": -1.9802666212589108,
+      "avg_holding_time_hours": 7.054911269835006,
+      "rank": 7
+    },
+    {
+      "engine": "liquidity_reversal",
+      "total_return_pct": -10.878481954233193,
+      "net_profit": -2719.6204885582983,
+      "sharpe_ratio": -1.756763035834895,
+      "win_rate": 25.609756097560975,
+      "max_drawdown_pct": 13.14038382181504,
+      "profit_factor": 0.782237358304189,
+      "total_trades": 164,
+      "avg_trade": -16.58305175950182,
+      "avg_holding_time_hours": 5.409952847806571,
+      "rank": 8
+    },
+    {
+      "engine": "trend",
+      "total_return_pct": -4.629793204252495,
+      "net_profit": -1157.4483010631238,
+      "sharpe_ratio": -12.755433133088637,
+      "win_rate": 12.5,
+      "max_drawdown_pct": 5.5029887967107065,
+      "profit_factor": 0.2131356989308108,
+      "total_trades": 16,
+      "avg_trade": -72.34051881644524,
+      "avg_holding_time_hours": 5.695410292065972,
+      "rank": 9
+    }
+  ],
+  "regime_comparison": {
+    "": {
+      "quick": {
+        "win_rate": 73.54260089686099,
+        "pnl": 13102.011031289916
+      },
+      "deterministic": {
+        "win_rate": 30.82706766917293,
+        "pnl": -263.37546062743513
+      },
+      "breakout": {
+        "win_rate": 75.0,
+        "pnl": 423.7231156087946
+      },
+      "trend": {
+        "win_rate": 12.5,
+        "pnl": -1157.4483010631238
+      },
+      "liquidity_reversal": {
+        "win_rate": 25.609756097560975,
+        "pnl": -2719.6204885582983
+      },
+      "ai": {
+        "win_rate": 30.82706766917293,
+        "pnl": -263.37546062743513
+      }
+    },
+    "trending_up": {
+      "unified": {
+        "win_rate": 68.29268292682927,
+        "pnl": 39802.6707726499
+      }
+    },
+    "trending_down": {
+      "unified": {
+        "win_rate": 28.000000000000004,
+        "pnl": -7387.092233556704
+      }
+    }
+  },
+  "warnings": []
+}

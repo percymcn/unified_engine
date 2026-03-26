@@ -1,0 +1,165 @@
+{
+  "trending_up": {
+    "ranked_engines": [
+      "trend",
+      "breakout",
+      "quick",
+      "unified"
+    ],
+    "engine_stats": {},
+    "sample_count": 1,
+    "last_updated": "2026-03-16T20:00:00.000000",
+    "comparison_ids": [
+      "regime_adaptive_v1"
+    ],
+    "notes": "Regime-Adaptive: trend engine for uptrends | quick fallback"
+  },
+  "trending_down": {
+    "ranked_engines": [
+      "trend",
+      "breakout",
+      "quick",
+      "unified"
+    ],
+    "engine_stats": {},
+    "sample_count": 1,
+    "last_updated": "2026-03-16T20:00:00.000000",
+    "comparison_ids": [
+      "regime_adaptive_v1"
+    ],
+    "notes": "Regime-Adaptive: trend engine for downtrends | quick fallback"
+  },
+  "breakout": {
+    "ranked_engines": [
+      "breakout",
+      "trend",
+      "quick",
+      "unified"
+    ],
+    "engine_stats": {},
+    "sample_count": 1,
+    "last_updated": "2026-03-16T20:00:00.000000",
+    "comparison_ids": [
+      "regime_adaptive_v1"
+    ],
+    "notes": "Regime-Adaptive: breakout engine for breakout regimes | quick fallback"
+  },
+  "ranging": {
+    "ranked_engines": [
+      "mean_reversion",
+      "liquidity_reversal",
+      "quick",
+      "unified"
+    ],
+    "engine_stats": {},
+    "sample_count": 1,
+    "last_updated": "2026-03-16T20:00:00.000000",
+    "comparison_ids": [
+      "regime_adaptive_v1"
+    ],
+    "notes": "Regime-Adaptive: mean reversion for ranging markets | quick fallback"
+  },
+  "mean_reverting": {
+    "ranked_engines": [
+      "mean_reversion",
+      "liquidity_reversal",
+      "quick",
+      "unified"
+    ],
+    "engine_stats": {},
+    "sample_count": 1,
+    "last_updated": "2026-03-16T20:00:00.000000",
+    "comparison_ids": [
+      "regime_adaptive_v1"
+    ],
+    "notes": "Regime-Adaptive: mean reversion for mean-reverting regimes | quick fallback"
+  },
+  "vol_expansion": {
+    "ranked_engines": [
+      "breakout",
+      "trend",
+      "quick",
+      "unified"
+    ],
+    "engine_stats": {},
+    "sample_count": 1,
+    "last_updated": "2026-03-16T20:00:00.000000",
+    "comparison_ids": [
+      "regime_adaptive_v1"
+    ],
+    "notes": "Regime-Adaptive: breakout for volatility expansion | quick fallback"
+  },
+  "vol_contraction": {
+    "ranked_engines": [
+      "mean_reversion",
+      "quick",
+      "unified"
+    ],
+    "engine_stats": {},
+    "sample_count": 1,
+    "last_updated": "2026-03-16T20:00:00.000000",
+    "comparison_ids": [
+      "regime_adaptive_v1"
+    ],
+    "notes": "Regime-Adaptive: mean reversion for low volatility | quick fallback"
+  },
+  "chaotic": {
+    "ranked_engines": [
+      "liquidity_reversal",
+      "mean_reversion",
+      "quick",
+      "unified"
+    ],
+    "engine_stats": {},
+    "sample_count": 1,
+    "last_updated": "2026-03-16T20:00:00.000000",
+    "comparison_ids": [
+      "regime_adaptive_v1"
+    ],
+    "notes": "Regime-Adaptive: liquidity reversal for chaotic markets | quick fallback"
+  },
+  "neutral": {
+    "ranked_engines": [
+      "quick",
+      "unified",
+      "mean_reversion"
+    ],
+    "engine_stats": {},
+    "sample_count": 1,
+    "last_updated": "2026-03-16T20:00:00.000000",
+    "comparison_ids": [
+      "regime_adaptive_v1"
+    ],
+    "notes": "Regime-Adaptive: unified for neutral conditions | quick fallback"
+  },
+  "volatile": {
+    "ranked_engines": [
+      "breakout",
+      "liquidity_reversal",
+      "quick",
+      "unified"
+    ],
+    "engine_stats": {},
+    "sample_count": 1,
+    "last_updated": "2026-03-16T20:00:00.000000",
+    "comparison_ids": [
+      "regime_adaptive_v1"
+    ],
+    "notes": "Regime-Adaptive: breakout for volatile markets | quick fallback"
+  },
+  "default": {
+    "ranked_engines": [
+      "quick",
+      "unified",
+      "trend",
+      "breakout"
+    ],
+    "engine_stats": {},
+    "sample_count": 1,
+    "last_updated": "2026-03-16T20:00:00.000000",
+    "comparison_ids": [
+      "regime_adaptive_v1"
+    ],
+    "notes": "Regime-Adaptive: unified as default fallback | quick fallback"
+  }
+}

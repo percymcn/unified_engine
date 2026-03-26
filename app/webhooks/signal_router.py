@@ -302,24 +302,72 @@ async def get_webhook_history(
 async def get_webhook_status(current_user: User = Depends(get_debug_route_user)):
     """Get webhook processing status."""
     try:
-        broker_status = {}
+        from sqlalchemy import func, desc
+        from app.models.models import Signal
+        from app.db.database import get_db
+        
+        # Multi-user platform: brokers connect per-request with DB credentials
+        # Show execution activity instead of placeholder connection status
+        broker_stats = {}
         brokers = getattr(signal_processor, "brokers", {}) or {}
-        for broker_name, broker in brokers.items():
-            try:
-                connected_attr = getattr(broker, "is_connected", False)
-                if callable(connected_attr):
-                    connected = bool(connected_attr())
-                else:
-                    connected = bool(connected_attr)
-            except Exception as exc:
-                connected = False
-                logger.warning(f"Broker status check failed for {broker_name}: {exc}")
-
-            broker_status[broker_name] = {
-                "connected": connected,
-                "class": broker.__class__.__name__,
-                "last_check": datetime.now().isoformat()
-            }
+        
+        from datetime import timedelta
+        cutoff = datetime.now() - timedelta(hours=24)
+        
+        db_gen = get_db()
+        db = next(db_gen)
+        try:
+            # Overall platform stats (not broken down by broker to avoid schema issues)
+            total_signals_24h = db.query(func.count(Signal.id)).filter(
+                Signal.created_at >= cutoff
+            ).scalar() or 0
+            
+            # Successful = "executed" (full success) + "partial" (some accounts succeeded)
+            executed_24h = db.query(func.count(Signal.id)).filter(
+                Signal.created_at >= cutoff,
+                Signal.status == "executed"
+            ).scalar() or 0
+            
+            partial_24h = db.query(func.count(Signal.id)).filter(
+                Signal.created_at >= cutoff,
+                Signal.status == "partial"
+            ).scalar() or 0
+            
+            failed_24h = db.query(func.count(Signal.id)).filter(
+                Signal.created_at >= cutoff,
+                Signal.status == "failed"
+            ).scalar() or 0
+            
+            pending_24h = db.query(func.count(Signal.id)).filter(
+                Signal.created_at >= cutoff,
+                Signal.status == "pending"
+            ).scalar() or 0
+            
+            successful_24h = executed_24h + partial_24h
+            
+            last_signal_time = db.query(Signal.created_at).order_by(
+                desc(Signal.created_at)
+            ).first()
+            
+            for broker_name in brokers.keys():
+                broker_stats[broker_name] = {
+                    "mode": "per-request",
+                    "class": brokers[broker_name].__class__.__name__
+                }
+        finally:
+            db.close()
+        
+        # Platform-wide activity summary
+        platform_activity = {
+            "total_signals_24h": total_signals_24h,
+            "executed_24h": executed_24h,
+            "partial_24h": partial_24h,
+            "failed_24h": failed_24h,
+            "pending_24h": pending_24h,
+            "successful_24h": successful_24h,
+            "success_rate_24h": f"{(successful_24h / total_signals_24h * 100):.1f}%" if total_signals_24h > 0 else "N/A",
+            "last_signal": last_signal_time[0].isoformat() if last_signal_time else None
+        }
 
         webhook_configs = getattr(webhook_router, "webhook_configs", {}) or {}
         config_summary = {
@@ -333,8 +381,11 @@ async def get_webhook_status(current_user: User = Depends(get_debug_route_user))
             status_code=200,
             content={
                 "status": "active",
+                "platform_mode": "multi-user",
+                "connection_model": "per-request with DB credentials",
                 "supported_sources": list(getattr(webhook_router, "supported_sources", [])),
-                "broker_connections": broker_status,
+                "broker_executors": broker_stats,
+                "platform_activity": platform_activity,
                 "webhook_config_summary": config_summary,
                 "timestamp": datetime.now().isoformat()
             }

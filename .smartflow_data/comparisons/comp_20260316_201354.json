@@ -1,0 +1,160 @@
+{
+  "comparison_id": "comp_20260316_201354",
+  "timestamp": "2026-03-16T20:14:32.466310",
+  "ticker": "MES",
+  "start_date": "2026-02-18",
+  "end_date": "2026-03-16",
+  "engines_compared": [
+    "quick",
+    "unified",
+    "deterministic",
+    "breakout",
+    "trend",
+    "mean_reversion",
+    "liquidity_reversal",
+    "ai"
+  ],
+  "leaderboard": [
+    {
+      "engine": "quick",
+      "total_return_pct": 52.408044125159655,
+      "net_profit": 13102.011031289916,
+      "sharpe_ratio": 7.296658436397291,
+      "win_rate": 73.54260089686099,
+      "max_drawdown_pct": 4.862646034877067,
+      "profit_factor": 2.5082030318993422,
+      "total_trades": 223,
+      "avg_trade": 58.753412696367334,
+      "avg_holding_time_hours": 2.0117627247633285,
+      "rank": 1
+    },
+    {
+      "engine": "unified",
+      "total_return_pct": 129.66231415637276,
+      "net_profit": 32415.57853909319,
+      "sharpe_ratio": 5.6095898172464285,
+      "win_rate": 53.03030303030303,
+      "max_drawdown_pct": 23.483077421733505,
+      "profit_factor": 2.4758757882466,
+      "total_trades": 66,
+      "avg_trade": 491.1451293801998,
+      "avg_holding_time_hours": 27.523074977950337,
+      "rank": 2
+    },
+    {
+      "engine": "trend",
+      "total_return_pct": 0.0,
+      "net_profit": 0.0,
+      "sharpe_ratio": 0.0,
+      "win_rate": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0.0,
+      "total_trades": 0,
+      "avg_trade": 0.0,
+      "avg_holding_time_hours": 0.0,
+      "rank": 3
+    },
+    {
+      "engine": "mean_reversion",
+      "total_return_pct": 0.0,
+      "net_profit": 0.0,
+      "sharpe_ratio": 0.0,
+      "win_rate": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0.0,
+      "total_trades": 0,
+      "avg_trade": 0.0,
+      "avg_holding_time_hours": 0.0,
+      "rank": 4
+    },
+    {
+      "engine": "liquidity_reversal",
+      "total_return_pct": -10.878481954233193,
+      "net_profit": -2719.6204885582983,
+      "sharpe_ratio": -1.756763035834895,
+      "win_rate": 25.609756097560975,
+      "max_drawdown_pct": 13.14038382181504,
+      "profit_factor": 0.782237358304189,
+      "total_trades": 164,
+      "avg_trade": -16.58305175950182,
+      "avg_holding_time_hours": 5.409952847806571,
+      "rank": 5
+    },
+    {
+      "engine": "deterministic",
+      "total_return_pct": -0.8694119390273399,
+      "net_profit": -217.35298475683499,
+      "sharpe_ratio": -7.842812467633315,
+      "win_rate": 34.78260869565217,
+      "max_drawdown_pct": 1.1093876905288573,
+      "profit_factor": 0.3500967898723478,
+      "total_trades": 23,
+      "avg_trade": -9.450129772036304,
+      "avg_holding_time_hours": 9.217391304347826,
+      "rank": 6
+    },
+    {
+      "engine": "ai",
+      "total_return_pct": -0.8694119390273399,
+      "net_profit": -217.35298475683499,
+      "sharpe_ratio": -7.842812467633315,
+      "win_rate": 34.78260869565217,
+      "max_drawdown_pct": 1.1093876905288573,
+      "profit_factor": 0.3500967898723478,
+      "total_trades": 23,
+      "avg_trade": -9.450129772036304,
+      "avg_holding_time_hours": 9.217391304347826,
+      "rank": 7
+    },
+    {
+      "engine": "breakout",
+      "total_return_pct": -0.6531189152803308,
+      "net_profit": -163.2797288200827,
+      "sharpe_ratio": -18.561527627481567,
+      "win_rate": 20.0,
+      "max_drawdown_pct": 0.6966137984366294,
+      "profit_factor": 0.11246415447094446,
+      "total_trades": 10,
+      "avg_trade": -16.32797288200827,
+      "avg_holding_time_hours": 21.0,
+      "rank": 8
+    }
+  ],
+  "regime_comparison": {
+    "": {
+      "quick": {
+        "win_rate": 73.54260089686099,
+        "pnl": 13102.011031289916
+      },
+      "deterministic": {
+        "win_rate": 34.78260869565217,
+        "pnl": -217.35298475683499
+      },
+      "breakout": {
+        "win_rate": 20.0,
+        "pnl": -163.2797288200827
+      },
+      "liquidity_reversal": {
+        "win_rate": 25.609756097560975,
+        "pnl": -2719.6204885582983
+      },
+      "ai": {
+        "win_rate": 34.78260869565217,
+        "pnl": -217.35298475683499
+      }
+    },
+    "trending_up": {
+      "unified": {
+        "win_rate": 68.29268292682927,
+        "pnl": 39802.6707726499
+      }
+    },
+    "trending_down": {
+      "unified": {
+        "win_rate": 28.000000000000004,
+        "pnl": -7387.092233556704
+      }
+    }
+  },
+  "warnings": []
+}

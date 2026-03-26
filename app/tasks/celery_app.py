@@ -51,4 +51,25 @@ celery_app.conf.beat_schedule = {
         'task': 'trading_tasks.reset_daily_counters',
         'schedule': crontab(hour=18, minute=1),  # Daily at 6:01 PM EST/EDT (after 4pm close, before 6pm after-hours)
     },
+    'capture-strategy-health-every-30-minutes': {
+        'task': 'trading_tasks.capture_strategy_health_snapshots',
+        'schedule': 1800.0,  # Every 30 minutes
+        'options': {
+            'expires': 1740,  # Task expires after 29 minutes
+        }
+    },
+    'capture-forward-test-snapshots-every-5-minutes': {
+        'task': 'trading_tasks.capture_forward_test_snapshots',
+        'schedule': 300.0,  # Every 5 minutes
+        'options': {
+            'expires': 240,  # Task expires after 4 minutes
+        }
+    },
+    'capture-portfolio-risk-hourly': {
+        'task': 'trading_tasks.capture_portfolio_risk_snapshot',
+        'schedule': 3600.0,  # Every hour
+        'options': {
+            'expires': 3540,  # Task expires after 59 minutes
+        }
+    },
 }

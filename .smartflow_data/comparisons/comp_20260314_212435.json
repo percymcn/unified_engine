@@ -1,0 +1,78 @@
+{
+  "comparison_id": "comp_20260314_212435",
+  "timestamp": "2026-03-14T21:24:51.996435",
+  "ticker": "MES",
+  "start_date": "2026-02-20",
+  "end_date": "2026-03-13",
+  "engines_compared": [
+    "unified",
+    "deterministic",
+    "quick"
+  ],
+  "leaderboard": [
+    {
+      "engine": "quick",
+      "total_return_pct": 52.408044125159655,
+      "net_profit": 13102.011031289916,
+      "sharpe_ratio": 7.296658436397291,
+      "win_rate": 73.54260089686099,
+      "max_drawdown_pct": 4.862646034877067,
+      "profit_factor": 2.5082030318993422,
+      "total_trades": 223,
+      "avg_trade": 58.753412696367334,
+      "avg_holding_time_hours": 2.0117627247633285,
+      "rank": 1
+    },
+    {
+      "engine": "unified",
+      "total_return_pct": -0.8275727257119241,
+      "net_profit": -206.893181427981,
+      "sharpe_ratio": -0.557931499779317,
+      "win_rate": 41.17647058823529,
+      "max_drawdown_pct": 5.652215503572766,
+      "profit_factor": 0.9156437121883865,
+      "total_trades": 34,
+      "avg_trade": -6.085093571411202,
+      "avg_holding_time_hours": 28.41176470588235,
+      "rank": 2
+    },
+    {
+      "engine": "deterministic",
+      "total_return_pct": -1.0042204607697003,
+      "net_profit": -251.0551151924251,
+      "sharpe_ratio": -7.6767844933447575,
+      "win_rate": 35.714285714285715,
+      "max_drawdown_pct": 1.2941418771343185,
+      "profit_factor": 0.36425815214404517,
+      "total_trades": 28,
+      "avg_trade": -8.966254114015182,
+      "avg_holding_time_hours": 8.535714285714286,
+      "rank": 3
+    }
+  ],
+  "regime_comparison": {
+    "trending_up": {
+      "unified": {
+        "win_rate": 0.0,
+        "pnl": -1642.5536634108125
+      }
+    },
+    "trending_down": {
+      "unified": {
+        "win_rate": 53.84615384615385,
+        "pnl": 1435.6604819828312
+      }
+    },
+    "": {
+      "deterministic": {
+        "win_rate": 35.714285714285715,
+        "pnl": -251.0551151924251
+      },
+      "quick": {
+        "win_rate": 73.54260089686099,
+        "pnl": 13102.011031289916
+      }
+    }
+  },
+  "warnings": []
+}

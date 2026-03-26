@@ -10,8 +10,9 @@ Dual-mode executor:
 import asyncio
 import json
 import logging
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Tuple
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from app.brokers.base_executor import BaseExecutor
 from app.core.config import settings
@@ -39,6 +40,9 @@ class ProjectXExecutor(BaseExecutor):
     - SDK mode: Uses official project-x-py SDK (preferred)
     - Custom mode: Uses httpx + websockets (fallback)
     """
+    CRYPTO_SYMBOLS = {
+        'BTCUSD', 'ETHUSD', 'BTC', 'ETH', 'XBTUSD', 'XETHUSD', 'BTCUSDT', 'ETHUSDT'
+    }
 
     def __init__(
         self,
@@ -90,6 +94,43 @@ class ProjectXExecutor(BaseExecutor):
     def is_using_sdk(self) -> bool:
         """Check if using official SDK."""
         return self._use_sdk and self._sdk_service is not None and self._sdk_service.is_connected
+
+    def _is_crypto_symbol(self, symbol: Optional[str]) -> bool:
+        if not symbol:
+            return False
+        sym = symbol.upper().strip()
+        if sym in self.CRYPTO_SYMBOLS:
+            return True
+        try:
+            from app.services.contract_resolver import ContractResolver
+            normalized = ContractResolver.normalize_symbol(sym)
+        except Exception:
+            normalized = sym
+        return normalized in {"MBT", "BTC"}
+
+    def _is_futures_market_open(self) -> Tuple[bool, str]:
+        """ProjectX futures hours: Sun 6pm - Fri 5pm EST, daily 5-6pm maintenance."""
+        now = datetime.now(ZoneInfo("America/New_York"))
+        weekday = now.weekday()
+        hour = now.hour
+
+        if weekday == 5:
+            return False, "weekend_sat"
+        if weekday == 6 and hour < 18:
+            return False, "weekend_sun_before_open"
+        if weekday == 4 and hour >= 17:
+            return False, "weekend_fri_closed"
+        if weekday in {0, 1, 2, 3} and 17 <= hour < 18:
+            return False, "daily_maintenance"
+        return True, "futures_open"
+
+    def _validate_order_symbol(self, symbol: Optional[str]) -> Optional[str]:
+        if self._is_crypto_symbol(symbol):
+            return "ProjectX does not support crypto instruments"
+        market_open, reason = self._is_futures_market_open()
+        if not market_open:
+            return f"Trading is currently unavailable (market closed: {reason})"
+        return None
 
     async def initialize(self) -> bool:
         """Initialize ProjectX connection."""
@@ -386,6 +427,9 @@ class ProjectXExecutor(BaseExecutor):
 
     async def place_order(self, order: OrderRequest) -> OrderResponse:
         """Place order with ProjectX."""
+        rejection = self._validate_order_symbol(order.symbol)
+        if rejection:
+            return OrderResponse(success=False, error=rejection)
         if self.is_using_sdk:
             return await self._place_order_sdk(order)
         return await self._place_order_httpx(order)

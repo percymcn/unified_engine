@@ -23,11 +23,14 @@ RUN pip install --no-cache-dir -r requirements.txt && \
     pip install --no-cache-dir iso8601 aiohttp websockets psutil rapidfuzz PyJWT pandas joblib && \
     pip install --no-cache-dir "python-socketio[asyncio_client]==4.6.1" "python-engineio==3.14.2" && \
     pip install --no-cache-dir signalrcore lz4 msgpack-python websocket-client && \
+    # Install pandas_ta for deterministic indicators (accepts numpy downgrade)
+    pip install --no-cache-dir pandas-ta && \
     # Patch ProjectX SDK to add contractDisplayName field to Position model (line 387)
     sed -i '387 a\    contractDisplayName: str | None = None' /usr/local/lib/python3.12/site-packages/project_x_py/models.py
 
 # Copy application code
 COPY app/ ./app/
+COPY scripts/ ./scripts/
 COPY alembic/ ./alembic/
 COPY alembic.ini .
 
@@ -40,9 +43,9 @@ RUN mkdir -p logs data
 
 EXPOSE 8000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+# Health check (longer timeout for deterministic mode blocking)
+HEALTHCHECK --interval=60s --timeout=30s --start-period=120s --retries=5 \
+    CMD curl -f http://localhost:8000/healthz || exit 1
 
 ENTRYPOINT ["/docker-entrypoint.sh"]
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

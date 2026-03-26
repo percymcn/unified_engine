@@ -113,6 +113,7 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - NATS_URL=nats://nats:4222
       - ENVIRONMENT=production
+      - API_BASE_URL=http://unified_engine_api:8000
       # SmartFlow internal routing (localhost since it runs in same container)
       - API_BASE_URL=http://localhost:8000
       - FRONTEND_URL=https://mytradeflow.app
@@ -150,6 +151,7 @@ services:
     volumes:
       - ./logs:/app/logs
       - ./data:/app/data
+      - ./app/services/funnel_automation.py:/app/app/services/funnel_automation.py:ro
       - ./app/main.py:/app/app/main.py:ro
       - ./app/models/smartflow_models.py:/app/app/models/smartflow_models.py:ro
       - ./app/services/ai_strategy_suite.py:/app/app/services/ai_strategy_suite.py:ro
@@ -157,6 +159,7 @@ services:
       - ./app/services/smartflow_service.py:/app/app/services/smartflow_service.py:ro
       - ./app/routers/ai_strategy.py:/app/app/routers/ai_strategy.py:ro
       - ./app/routers/smartflow.py:/app/app/routers/smartflow.py:ro
+      - ./app/routers/dashboard.py:/app/app/routers/dashboard.py:ro
     networks:
       - unified-network
     secrets:
@@ -173,6 +176,7 @@ services:
       - polygon_api_key
       - projectx_username
       - projectx_api_key
+      - unusual_whales_api_key
     deploy:
       replicas: 1
       placement:
@@ -186,9 +190,9 @@ services:
         window: 120s
       resources:
         limits:
-          memory: 1024M
+          memory: 4096M
         reservations:
-          memory: 512M
+          memory: 1024M
     ports:
       - target: 8000
         published: 8765
@@ -196,10 +200,10 @@ services:
         mode: ingress
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
-      interval: 60s
-      timeout: 30s
-      retries: 3
-      start_period: 40s
+      interval: 90s
+      timeout: 60s
+      retries: 5
+      start_period: 60s
 
   # Celery Worker
   celery-worker:
@@ -351,8 +355,8 @@ services:
       dockerfile: Dockerfile
     environment:
       - TZ=America/New_York
-      - BACKEND_URL=http://api:8000
-      - NEXT_PUBLIC_BACKEND_URL=https://api.mytradeflow.app
+      - BACKEND_URL=http://unified_engine_api:8000
+      - NEXT_PUBLIC_BACKEND_URL=http://unified_engine_api:8000
     ports:
       - "3456:3456"
     networks:
@@ -388,6 +392,7 @@ services:
       - DATABASE_URL=postgresql://trading_user@postgres:5432/trading_db
       - REDIS_URL=redis://redis:6379/0
       - ENVIRONMENT=production
+      - API_BASE_URL=http://unified_engine_api:8000
     volumes:
       - ./logs:/app/logs
       - ./data:/app/data
@@ -419,6 +424,114 @@ services:
         reservations:
           memory: 128M
 
+  # Forward Test Daemon - Continuous paper trading with SmartFlow strategy
+  forward-test:
+    image: 192.168.1.254:5000/unified-engine/api:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.stack
+    command: ["python", "scripts/run_live_forward_test.py", "--tickers", "US30", "NAS100", "SPX500", "XAUUSD", "BTCUSD", "ETHUSD", "--interval", "60", "--dynamic", "--webhook", "--no-projectx"]
+    environment:
+      - TZ=America/New_York
+      - DATABASE_URL=postgresql://trading_user@postgres:5432/trading_db
+      - REDIS_URL=redis://redis:6379/0
+      - NATS_URL=nats://nats:4222
+      - ENVIRONMENT=production
+      - PROJECTX_API_URL=https://api.topstepx.com
+      - TOPSTEPX_API_URL=https://api.topstepx.com
+      - TOPSTEPX_USER_HUB=https://rtc.topstepx.com/hubs/user
+      - TOPSTEPX_MARKET_HUB=https://rtc.topstepx.com/hubs/market
+      # SmartFlow Forward Test uses its own dedicated webhook (ID 40)
+      - SMARTFLOW_WEBHOOK_URL=https://api.mytradeflow.app/webhooks/tradingview/SFFT_4eb332cb75f633e949152790ecce0431
+      - SMARTFLOW_FULL_ARCHITECTURE=true
+      - SMARTFLOW_SLIM_MAP=false
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+      - ./.smartflow_data:/app/.smartflow_data
+    networks:
+      - unified-network
+    secrets:
+      - db_password
+      - secret_key
+      - jwt_secret
+      - credential_encryption_key
+      - polygon_api_key
+      - projectx_username
+      - projectx_api_key
+      - unusual_whales_api_key
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: any
+        delay: 30s
+        max_attempts: 5
+        window: 300s
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+    healthcheck:
+      test: ["CMD-SHELL", "exit 0"]
+      interval: 120s
+      timeout: 30s
+      retries: 3
+      start_period: 60s
+
+  # SmartFlow Data Connector - Polygon Options Flow + Unusual Whales
+  smartflow-data:
+    image: 192.168.1.254:5000/unified-engine/api:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.stack
+    command: ["python", "-c", "import asyncio; from app.services.smartflow_data_connector import main; asyncio.run(main())"]
+    environment:
+      - TZ=America/New_York
+      - DATABASE_URL=postgresql://trading_user@postgres:5432/trading_db
+      - REDIS_URL=redis://redis:6379/0
+      - NATS_URL=nats://nats:4222
+      - ENVIRONMENT=production
+      - POLYGON_WEBSOCKET_URL=wss://socket.polygon.io/options
+      - UW_API_BASE=https://api.unusualwhales.com/api
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+    networks:
+      - unified-network
+    secrets:
+      - db_password
+      - secret_key
+      - jwt_secret
+      - credential_encryption_key
+      - polygon_api_key
+      - unusual_whales_api_key
+      - anthropic_api_key
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 10
+        window: 120s
+      resources:
+        limits:
+          memory: 768M
+        reservations:
+          memory: 384M
+    healthcheck:
+      test: ["CMD-SHELL", "exit 0"]
+      interval: 60s
+      timeout: 30s
+      retries: 3
+      start_period: 30s
+
   # Nginx Reverse Proxy
   nginx:
     image: nginx:alpine
@@ -448,12 +561,13 @@ networks:
 
 configs:
   unified_nginx_conf:
-    name: unified_nginx_conf_v2
+    name: unified_nginx_conf_v3
     external: true
 
 volumes:
   unified_postgres_data:
-    driver: local
+    external: true
+    name: unified_unified_postgres_data
   unified_redis_data:
     driver: local
 
@@ -466,20 +580,20 @@ secrets:
     external: true
   credential_encryption_key:
     external: true
-    name: credential_encryption_key_v11
+    name: credential_encryption_key_v12
   flower_auth:
     external: true
   google_client_secret:
     external: true
   metaapi_token:
     external: true
+    name: metaapi_token_v2
   stripe_secret_key:
     external: true
   stripe_webhook_secret:
     external: true
   anthropic_api_key:
     external: true
-    name: anthropic_api_key_new
   resend_api_key:
     external: true
   polygon_api_key:
@@ -488,3 +602,6 @@ secrets:
     external: true
   projectx_api_key:
     external: true
+  unusual_whales_api_key:
+    external: true
+    name: unusual_whales_api_key_v1

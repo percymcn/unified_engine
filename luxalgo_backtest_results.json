@@ -1,0 +1,198 @@
+{
+  "symbol": "SPY",
+  "timeframe": "5m",
+  "days": 30,
+  "bars_analysed": 4557,
+  "total_trades": 368,
+  "win_rate": 0.2908,
+  "avg_win_pct": 26.337,
+  "avg_loss_pct": -10.055,
+  "sharpe_ratio": 0.293,
+  "max_drawdown_pct": -3.18,
+  "total_return_pct": 1.806,
+  "final_equity": 1.018065,
+  "profit_factor": 2.619,
+  "run_timestamp": "2026-03-26T01:03:45.868332",
+  "trades": [
+    {
+      "direction": "short",
+      "entry_price": 655.375,
+      "exit_price": 655.8,
+      "pnl_pct": -0.0648,
+      "exit_reason": "signal",
+      "entry_time": "2026-03-23 19:55:00+00:00",
+      "exit_time": "2026-03-23 21:00:00+00:00"
+    },
+    {
+      "direction": "long",
+      "entry_price": 655.8,
+      "exit_price": 655.8,
+      "pnl_pct": 0.0,
+      "exit_reason": "signal",
+      "entry_time": "2026-03-23 21:00:00+00:00",
+      "exit_time": "2026-03-23 21:40:00+00:00"
+    },
+    {
+      "direction": "short",
+      "entry_price": 655.8,
+      "exit_price": 656.22,
+      "pnl_pct": -0.064,
+      "exit_reason": "signal",
+      "entry_time": "2026-03-23 21:40:00+00:00",
+      "exit_time": "2026-03-23 22:35:00+00:00"
+    },
+    {
+      "direction": "long",
+      "entry_price": 656.22,
+      "exit_price": 656.709,
+      "pnl_pct": 0.0745,
+      "exit_reason": "signal",
+      "entry_time": "2026-03-23 22:35:00+00:00",
+      "exit_time": "2026-03-23 23:30:00+00:00"
+    },
+    {
+      "direction": "short",
+      "entry_price": 656.709,
+      "exit_price": 653.41,
+      "pnl_pct": 0.5024,
+      "exit_reason": "signal",
+      "entry_time": "2026-03-23 23:30:00+00:00",
+      "exit_time": "2026-03-24 14:05:00+00:00"
+    },
+    {
+      "direction": "long",
+      "entry_price": 653.41,
+      "exit_price": 652.61,
+      "pnl_pct": -0.1224,
+      "exit_reason": "signal",
+      "entry_time": "2026-03-24 14:05:00+00:00",
+      "exit_time": "2026-03-24 14:10:00+00:00"
+    },
+    {
+      "direction": "short",
+      "entry_price": 652.61,
+      "exit_price": 653.35,
+      "pnl_pct": -0.1134,
+      "exit_reason": "signal",
+      "entry_time": "2026-03-24 14:10:00+00:00",
+      "exit_time": "2026-03-24 14:30:00+00:00"
+    },
+    {
+      "direction": "long",
+      "entry_price": 653.35,
+      "exit_price": 652.71,
+      "pnl_pct": -0.098,
+      "exit_reason": "signal",
+      "entry_time": "2026-03-24 14:30:00+00:00",
+      "exit_time": "2026-03-24 14:35:00+00:00"
+    },
+    {
+      "direction": "short",
+      "entry_price": 652.71,
+      "exit_price": 653.744,
+      "pnl_pct": -0.1584,
+      "exit_reason": "signal",
+      "entry_time": "2026-03-24 14:35:00+00:00",
+      "exit_time": "2026-03-24 14:40:00+00:00"
+    },
+    {
+      "direction": "long",
+      "entry_price": 653.744,
+      "exit_price": 652.7501,
+      "pnl_pct": -0.152,
+      "exit_reason": "signal",
+      "entry_time": "2026-03-24 14:40:00+00:00",
+      "exit_time": "2026-03-24 14:45:00+00:00"
+    },
+    {
+      "direction": "short",
+      "entry_price": 652.7501,
+      "exit_price": 654.43,
+      "pnl_pct": -0.2574,
+      "exit_reason": "signal",
+      "entry_time": "2026-03-24 14:45:00+00:00",
+      "exit_time": "2026-03-24 14:50:00+00:00"
+    },
+    {
+      "direction": "long",
+      "entry_price": 654.43,
+      "exit_price": 655.04,
+      "pnl_pct": 0.0932,
+      "exit_reason": "signal",
+      "entry_time": "2026-03-24 14:50:00+00:00",
+      "exit_time": "2026-03-24 15:55:00+00:00"
+    },
+    {
+      "direction": "short",
+      "entry_price": 655.04,
+      "exit_price": 656.01,
+      "pnl_pct": -0.1481,
+      "exit_reason": "signal",
+      "entry_time": "2026-03-24 15:55:00+00:00",
+      "exit_time": "2026-03-24 16:20:00+00:00"
+    },
+    {
+      "direction": "long",
+      "entry_price": 656.01,
+      "exit_price": 655.43,
+      "pnl_pct": -0.0884,
+      "exit_reason": "signal",
+      "entry_time": "2026-03-24 16:20:00+00:00",
+      "exit_time": "2026-03-24 16:30:00+00:00"
+    },
+    {
+      "direction": "short",
+      "entry_price": 655.43,
+      "exit_price": 656.51,
+      "pnl_pct": -0.1648,
+      "exit_reason": "signal",
+      "entry_time": "2026-03-24 16:30:00+00:00",
+      "exit_time": "2026-03-24 18:35:00+00:00"
+    },
+    {
+      "direction": "long",
+      "entry_price": 656.51,
+      "exit_price": 654.86,
+      "pnl_pct": -0.2513,
+      "exit_reason": "signal",
+      "entry_time": "2026-03-24 18:35:00+00:00",
+      "exit_time": "2026-03-24 18:55:00+00:00"
+    },
+    {
+      "direction": "short",
+      "entry_price": 654.86,
+      "exit_price": 655.13,
+      "pnl_pct": -0.0412,
+      "exit_reason": "signal",
+      "entry_time": "2026-03-24 18:55:00+00:00",
+      "exit_time": "2026-03-24 19:00:00+00:00"
+    },
+    {
+      "direction": "long",
+      "entry_price": 655.13,
+      "exit_price": 655.31,
+      "pnl_pct": 0.0275,
+      "exit_reason": "signal",
+      "entry_time": "2026-03-24 19:00:00+00:00",
+      "exit_time": "2026-03-24 19:05:00+00:00"
+    },
+    {
+      "direction": "short",
+      "entry_price": 655.31,
+      "exit_price": 658.9813,
+      "pnl_pct": -0.5602,
+      "exit_reason": "signal",
+      "entry_time": "2026-03-24 19:05:00+00:00",
+      "exit_time": "2026-03-24 20:20:00+00:00"
+    },
+    {
+      "direction": "long",
+      "entry_price": 658.9813,
+      "exit_price": 657.55,
+      "pnl_pct": -0.2172,
+      "exit_reason": "eod",
+      "entry_time": "2026-03-24 20:20:00+00:00",
+      "exit_time": "2026-03-24 23:55:00+00:00"
+    }
+  ]
+}

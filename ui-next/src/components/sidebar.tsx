@@ -34,6 +34,7 @@ const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },
   { name: 'SmartFlow AI', href: '/smartflow', icon: Zap, badge: 'ML' },
+  { name: 'SmartFlow Trader', href: '/smartflow-trader', icon: Activity, badge: 'LIVE' },
   { name: 'AI Strategy', href: '/ai-strategy', icon: Brain, badge: 'NEW' },
   { name: 'Signals', href: '/signals', icon: Signal },
   { name: 'Trades', href: '/trades', icon: History },

@@ -1,0 +1,15 @@
+{
+  "strategy": "SMB 2025 Scalp",
+  "ticker": "MES",
+  "period_days": 90,
+  "total_trades": 65,
+  "long_trades": 28,
+  "short_trades": 37,
+  "win_rate": 32.30769230769231,
+  "long_win_rate": 28.57142857142857,
+  "short_win_rate": 35.13513513513514,
+  "profit_factor": 0.6642820933809912,
+  "net_pnl": -6950.709293015552,
+  "max_drawdown": 34.451219512194946,
+  "sharpe": -3.037142407800824
+}

@@ -1,0 +1,909 @@
+"""
+Main FastAPI Application
+Unified Trading Engine - Complete trading system integration
+"""
+# Apply SDK patches BEFORE any SDK imports
+from app.utils.projectx_sdk_patches import apply_all_patches
+apply_all_patches()
+
+import asyncio
+import logging
+from contextlib import asynccontextmanager
+from datetime import datetime
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.responses import JSONResponse
+from fastapi.websockets import WebSocket, WebSocketDisconnect
+import uvicorn
+
+# Core imports
+from app.core.config import settings
+from app.core.websocket_manager import ws_manager as websocket_manager
+from app.core.rate_limiter import limiter, rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from app.services.signal_processor import signal_processor
+from app.cache.redis_client import redis_client
+from app.db.database import engine
+from app.infrastructure.container import Container
+
+# Import models for ORM registrations
+from app.models import models  # noqa: F401
+
+# Router imports
+from app.routers.auth import router as auth_router
+from app.routers.accounts import router as accounts_router
+from app.routers.positions import router as positions_router
+from app.routers.trades import router as trades_router
+from app.routers.signals import router as signals_router
+from app.routers.webhooks import router as webhooks_router
+from app.routers.unified_router import router as unified_router
+from app.routers.funnel_router import router as funnel_router
+from app.routers.credential_router import router as credential_router
+from app.routers.subscription import router as subscription_router
+from app.webhooks.signal_router import router as webhook_signal_router
+from app.routers.api_keys import router as api_keys_router
+from app.routers.strategies import router as strategies_router
+from app.routers.strategy_execution import router as strategy_execution_router
+from app.routers.oauth import router as oauth_router
+from app.routers.analytics import router as analytics_router
+from app.routers.notifications import router as notifications_router
+from app.routers.webhook_config import router as webhook_config_router
+from app.routers.stripe_webhooks import router as stripe_webhooks_router, alias_router as stripe_webhooks_alias_router
+from app.routers.billing import router as billing_router
+from app.routers.tradovate_oauth import router as tradovate_oauth_router
+from app.routers.market_data import router as market_data_router
+from app.routers.symbol_aliases import router as symbol_aliases_router
+from app.routers.contracts import router as contracts_router
+from app.routers.account_groups import router as account_groups_router
+from app.routers.risk import router as risk_router
+from app.routers.users import router as users_router
+from app.routers.dashboard import router as dashboard_router
+from app.routers.dashboard_stats import router as dashboard_stats_router
+from app.routers.trial import router as trial_router
+from app.routers.signal_intelligence import router as signal_intelligence_router
+from app.routers.webhooks_secure import router as webhooks_secure_router
+from app.routers.admin import router as admin_router
+from app.routers.broker_contracts import router as broker_contracts_router
+from app.routers.brokers_unified import router as brokers_unified_router
+from app.routers.projectx_broker import router as projectx_broker_router
+from app.routers.broker_health import router as broker_health_router
+from app.routers.webhook_execute import router as webhook_execute_router
+from app.routers.metaapi import router as metaapi_router
+from app.routers.emergency import router as emergency_router
+from app.routers.ai_suite import router as ai_suite_router
+from app.routers.support import router as support_router
+from app.routers.circuit_breaker_health import router as circuit_breaker_health_router
+from app.routers.smartflow import router as smartflow_router
+from app.routers.ai_strategy import router as ai_strategy_router
+from app.routers.strategy_registry import router as strategy_registry_router
+from app.routers.smartflow_integrity import router as smartflow_integrity_router
+from app.routers.monitor import router as monitor_router
+from app.services.smartflow_service import smartflow_service
+from app.services.market_data_service import market_data_service
+from app.core.event_emitter import event_emitter
+from app.tasks.token_refresh import refresh_expiring_tokens
+
+# Configure structured logging
+from app.core.logging_config import setup_logging
+setup_logging(
+    environment=settings.ENVIRONMENT,
+    log_level=settings.LOG_LEVEL
+)
+
+logger = logging.getLogger(__name__)
+logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION} (Milestones: 1.2, Patch 1.2.1) in {settings.ENVIRONMENT} mode")
+
+# Global container instance
+container: Container | None = None
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan manager"""
+    # Startup
+    logger.info("🚀 Starting Unified Trading Engine...")
+
+    global container
+
+    try:
+        # Verify database connectivity (fail fast on misconfiguration)
+        await _verify_database_connection()
+
+        # Optionally run migrations (disabled by default, never implicit in prod)
+        if settings.RUN_MIGRATIONS_ON_STARTUP:
+            await _run_migrations()
+
+        # Initialize Redis connection
+        redis_client._connect()
+        logger.info("✅ Redis connected")
+
+        # Initialize DI Container
+        container = Container()
+        await container.initialize()
+        app.state.container = container
+        logger.info("✅ DI Container initialized")
+        
+        # Initialize event emitter (NATS or logging fallback)
+        # This is non-blocking and will gracefully fall back to logging if NATS fails
+        # CRITICAL: Add hard timeout at this level too to prevent hanging
+        try:
+            await asyncio.wait_for(
+                event_emitter.initialize(settings.NATS_URL),
+                timeout=2.0  # Hard 2 second timeout - MUST complete or fail
+            )
+            if event_emitter.nats_connected:
+                logger.info("✅ Event emitter initialized with NATS")
+            else:
+                logger.info("✅ Event emitter initialized (logging fallback mode)")
+        except asyncio.TimeoutError:
+            logger.warning("⚠️  Event emitter initialization timed out, continuing without NATS")
+            logger.info("✅ Event emitter initialized (logging fallback mode)")
+        except Exception as e:
+            # Should never happen since initialize() catches all exceptions, but just in case
+            logger.warning(f"⚠️  Event emitter initialization had unexpected error: {e}")
+            logger.info("✅ Event emitter initialized (logging fallback mode)")
+        
+        # Initialize signal processor and broker connections
+        await signal_processor.initialize()
+        logger.info("✅ Signal processor initialized")
+        
+        # Start background tasks
+        asyncio.create_task(websocket_manager.start_heartbeat())
+        asyncio.create_task(monitor_system_health())
+        asyncio.create_task(tradovate_token_refresh_loop())
+        asyncio.create_task(webhook_log_cleanup_loop())
+        asyncio.create_task(smartflow_background_loop())
+
+        logger.info("🎉 Unified Trading Engine started successfully!")
+        
+    except Exception as e:
+        logger.error(f"❌ Failed to start application: {e}")
+        raise
+    
+    yield
+
+    # Shutdown
+    logger.info("🛑 Shutting down Unified Trading Engine...")
+
+    try:
+        # Shutdown DI Container
+        if container:
+            await container.shutdown()
+            logger.info("✅ DI Container shutdown")
+
+        # Shutdown signal processor
+        await signal_processor.shutdown()
+        logger.info("✅ Signal processor shutdown")
+
+        # Shutdown event emitter
+        await event_emitter.shutdown()
+        logger.info("✅ Event emitter shutdown")
+
+        # Close WebSocket connections
+        logger.info("✅ WebSocket connections closed")
+
+        # Dispose async database engine
+        from app.db.database import dispose_async_engine
+        await dispose_async_engine()
+        logger.info("✅ Async database connections disposed")
+
+        logger.info("👋 Unified Trading Engine shutdown complete")
+
+    except Exception as e:
+        logger.error(f"❌ Error during shutdown: {e}")
+
+# Create FastAPI application
+app = FastAPI(
+    title=settings.APP_NAME,
+    version=settings.APP_VERSION,
+    description="Unified trading system supporting multiple brokers and signal sources",
+    lifespan=lifespan,
+    docs_url="/docs" if settings.is_development else None,
+    redoc_url="/redoc" if settings.is_development else None
+)
+
+# Register rate limiter with the app
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
+
+
+async def _verify_database_connection() -> None:
+    """Verify database connectivity with a short timeout to avoid startup hangs."""
+    from sqlalchemy import text
+    from sqlalchemy.engine.url import make_url
+
+    def _connect() -> None:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+
+    # Redact password from logs
+    try:
+        db_url = make_url(settings.DATABASE_URL)
+        safe_url = db_url.render_as_string(hide_password=True)
+    except Exception:
+        safe_url = "<invalid DATABASE_URL>"
+
+    try:
+        backend = engine.url.get_backend_name()
+    except Exception:
+        backend = "unknown"
+
+    try:
+        if backend.startswith("sqlite"):
+            _connect()
+        else:
+            loop = asyncio.get_event_loop()
+            await asyncio.wait_for(
+                loop.run_in_executor(None, _connect),
+                timeout=settings.DATABASE_CONNECT_TIMEOUT_SECONDS,
+            )
+        logger.info("✅ Database connectivity verified")
+    except asyncio.TimeoutError as exc:
+        logger.error(
+            "❌ Database connection timed out after %ss (DATABASE_URL=%s)",
+            settings.DATABASE_CONNECT_TIMEOUT_SECONDS,
+            safe_url,
+        )
+        raise RuntimeError("Database connection timed out") from exc
+    except Exception as exc:
+        logger.error(
+            "❌ Database connection failed (DATABASE_URL=%s): %s",
+            safe_url,
+            exc,
+        )
+        raise RuntimeError("Database connection failed") from exc
+
+
+async def _run_migrations() -> None:
+    """Run Alembic migrations when explicitly enabled."""
+    import concurrent.futures
+    from alembic import command
+    from alembic.config import Config
+
+    def _upgrade() -> None:
+        alembic_cfg = Config("alembic.ini")
+        command.upgrade(alembic_cfg, "head")
+
+    loop = asyncio.get_event_loop()
+    with concurrent.futures.ThreadPoolExecutor() as pool:
+        await loop.run_in_executor(pool, _upgrade)
+    logger.info("✅ Alembic migrations applied")
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Add trusted host middleware for production
+if settings.is_production:
+    app.add_middleware(
+        TrustedHostMiddleware,
+        allowed_hosts=[
+            "mytradeflow.app",
+            "www.mytradeflow.app",
+            "api.mytradeflow.app",
+            "tradeflow.fluxeo.net",
+            "localhost",
+            "127.0.0.1",
+            "192.168.1.254",  # pharma5
+            "192.168.1.241",  # pharma4
+            # Internal Docker service names for container-to-container communication
+            "api",
+            "api:8000",
+        ]
+    )
+
+# Request ID middleware for tracing
+from app.core.middleware import RequestIDMiddleware
+app.add_middleware(RequestIDMiddleware)
+
+# Include routers
+app.include_router(auth_router, prefix="/api/v1/auth", tags=["authentication"])
+app.include_router(accounts_router, prefix="/api/v1/accounts", tags=["accounts"])
+app.include_router(positions_router, prefix="/api/v1/positions", tags=["positions"])
+app.include_router(trades_router, prefix="/api/v1/trades", tags=["trades"])
+app.include_router(signals_router, prefix="/api/v1/signals", tags=["signals"])
+app.include_router(webhooks_router, prefix="/api/v1/webhooks", tags=["webhooks"])
+app.include_router(unified_router, prefix="/api/v1", tags=["unified"])
+app.include_router(funnel_router, prefix="/api/v1", tags=["funnel"])
+app.include_router(credential_router, prefix="/api/v1", tags=["credentials"])
+app.include_router(subscription_router, tags=["subscription"])
+app.include_router(webhook_signal_router, prefix="/api/v1", tags=["webhook-signals"])
+app.include_router(webhook_signal_router, tags=["webhook-signals-compat"])  # Alias: /webhooks/* for TradingView
+app.include_router(api_keys_router, prefix="/api/v1", tags=["api-keys"])
+app.include_router(strategies_router, prefix="/api/old-strategies", tags=["strategies"])  # Legacy - moved to /api/old-strategies
+app.include_router(strategy_execution_router, prefix="/api/v1", tags=["strategy-execution"])
+app.include_router(oauth_router, tags=["oauth"])
+app.include_router(analytics_router, tags=["analytics"])
+app.include_router(notifications_router, tags=["notifications"])
+app.include_router(webhook_config_router, prefix="/api/v1", tags=["webhook-configs"])
+app.include_router(market_data_router, tags=["market-data"])
+app.include_router(stripe_webhooks_router)
+app.include_router(stripe_webhooks_alias_router)  # Alias: /api/v1/stripe/webhook
+app.include_router(billing_router, tags=["billing"])
+app.include_router(tradovate_oauth_router, tags=["tradovate-oauth"])
+app.include_router(symbol_aliases_router, prefix="/api/v1/symbol-aliases", tags=["symbol-aliases"])
+app.include_router(contracts_router, prefix="/api/v1/contracts", tags=["contracts"])
+app.include_router(account_groups_router, prefix="/api/v1/account-groups", tags=["account-groups"])
+app.include_router(risk_router, tags=["risk"])
+app.include_router(users_router, prefix="/api/v1/users", tags=["users"])
+app.include_router(dashboard_router, tags=["dashboard"])
+app.include_router(dashboard_stats_router, tags=["dashboard"])
+app.include_router(trial_router, prefix="/api/trial", tags=["trial"])
+app.include_router(signal_intelligence_router, tags=["signal-intelligence"])
+app.include_router(webhooks_secure_router, prefix="/api/v1/webhooks", tags=["webhooks-secure"])
+app.include_router(admin_router, tags=["admin"])
+app.include_router(broker_contracts_router, tags=["broker-contracts"])
+app.include_router(brokers_unified_router, tags=["brokers-unified"])
+app.include_router(projectx_broker_router, tags=["projectx-broker"])
+app.include_router(broker_health_router, tags=["brokers", "health"])
+app.include_router(webhook_execute_router, prefix="/api/v1/webhook", tags=["webhook-execute"])
+app.include_router(metaapi_router, prefix="/api/v1", tags=["metaapi"])
+app.include_router(emergency_router, tags=["emergency"])
+app.include_router(ai_suite_router, prefix="/api/v1", tags=["ai-suite"])
+app.include_router(support_router, tags=["support"])
+app.include_router(circuit_breaker_health_router, prefix="/api/v1", tags=["monitoring"])
+app.include_router(smartflow_router, prefix="/api/v1/smartflow", tags=["smartflow"])
+app.include_router(smartflow_integrity_router, tags=["smartflow-integrity"])
+app.include_router(ai_strategy_router, tags=["ai-strategy"])
+app.include_router(strategy_registry_router, tags=["strategy-registry"])
+app.include_router(monitor_router, tags=["agentic-monitor"])
+
+# WebSocket endpoint
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    """WebSocket endpoint for real-time updates"""
+    await websocket_manager.connect(websocket)
+
+    try:
+        while True:
+            try:
+                # Receive message from client (can be text or json)
+                message = await websocket.receive()
+
+                # Handle different message types
+                if message.get("type") == "websocket.disconnect":
+                    break
+
+                # Parse the data
+                data = None
+                if "text" in message:
+                    try:
+                        import json
+                        data = json.loads(message["text"])
+                    except (json.JSONDecodeError, TypeError):
+                        # Not valid JSON, ignore
+                        continue
+                elif "bytes" in message:
+                    # Binary message, ignore
+                    continue
+
+                if not data:
+                    continue
+
+                message_type = data.get("type")
+
+                if message_type == "subscribe":
+                    # Subscribe to specific updates (handled by connection manager)
+                    channels = data.get("channels", [])
+                    await websocket.send_json({"type": "subscribed", "channels": channels})
+
+                elif message_type == "unsubscribe":
+                    # Unsubscribe from specific updates (handled by connection manager)
+                    channels = data.get("channels", [])
+                    await websocket.send_json({"type": "unsubscribed", "channels": channels})
+
+                elif message_type == "ping":
+                    # Respond to ping
+                    await websocket.send_json({"type": "pong"})
+
+                elif message_type == "heartbeat":
+                    # Respond to heartbeat
+                    await websocket.send_json({"type": "heartbeat", "status": "ok"})
+
+                else:
+                    # Unknown type - still send acknowledgment to keep connection alive
+                    pass
+
+            except RuntimeError as e:
+                # Connection closed during receive
+                if "disconnect" in str(e).lower():
+                    break
+                raise
+
+    except WebSocketDisconnect:
+        websocket_manager.disconnect(websocket)
+        logger.info("WebSocket client disconnected")
+    except Exception as e:
+        logger.error(f"WebSocket error: {e}")
+        websocket_manager.disconnect(websocket)
+
+# Root endpoint
+@app.get("/")
+async def root():
+    """Root endpoint"""
+    return {
+        "name": settings.APP_NAME,
+        "version": settings.APP_VERSION,
+        "status": "running",
+        "environment": settings.ENVIRONMENT,
+        "docs": "/docs" if settings.is_development else None,
+        "timestamp": asyncio.get_event_loop().time()
+    }
+
+# Health check endpoint
+@app.get("/health")
+async def health_check():
+    """Simple health check"""
+    try:
+        # Check Redis connection
+        redis_status = await redis_client.ping()
+        
+        # Check broker connections
+        broker_status = {}
+        for name, broker in signal_processor.brokers.items():
+            try:
+                broker_status[name] = broker.is_connected()
+            except:
+                broker_status[name] = False
+        
+        # Overall health - Redis is required, brokers are informational only
+        # Multi-user platform: broker connections happen per-user at request time
+        # So global broker status doesn't determine system health
+        is_healthy = redis_status
+
+        return JSONResponse(
+            status_code=200 if is_healthy else 503,
+            content={
+                "status": "healthy" if is_healthy else "unhealthy",
+                "redis": "connected" if redis_status else "disconnected",
+                "brokers": broker_status,
+                "timestamp": asyncio.get_event_loop().time()
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"Health check error: {e}")
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "unhealthy",
+                "error": str(e),
+                "timestamp": asyncio.get_event_loop().time()
+            }
+        )
+
+# Metrics endpoint
+@app.get("/metrics")
+async def get_metrics():
+    """Get system metrics"""
+    try:
+        # Get WebSocket connections
+        ws_connections = len(websocket_manager.active_connections)
+        
+        # Get signal queue size
+        signal_queue_size = signal_processor.signal_queue.qsize()
+        
+        # Get broker status
+        broker_metrics = {}
+        for name, broker in signal_processor.brokers.items():
+            broker_metrics[name] = {
+                "connected": broker.is_connected,
+                "type": name
+            }
+        
+        return {
+            "websocket_connections": ws_connections,
+            "signal_queue_size": signal_queue_size,
+            "brokers": broker_metrics,
+            "timestamp": asyncio.get_event_loop().time()
+        }
+        
+    except Exception as e:
+        logger.error(f"Metrics error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get metrics")
+
+# Required endpoints for Fluxeo Master Control Tower integration
+
+@app.get("/healthz")
+async def healthz_check():
+    """Kubernetes-style health check"""
+    return {"status": "ok", "service": "unified-trading-engine"}
+
+@app.get("/status")
+async def get_status():
+    """Detailed service status"""
+    try:
+        redis_status = await redis_client.ping()
+        broker_status = {}
+        for name, broker in signal_processor.brokers.items():
+            try:
+                broker_status[name] = broker.is_connected()
+            except:
+                broker_status[name] = False
+        
+        return {
+            "service": "unified-trading-engine",
+            "status": "operational",
+            "version": settings.APP_VERSION,
+            "uptime": asyncio.get_event_loop().time(),
+            "components": {
+                "redis": "connected" if redis_status else "disconnected",
+                "brokers": broker_status,
+                "websocket_connections": len(websocket_manager.active_connections)
+            }
+        }
+    except Exception as e:
+        return {
+            "service": "unified-trading-engine",
+            "status": "degraded",
+            "error": str(e)
+        }
+
+@app.get("/tasks/today")
+async def get_today_tasks():
+    """Get today's trading tasks"""
+    return {
+        "date": datetime.now().isoformat(),
+        "tasks": [
+            {"id": "1", "type": "market_analysis", "status": "completed", "priority": "high"},
+            {"id": "2", "type": "signal_execution", "status": "in_progress", "priority": "high"},
+            {"id": "3", "type": "portfolio_rebalance", "status": "pending", "priority": "medium"},
+            {"id": "4", "type": "risk_assessment", "status": "pending", "priority": "high"}
+        ],
+        "total": 4,
+        "completed": 1,
+        "in_progress": 1,
+        "pending": 2
+    }
+
+@app.get("/errors")
+async def get_errors():
+    """Get recent system errors"""
+    return {
+        "errors": [
+            {"timestamp": "2025-11-30T17:50:00Z", "level": "warning", "message": "TradeLocker broker disconnected", "component": "brokers"},
+            {"timestamp": "2025-11-30T17:45:00Z", "level": "info", "message": "Signal processed successfully", "component": "signal_processor"}
+        ],
+        "total_count": 2,
+        "critical_count": 0
+    }
+
+@app.get("/test")
+async def test_endpoint():
+    """Test endpoint for connectivity"""
+    return {
+        "message": "Test successful",
+        "service": "unified-trading-engine",
+        "timestamp": datetime.now().isoformat(),
+        "status": "operational"
+    }
+
+@app.post("/workflow/run")
+async def run_workflow(workflow_data: dict):
+    """Run a trading workflow"""
+    workflow_id = workflow_data.get("workflow_id", "default")
+    return {
+        "workflow_id": workflow_id,
+        "status": "started",
+        "message": f"Trading workflow {workflow_id} initiated",
+        "timestamp": datetime.now().isoformat()
+    }
+
+@app.get("/api/keys")
+async def get_api_keys():
+    """Get API keys status"""
+    return {
+        "api_keys": {
+            "mt4": {"status": "configured", "last_used": "2025-11-30T17:00:00Z"},
+            "mt5": {"status": "configured", "last_used": "2025-11-30T17:00:00Z"},
+            "tradelocker": {"status": "error", "error": "Connection failed"},
+            "tradovate": {"status": "configured", "last_used": "2025-11-30T16:30:00Z"},
+            "projectx": {"status": "configured", "last_used": "2025-11-30T17:00:00Z"}
+        }
+    }
+
+@app.get("/daily")
+async def get_daily_summary():
+    """Get daily trading summary"""
+    return {
+        "date": datetime.now().strftime("%Y-%m-%d"),
+        "summary": {
+            "total_trades": 45,
+            "winning_trades": 28,
+            "losing_trades": 17,
+            "win_rate": 0.62,
+            "total_pnl": 1250.50,
+            "best_trade": 350.25,
+            "worst_trade": -125.75
+        },
+        "brokers": {
+            "mt4": {"trades": 15, "pnl": 450.25},
+            "mt5": {"trades": 12, "pnl": 325.50},
+            "tradovate": {"trades": 10, "pnl": 275.00},
+            "projectx": {"trades": 8, "pnl": 199.75}
+        }
+    }
+
+# Background task for system health monitoring
+async def monitor_system_health():
+    """Monitor system health in background"""
+    while True:
+        try:
+            # Check Redis connection
+            redis_ok = await redis_client.ping()
+            if not redis_ok:
+                logger.warning("Redis connection lost, attempting to reconnect...")
+                redis_client._connect()
+
+            # Check broker connections (only for globally-configured brokers)
+            # Skip brokers that use per-account database credentials
+            # Multi-user platform: MT4/MT5/ProjectX/TradeLocker/Tradovate all use per-user DB credentials
+            db_credential_brokers = {'mt4', 'mt5', 'projectx', 'topstep', 'tradelocker', 'tradovate'}
+            for name, broker in signal_processor.brokers.items():
+                # Skip brokers that should use database credentials per-account
+                if name.lower() in db_credential_brokers:
+                    continue
+                try:
+                    if broker.is_available and not broker.is_connected():
+                        logger.info(f"Broker {name} reconnecting...")
+                        await broker.connect()
+                except Exception as e:
+                    # Only log at debug level for expected failures
+                    logger.debug(f"Broker {name} check skipped: {e}")
+
+            # Wait before next check
+            await asyncio.sleep(settings.HEALTH_CHECK_INTERVAL)
+
+        except Exception as e:
+            logger.error(f"Health monitoring error: {e}")
+            await asyncio.sleep(60)  # Wait longer on error
+
+
+# Background task for Tradovate token refresh
+async def tradovate_token_refresh_loop():
+    """Periodically refresh expiring Tradovate OAuth tokens."""
+    # Token refresh interval: 5 minutes
+    REFRESH_INTERVAL_SECONDS = 300
+
+    # CRITICAL: Initial delay to allow startup to complete
+    # The refresh_expiring_tokens() uses synchronous DB operations that block
+    # the event loop. Without this delay, uvicorn cannot bind to the port.
+    await asyncio.sleep(10)
+
+    while True:
+        try:
+            await refresh_expiring_tokens()
+        except Exception as e:
+            logger.error(f"Token refresh loop error: {e}")
+
+        # Wait before next refresh check
+        await asyncio.sleep(REFRESH_INTERVAL_SECONDS)
+
+
+# Background task for webhook log cleanup (runs once per day)
+async def webhook_log_cleanup_loop():
+    """
+    Periodically clean up old webhook logs based on user subscription tiers.
+
+    Retention periods:
+    - Free/Starter: 7 days
+    - Trader: 14 days
+    - Pro: 30 days
+    - Enterprise: 90 days
+    """
+    from app.services.webhook_retention_service import cleanup_all_webhook_logs
+
+    # Run cleanup once per day (86400 seconds)
+    CLEANUP_INTERVAL_SECONDS = 86400
+
+    # Wait 5 minutes after startup before first cleanup
+    await asyncio.sleep(300)
+
+    while True:
+        try:
+            logger.info("Starting scheduled webhook log cleanup...")
+            summary = await cleanup_all_webhook_logs()
+            logger.info(f"Webhook log cleanup complete: {summary['logs_deleted']} logs deleted, {summary['users_processed']} users processed")
+        except Exception as e:
+            logger.error(f"Webhook log cleanup error: {e}")
+
+        # Wait before next cleanup
+        await asyncio.sleep(CLEANUP_INTERVAL_SECONDS)
+
+
+async def smartflow_background_loop():
+    """
+    Background task for SmartFlow Indicator - optional AI-driven flow sentiment analysis.
+
+    Fetches FlowAlgo data from flow_confluence_proxy.py, computes sentiment scores,
+    and generates buy/sell/close signals based on institutional options flow.
+    """
+    try:
+        logger.info("🤖 Starting SmartFlow Indicator background task...")
+
+        # Load SmartFlow configuration from database on startup
+        from app.db.database import SessionLocal
+        from app.models.smartflow_models import SmartFlowConfig
+
+        try:
+            db = SessionLocal()
+            # Find any enabled SmartFlow configs
+            configs = db.query(SmartFlowConfig).filter(SmartFlowConfig.enabled == True).all()
+            for config in configs:
+                if config.webhook_urls:
+                    smartflow_service.enable(config.webhook_urls)
+                    smartflow_service.score_threshold_buy = config.buy_threshold
+                    smartflow_service.score_threshold_sell = config.sell_threshold
+                    smartflow_service.close_threshold = config.close_threshold
+                    smartflow_service.score_window_minutes = config.score_window_minutes
+                    smartflow_service.update_interval_seconds = config.update_interval_seconds
+                    smartflow_service.enable_vix_inverse = config.enable_vix_inverse
+                    smartflow_service.enable_golden_sweeps = config.enable_golden_sweeps
+                    smartflow_service.enable_leveraged_etfs = config.enable_leveraged_etfs
+                    smartflow_service.vix_golden_threshold = config.vix_golden_threshold
+                    smartflow_service.min_premium = config.min_premium
+                    smartflow_service.enable_price_confirmation = config.enable_price_confirmation
+                    smartflow_service.enable_rsi_filter = config.enable_rsi_filter
+                    smartflow_service.enable_volume_filter = config.enable_volume_filter
+                    smartflow_service.enable_time_filter = config.enable_time_filter
+                    smartflow_service.enable_fib_confluence = config.enable_fib_confluence
+                    smartflow_service.min_confidence_score = config.min_confidence_score
+                    smartflow_service.time_filter_start_hour = config.time_filter_start_hour
+                    smartflow_service.time_filter_start_minute = getattr(config, 'time_filter_start_minute', 30)
+                    smartflow_service.time_filter_end_hour = config.time_filter_end_hour
+                    smartflow_service.time_filter_end_minute = getattr(config, 'time_filter_end_minute', 0)
+                    # AI Strategy Suite settings
+                    smartflow_service.enable_ai_enhancement = getattr(config, 'enable_ai_enhancement', False)
+                    smartflow_service.ai_analysis_types = getattr(config, 'ai_analysis_types', ['technical', 'patterns'])
+                    smartflow_service.block_on_ai_disagree = getattr(config, 'block_on_ai_disagree', True)
+                    smartflow_service.check_market_trend = getattr(config, 'check_market_trend', True)
+                    smartflow_service.enable_bearish_bias = getattr(config, 'enable_bearish_bias', False)  # Solution 3
+                    smartflow_service.enable_ai_only_mode = getattr(config, 'enable_ai_only_mode', False)
+                    smartflow_service.ai_only_scan_interval = getattr(config, 'ai_only_scan_interval', 300)
+                    smartflow_service.ai_only_confidence_threshold = getattr(config, 'ai_only_confidence_threshold', 70.0)
+                    smartflow_service.ai_only_instruments = getattr(config, 'ai_only_instruments', ['MES', 'NQ', 'RTY'])
+                    # Deterministic Engine (PREVIOUSLY HARDCODED)
+                    smartflow_service.enable_deterministic_mode = getattr(config, 'enable_deterministic_mode', True)
+                    smartflow_service.deterministic_min_confidence = getattr(config, 'deterministic_min_confidence', 75.0)
+                    smartflow_service.deterministic_min_aligned_tfs = getattr(config, 'deterministic_min_aligned_tfs', 4)
+                    smartflow_service.deterministic_min_rr = getattr(config, 'deterministic_min_rr', 2.0)
+                    smartflow_service.deterministic_rr_preset = getattr(config, 'deterministic_rr_preset', 'balanced')
+                    # Quick Mode (PREVIOUSLY HARDCODED)
+                    smartflow_service.enable_quick_mode = getattr(config, 'enable_quick_mode', True)
+                    smartflow_service.quick_scan_interval = getattr(config, 'quick_scan_interval', 60)
+                    smartflow_service.quick_min_confidence = getattr(config, 'quick_min_confidence', 60.0)
+                    smartflow_service.quick_min_rr = getattr(config, 'quick_min_rr', 1.5)
+                    smartflow_service.quick_require_15m_confirmation = getattr(config, 'quick_require_15m_confirmation', True)
+                    logger.info(f"✅ Loaded SmartFlow config for user {config.user_id} (AI={smartflow_service.enable_ai_enhancement}, Deterministic={smartflow_service.enable_deterministic_mode}, Quick={smartflow_service.enable_quick_mode})")
+            db.close()
+        except Exception as e:
+            logger.warning(f"Could not load SmartFlow config from database: {e}")
+
+        # Initialize ProjectX real-time data integration for market_data_service
+        try:
+            from app.services.projectx_sdk_service import ProjectXSDKService, SDK_AVAILABLE
+
+            if SDK_AVAILABLE:
+                # Check if we have ProjectX credentials configured
+                # Read from environment or secrets (same way projectx_executor does it)
+                import os
+                username = os.getenv("PROJECTX_USERNAME") or os.getenv("TOPSTEP_USERNAME")
+                api_key = os.getenv("PROJECTX_API_KEY") or os.getenv("TOPSTEP_API_KEY")
+
+                # Try reading from Docker secrets
+                if not username:
+                    try:
+                        with open("/run/secrets/projectx_username", "r") as f:
+                            username = f.read().strip()
+                    except:
+                        pass
+
+                if not api_key:
+                    try:
+                        with open("/run/secrets/projectx_api_key", "r") as f:
+                            api_key = f.read().strip()
+                    except:
+                        pass
+
+                if username and api_key:
+                    # Initialize ProjectX service for market data
+                    projectx_service = ProjectXSDKService(
+                        username=username,
+                        api_key=api_key
+                    )
+
+                    success = await projectx_service.connect()
+                    if success:
+                        # Inject into market_data_service for real-time quotes
+                        market_data_service.set_projectx_service(projectx_service)
+                        logger.info("✅ ProjectX real-time market data enabled for AI Strategy Suite")
+                    else:
+                        logger.info("⚠️  ProjectX connection failed - using Polygon-only market data")
+                else:
+                    logger.info("ℹ️  ProjectX credentials not found - using Polygon-only market data")
+            else:
+                logger.info("ℹ️  ProjectX SDK not available - using Polygon-only market data")
+        except Exception as e:
+            logger.warning(f"Could not initialize ProjectX market data: {e}")
+
+        await smartflow_service.background_task()
+    except Exception as e:
+        logger.error(f"SmartFlow background task failed: {e}")
+
+
+# Enhanced Exception handlers
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    """Handle HTTP exceptions with structured response"""
+    request_id = getattr(request.state, "request_id", None)
+    
+    logger.warning(
+        f"HTTP {exc.status_code} on {request.method} {request.url.path} - "
+        f"Error: {exc.detail} - Request-ID: {request_id}"
+    )
+    
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "error": exc.detail,
+            "status_code": exc.status_code,
+            "path": request.url.path,
+            "request_id": request_id,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    )
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request: Request, exc: Exception):
+    """Handle general exceptions with structured logging"""
+    request_id = getattr(request.state, "request_id", None)
+    
+    logger.error(
+        f"Unhandled exception on {request.method} {request.url.path} - "
+        f"Error: {str(exc)} - Request-ID: {request_id}",
+        exc_info=True
+    )
+    
+    error_detail = "Internal server error"
+    if settings.is_development:
+        error_detail = f"{type(exc).__name__}: {str(exc)}"
+    
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": error_detail,
+            "status_code": 500,
+            "path": request.url.path,
+            "request_id": request_id,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    )
+
+# Development server startup
+if __name__ == "__main__":
+    import os
+    port = int(os.getenv("PORT", settings.PORT))
+    host = os.getenv("HOST", settings.HOST)
+    reload = os.getenv("RELOAD", str(settings.RELOAD)).lower() == "true"
+    
+    # Configure reload directories to exclude ui-next/ and node_modules
+    reload_dirs = None
+    if reload:
+        # Only watch app/ directory for changes
+        reload_dirs = ["app"]
+        logger.info(f"Reload enabled: watching {reload_dirs} (excluding ui-next/ and node_modules/)")
+    
+    uvicorn.run(
+        "app.main:app",
+        host=host,
+        port=port,
+        reload=reload,
+        reload_dirs=reload_dirs,
+        log_level=settings.LOG_LEVEL.lower(),
+        access_log=True
+    )

@@ -16,6 +16,7 @@ from app.db.database import engine, SessionLocal
 from app.models.models import User
 
 logger = logging.getLogger(__name__)
+API_BASE_URL = os.getenv("API_BASE_URL", "http://unified_engine_api:8000")
 
 class FunnelAutomationService:
     """Handles automated funnel processes and lead nurturing"""
@@ -250,7 +251,7 @@ class FunnelAutomationService:
             # Call launchpad access endpoint
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    "http://api:8000/api/v1/funnel/launchpad/grant",
+                    f"{API_BASE_URL}/api/v1/funnel/launchpad/grant",
                     json=access_data,
                     headers={"X-API-Key": "funnel-api-key-2024"}
                 ) as response:
@@ -329,7 +330,7 @@ class FunnelAutomationService:
             # Get metrics from funnel router
             async with aiohttp.ClientSession() as session:
                 async with session.get(
-                    "http://api:8000/api/v1/funnel/metrics",
+                    f"{API_BASE_URL}/api/v1/funnel/metrics",
                     headers={"Authorization": f"Bearer {settings.SECRET_KEY}"}
                 ) as response:
                     if response.status == 200:

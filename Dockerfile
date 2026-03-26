@@ -20,11 +20,18 @@ RUN apt-get update && apt-get install -y \
 
 # Copy requirements and install Python dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir --timeout=300 --retries=3 -r requirements.txt
 
 # Install metaapi-cloud-sdk and its dependencies (install fully for all MetaAPI functionality)
 # Note: python-socketio/python-engineio versions already compatible in requirements.txt
 RUN pip install --no-cache-dir metaapi-cloud-sdk>=29.0.0 tradelocker>=0.56.0
+
+# Install pandas-ta with its dependencies except numpy
+# pandas-ta requires numpy<2.3 but we need numpy>=2.3.2 for project-x-py
+# Install numba first (pandas-ta dependency), then pandas-ta with --no-deps
+RUN pip install --no-cache-dir numba && \
+    pip install --no-cache-dir --no-deps pandas-ta>=0.3.14b0
 
 # Patch ProjectX SDK models.py - fix dataclass field ordering error
 # The SDK has fields without defaults after fields with defaults (int | None implies default=None)

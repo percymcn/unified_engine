@@ -70,6 +70,14 @@ export function EquityChartWidget() {
     return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   };
 
+  const formatYAxisValue = (value: number) => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      maximumFractionDigits: 0,
+    }).format(value);
+  };
+
   const isPositive =
     equityData?.change_percent !== null &&
     equityData?.change_percent !== undefined &&
@@ -133,6 +141,14 @@ export function EquityChartWidget() {
   const maxEquity = Math.max(...equities);
   const padding = (maxEquity - minEquity) * 0.15 || 100;
   const avgEquity = equities.reduce((a, b) => a + b, 0) / equities.length;
+  const baseEquity = equityData.current_balance || equityData.current_equity || avgEquity || 0;
+  const minDomainCandidate = minEquity - padding;
+  const maxDomainCandidate = maxEquity + padding;
+  const minCap = baseEquity > 0 ? baseEquity * 0.2 : minDomainCandidate;
+  const maxCap = baseEquity > 0 ? baseEquity * 3 : maxDomainCandidate;
+  const domainMin = Math.max(minDomainCandidate, minCap);
+  const domainMax = Math.min(maxDomainCandidate, maxCap);
+  const yDomain = domainMin < domainMax ? [domainMin, domainMax] : [minDomainCandidate, maxDomainCandidate];
 
   // Primary color based on performance
   const primaryColor = isPositive ? "#10b981" : "#ef4444";
@@ -317,13 +333,11 @@ export function EquityChartWidget() {
                 tickMargin={8}
               />
               <YAxis
-                tickFormatter={(v) =>
-                  `$${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`
-                }
+                tickFormatter={(v) => formatYAxisValue(Number(v))}
                 tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
                 axisLine={false}
                 tickLine={false}
-                domain={[minEquity - padding, maxEquity + padding]}
+                domain={yDomain}
                 width={55}
               />
               <Tooltip

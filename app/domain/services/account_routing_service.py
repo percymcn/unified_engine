@@ -205,8 +205,18 @@ class AccountRoutingService:
         for rule in rules:
             if self._rule_matches(rule, symbol, strategy_id, action):
                 rule_accounts = rule.get("account_ids", [])
+                rule_mode = rule.get("mode", "unknown")
+                rule_name = rule.get("name", "unnamed_rule")
                 matched_account_ids.update(rule_accounts)
-                match_reasons.append(rule.get("name", "unnamed_rule"))
+                match_reasons.append(rule_name)
+
+                # Log production vs shadow routing mode
+                if rule_mode == "production":
+                    logger.info(f"[PRODUCTION ROUTING] strategy={strategy_id} rule={rule_name} accounts={rule_accounts}")
+                elif rule_mode == "shadow":
+                    logger.info(f"[SHADOW ROUTING] strategy={strategy_id} rule={rule_name} accounts={rule_accounts} (test-only)")
+                else:
+                    logger.info(f"[ROUTING] strategy={strategy_id} rule={rule_name} accounts={rule_accounts}")
 
         if not matched_account_ids:
             # No rules matched - fallback to default

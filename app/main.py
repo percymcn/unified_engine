@@ -7,6 +7,7 @@ from app.utils.projectx_sdk_patches import apply_all_patches
 apply_all_patches()
 
 import asyncio
+import gc
 import logging
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -76,6 +77,10 @@ from app.routers.support import router as support_router
 from app.routers.circuit_breaker_health import router as circuit_breaker_health_router
 from app.routers.smartflow import router as smartflow_router
 from app.routers.ai_strategy import router as ai_strategy_router
+from app.routers.strategy_registry import router as strategy_registry_router
+from app.routers.smartflow_integrity import router as smartflow_integrity_router
+from app.routers.smartflow_trader_dashboard import router as smartflow_trader_dashboard_router
+from app.routers.monitor import router as monitor_router
 from app.services.smartflow_service import smartflow_service
 from app.services.market_data_service import market_data_service
 from app.core.event_emitter import event_emitter
@@ -150,6 +155,12 @@ async def lifespan(app: FastAPI):
         asyncio.create_task(tradovate_token_refresh_loop())
         asyncio.create_task(webhook_log_cleanup_loop())
         asyncio.create_task(smartflow_background_loop())
+        asyncio.create_task(memory_cleanup_loop())
+        try:
+            from app.services.smartflow_trader import smartflow_trader_background_loop
+            asyncio.create_task(smartflow_trader_background_loop())
+        except Exception as e:
+            logger.warning(f"SmartFlowTrader background loop not started: {e}")
 
         logger.info("🎉 Unified Trading Engine started successfully!")
         
@@ -291,6 +302,8 @@ if settings.is_production:
             # Internal Docker service names for container-to-container communication
             "api",
             "api:8000",
+            "unified_engine_api",
+            "unified_engine_api:8000",
         ]
     )
 
@@ -312,7 +325,7 @@ app.include_router(subscription_router, tags=["subscription"])
 app.include_router(webhook_signal_router, prefix="/api/v1", tags=["webhook-signals"])
 app.include_router(webhook_signal_router, tags=["webhook-signals-compat"])  # Alias: /webhooks/* for TradingView
 app.include_router(api_keys_router, prefix="/api/v1", tags=["api-keys"])
-app.include_router(strategies_router, prefix="/api", tags=["strategies"])
+app.include_router(strategies_router, prefix="/api/old-strategies", tags=["strategies"])  # Legacy - moved to /api/old-strategies
 app.include_router(strategy_execution_router, prefix="/api/v1", tags=["strategy-execution"])
 app.include_router(oauth_router, tags=["oauth"])
 app.include_router(analytics_router, tags=["analytics"])
@@ -345,7 +358,15 @@ app.include_router(ai_suite_router, prefix="/api/v1", tags=["ai-suite"])
 app.include_router(support_router, tags=["support"])
 app.include_router(circuit_breaker_health_router, prefix="/api/v1", tags=["monitoring"])
 app.include_router(smartflow_router, prefix="/api/v1/smartflow", tags=["smartflow"])
+app.include_router(smartflow_integrity_router, tags=["smartflow-integrity"])
+app.include_router(
+    smartflow_trader_dashboard_router,
+    prefix="/api/v1/smartflow/trader",
+    tags=["smartflow-trader"],
+)
 app.include_router(ai_strategy_router, tags=["ai-strategy"])
+app.include_router(strategy_registry_router, tags=["strategy-registry"])
+app.include_router(monitor_router, tags=["agentic-monitor"])
 
 # WebSocket endpoint
 @app.websocket("/ws")
@@ -710,6 +731,48 @@ async def webhook_log_cleanup_loop():
         await asyncio.sleep(CLEANUP_INTERVAL_SECONDS)
 
 
+async def memory_cleanup_loop():
+    """Periodically trigger GC and log memory stats to reduce heap growth."""
+    import resource
+
+    CLEANUP_INTERVAL_SECONDS = 300
+
+    while True:
+        try:
+            collected = gc.collect()
+            rss_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+            logger.info(
+                "Memory cleanup complete: gc_collected=%s rss_kb=%s",
+                collected,
+                rss_kb,
+            )
+        except Exception as e:
+            logger.error(f"Memory cleanup error: {e}")
+
+        await asyncio.sleep(CLEANUP_INTERVAL_SECONDS)
+
+
+
+def is_projectx_market_hours() -> bool:
+    """Check if ProjectX/futures markets are open (Sun 6pm - Fri 6pm EST)."""
+    try:
+        from zoneinfo import ZoneInfo
+        from datetime import datetime as dt
+        EST = ZoneInfo("America/New_York")
+        now = dt.now(EST)
+        weekday = now.weekday()  # 0=Mon, 6=Sun
+        hour = now.hour
+        if weekday == 5:  # Saturday: fully closed
+            return False
+        if weekday == 6:  # Sunday: opens at 6pm EST
+            return hour >= 18
+        if weekday == 4:  # Friday: closes at 6pm EST
+            return hour < 18
+        return True  # Mon-Thu: open
+    except Exception:
+        return True
+
+
 async def smartflow_background_loop():
     """
     Background task for SmartFlow Indicator - optional AI-driven flow sentiment analysis.
@@ -761,57 +824,98 @@ async def smartflow_background_loop():
                     smartflow_service.ai_only_scan_interval = getattr(config, 'ai_only_scan_interval', 300)
                     smartflow_service.ai_only_confidence_threshold = getattr(config, 'ai_only_confidence_threshold', 70.0)
                     smartflow_service.ai_only_instruments = getattr(config, 'ai_only_instruments', ['MES', 'NQ', 'RTY'])
-                    logger.info(f"✅ Loaded SmartFlow config for user {config.user_id} from database (AI enhancement={smartflow_service.enable_ai_enhancement})")
+                    # Deterministic Engine (PREVIOUSLY HARDCODED)
+                    smartflow_service.enable_deterministic_mode = getattr(config, 'enable_deterministic_mode', True)
+                    smartflow_service.deterministic_min_confidence = getattr(config, 'deterministic_min_confidence', 75.0)
+                    smartflow_service.deterministic_min_aligned_tfs = getattr(config, 'deterministic_min_aligned_tfs', 4)
+                    smartflow_service.deterministic_min_rr = getattr(config, 'deterministic_min_rr', 2.0)
+                    smartflow_service.deterministic_rr_preset = getattr(config, 'deterministic_rr_preset', 'balanced')
+                    # Quick Mode (PREVIOUSLY HARDCODED)
+                    smartflow_service.enable_quick_mode = getattr(config, 'enable_quick_mode', True)
+                    smartflow_service.quick_scan_interval = getattr(config, 'quick_scan_interval', 60)
+                    smartflow_service.quick_min_confidence = getattr(config, 'quick_min_confidence', 60.0)
+                    smartflow_service.quick_min_rr = getattr(config, 'quick_min_rr', 1.5)
+                    smartflow_service.quick_require_15m_confirmation = getattr(config, 'quick_require_15m_confirmation', True)
+                    logger.info(f"✅ Loaded SmartFlow config for user {config.user_id} (AI={smartflow_service.enable_ai_enhancement}, Deterministic={smartflow_service.enable_deterministic_mode}, Quick={smartflow_service.enable_quick_mode})")
             db.close()
         except Exception as e:
             logger.warning(f"Could not load SmartFlow config from database: {e}")
 
-        # Initialize ProjectX real-time data integration for market_data_service
-        try:
-            from app.services.projectx_sdk_service import ProjectXSDKService, SDK_AVAILABLE
+        # Initialize ProjectX real-time data integration (with weekend guard)
+        projectx_service = None
+        projectx_connected = False
 
-            if SDK_AVAILABLE:
-                # Check if we have ProjectX credentials configured
-                # Read from environment or secrets (same way projectx_executor does it)
+        async def connect_projectx():
+            nonlocal projectx_service, projectx_connected
+            try:
+                from app.services.projectx_sdk_service import ProjectXSDKService, SDK_AVAILABLE
+                if not SDK_AVAILABLE:
+                    logger.info("ℹ️  ProjectX SDK not available")
+                    return False
+                if not is_projectx_market_hours():
+                    logger.info("⏸️  ProjectX market closed - skipping connection (saves memory)")
+                    return False
                 import os
                 username = os.getenv("PROJECTX_USERNAME") or os.getenv("TOPSTEP_USERNAME")
                 api_key = os.getenv("PROJECTX_API_KEY") or os.getenv("TOPSTEP_API_KEY")
-
-                # Try reading from Docker secrets
                 if not username:
                     try:
                         with open("/run/secrets/projectx_username", "r") as f:
                             username = f.read().strip()
-                    except:
-                        pass
-
+                    except: pass
                 if not api_key:
                     try:
                         with open("/run/secrets/projectx_api_key", "r") as f:
                             api_key = f.read().strip()
-                    except:
-                        pass
-
-                if username and api_key:
-                    # Initialize ProjectX service for market data
-                    projectx_service = ProjectXSDKService(
-                        username=username,
-                        api_key=api_key
-                    )
-
-                    success = await projectx_service.connect()
-                    if success:
-                        # Inject into market_data_service for real-time quotes
-                        market_data_service.set_projectx_service(projectx_service)
-                        logger.info("✅ ProjectX real-time market data enabled for AI Strategy Suite")
-                    else:
-                        logger.info("⚠️  ProjectX connection failed - using Polygon-only market data")
+                    except: pass
+                if not (username and api_key):
+                    logger.info("ℹ️  ProjectX credentials not found")
+                    return False
+                projectx_service = ProjectXSDKService(username=username, api_key=api_key)
+                success = await projectx_service.connect()
+                if success:
+                    market_data_service.set_projectx_service(projectx_service)
+                    projectx_connected = True
+                    logger.info("✅ ProjectX real-time market data enabled")
+                    return True
                 else:
-                    logger.info("ℹ️  ProjectX credentials not found - using Polygon-only market data")
-            else:
-                logger.info("ℹ️  ProjectX SDK not available - using Polygon-only market data")
-        except Exception as e:
-            logger.warning(f"Could not initialize ProjectX market data: {e}")
+                    logger.info("⚠️  ProjectX connection failed")
+                    return False
+            except Exception as e:
+                logger.warning(f"Could not initialize ProjectX: {e}")
+                return False
+
+        async def disconnect_projectx():
+            nonlocal projectx_service, projectx_connected
+            if projectx_service and projectx_connected:
+                try:
+                    await projectx_service.disconnect()
+                    market_data_service.set_projectx_service(None)
+                    projectx_connected = False
+                    logger.info("⏸️  ProjectX disconnected (market closed)")
+                except Exception as e:
+                    logger.warning(f"Error disconnecting ProjectX: {e}")
+
+        await connect_projectx()
+
+        async def projectx_market_hours_monitor():
+            """Connect/disconnect ProjectX based on market hours (every 5 min check)."""
+            nonlocal projectx_connected
+            while True:
+                try:
+                    await asyncio.sleep(300)
+                    if is_projectx_market_hours():
+                        if not projectx_connected:
+                            logger.info("🔄 ProjectX market open - reconnecting...")
+                            await connect_projectx()
+                    else:
+                        if projectx_connected:
+                            logger.info("⏸️  ProjectX market closed - disconnecting")
+                            await disconnect_projectx()
+                except Exception as e:
+                    logger.warning(f"ProjectX monitor error: {e}")
+
+        asyncio.create_task(projectx_market_hours_monitor())
 
         await smartflow_service.background_task()
     except Exception as e:

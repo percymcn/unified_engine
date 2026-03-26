@@ -1,0 +1,36 @@
+{
+  "SPY_15m_ATR": {
+    "symbol": "SPY",
+    "stop_type": "ATR(2.0x)",
+    "timeframe": "15m",
+    "days": 30,
+    "bars_analysed": 1486,
+    "total_trades": 82,
+    "win_rate": 0.4024,
+    "avg_win_pct": 38.581,
+    "avg_loss_pct": -23.394,
+    "sharpe_ratio": 0.576,
+    "max_drawdown_pct": -3.457,
+    "total_return_pct": 1.202,
+    "final_equity": 1.012023,
+    "profit_factor": 1.649,
+    "run_timestamp": "2026-03-26T01:10:11.075562"
+  },
+  "QQQ_15m_ATR": {
+    "symbol": "QQQ",
+    "stop_type": "ATR(2.0x)",
+    "timeframe": "15m",
+    "days": 30,
+    "bars_analysed": 1486,
+    "total_trades": 82,
+    "win_rate": 0.378,
+    "avg_win_pct": 52.014,
+    "avg_loss_pct": -36.788,
+    "sharpe_ratio": -0.814,
+    "max_drawdown_pct": -6.89,
+    "total_return_pct": -2.759,
+    "final_equity": 0.972408,
+    "profit_factor": 1.414,
+    "run_timestamp": "2026-03-26T01:09:49.648562"
+  }
+}

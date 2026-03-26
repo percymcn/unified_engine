@@ -1,0 +1,210 @@
+{
+  "timestamp": "2026-03-18T22:33:20.454334",
+  "instruments": [
+    "MES",
+    "MNQ",
+    "NQ"
+  ],
+  "period_days": 90,
+  "results": [
+    {
+      "name": "Current (VWAP only)",
+      "total_trades": 345,
+      "avg_win_rate": 49.56295600664597,
+      "combined_pnl": 15335.318402355577,
+      "avg_sharpe": 2.1354655676910004,
+      "avg_profit_factor": 1.3566938451218433,
+      "max_drawdown": 24.120728153056653,
+      "regime_pnl": {
+        "trending_down": 23192.934174701804,
+        "trending_up": -7857.615772346226
+      },
+      "uptrend_pnl": -7857.615772346226,
+      "per_instrument": {
+        "MES": {
+          "total_trades": 127,
+          "win_rate": 49.60629921259843,
+          "net_profit": 1575.5464294704564,
+          "sharpe": 1.537159515067977,
+          "max_dd": 5.0781145906752805,
+          "profit_factor": 1.2488956573058592,
+          "regime_pnl": {
+            "trending_down": 1645.8584826735296,
+            "trending_up": -70.31205320307312
+          },
+          "regime_win_rates": {
+            "trending_down": 48.61111111111111,
+            "trending_up": 50.90909090909091
+          }
+        },
+        "MNQ": {
+          "total_trades": 109,
+          "win_rate": 49.54128440366973,
+          "net_profit": 1027.9338157168288,
+          "sharpe": 2.175140242256056,
+          "max_dd": 3.961526042697235,
+          "profit_factor": 1.3579154454961837,
+          "regime_pnl": {
+            "trending_down": 1821.7796083662067,
+            "trending_up": -793.8457926493777
+          },
+          "regime_win_rates": {
+            "trending_down": 64.17910447761194,
+            "trending_up": 26.190476190476193
+          }
+        },
+        "NQ": {
+          "total_trades": 109,
+          "win_rate": 49.54128440366973,
+          "net_profit": 12731.838157168291,
+          "sharpe": 2.694096945748969,
+          "max_dd": 24.120728153056653,
+          "profit_factor": 1.4632704325634864,
+          "regime_pnl": {
+            "trending_down": 19725.29608366207,
+            "trending_up": -6993.457926493775
+          },
+          "regime_win_rates": {
+            "trending_down": 64.17910447761194,
+            "trending_up": 26.190476190476193
+          }
+        }
+      }
+    },
+    {
+      "name": "Full New Stack",
+      "total_trades": 214,
+      "avg_win_rate": 58.12097812097812,
+      "combined_pnl": 23478.121559018327,
+      "avg_sharpe": 5.372186759823116,
+      "avg_profit_factor": 2.133380268031612,
+      "max_drawdown": 12.633999776126656,
+      "regime_pnl": {
+        "trending_down": 23382.488085240868,
+        "trending_up": 95.63347377746578
+      },
+      "uptrend_pnl": 95.63347377746578,
+      "per_instrument": {
+        "MES": {
+          "total_trades": 74,
+          "win_rate": 48.64864864864865,
+          "net_profit": 1494.464684480995,
+          "sharpe": 2.6234951867973084,
+          "max_dd": 4.121414399076524,
+          "profit_factor": 1.444007326055629,
+          "regime_pnl": {
+            "trending_down": 1489.1876479507823,
+            "trending_up": 5.277036530212598
+          },
+          "regime_win_rates": {
+            "trending_down": 48.61111111111111,
+            "trending_up": 50.0
+          }
+        },
+        "MNQ": {
+          "total_trades": 70,
+          "win_rate": 62.857142857142854,
+          "net_profit": 1834.4818432767188,
+          "sharpe": 6.417204523465033,
+          "max_dd": 2.173546491637756,
+          "profit_factor": 2.367616638749005,
+          "regime_pnl": {
+            "trending_down": 1832.4039853451507,
+            "trending_up": 2.0778579315684667
+          },
+          "regime_win_rates": {
+            "trending_down": 64.17910447761194,
+            "trending_up": 33.33333333333333
+          }
+        },
+        "NQ": {
+          "total_trades": 70,
+          "win_rate": 62.857142857142854,
+          "net_profit": 20149.175031260613,
+          "sharpe": 7.075860569207004,
+          "max_dd": 12.633999776126656,
+          "profit_factor": 2.5885168392902016,
+          "regime_pnl": {
+            "trending_down": 20060.896451944936,
+            "trending_up": 88.27857931568471
+          },
+          "regime_win_rates": {
+            "trending_down": 64.17910447761194,
+            "trending_up": 33.33333333333333
+          }
+        }
+      }
+    },
+    {
+      "name": "Strict Uptrend Only",
+      "total_trades": 214,
+      "avg_win_rate": 58.12097812097812,
+      "combined_pnl": 23478.121559018327,
+      "avg_sharpe": 5.372186759823116,
+      "avg_profit_factor": 2.133380268031612,
+      "max_drawdown": 12.633999776126656,
+      "regime_pnl": {
+        "trending_down": 23382.488085240868,
+        "trending_up": 95.63347377746578
+      },
+      "uptrend_pnl": 95.63347377746578,
+      "per_instrument": {
+        "MES": {
+          "total_trades": 74,
+          "win_rate": 48.64864864864865,
+          "net_profit": 1494.464684480995,
+          "sharpe": 2.6234951867973084,
+          "max_dd": 4.121414399076524,
+          "profit_factor": 1.444007326055629,
+          "regime_pnl": {
+            "trending_down": 1489.1876479507823,
+            "trending_up": 5.277036530212598
+          },
+          "regime_win_rates": {
+            "trending_down": 48.61111111111111,
+            "trending_up": 50.0
+          }
+        },
+        "MNQ": {
+          "total_trades": 70,
+          "win_rate": 62.857142857142854,
+          "net_profit": 1834.4818432767188,
+          "sharpe": 6.417204523465033,
+          "max_dd": 2.173546491637756,
+          "profit_factor": 2.367616638749005,
+          "regime_pnl": {
+            "trending_down": 1832.4039853451507,
+            "trending_up": 2.0778579315684667
+          },
+          "regime_win_rates": {
+            "trending_down": 64.17910447761194,
+            "trending_up": 33.33333333333333
+          }
+        },
+        "NQ": {
+          "total_trades": 70,
+          "win_rate": 62.857142857142854,
+          "net_profit": 20149.175031260613,
+          "sharpe": 7.075860569207004,
+          "max_dd": 12.633999776126656,
+          "profit_factor": 2.5885168392902016,
+          "regime_pnl": {
+            "trending_down": 20060.896451944936,
+            "trending_up": 88.27857931568471
+          },
+          "regime_win_rates": {
+            "trending_down": 64.17910447761194,
+            "trending_up": 33.33333333333333
+          }
+        }
+      }
+    }
+  ],
+  "targets_met": {
+    "Uptrend P&L Positive": "True",
+    "PF >= 1.55": "True",
+    "Sharpe >= 2.0": "True",
+    "DD < 6%": "False"
+  },
+  "all_passed": false
+}

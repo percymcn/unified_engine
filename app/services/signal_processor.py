@@ -500,9 +500,17 @@ class SignalProcessor:
             if not settings.RISK_MANAGEMENT_ENABLED:
                 return {"passed": True}
 
+            # Quantity must be present and positive for entry signals.
+            if not self._is_close_action(signal_request.action):
+                if signal_request.quantity is None or signal_request.quantity <= 0:
+                    return {
+                        "passed": False,
+                        "error": f"Invalid quantity {signal_request.quantity} for entry signal"
+                    }
+
             # Check maximum position size (global check)
             max_size = getattr(settings, 'MAX_POSITION_SIZE', 100)
-            if signal_request.quantity > max_size:
+            if signal_request.quantity and signal_request.quantity > max_size:
                 return {
                     "passed": False,
                     "error": f"Position size {signal_request.quantity} exceeds maximum {max_size}"
@@ -513,7 +521,7 @@ class SignalProcessor:
 
         except Exception as e:
             logger.error(f"Error checking risk limits: {e}")
-            return {"passed": True}  # Allow on error
+            return {"passed": False, "error": f"risk_check_error: {e}"}
 
     async def _check_deduplication(
         self,
@@ -581,7 +589,7 @@ class SignalProcessor:
 
         except Exception as e:
             logger.error(f"Error checking deduplication: {e}")
-            return {"passed": True}  # Allow on error (fail open)
+            return {"passed": False, "error": f"deduplication_check_error: {e}"}
         finally:
             if 'db' in locals():
                 db.close()
@@ -1406,6 +1414,26 @@ class SignalProcessor:
                 broker_type=broker_type
             )
 
+            # Entry signals need a valid execution price before any broker call.
+            execution_price = signal_request.price
+            if not self._is_close_action(signal_request.action):
+                if execution_price is None or execution_price <= 0:
+                    return {
+                        "success": False,
+                        "account_id": account.id,
+                        "account_number": account.account_number,
+                        "error": f"Invalid execution price: {execution_price}",
+                        "status": "rejected"
+                    }
+                if quantity is None or quantity <= 0:
+                    return {
+                        "success": False,
+                        "account_id": account.id,
+                        "account_number": account.account_number,
+                        "error": f"Invalid execution quantity: {quantity}",
+                        "status": "rejected"
+                    }
+
             # Handle close actions separately
             if self._is_close_action(signal_request.action):
                 order_response = await self._execute_close_action(
@@ -1426,7 +1454,7 @@ class SignalProcessor:
                     symbol=signal_request.symbol,
                     order_type=self._map_action_to_order_type(signal_request.action),
                     quantity=quantity,
-                    price=signal_request.price,
+                    price=execution_price,
                     stop_loss=stop_loss_price,
                     take_profit=take_profit_price,
                     magic_number=signal_request.magic_number,
@@ -1654,7 +1682,7 @@ class SignalProcessor:
         try:
             db = next(get_db())
 
-            signal = db.query(Signal).filter(Signal.id == int(signal_id)).first()
+            signal = db.query(Signal).filter(Signal.signal_id == signal_id).first()
             if signal:
                 signal.status = "executed" if execution_result["success"] else "failed"
                 signal.order_id = execution_result.get("order_id")

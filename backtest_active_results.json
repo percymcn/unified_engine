@@ -1,0 +1,52 @@
+{
+  "timestamp": "2026-03-18T20:36:32.967124",
+  "config": {
+    "ensemble_gate": 0.62,
+    "flow_confirmation": true,
+    "initial_capital": 25000.0,
+    "position_size_pct": 2.0
+  },
+  "instruments": [
+    "MES",
+    "MNQ",
+    "NQ"
+  ],
+  "results": {
+    "MES": {
+      "total_trades": 127,
+      "win_rate": 49.60629921259843,
+      "net_profit": 1575.5464294704564,
+      "sharpe": 1.537159515067977,
+      "max_dd": 5.0781145906752805,
+      "profit_factor": 1.2488956573058592,
+      "flow_confirmed_wr": 49.60629921259843,
+      "flow_unconfirmed_wr": 0.0
+    },
+    "MNQ": {
+      "total_trades": 143,
+      "win_rate": 39.16083916083916,
+      "net_profit": 396979.6666305688,
+      "sharpe": 2.0059639878066444,
+      "max_dd": 50.656864332096475,
+      "profit_factor": 1.930240090455836,
+      "flow_confirmed_wr": 39.16083916083916,
+      "flow_unconfirmed_wr": 0.0
+    },
+    "NQ": {
+      "total_trades": 143,
+      "win_rate": 39.16083916083916,
+      "net_profit": 4014115.5006830096,
+      "sharpe": 2.0308326873543874,
+      "max_dd": 65.95395806655996,
+      "profit_factor": 1.966891353281044,
+      "flow_confirmed_wr": 39.16083916083916,
+      "flow_unconfirmed_wr": 0.0
+    }
+  },
+  "combined": {
+    "total_trades": 413,
+    "avg_win_rate": 42.64265917809225,
+    "combined_pnl": 4412670.713743049,
+    "avg_sharpe": 1.857985396743003
+  }
+}

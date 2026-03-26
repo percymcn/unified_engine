@@ -686,8 +686,64 @@ class TradeLockerExecutor(BaseExecutor):
                     )
             except Exception as e:
                 logger.error(f"SDK get_price_history failed: {e}")
-        
+
         return None
+
+    async def get_candles(
+        self,
+        symbol: str,
+        timeframe: str = "5m",
+        count: int = 50
+    ) -> List[Dict[str, Any]]:
+        """
+        Get candle data for a symbol (wrapper for get_price_history).
+
+        Args:
+            symbol: Symbol name (e.g., "EURUSD", "BTCUSD")
+            timeframe: Time resolution (5m, 15m, 1H, etc.)
+            count: Number of candles to retrieve
+
+        Returns:
+            List of candle dictionaries with open, high, low, close, volume
+        """
+        try:
+            # Map timeframe format (5m -> 5m, 1H -> 1H)
+            resolution = timeframe.upper() if timeframe.endswith(('H', 'h', 'D', 'd', 'W', 'w', 'M')) else timeframe
+
+            # Calculate lookback period based on count and timeframe
+            if 'm' in timeframe.lower():
+                minutes = int(timeframe.lower().replace('m', ''))
+                total_minutes = minutes * count
+                lookback_days = max(1, total_minutes // (60 * 24) + 1)
+                lookback_period = f"{lookback_days}D"
+            else:
+                lookback_period = "5D"  # Default for hourly/daily
+
+            history = await self.get_price_history(
+                symbol=symbol,
+                resolution=resolution,
+                lookback_period=lookback_period
+            )
+
+            if history is not None:
+                # Convert to list of dicts format expected by signal_intelligence_guard
+                candles = []
+                if hasattr(history, 'iterrows'):
+                    for _, row in history.tail(count).iterrows():
+                        candles.append({
+                            'open': row.get('open', row.get('Open', 0)),
+                            'high': row.get('high', row.get('High', 0)),
+                            'low': row.get('low', row.get('Low', 0)),
+                            'close': row.get('close', row.get('Close', 0)),
+                            'volume': row.get('volume', row.get('Volume', 0)),
+                            'timestamp': row.get('timestamp', row.get('time', None))
+                        })
+                return candles
+
+            return []
+        except Exception as e:
+            logger.warning(f"get_candles failed for {symbol}: {e}")
+            return []
 
     async def get_symbols(self) -> List[str]:
         """Get available symbols from TradeLocker via SDK"""

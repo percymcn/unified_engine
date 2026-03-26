@@ -1,0 +1,184 @@
+{
+  "baseline_version": "v1",
+  "created_at": "2026-03-18T05:30:00Z",
+  "created_by": "system",
+  "freeze_reason": "Pre-freeze validation passed - system stable",
+
+  "code_identity": {
+    "git_commit": "496ec1e5495eab893e9e8aaeef151137ea95820b",
+    "git_message": "backup: pre-deterministic-indicators working state",
+    "image_tag": "latest",
+    "image_built_at": "2026-03-18T00:50:03-04:00",
+    "app_version": "1.2.1"
+  },
+
+  "runtime_services": {
+    "expected": [
+      "unified_trading_api",
+      "unified_trading_postgres",
+      "unified_trading_redis",
+      "unified_trading_celery-worker",
+      "unified_trading_celery-beat"
+    ],
+    "ports": {
+      "api": 8000,
+      "postgres": 5432,
+      "redis": 6379
+    }
+  },
+
+  "database_schema": {
+    "alembic_version": "047_portfolio_risk",
+    "smartflow_tables": [
+      "smartflow_config",
+      "smartflow_signal_logs",
+      "smartflow_score_history",
+      "smartflow_strategies",
+      "smartflow_market_regimes",
+      "smartflow_patterns",
+      "smartflow_signal_outcomes",
+      "smartflow_model_state",
+      "smartflow_ml_metrics",
+      "smartflow_correlation_signals"
+    ],
+    "strategy_tables": [
+      "strategy_backtest_snapshots",
+      "strategy_forward_test_snapshots",
+      "strategy_health_snapshots",
+      "strategy_evaluations",
+      "strategy_candidates",
+      "strategy_performance"
+    ],
+    "row_counts": {
+      "smartflow_config": 3,
+      "smartflow_signal_logs": 2919,
+      "smartflow_strategies": 10,
+      "smartflow_score_history": 16298,
+      "strategy_health_snapshots": 0,
+      "strategy_forward_test_snapshots": 0,
+      "strategy_backtest_snapshots": 0
+    },
+    "key_constraints": {
+      "smartflow_signal_logs_config_id_fkey": "smartflow_config.id"
+    }
+  },
+
+  "runtime_chain": {
+    "description": "SmartFlow signal processing pipeline",
+    "stages": [
+      {"name": "market_data", "component": "market_data_service", "type": "input"},
+      {"name": "regime_detection", "component": "regime_detector_v2", "type": "analysis"},
+      {"name": "quick_anchor", "component": "quick_strategy", "type": "signal"},
+      {"name": "adaptive_router", "component": "smartflow_engine_router", "type": "routing"},
+      {"name": "strategy_registry", "component": "strategy_registry", "type": "eligibility"},
+      {"name": "strategy_engine", "component": "strategy_engines/*", "type": "execution"},
+      {"name": "ai_feature_engine", "component": "ai_feature_engine", "type": "enhancement"},
+      {"name": "flow_feature_engine", "component": "flow_feature_engine", "type": "enhancement"},
+      {"name": "signal_agreement", "component": "signal_agreement", "type": "validation"},
+      {"name": "signal_guard", "component": "smartflow_service.signal_guard", "type": "filtering"},
+      {"name": "allocator", "component": "strategy_allocator", "type": "allocation"},
+      {"name": "portfolio_risk", "component": "portfolio_risk", "type": "risk"},
+      {"name": "execution_quality", "component": "execution_quality", "type": "quality"},
+      {"name": "webhook_execution", "component": "webhook_execute", "type": "delivery"},
+      {"name": "broker_execution", "component": "brokers/*_executor", "type": "execution"},
+      {"name": "db_logging", "component": "smartflow_signal_logs", "type": "persistence"}
+    ]
+  },
+
+  "strategy_registry": {
+    "strategies": [
+      {"strategy_id": "unified_v1", "strategy_type": "unified", "status": "built_in", "health_status": "healthy", "sharpe_ratio": 3.2, "win_rate": 0.559, "is_paused": false},
+      {"strategy_id": "deterministic_v1", "strategy_type": "deterministic", "status": "approved_for_router", "health_status": "healthy", "sharpe_ratio": 3.2, "win_rate": 0.559, "is_paused": false},
+      {"strategy_id": "quick_v1", "strategy_type": "quick", "status": "approved_for_router", "health_status": "healthy", "sharpe_ratio": 2.88, "win_rate": 0.51, "is_paused": false},
+      {"strategy_id": "flow_v1", "strategy_type": "flow", "status": "approved_for_router", "health_status": "healthy", "sharpe_ratio": 3.63, "win_rate": 0.545, "is_paused": false},
+      {"strategy_id": "ai_v1_proxy", "strategy_type": "ai", "status": "approved_for_router", "health_status": "healthy", "sharpe_ratio": 3.9, "win_rate": 0.559, "is_paused": false},
+      {"strategy_id": "breakout_v1", "strategy_type": "breakout", "status": "approved_for_router", "health_status": "healthy", "sharpe_ratio": 2.92, "win_rate": 0.5, "is_paused": false},
+      {"strategy_id": "mean_reversion_v1", "strategy_type": "mean_reversion", "status": "approved_for_router", "health_status": "healthy", "sharpe_ratio": 2.92, "win_rate": 0.5, "is_paused": false},
+      {"strategy_id": "trend_v1", "strategy_type": "trend", "status": "forward_testing", "health_status": "unknown", "sharpe_ratio": 1.28, "win_rate": 52.3, "is_paused": false},
+      {"strategy_id": "liquidity_reversal_v1", "strategy_type": "liquidity_reversal", "status": "forward_testing", "health_status": "unknown", "sharpe_ratio": 1.24, "win_rate": 51.8, "is_paused": false},
+      {"strategy_id": "pyramid_dynamic_v1", "strategy_type": "pyramid", "status": "approved_for_router", "health_status": "healthy", "sharpe_ratio": 1.24, "win_rate": 0.53, "is_paused": false}
+    ],
+    "router_eligible": ["unified", "deterministic", "quick"],
+    "slim_map_engines": ["quick", "unified"],
+    "manual_only_engines": ["ai", "flow"]
+  },
+
+  "routing_config": {
+    "production_accounts": [
+      {"id": 79, "broker": "PROJECTX", "is_active": true},
+      {"id": 63, "broker": "TRADELOCKER", "is_active": true},
+      {"id": 77, "broker": "TRADELOCKER", "is_active": true},
+      {"id": 76, "broker": "PROJECTX", "is_active": true}
+    ],
+    "routing_mode": "AUTO_BY_REGIME",
+    "slim_map_enabled": true
+  },
+
+  "celery_tasks": {
+    "scheduled": [
+      {"name": "sync_all_accounts", "schedule": 300},
+      {"name": "sync_positions", "schedule": 600},
+      {"name": "update_smartflow_outcomes", "schedule": 900},
+      {"name": "reset_daily_counters", "schedule": "crontab(18:01)"},
+      {"name": "capture_strategy_health_snapshots", "schedule": 1800},
+      {"name": "capture_forward_test_snapshots", "schedule": 300},
+      {"name": "capture_portfolio_risk_snapshot", "schedule": 3600}
+    ]
+  },
+
+  "api_endpoints": {
+    "smartflow": [
+      "/api/v1/smartflow/config",
+      "/api/v1/smartflow/signals",
+      "/api/v1/smartflow/strategies",
+      "/api/v1/smartflow/score-history",
+      "/api/v1/smartflow/regime"
+    ],
+    "health": [
+      "/health",
+      "/api/v1/brokers/health"
+    ],
+    "strategy_registry": [
+      "/api/v1/strategies",
+      "/api/v1/strategies/status"
+    ]
+  },
+
+  "dashboard_tabs": {
+    "smartflow": [
+      "elite-dashboard",
+      "deterministic-dashboard",
+      "quick-mode-dashboard",
+      "compare-engines-dashboard",
+      "forward-test-dashboard",
+      "adaptive-router-dashboard",
+      "strategies-overview",
+      "live-signals-dashboard",
+      "webhooks-dashboard"
+    ]
+  },
+
+  "metadata_contract": {
+    "signal_fields": [
+      "selected_strategy_id",
+      "selected_engine",
+      "current_regime",
+      "decision_source",
+      "confidence",
+      "confidence_reason",
+      "guard_status",
+      "allocator_weight",
+      "flow_score",
+      "ai_score",
+      "agreement_score"
+    ]
+  },
+
+  "validation_status": {
+    "pre_freeze_check": "PASS",
+    "critical_blockers": 0,
+    "high_blockers": 0,
+    "table_model_alignment": "FIXED",
+    "fk_relationships": "VERIFIED"
+  }
+}

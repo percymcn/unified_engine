@@ -1,0 +1,3677 @@
+{
+  "config": {
+    "initial_capital": 25000.0,
+    "position_size_pct": 2.0,
+    "commission_per_trade": 0.5,
+    "base_slippage_ticks": 1.0,
+    "tick_values": {
+      "MES": 1.25,
+      "MNQ": 0.5,
+      "NQ": 5.0,
+      "ES": 12.5,
+      "GC": 0.1,
+      "CL": 0.01,
+      "SPY": 0.01,
+      "QQQ": 0.01
+    },
+    "max_positions": 3,
+    "max_daily_loss_pct": 3.0,
+    "use_atr_stops": true,
+    "atr_stop_mult": 1.5,
+    "atr_target_mult": 3.0,
+    "use_pct_stops": false,
+    "pct_stop": 2.5,
+    "pct_target": 2.5,
+    "min_ensemble_prob": 0.62,
+    "min_signal_strength": 50.0,
+    "use_flow_filter": true,
+    "require_flow_confirmation": false,
+    "flow_prob_boost": true,
+    "use_runners": false,
+    "runner_partial_pct": 50.0,
+    "runner_first_target_rr": 1.0,
+    "runner_final_target_rr": 2.0,
+    "runner_move_stop_to_be": true,
+    "runner_add_on_trend": false,
+    "use_pyramid": false,
+    "pyramid_first_rr": 2.0,
+    "pyramid_addon_rr": 1.0,
+    "pyramid_max_positions": 2,
+    "pyramid_addon_trigger": 1.0,
+    "pyramid_longs_only": true,
+    "pyramid_use_pullback": false,
+    "pyramid_pullback_pct": 0.5,
+    "pyramid_continuation_bars": 2,
+    "trade_ranging": false,
+    "ranging_pct_stop": 1.0,
+    "ranging_pct_target": 1.0,
+    "wf_train_days": 60,
+    "wf_test_days": 20,
+    "wf_folds": 5,
+    "mc_simulations": 500
+  },
+  "metrics": {
+    "start_date": "2025-12-22",
+    "end_date": "2026-03-18",
+    "trading_days": 85,
+    "total_return_pct": 417.878515982171,
+    "cagr": 116575.21429274704,
+    "sharpe_ratio": 2.3209247680086227,
+    "sortino_ratio": 5.582459874964481,
+    "calmar_ratio": 5585.594434295925,
+    "max_drawdown_pct": 20.870690785741157,
+    "avg_drawdown_pct": 3.517334797985635,
+    "max_drawdown_duration_days": 0,
+    "total_trades": 143,
+    "winning_trades": 56,
+    "losing_trades": 87,
+    "win_rate": 39.16083916083916,
+    "gross_profit": 170926.13783838184,
+    "gross_loss": 66456.50884283909,
+    "net_profit": 104469.62899554275,
+    "profit_factor": 2.5719999562811777,
+    "expectancy": 730.5568461226762,
+    "avg_trade": 730.5568461226762,
+    "avg_win": 3052.252461399675,
+    "avg_loss": -763.8679177337827,
+    "largest_win": 37501.47764665049,
+    "largest_loss": -15354.034595465742,
+    "avg_holding_time_hours": 63.917703417486415,
+    "regime_win_rates": {
+      "trending_down": 25.757575757575758,
+      "trending_up": 50.649350649350644
+    },
+    "regime_pnl": {
+      "trending_down": -33611.13559504456,
+      "trending_up": 138080.76459058723
+    },
+    "total_slippage": 2820.8692133364602,
+    "total_commission": 71.5,
+    "flow_confirmed_trades": 143,
+    "flow_confirmed_win_rate": 39.16083916083916,
+    "flow_unconfirmed_win_rate": 0.0,
+    "flow_confirmed_pnl": 104469.62899554275,
+    "flow_unconfirmed_pnl": 0.0,
+    "mc_worst_case_dd": 0.0,
+    "mc_median_return": 0.0,
+    "mc_5th_percentile_return": 0.0
+  },
+  "walk_forward": [],
+  "trades": [
+    {
+      "entry_time": "2025-12-22 20:40:10.145889",
+      "exit_time": "2025-12-23 03:40:21.817959",
+      "direction": "short",
+      "entry_price": 4839.235461541941,
+      "exit_price": 4752.5438684346855,
+      "net_pnl": 330.7240412994816,
+      "regime": "trending_down",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2025-12-22 21:40:11.813328",
+      "exit_time": "2025-12-23 02:40:20.150521",
+      "direction": "short",
+      "entry_price": 4846.525333546543,
+      "exit_price": 4763.420964093386,
+      "net_pnl": 316.3985742796876,
+      "regime": "trending_down",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2025-12-22 22:40:13.480766",
+      "exit_time": "2025-12-23 02:40:20.150521",
+      "direction": "short",
+      "entry_price": 4847.618674405379,
+      "exit_price": 4766.310347237101,
+      "net_pnl": 309.22583159614555,
+      "regime": "trending_down",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2025-12-24 19:41:28.515504",
+      "exit_time": "2025-12-25 15:42:01.864277",
+      "direction": "short",
+      "entry_price": 4854.842396741162,
+      "exit_price": 4924.730519797851,
+      "net_pnl": -295.7671624176861,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2025-12-24 20:41:30.182943",
+      "exit_time": "2025-12-25 15:42:01.864277",
+      "direction": "short",
+      "entry_price": 4862.127275418601,
+      "exit_price": 4926.859695131669,
+      "net_pnl": -275.0909857955387,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2025-12-24 22:41:33.517820",
+      "exit_time": "2025-12-25 08:41:50.192207",
+      "direction": "short",
+      "entry_price": 4853.016226118959,
+      "exit_price": 4918.907367356547,
+      "net_pnl": -279.7388859947174,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2025-12-24 23:41:35.185259",
+      "exit_time": "2025-12-25 02:41:40.187575",
+      "direction": "short",
+      "entry_price": 4822.045091294436,
+      "exit_price": 4888.561052260756,
+      "net_pnl": -282.24885859109355,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2025-12-25 00:41:36.852698",
+      "exit_time": "2025-12-25 08:41:50.192207",
+      "direction": "short",
+      "entry_price": 4835.612680690159,
+      "exit_price": 4899.54217700851,
+      "net_pnl": -204.03102544461137,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2025-12-25 01:41:38.520136",
+      "exit_time": "2025-12-25 08:41:50.192207",
+      "direction": "short",
+      "entry_price": 4843.76718541416,
+      "exit_price": 4905.420548361861,
+      "net_pnl": -197.184403963434,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2025-12-25 22:42:13.536347",
+      "exit_time": "2025-12-26 06:42:26.875856",
+      "direction": "long",
+      "entry_price": 4959.6736572138625,
+      "exit_price": 5072.157178206707,
+      "net_pnl": 433.8733804145224,
+      "regime": "trending_up",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2025-12-26 01:42:18.538663",
+      "exit_time": "2025-12-26 06:42:26.875856",
+      "direction": "long",
+      "entry_price": 4948.9782620014075,
+      "exit_price": 5047.858082334867,
+      "net_pnl": 379.5246773826952,
+      "regime": "trending_up",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2025-12-26 02:42:20.206102",
+      "exit_time": "2025-12-26 06:42:26.875856",
+      "direction": "long",
+      "entry_price": 4956.820949038093,
+      "exit_price": 5055.996082866446,
+      "net_pnl": 476.0065572569317,
+      "regime": "trending_up",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2025-12-26 09:42:31.878172",
+      "exit_time": "2025-12-26 16:42:43.550243",
+      "direction": "long",
+      "entry_price": 5077.166367400776,
+      "exit_price": 5024.197027371469,
+      "net_pnl": -284.7521908277188,
+      "regime": "trending_up",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2025-12-26 10:42:33.545611",
+      "exit_time": "2025-12-27 02:43:00.224629",
+      "direction": "long",
+      "entry_price": 5051.063634374584,
+      "exit_price": 4998.147401058971,
+      "net_pnl": -284.4893986076154,
+      "regime": "trending_up",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2025-12-26 16:42:43.550243",
+      "exit_time": "2026-03-18 20:37:30.071781",
+      "direction": "long",
+      "entry_price": 5070.462150367031,
+      "exit_price": 11324.644044493358,
+      "net_pnl": 37501.47764665049,
+      "regime": "trending_up",
+      "is_winner": "True",
+      "exit_reason": "timeout"
+    },
+    {
+      "entry_time": "2025-12-27 22:43:33.573402",
+      "exit_time": "2025-12-28 07:43:48.580349",
+      "direction": "long",
+      "entry_price": 5230.214611663324,
+      "exit_price": 5172.374229466168,
+      "net_pnl": -370.87634763774344,
+      "regime": "trending_up",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2025-12-27 23:43:35.240840",
+      "exit_time": "2025-12-28 07:43:48.580349",
+      "direction": "long",
+      "entry_price": 5233.402722458331,
+      "exit_price": 5177.040006430465,
+      "net_pnl": -361.98842831634425,
+      "regime": "trending_up",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2025-12-28 01:43:38.575718",
+      "exit_time": "2025-12-28 07:43:48.580349",
+      "direction": "long",
+      "entry_price": 5247.221243540741,
+      "exit_price": 5184.02461656012,
+      "net_pnl": -403.08855476656765,
+      "regime": "trending_up",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2025-12-28 02:43:40.243156",
+      "exit_time": "2025-12-28 07:43:48.580349",
+      "direction": "long",
+      "entry_price": 5266.310120790117,
+      "exit_price": 5201.300499997844,
+      "net_pnl": -413.98934321069714,
+      "regime": "trending_up",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2025-12-30 06:45:06.949965",
+      "exit_time": "2025-12-30 13:45:18.622035",
+      "direction": "short",
+      "entry_price": 5160.465306138237,
+      "exit_price": 5219.878372565667,
+      "net_pnl": -253.72464572609402,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2025-12-30 07:45:08.617403",
+      "exit_time": "2025-12-30 13:45:18.622035",
+      "direction": "short",
+      "entry_price": 5173.437019976771,
+      "exit_price": 5236.0721490466285,
+      "net_pnl": -266.64224875188194,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2025-12-30 09:45:11.952281",
+      "exit_time": "2025-12-30 13:45:18.622035",
+      "direction": "short",
+      "entry_price": 5165.136254124622,
+      "exit_price": 5220.643346651258,
+      "net_pnl": -238.06283819858342,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2025-12-30 10:45:13.619719",
+      "exit_time": "2025-12-30 13:45:18.622035",
+      "direction": "short",
+      "entry_price": 5167.972746335075,
+      "exit_price": 5228.470517692439,
+      "net_pnl": -258.0730134835973,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2025-12-30 11:45:15.287158",
+      "exit_time": "2025-12-30 13:45:18.622035",
+      "direction": "short",
+      "entry_price": 5159.057588575154,
+      "exit_price": 5220.4367816965,
+      "net_pnl": -261.60814367755216,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-01-01 15:46:41.993967",
+      "exit_time": "2026-01-01 23:46:55.333476",
+      "direction": "long",
+      "entry_price": 5502.760958305643,
+      "exit_price": 5441.403962705379,
+      "net_pnl": -391.98295495515936,
+      "regime": "trending_up",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-01-02 15:47:22.012494",
+      "exit_time": "2026-01-02 21:47:32.017126",
+      "direction": "short",
+      "entry_price": 5406.882138951864,
+      "exit_price": 5458.148979843293,
+      "net_pnl": -276.17403229314095,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-01-02 16:47:23.679932",
+      "exit_time": "2026-01-02 21:47:32.017126",
+      "direction": "short",
+      "entry_price": 5407.463054862583,
+      "exit_price": 5462.851256394675,
+      "net_pnl": -296.82794462028914,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-01-02 17:47:25.347371",
+      "exit_time": "2026-01-02 21:47:32.017126",
+      "direction": "short",
+      "entry_price": 5400.744170483521,
+      "exit_price": 5457.608075059796,
+      "net_pnl": -304.2241510286935,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-01-02 18:47:27.014810",
+      "exit_time": "2026-01-02 21:47:32.017126",
+      "direction": "short",
+      "entry_price": 5410.547808451396,
+      "exit_price": 5466.211244993298,
+      "net_pnl": -298.20690560571677,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-01-02 19:47:28.682248",
+      "exit_time": "2026-01-02 20:47:30.349687",
+      "direction": "short",
+      "entry_price": 5389.292913888628,
+      "exit_price": 5446.253463965568,
+      "net_pnl": -304.7098714263208,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-01-02 20:47:30.349687",
+      "exit_time": "2026-01-02 21:47:32.017126",
+      "direction": "short",
+      "entry_price": 5404.386421330518,
+      "exit_price": 5458.172604023526,
+      "net_pnl": -288.7998686912629,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-01-07 00:50:17.093550",
+      "exit_time": "2026-01-07 11:50:35.435375",
+      "direction": "short",
+      "entry_price": 5614.440765990983,
+      "exit_price": 5497.1632527152815,
+      "net_pnl": 566.4778361374246,
+      "regime": "trending_down",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2026-01-07 01:50:18.760988",
+      "exit_time": "2026-01-07 11:50:35.435375",
+      "direction": "short",
+      "entry_price": 5616.553977357446,
+      "exit_price": 5497.1311804805755,
+      "net_pnl": 577.1923091806583,
+      "regime": "trending_down",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2026-01-07 02:50:20.428427",
+      "exit_time": "2026-01-07 03:50:22.095866",
+      "direction": "short",
+      "entry_price": 5598.057580861,
+      "exit_price": 5659.096544464094,
+      "net_pnl": -325.1226176347404,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-01-07 03:50:22.095866",
+      "exit_time": "2026-01-07 17:50:45.440007",
+      "direction": "short",
+      "entry_price": 5605.171067435113,
+      "exit_price": 5665.866680487352,
+      "net_pnl": -323.4012217019321,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-01-07 04:50:23.763304",
+      "exit_time": "2026-01-07 17:50:45.440007",
+      "direction": "short",
+      "entry_price": 5603.144378465898,
+      "exit_price": 5670.584302430545,
+      "net_pnl": -357.1974018934629,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-01-07 05:50:25.430743",
+      "exit_time": "2026-01-07 17:50:45.440007",
+      "direction": "short",
+      "entry_price": 5598.076677589668,
+      "exit_price": 5665.730796083046,
+      "net_pnl": -358.27141051207013,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-01-07 13:50:38.770252",
+      "exit_time": "2026-01-07 15:50:42.105129",
+      "direction": "short",
+      "entry_price": 5538.498389233856,
+      "exit_price": 5610.1213578220795,
+      "net_pnl": -302.63433885886474,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-01-10 08:52:30.488640",
+      "exit_time": "2026-01-11 04:53:03.837413",
+      "direction": "short",
+      "entry_price": 5373.658782935237,
+      "exit_price": 5440.389841589924,
+      "net_pnl": -353.6766694952912,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-01-11 13:53:18.844360",
+      "exit_time": "2026-01-11 16:53:23.846676",
+      "direction": "short",
+      "entry_price": 5310.65829274242,
+      "exit_price": 5371.465900922362,
+      "net_pnl": -259.2996975734648,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-01-11 14:53:20.511799",
+      "exit_time": "2026-01-11 17:53:25.514115",
+      "direction": "short",
+      "entry_price": 5312.2097195604465,
+      "exit_price": 5373.232965547581,
+      "net_pnl": -260.1640902477307,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-01-12 16:54:03.865203",
+      "exit_time": "2026-03-18 20:37:30.071781",
+      "direction": "long",
+      "entry_price": 5438.530426516124,
+      "exit_price": 11324.644044493358,
+      "net_pnl": 29410.800064070536,
+      "regime": "trending_up",
+      "is_winner": "True",
+      "exit_reason": "timeout"
+    },
+    {
+      "entry_time": "2026-01-14 13:55:18.899942",
+      "exit_time": "2026-01-14 17:55:25.569696",
+      "direction": "short",
+      "entry_price": 5630.18166436205,
+      "exit_price": 5512.41125400676,
+      "net_pnl": 454.94740716855625,
+      "regime": "trending_down",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2026-01-14 14:55:20.567380",
+      "exit_time": "2026-01-14 17:55:25.569696",
+      "direction": "short",
+      "entry_price": 5624.003360737323,
+      "exit_price": 5510.069327990477,
+      "net_pnl": 439.62209171797684,
+      "regime": "trending_down",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2026-01-17 12:57:17.288084",
+      "exit_time": "2026-01-17 14:57:20.622962",
+      "direction": "short",
+      "entry_price": 5524.1684358614175,
+      "exit_price": 5587.256339817266,
+      "net_pnl": -268.41940923468803,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-01-18 16:58:03.976366",
+      "exit_time": "2026-01-18 18:58:07.311243",
+      "direction": "long",
+      "entry_price": 5550.717822093898,
+      "exit_price": 5482.891132987179,
+      "net_pnl": -359.15188463391854,
+      "regime": "trending_up",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-01-19 15:58:42.327454",
+      "exit_time": "2026-01-19 21:58:52.332086",
+      "direction": "long",
+      "entry_price": 5502.722765578363,
+      "exit_price": 5629.537435953816,
+      "net_pnl": 614.1112821421086,
+      "regime": "trending_up",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2026-01-20 07:59:09.006472",
+      "exit_time": "2026-01-22 01:00:17.371456",
+      "direction": "long",
+      "entry_price": 5624.584327351369,
+      "exit_price": 5774.033549502948,
+      "net_pnl": 872.8523270353638,
+      "regime": "trending_up",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2026-01-20 08:59:10.673911",
+      "exit_time": "2026-01-22 01:00:17.371456",
+      "direction": "long",
+      "entry_price": 5630.710048875291,
+      "exit_price": 5793.551329978465,
+      "net_pnl": 953.1311726249394,
+      "regime": "trending_up",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2026-01-20 14:59:20.678543",
+      "exit_time": "2026-01-20 21:59:32.350613",
+      "direction": "long",
+      "entry_price": 5697.828947224083,
+      "exit_price": 5629.693239161388,
+      "net_pnl": -432.71653978964747,
+      "regime": "trending_up",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-01-20 15:59:22.345982",
+      "exit_time": "2026-01-20 21:59:32.350613",
+      "direction": "long",
+      "entry_price": 5712.067922891285,
+      "exit_price": 5648.469179860369,
+      "net_pnl": -405.43221693595376,
+      "regime": "trending_up",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-01-20 16:59:24.013420",
+      "exit_time": "2026-01-20 21:59:32.350613",
+      "direction": "long",
+      "entry_price": 5711.206444896689,
+      "exit_price": 5648.835009673456,
+      "net_pnl": -331.79349970596866,
+      "regime": "trending_up",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-01-23 07:01:07.394615",
+      "exit_time": "2026-01-23 08:01:09.062054",
+      "direction": "long",
+      "entry_price": 5902.29369486239,
+      "exit_price": 5831.838789788879,
+      "net_pnl": -446.630103480753,
+      "regime": "trending_up",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-01-24 15:02:00.752651",
+      "exit_time": "2026-01-24 21:02:10.757283",
+      "direction": "long",
+      "entry_price": 6119.428358868503,
+      "exit_price": 6291.210341431616,
+      "net_pnl": 1006.8019134972646,
+      "regime": "trending_up",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2026-01-24 16:02:02.420090",
+      "exit_time": "2026-01-24 21:02:10.757283",
+      "direction": "long",
+      "entry_price": 6152.690655702995,
+      "exit_price": 6290.118491218099,
+      "net_pnl": 667.1987958844369,
+      "regime": "trending_up",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2026-01-24 17:02:04.087529",
+      "exit_time": "2026-01-24 22:02:12.424722",
+      "direction": "long",
+      "entry_price": 6174.9386582713105,
+      "exit_price": 6329.373300082709,
+      "net_pnl": 752.1511843614985,
+      "regime": "trending_up",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2026-01-28 08:04:29.154689",
+      "exit_time": "2026-01-28 13:04:37.491882",
+      "direction": "long",
+      "entry_price": 6900.922935336145,
+      "exit_price": 6813.290065365986,
+      "net_pnl": -549.7557485560865,
+      "regime": "trending_up",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-01-28 09:04:30.822128",
+      "exit_time": "2026-01-28 11:04:34.157005",
+      "direction": "long",
+      "entry_price": 6931.376198633041,
+      "exit_price": 6841.072506529456,
+      "net_pnl": -565.8057203575295,
+      "regime": "trending_up",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-01-28 10:04:32.489567",
+      "exit_time": "2026-01-28 12:04:35.824444",
+      "direction": "long",
+      "entry_price": 6910.177046636378,
+      "exit_price": 6818.298692451255,
+      "net_pnl": -575.274050870819,
+      "regime": "trending_up",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-01-29 04:05:02.503462",
+      "exit_time": "2026-01-29 12:05:15.842971",
+      "direction": "short",
+      "entry_price": 6708.382979726975,
+      "exit_price": 6772.3377381738455,
+      "net_pnl": -339.6168261608567,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-01-29 05:05:04.170900",
+      "exit_time": "2026-01-29 12:05:15.842971",
+      "direction": "short",
+      "entry_price": 6701.4374516054695,
+      "exit_price": 6761.705216502422,
+      "net_pnl": -321.148398260703,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-01-29 06:05:05.838339",
+      "exit_time": "2026-01-29 11:05:14.175532",
+      "direction": "short",
+      "entry_price": 6679.960852727065,
+      "exit_price": 6741.784807919109,
+      "net_pnl": -328.94556979264144,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-01-29 07:05:07.505778",
+      "exit_time": "2026-01-29 08:05:09.173216",
+      "direction": "short",
+      "entry_price": 6647.920022106398,
+      "exit_price": 6710.429601595293,
+      "net_pnl": -332.3828401026359,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-01-30 10:05:52.526621",
+      "exit_time": "2026-01-30 13:05:57.528937",
+      "direction": "long",
+      "entry_price": 7054.223526415805,
+      "exit_price": 7230.165110280626,
+      "net_pnl": 1031.8575724414607,
+      "regime": "trending_up",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2026-01-30 11:05:54.194059",
+      "exit_time": "2026-01-30 13:05:57.528937",
+      "direction": "long",
+      "entry_price": 7054.775379017186,
+      "exit_price": 7228.372916563156,
+      "net_pnl": 1017.8037805800446,
+      "regime": "trending_up",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2026-01-31 20:06:49.219534",
+      "exit_time": "2026-02-01 03:07:00.891604",
+      "direction": "long",
+      "entry_price": 7356.628257150569,
+      "exit_price": 7282.717225448314,
+      "net_pnl": -467.22352853702625,
+      "regime": "trending_up",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-02-01 08:07:09.228798",
+      "exit_time": "2026-02-02 01:07:37.575254",
+      "direction": "short",
+      "entry_price": 7265.838645941199,
+      "exit_price": 7357.621096043197,
+      "net_pnl": -478.9468294284716,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-02-01 09:07:10.896236",
+      "exit_time": "2026-02-02 00:07:35.907816",
+      "direction": "short",
+      "entry_price": 7250.31720861287,
+      "exit_price": 7344.108869881515,
+      "net_pnl": -489.01165700736425,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-02-01 10:07:12.563675",
+      "exit_time": "2026-02-02 01:07:37.575254",
+      "direction": "short",
+      "entry_price": 7264.34213469351,
+      "exit_price": 7362.848655011019,
+      "net_pnl": -512.6244497380555,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-02-01 11:07:14.231114",
+      "exit_time": "2026-02-02 01:07:37.575254",
+      "direction": "short",
+      "entry_price": 7264.090771778734,
+      "exit_price": 7356.814104800174,
+      "net_pnl": -483.65942608180694,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-02-01 12:07:15.898552",
+      "exit_time": "2026-02-02 02:07:39.242693",
+      "direction": "short",
+      "entry_price": 7282.894224196142,
+      "exit_price": 7375.045508525272,
+      "net_pnl": -384.7338404515287,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-02-02 15:08:00.919395",
+      "exit_time": "2026-02-02 17:08:04.254272",
+      "direction": "long",
+      "entry_price": 7420.548345539702,
+      "exit_price": 7353.534839856297,
+      "net_pnl": -354.88452539766377,
+      "regime": "trending_up",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-02-02 16:08:02.586834",
+      "exit_time": "2026-02-02 17:08:04.254272",
+      "direction": "long",
+      "entry_price": 7434.901991972235,
+      "exit_price": 7368.928391729837,
+      "net_pnl": -349.6750775634564,
+      "regime": "trending_up",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-02-03 20:08:49.275115",
+      "exit_time": "2026-02-04 03:09:00.947186",
+      "direction": "long",
+      "entry_price": 7793.370003336695,
+      "exit_price": 7987.030026412305,
+      "net_pnl": 1138.1710932990056,
+      "regime": "trending_up",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2026-02-03 21:08:50.942554",
+      "exit_time": "2026-02-04 03:09:00.947186",
+      "direction": "long",
+      "entry_price": 7792.429464764111,
+      "exit_price": 7973.915330823642,
+      "net_pnl": 1065.1751075930094,
+      "regime": "trending_up",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2026-02-03 22:08:52.609993",
+      "exit_time": "2026-02-04 03:09:00.947186",
+      "direction": "long",
+      "entry_price": 7806.810494005161,
+      "exit_price": 7992.117167936118,
+      "net_pnl": 1088.0859284204323,
+      "regime": "trending_up",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2026-02-05 00:09:35.963397",
+      "exit_time": "2026-02-05 02:09:39.298274",
+      "direction": "short",
+      "entry_price": 7904.347129882579,
+      "exit_price": 8013.530069242884,
+      "net_pnl": -452.91770365786925,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-02-05 20:10:09.312170",
+      "exit_time": "2026-03-18 20:37:30.071781",
+      "direction": "long",
+      "entry_price": 8172.955704478473,
+      "exit_price": 11324.644044493358,
+      "net_pnl": 18886.35880133413,
+      "regime": "trending_up",
+      "is_winner": "True",
+      "exit_reason": "timeout"
+    },
+    {
+      "entry_time": "2026-02-06 19:10:47.663258",
+      "exit_time": "2026-02-06 22:10:52.665574",
+      "direction": "short",
+      "entry_price": 7946.332531152989,
+      "exit_price": 8027.241341713961,
+      "net_pnl": -424.42721485619427,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-02-07 02:10:59.335328",
+      "exit_time": "2026-02-07 03:11:01.002767",
+      "direction": "long",
+      "entry_price": 8030.008117190583,
+      "exit_price": 7958.422209071259,
+      "net_pnl": -453.18706570788925,
+      "regime": "trending_up",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-02-07 03:11:01.002767",
+      "exit_time": "2026-02-07 04:11:02.670206",
+      "direction": "long",
+      "entry_price": 8003.473063246558,
+      "exit_price": 7932.748541444787,
+      "net_pnl": -448.0128398777962,
+      "regime": "trending_up",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-02-09 11:12:34.379330",
+      "exit_time": "2026-02-09 14:12:39.381646",
+      "direction": "long",
+      "entry_price": 8232.185055128997,
+      "exit_price": 8136.277247261246,
+      "net_pnl": -499.52147757014876,
+      "regime": "trending_up",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-02-09 12:12:36.046769",
+      "exit_time": "2026-02-09 14:12:39.381646",
+      "direction": "long",
+      "entry_price": 8196.015407748368,
+      "exit_price": 8101.697457545083,
+      "net_pnl": -491.56317391281283,
+      "regime": "trending_up",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-02-09 13:12:37.714208",
+      "exit_time": "2026-02-09 14:12:39.381646",
+      "direction": "long",
+      "entry_price": 8204.59952260579,
+      "exit_price": 8110.188286016558,
+      "net_pnl": -492.02956347224773,
+      "regime": "trending_up",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-02-11 16:14:02.753578",
+      "exit_time": "2026-02-11 18:14:06.088455",
+      "direction": "long",
+      "entry_price": 8465.594814354816,
+      "exit_price": 8376.1971267453,
+      "net_pnl": -466.901967549394,
+      "regime": "trending_up",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-02-12 22:14:52.776736",
+      "exit_time": "2026-03-18 20:37:30.071781",
+      "direction": "long",
+      "entry_price": 8482.201431788364,
+      "exit_price": 11324.644044493358,
+      "net_pnl": 17031.070433527002,
+      "regime": "trending_up",
+      "is_winner": "True",
+      "exit_reason": "timeout"
+    },
+    {
+      "entry_time": "2026-02-13 02:14:59.446491",
+      "exit_time": "2026-02-13 07:15:07.783684",
+      "direction": "short",
+      "entry_price": 8353.777170240717,
+      "exit_price": 8173.783299334685,
+      "net_pnl": 880.0386157510891,
+      "regime": "trending_down",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2026-02-13 03:15:01.113930",
+      "exit_time": "2026-02-13 08:15:09.451123",
+      "direction": "short",
+      "entry_price": 8306.706720818556,
+      "exit_price": 8116.860259836124,
+      "net_pnl": 929.2597463177161,
+      "regime": "trending_down",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2026-02-13 05:15:04.448807",
+      "exit_time": "2026-03-18 20:37:30.071781",
+      "direction": "short",
+      "entry_price": 8257.820069695908,
+      "exit_price": 11324.644044493358,
+      "net_pnl": -15354.034595465742,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "timeout"
+    },
+    {
+      "entry_time": "2026-02-13 06:15:06.116246",
+      "exit_time": "2026-02-13 21:15:31.127825",
+      "direction": "short",
+      "entry_price": 8290.882478299627,
+      "exit_price": 8066.931475252049,
+      "net_pnl": 1099.6491819482424,
+      "regime": "trending_down",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2026-02-13 07:15:07.783684",
+      "exit_time": "2026-02-13 21:15:31.127825",
+      "direction": "short",
+      "entry_price": 8268.671559187662,
+      "exit_price": 8082.6385618026625,
+      "net_pnl": 727.9492659676754,
+      "regime": "trending_down",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2026-02-13 15:15:21.123193",
+      "exit_time": "2026-02-14 01:15:37.797579",
+      "direction": "short",
+      "entry_price": 8144.041052256619,
+      "exit_price": 7989.7740985461905,
+      "net_pnl": 600.9940594430136,
+      "regime": "trending_down",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2026-02-13 18:15:26.125509",
+      "exit_time": "2026-02-13 22:15:32.795264",
+      "direction": "short",
+      "entry_price": 8151.576674465073,
+      "exit_price": 8012.653969612432,
+      "net_pnl": 539.6751141964745,
+      "regime": "trending_down",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2026-02-13 23:15:34.462702",
+      "exit_time": "2026-03-18 20:37:30.071781",
+      "direction": "short",
+      "entry_price": 8059.917719062065,
+      "exit_price": 11324.644044493358,
+      "net_pnl": -13074.78429270339,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "timeout"
+    },
+    {
+      "entry_time": "2026-02-15 03:16:21.150984",
+      "exit_time": "2026-02-15 19:16:47.830002",
+      "direction": "long",
+      "entry_price": 8399.651125089305,
+      "exit_price": 8652.860121824939,
+      "net_pnl": 1495.299205437333,
+      "regime": "trending_up",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2026-02-16 05:17:04.504388",
+      "exit_time": "2026-03-18 20:37:30.071781",
+      "direction": "long",
+      "entry_price": 8744.027523454262,
+      "exit_price": 11324.644044493358,
+      "net_pnl": 15459.962033530866,
+      "regime": "trending_up",
+      "is_winner": "True",
+      "exit_reason": "timeout"
+    },
+    {
+      "entry_time": "2026-02-17 19:18:07.867056",
+      "exit_time": "2026-02-19 03:19:01.225092",
+      "direction": "long",
+      "entry_price": 9242.076866513378,
+      "exit_price": 9517.459053734823,
+      "net_pnl": 1628.349232373275,
+      "regime": "trending_up",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2026-02-19 14:19:19.566917",
+      "exit_time": "2026-02-19 23:19:34.573865",
+      "direction": "long",
+      "entry_price": 9702.857821420894,
+      "exit_price": 9601.675364945142,
+      "net_pnl": -630.8809679381376,
+      "regime": "trending_up",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-02-19 15:19:21.234356",
+      "exit_time": "2026-02-19 23:19:34.573865",
+      "direction": "long",
+      "entry_price": 9738.648984916423,
+      "exit_price": 9634.576667731662,
+      "net_pnl": -648.2397213222562,
+      "regime": "trending_up",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-02-19 17:19:24.569233",
+      "exit_time": "2026-02-19 21:19:31.238988",
+      "direction": "long",
+      "entry_price": 9793.520177384105,
+      "exit_price": 9691.254542828101,
+      "net_pnl": -637.3811024408731,
+      "regime": "trending_up",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-02-19 19:19:27.904110",
+      "exit_time": "2026-02-19 20:19:29.571549",
+      "direction": "long",
+      "entry_price": 9813.904095712065,
+      "exit_price": 9711.199391120346,
+      "net_pnl": -640.017269819509,
+      "regime": "trending_up",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-02-21 07:20:27.931901",
+      "exit_time": "2026-02-21 11:20:34.601655",
+      "direction": "short",
+      "entry_price": 9756.606819821343,
+      "exit_price": 9883.76625707769,
+      "net_pnl": -524.7852151769542,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-02-21 08:20:29.599340",
+      "exit_time": "2026-02-21 20:20:49.608603",
+      "direction": "short",
+      "entry_price": 9773.294721137296,
+      "exit_price": 9899.885137422278,
+      "net_pnl": -522.5051587636596,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-02-21 12:20:36.269094",
+      "exit_time": "2026-02-21 13:20:37.936533",
+      "direction": "long",
+      "entry_price": 9864.076940369627,
+      "exit_price": 9743.377803869373,
+      "net_pnl": -623.5151838973786,
+      "regime": "trending_up",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-02-22 19:21:27.959692",
+      "exit_time": "2026-02-22 23:21:34.629446",
+      "direction": "short",
+      "entry_price": 9615.336229895262,
+      "exit_price": 9718.61434221807,
+      "net_pnl": -429.14664461280483,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-02-22 20:21:29.627130",
+      "exit_time": "2026-02-22 23:21:34.629446",
+      "direction": "short",
+      "entry_price": 9620.22590246334,
+      "exit_price": 9729.087794039322,
+      "net_pnl": -451.5101978227683,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-02-25 00:22:56.333939",
+      "exit_time": "2026-02-25 13:23:18.010641",
+      "direction": "long",
+      "entry_price": 9789.795124078439,
+      "exit_price": 10050.836724947847,
+      "net_pnl": 1542.4036567955218,
+      "regime": "trending_up",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2026-02-25 04:23:03.003693",
+      "exit_time": "2026-02-25 13:23:18.010641",
+      "direction": "long",
+      "entry_price": 9820.360885275706,
+      "exit_price": 10075.83075532296,
+      "net_pnl": 1508.9936466524266,
+      "regime": "trending_up",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2026-02-25 06:23:06.338571",
+      "exit_time": "2026-02-25 14:23:19.678080",
+      "direction": "long",
+      "entry_price": 9895.10382605954,
+      "exit_price": 10164.425383634449,
+      "net_pnl": 1592.0660824072552,
+      "regime": "trending_up",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2026-02-25 07:23:08.006009",
+      "exit_time": "2026-02-25 14:23:19.678080",
+      "direction": "long",
+      "entry_price": 9893.14274200528,
+      "exit_price": 10155.401390401386,
+      "net_pnl": 1549.7108133452132,
+      "regime": "trending_up",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2026-02-25 08:23:09.673448",
+      "exit_time": "2026-02-25 14:23:19.678080",
+      "direction": "long",
+      "entry_price": 9917.528268865406,
+      "exit_price": 10174.13466335553,
+      "net_pnl": 1515.8171896853921,
+      "regime": "trending_up",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2026-02-25 09:23:11.340887",
+      "exit_time": "2026-02-25 13:23:18.010641",
+      "direction": "long",
+      "entry_price": 9866.959548233315,
+      "exit_price": 10128.716801285624,
+      "net_pnl": 1546.7018295505009,
+      "regime": "trending_up",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2026-02-25 10:23:13.008325",
+      "exit_time": "2026-02-25 14:23:19.678080",
+      "direction": "long",
+      "entry_price": 9890.09045450525,
+      "exit_price": 10150.041211703208,
+      "net_pnl": 1535.8705201049033,
+      "regime": "trending_up",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2026-02-25 12:23:16.343202",
+      "exit_time": "2026-02-25 14:23:19.678080",
+      "direction": "long",
+      "entry_price": 9933.632484741283,
+      "exit_price": 10165.146718234439,
+      "net_pnl": 1137.6011456385565,
+      "regime": "trending_up",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2026-02-28 06:25:06.394152",
+      "exit_time": "2026-02-28 21:25:31.405731",
+      "direction": "long",
+      "entry_price": 10723.285399628467,
+      "exit_price": 10975.31823076297,
+      "net_pnl": 1240.1881099950072,
+      "regime": "trending_up",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2026-03-02 19:26:48.107908",
+      "exit_time": "2026-03-18 20:37:30.071781",
+      "direction": "long",
+      "entry_price": 11428.141838267386,
+      "exit_price": 11324.644044493358,
+      "net_pnl": -537.4229766423631,
+      "regime": "trending_up",
+      "is_winner": "False",
+      "exit_reason": "timeout"
+    },
+    {
+      "entry_time": "2026-03-03 14:27:19.789242",
+      "exit_time": "2026-03-04 01:27:38.131067",
+      "direction": "short",
+      "entry_price": 11057.696967203567,
+      "exit_price": 10810.065918737962,
+      "net_pnl": 1218.1974001254805,
+      "regime": "trending_down",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2026-03-03 16:27:23.124120",
+      "exit_time": "2026-03-03 20:27:29.793874",
+      "direction": "short",
+      "entry_price": 11032.361189060786,
+      "exit_price": 11146.8101441993,
+      "net_pnl": -592.1398178416209,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-03-03 17:27:24.791558",
+      "exit_time": "2026-03-03 20:27:29.793874",
+      "direction": "short",
+      "entry_price": 11016.978803796646,
+      "exit_price": 11137.323598179506,
+      "net_pnl": -621.6530067549547,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-03-04 02:27:39.798506",
+      "exit_time": "2026-03-04 08:27:49.803138",
+      "direction": "short",
+      "entry_price": 10847.121448702195,
+      "exit_price": 10988.115781816086,
+      "net_pnl": -580.1230786440609,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-03-06 12:29:16.509946",
+      "exit_time": "2026-03-08 12:30:36.547001",
+      "direction": "long",
+      "entry_price": 10900.9158302567,
+      "exit_price": 11196.993430063776,
+      "net_pnl": 1752.604115647412,
+      "regime": "trending_up",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2026-03-06 17:29:24.847139",
+      "exit_time": "2026-03-08 13:30:38.214439",
+      "direction": "long",
+      "entry_price": 10950.635297969924,
+      "exit_price": 11274.659259169282,
+      "net_pnl": 1920.2063424929638,
+      "regime": "trending_up",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2026-03-07 00:29:36.519210",
+      "exit_time": "2026-03-07 03:29:41.521526",
+      "direction": "long",
+      "entry_price": 11045.558116605496,
+      "exit_price": 10892.592019500751,
+      "net_pnl": -941.8425245149183,
+      "regime": "trending_up",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-03-07 01:29:38.186648",
+      "exit_time": "2026-03-07 03:29:41.521526",
+      "direction": "long",
+      "entry_price": 11016.757543390568,
+      "exit_price": 10873.786994979022,
+      "net_pnl": -881.8030055716429,
+      "regime": "trending_up",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-03-07 02:29:39.854087",
+      "exit_time": "2026-03-07 03:29:41.521526",
+      "direction": "long",
+      "entry_price": 11007.44010396242,
+      "exit_price": 10875.024746691579,
+      "net_pnl": -818.3998581377109,
+      "regime": "trending_up",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-03-08 12:30:36.547001",
+      "exit_time": "2026-03-08 16:30:43.216755",
+      "direction": "long",
+      "entry_price": 11152.550935394003,
+      "exit_price": 11017.634229309419,
+      "net_pnl": -694.594246344345,
+      "regime": "trending_up",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-03-08 13:30:38.214439",
+      "exit_time": "2026-03-08 15:30:41.549316",
+      "direction": "long",
+      "entry_price": 11190.425097889485,
+      "exit_price": 11052.352695405525,
+      "net_pnl": -852.3655782077653,
+      "regime": "trending_up",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-03-08 15:30:41.549316",
+      "exit_time": "2026-03-08 18:30:46.551632",
+      "direction": "long",
+      "entry_price": 11122.359420226316,
+      "exit_price": 10984.649323733143,
+      "net_pnl": -850.1950028012955,
+      "regime": "trending_up",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-03-10 11:31:54.916616",
+      "exit_time": "2026-03-11 15:32:41.604898",
+      "direction": "long",
+      "entry_price": 11263.773253693977,
+      "exit_price": 11534.179242619834,
+      "net_pnl": 1332.038529265924,
+      "regime": "trending_up",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2026-03-10 12:31:56.584055",
+      "exit_time": "2026-03-11 15:32:41.604898",
+      "direction": "long",
+      "entry_price": 11278.608331678373,
+      "exit_price": 11552.505018530843,
+      "net_pnl": 1349.4835362301783,
+      "regime": "trending_up",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2026-03-11 16:32:43.272336",
+      "exit_time": "2026-03-11 22:32:53.276968",
+      "direction": "long",
+      "entry_price": 11514.895038603354,
+      "exit_price": 11762.021905175956,
+      "net_pnl": 1215.7207067326617,
+      "regime": "trending_up",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2026-03-11 17:32:44.939775",
+      "exit_time": "2026-03-11 21:32:51.609529",
+      "direction": "long",
+      "entry_price": 11480.317072507358,
+      "exit_price": 11731.842714013475,
+      "net_pnl": 1237.7008815599531,
+      "regime": "trending_up",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2026-03-11 18:32:46.607214",
+      "exit_time": "2026-03-11 21:32:51.609529",
+      "direction": "long",
+      "entry_price": 11507.438159787604,
+      "exit_price": 11749.886423200707,
+      "net_pnl": 1192.3397088678269,
+      "regime": "trending_up",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2026-03-11 19:32:48.274652",
+      "exit_time": "2026-03-11 22:32:53.276968",
+      "direction": "long",
+      "entry_price": 11555.894700034269,
+      "exit_price": 11796.171359030785,
+      "net_pnl": 1181.4901449847625,
+      "regime": "trending_up",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2026-03-11 20:32:49.942091",
+      "exit_time": "2026-03-12 00:32:56.611845",
+      "direction": "long",
+      "entry_price": 11601.879688128629,
+      "exit_price": 11857.044675405123,
+      "net_pnl": 1255.8950374030396,
+      "regime": "trending_up",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2026-03-12 04:33:03.281600",
+      "exit_time": "2026-03-12 06:33:06.616477",
+      "direction": "long",
+      "entry_price": 11708.082061213128,
+      "exit_price": 11566.504640277697,
+      "net_pnl": -873.3769971952986,
+      "regime": "trending_up",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-03-13 07:33:48.302443",
+      "exit_time": "2026-03-13 10:33:53.304759",
+      "direction": "short",
+      "entry_price": 11209.622162684174,
+      "exit_price": 11352.129838007293,
+      "net_pnl": -732.5779504984843,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-03-15 22:35:33.351076",
+      "exit_time": "2026-03-16 04:35:43.355708",
+      "direction": "short",
+      "entry_price": 11277.320691684754,
+      "exit_price": 11412.497814835595,
+      "net_pnl": -556.8042748972687,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-03-15 23:35:35.018515",
+      "exit_time": "2026-03-17 03:36:21.706797",
+      "direction": "short",
+      "entry_price": 11298.019155129641,
+      "exit_price": 11029.021478727582,
+      "net_pnl": 1324.9852685181027,
+      "regime": "trending_down",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2026-03-16 02:35:40.020831",
+      "exit_time": "2026-03-17 03:36:21.706797",
+      "direction": "short",
+      "entry_price": 11292.588846675548,
+      "exit_price": 11028.7080828632,
+      "net_pnl": 1299.4148452880486,
+      "regime": "trending_down",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2026-03-16 07:35:48.358024",
+      "exit_time": "2026-03-16 15:36:01.697533",
+      "direction": "short",
+      "entry_price": 11247.970550551214,
+      "exit_price": 11372.502597295956,
+      "net_pnl": -642.5984146272228,
+      "regime": "trending_down",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    },
+    {
+      "entry_time": "2026-03-16 08:35:50.025463",
+      "exit_time": "2026-03-17 02:36:20.039358",
+      "direction": "short",
+      "entry_price": 11296.321764476648,
+      "exit_price": 11093.687984991593,
+      "net_pnl": 794.4920622291821,
+      "regime": "trending_down",
+      "is_winner": "True",
+      "exit_reason": "target"
+    },
+    {
+      "entry_time": "2026-03-18 06:37:06.727640",
+      "exit_time": "2026-03-18 07:37:08.395078",
+      "direction": "long",
+      "entry_price": 11473.327124874568,
+      "exit_price": 11356.231564352867,
+      "net_pnl": -605.3689595551419,
+      "regime": "trending_up",
+      "is_winner": "False",
+      "exit_reason": "stop"
+    }
+  ],
+  "equity_curve": [
+    {
+      "timestamp": "2026-02-27 05:24:24.708186",
+      "equity": 121936.13799843629
+    },
+    {
+      "timestamp": "2026-02-27 06:24:26.375625",
+      "equity": 121936.13799843629
+    },
+    {
+      "timestamp": "2026-02-27 07:24:28.043064",
+      "equity": 121936.13799843629
+    },
+    {
+      "timestamp": "2026-02-27 08:24:29.710502",
+      "equity": 121936.13799843629
+    },
+    {
+      "timestamp": "2026-02-27 09:24:31.377941",
+      "equity": 121936.13799843629
+    },
+    {
+      "timestamp": "2026-02-27 10:24:33.045379",
+      "equity": 121936.13799843629
+    },
+    {
+      "timestamp": "2026-02-27 11:24:34.712818",
+      "equity": 121936.13799843629
+    },
+    {
+      "timestamp": "2026-02-27 12:24:36.380257",
+      "equity": 121936.13799843629
+    },
+    {
+      "timestamp": "2026-02-27 13:24:38.047695",
+      "equity": 121936.13799843629
+    },
+    {
+      "timestamp": "2026-02-27 14:24:39.715134",
+      "equity": 121936.13799843629
+    },
+    {
+      "timestamp": "2026-02-27 15:24:41.382573",
+      "equity": 121936.13799843629
+    },
+    {
+      "timestamp": "2026-02-27 16:24:43.050011",
+      "equity": 121936.13799843629
+    },
+    {
+      "timestamp": "2026-02-27 17:24:44.717450",
+      "equity": 121936.13799843629
+    },
+    {
+      "timestamp": "2026-02-27 18:24:46.384888",
+      "equity": 121936.13799843629
+    },
+    {
+      "timestamp": "2026-02-27 19:24:48.052327",
+      "equity": 121936.13799843629
+    },
+    {
+      "timestamp": "2026-02-27 20:24:49.719766",
+      "equity": 121936.13799843629
+    },
+    {
+      "timestamp": "2026-02-27 21:24:51.387204",
+      "equity": 121936.13799843629
+    },
+    {
+      "timestamp": "2026-02-27 22:24:53.054643",
+      "equity": 121936.13799843629
+    },
+    {
+      "timestamp": "2026-02-27 23:24:54.722082",
+      "equity": 121936.13799843629
+    },
+    {
+      "timestamp": "2026-02-28 00:24:56.389520",
+      "equity": 121936.13799843629
+    },
+    {
+      "timestamp": "2026-02-28 01:24:58.056959",
+      "equity": 121936.13799843629
+    },
+    {
+      "timestamp": "2026-02-28 02:24:59.724397",
+      "equity": 121936.13799843629
+    },
+    {
+      "timestamp": "2026-02-28 03:25:01.391836",
+      "equity": 121936.13799843629
+    },
+    {
+      "timestamp": "2026-02-28 04:25:03.059275",
+      "equity": 121936.13799843629
+    },
+    {
+      "timestamp": "2026-02-28 05:25:04.726713",
+      "equity": 121936.13799843629
+    },
+    {
+      "timestamp": "2026-02-28 21:25:31.405731",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-02-28 06:25:06.394152",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-02-28 07:25:08.061591",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-02-28 08:25:09.729029",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-02-28 09:25:11.396468",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-02-28 10:25:13.063906",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-02-28 11:25:14.731345",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-02-28 12:25:16.398784",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-02-28 13:25:18.066222",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-02-28 14:25:19.733661",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-02-28 15:25:21.401100",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-02-28 16:25:23.068538",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-02-28 17:25:24.735977",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-02-28 18:25:26.403416",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-02-28 19:25:28.070854",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-02-28 20:25:29.738293",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-02-28 21:25:31.405731",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-02-28 22:25:33.073170",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-02-28 23:25:34.740609",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-03-01 00:25:36.408047",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-03-01 01:25:38.075486",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-03-01 02:25:39.742925",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-03-01 03:25:41.410363",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-03-01 04:25:43.077802",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-03-01 05:25:44.745240",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-03-01 06:25:46.412679",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-03-01 07:25:48.080118",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-03-01 08:25:49.747556",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-03-01 09:25:51.414995",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-03-01 10:25:53.082434",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-03-01 11:25:54.749872",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-03-01 12:25:56.417311",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-03-01 13:25:58.084749",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-03-01 14:25:59.752188",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-03-01 15:26:01.419627",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-03-01 16:26:03.087065",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-03-01 17:26:04.754504",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-03-01 18:26:06.421943",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-03-01 19:26:08.089381",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-03-01 20:26:09.756820",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-03-01 21:26:11.424258",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-03-01 22:26:13.091697",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-03-01 23:26:14.759136",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-03-02 00:26:16.426574",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-03-02 01:26:18.094013",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-03-02 02:26:19.761452",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-03-02 03:26:21.428890",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-03-02 04:26:23.096329",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-03-02 05:26:24.763768",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-03-02 06:26:26.431206",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-03-02 07:26:28.098645",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-03-02 08:26:29.766083",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-03-02 09:26:31.433522",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-03-02 10:26:33.100961",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-03-02 11:26:34.768399",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-03-02 12:26:36.435838",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-03-02 13:26:38.103277",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-03-02 14:26:39.770715",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-03-02 15:26:41.438154",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-03-02 16:26:43.105592",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-03-02 17:26:44.773031",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-03-02 18:26:46.440470",
+      "equity": 123176.3261084313
+    },
+    {
+      "timestamp": "2026-03-18 20:37:30.071781",
+      "equity": 122638.90313178893
+    },
+    {
+      "timestamp": "2026-03-02 19:26:48.107908",
+      "equity": 122638.90313178893
+    },
+    {
+      "timestamp": "2026-03-02 20:26:49.775347",
+      "equity": 122638.90313178893
+    },
+    {
+      "timestamp": "2026-03-02 21:26:51.442786",
+      "equity": 122638.90313178893
+    },
+    {
+      "timestamp": "2026-03-02 22:26:53.110224",
+      "equity": 122638.90313178893
+    },
+    {
+      "timestamp": "2026-03-02 23:26:54.777663",
+      "equity": 122638.90313178893
+    },
+    {
+      "timestamp": "2026-03-03 00:26:56.445101",
+      "equity": 122638.90313178893
+    },
+    {
+      "timestamp": "2026-03-03 01:26:58.112540",
+      "equity": 122638.90313178893
+    },
+    {
+      "timestamp": "2026-03-03 02:26:59.779979",
+      "equity": 122638.90313178893
+    },
+    {
+      "timestamp": "2026-03-03 03:27:01.447417",
+      "equity": 122638.90313178893
+    },
+    {
+      "timestamp": "2026-03-03 04:27:03.114856",
+      "equity": 122638.90313178893
+    },
+    {
+      "timestamp": "2026-03-03 05:27:04.782295",
+      "equity": 122638.90313178893
+    },
+    {
+      "timestamp": "2026-03-03 06:27:06.449733",
+      "equity": 122638.90313178893
+    },
+    {
+      "timestamp": "2026-03-03 07:27:08.117172",
+      "equity": 122638.90313178893
+    },
+    {
+      "timestamp": "2026-03-03 08:27:09.784611",
+      "equity": 122638.90313178893
+    },
+    {
+      "timestamp": "2026-03-03 09:27:11.452049",
+      "equity": 122638.90313178893
+    },
+    {
+      "timestamp": "2026-03-03 10:27:13.119488",
+      "equity": 122638.90313178893
+    },
+    {
+      "timestamp": "2026-03-03 11:27:14.786926",
+      "equity": 122638.90313178893
+    },
+    {
+      "timestamp": "2026-03-03 12:27:16.454365",
+      "equity": 122638.90313178893
+    },
+    {
+      "timestamp": "2026-03-03 13:27:18.121804",
+      "equity": 122638.90313178893
+    },
+    {
+      "timestamp": "2026-03-04 01:27:38.131067",
+      "equity": 123857.10053191442
+    },
+    {
+      "timestamp": "2026-03-03 14:27:19.789242",
+      "equity": 123857.10053191442
+    },
+    {
+      "timestamp": "2026-03-03 15:27:21.456681",
+      "equity": 123857.10053191442
+    },
+    {
+      "timestamp": "2026-03-03 20:27:29.793874",
+      "equity": 123264.96071407279
+    },
+    {
+      "timestamp": "2026-03-03 16:27:23.124120",
+      "equity": 123264.96071407279
+    },
+    {
+      "timestamp": "2026-03-03 20:27:29.793874",
+      "equity": 122643.30770731783
+    },
+    {
+      "timestamp": "2026-03-03 17:27:24.791558",
+      "equity": 122643.30770731783
+    },
+    {
+      "timestamp": "2026-03-03 18:27:26.458997",
+      "equity": 122643.30770731783
+    },
+    {
+      "timestamp": "2026-03-03 19:27:28.126435",
+      "equity": 122643.30770731783
+    },
+    {
+      "timestamp": "2026-03-03 20:27:29.793874",
+      "equity": 122643.30770731783
+    },
+    {
+      "timestamp": "2026-03-03 21:27:31.461313",
+      "equity": 122643.30770731783
+    },
+    {
+      "timestamp": "2026-03-03 22:27:33.128751",
+      "equity": 122643.30770731783
+    },
+    {
+      "timestamp": "2026-03-03 23:27:34.796190",
+      "equity": 122643.30770731783
+    },
+    {
+      "timestamp": "2026-03-04 00:27:36.463629",
+      "equity": 122643.30770731783
+    },
+    {
+      "timestamp": "2026-03-04 01:27:38.131067",
+      "equity": 122643.30770731783
+    },
+    {
+      "timestamp": "2026-03-04 08:27:49.803138",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-04 02:27:39.798506",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-04 03:27:41.465944",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-04 04:27:43.133383",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-04 05:27:44.800822",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-04 06:27:46.468260",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-04 07:27:48.135699",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-04 08:27:49.803138",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-04 09:27:51.470576",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-04 10:27:53.138015",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-04 11:27:54.805453",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-04 12:27:56.472892",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-04 13:27:58.140331",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-04 14:27:59.807769",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-04 15:28:01.475208",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-04 16:28:03.142647",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-04 17:28:04.810085",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-04 18:28:06.477524",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-04 19:28:08.144963",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-04 20:28:09.812401",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-04 21:28:11.479840",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-04 22:28:13.147278",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-04 23:28:14.814717",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-05 00:28:16.482156",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-05 01:28:18.149594",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-05 02:28:19.817033",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-05 03:28:21.484472",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-05 04:28:23.151910",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-05 05:28:24.819349",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-05 06:28:26.486787",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-05 07:28:28.154226",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-05 08:28:29.821665",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-05 09:28:31.489103",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-05 10:28:33.156542",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-05 11:28:34.823981",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-05 12:28:36.491419",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-05 13:28:38.158858",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-05 14:28:39.826296",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-05 15:28:41.493735",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-05 16:28:43.161174",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-05 17:28:44.828612",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-05 18:28:46.496051",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-05 19:28:48.163490",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-05 20:28:49.830928",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-05 21:28:51.498367",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-05 22:28:53.165806",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-05 23:28:54.833244",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-06 00:28:56.500683",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-06 01:28:58.168121",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-06 02:28:59.835560",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-06 03:29:01.502999",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-06 04:29:03.170437",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-06 05:29:04.837876",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-06 06:29:06.505315",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-06 07:29:08.172753",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-06 08:29:09.840192",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-06 09:29:11.507630",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-06 10:29:13.175069",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-06 11:29:14.842508",
+      "equity": 122063.18462867377
+    },
+    {
+      "timestamp": "2026-03-08 12:30:36.547001",
+      "equity": 123815.78874432118
+    },
+    {
+      "timestamp": "2026-03-06 12:29:16.509946",
+      "equity": 123815.78874432118
+    },
+    {
+      "timestamp": "2026-03-06 13:29:18.177385",
+      "equity": 123815.78874432118
+    },
+    {
+      "timestamp": "2026-03-06 14:29:19.844824",
+      "equity": 123815.78874432118
+    },
+    {
+      "timestamp": "2026-03-06 15:29:21.512262",
+      "equity": 123815.78874432118
+    },
+    {
+      "timestamp": "2026-03-06 16:29:23.179701",
+      "equity": 123815.78874432118
+    },
+    {
+      "timestamp": "2026-03-08 13:30:38.214439",
+      "equity": 125735.99508681415
+    },
+    {
+      "timestamp": "2026-03-06 17:29:24.847139",
+      "equity": 125735.99508681415
+    },
+    {
+      "timestamp": "2026-03-06 18:29:26.514578",
+      "equity": 125735.99508681415
+    },
+    {
+      "timestamp": "2026-03-06 19:29:28.182017",
+      "equity": 125735.99508681415
+    },
+    {
+      "timestamp": "2026-03-06 20:29:29.849455",
+      "equity": 125735.99508681415
+    },
+    {
+      "timestamp": "2026-03-06 21:29:31.516894",
+      "equity": 125735.99508681415
+    },
+    {
+      "timestamp": "2026-03-06 22:29:33.184333",
+      "equity": 125735.99508681415
+    },
+    {
+      "timestamp": "2026-03-06 23:29:34.851771",
+      "equity": 125735.99508681415
+    },
+    {
+      "timestamp": "2026-03-07 03:29:41.521526",
+      "equity": 124794.15256229923
+    },
+    {
+      "timestamp": "2026-03-07 00:29:36.519210",
+      "equity": 124794.15256229923
+    },
+    {
+      "timestamp": "2026-03-07 03:29:41.521526",
+      "equity": 123912.3495567276
+    },
+    {
+      "timestamp": "2026-03-07 01:29:38.186648",
+      "equity": 123912.3495567276
+    },
+    {
+      "timestamp": "2026-03-07 03:29:41.521526",
+      "equity": 123093.94969858989
+    },
+    {
+      "timestamp": "2026-03-07 02:29:39.854087",
+      "equity": 123093.94969858989
+    },
+    {
+      "timestamp": "2026-03-07 03:29:41.521526",
+      "equity": 123093.94969858989
+    },
+    {
+      "timestamp": "2026-03-07 04:29:43.188964",
+      "equity": 123093.94969858989
+    },
+    {
+      "timestamp": "2026-03-07 05:29:44.856403",
+      "equity": 123093.94969858989
+    },
+    {
+      "timestamp": "2026-03-07 06:29:46.523842",
+      "equity": 123093.94969858989
+    },
+    {
+      "timestamp": "2026-03-07 07:29:48.191280",
+      "equity": 123093.94969858989
+    },
+    {
+      "timestamp": "2026-03-07 08:29:49.858719",
+      "equity": 123093.94969858989
+    },
+    {
+      "timestamp": "2026-03-07 09:29:51.526158",
+      "equity": 123093.94969858989
+    },
+    {
+      "timestamp": "2026-03-07 10:29:53.193596",
+      "equity": 123093.94969858989
+    },
+    {
+      "timestamp": "2026-03-07 11:29:54.861035",
+      "equity": 123093.94969858989
+    },
+    {
+      "timestamp": "2026-03-07 12:29:56.528473",
+      "equity": 123093.94969858989
+    },
+    {
+      "timestamp": "2026-03-07 13:29:58.195912",
+      "equity": 123093.94969858989
+    },
+    {
+      "timestamp": "2026-03-07 14:29:59.863351",
+      "equity": 123093.94969858989
+    },
+    {
+      "timestamp": "2026-03-07 15:30:01.530789",
+      "equity": 123093.94969858989
+    },
+    {
+      "timestamp": "2026-03-07 16:30:03.198228",
+      "equity": 123093.94969858989
+    },
+    {
+      "timestamp": "2026-03-07 17:30:04.865667",
+      "equity": 123093.94969858989
+    },
+    {
+      "timestamp": "2026-03-07 18:30:06.533105",
+      "equity": 123093.94969858989
+    },
+    {
+      "timestamp": "2026-03-07 19:30:08.200544",
+      "equity": 123093.94969858989
+    },
+    {
+      "timestamp": "2026-03-07 20:30:09.867982",
+      "equity": 123093.94969858989
+    },
+    {
+      "timestamp": "2026-03-07 21:30:11.535421",
+      "equity": 123093.94969858989
+    },
+    {
+      "timestamp": "2026-03-07 22:30:13.202860",
+      "equity": 123093.94969858989
+    },
+    {
+      "timestamp": "2026-03-07 23:30:14.870298",
+      "equity": 123093.94969858989
+    },
+    {
+      "timestamp": "2026-03-08 00:30:16.537737",
+      "equity": 123093.94969858989
+    },
+    {
+      "timestamp": "2026-03-08 01:30:18.205176",
+      "equity": 123093.94969858989
+    },
+    {
+      "timestamp": "2026-03-08 02:30:19.872614",
+      "equity": 123093.94969858989
+    },
+    {
+      "timestamp": "2026-03-08 03:30:21.540053",
+      "equity": 123093.94969858989
+    },
+    {
+      "timestamp": "2026-03-08 04:30:23.207491",
+      "equity": 123093.94969858989
+    },
+    {
+      "timestamp": "2026-03-08 05:30:24.874930",
+      "equity": 123093.94969858989
+    },
+    {
+      "timestamp": "2026-03-08 06:30:26.542369",
+      "equity": 123093.94969858989
+    },
+    {
+      "timestamp": "2026-03-08 07:30:28.209807",
+      "equity": 123093.94969858989
+    },
+    {
+      "timestamp": "2026-03-08 08:30:29.877246",
+      "equity": 123093.94969858989
+    },
+    {
+      "timestamp": "2026-03-08 09:30:31.544685",
+      "equity": 123093.94969858989
+    },
+    {
+      "timestamp": "2026-03-08 10:30:33.212123",
+      "equity": 123093.94969858989
+    },
+    {
+      "timestamp": "2026-03-08 11:30:34.879562",
+      "equity": 123093.94969858989
+    },
+    {
+      "timestamp": "2026-03-08 16:30:43.216755",
+      "equity": 122399.35545224554
+    },
+    {
+      "timestamp": "2026-03-08 12:30:36.547001",
+      "equity": 122399.35545224554
+    },
+    {
+      "timestamp": "2026-03-08 15:30:41.549316",
+      "equity": 121546.98987403777
+    },
+    {
+      "timestamp": "2026-03-08 13:30:38.214439",
+      "equity": 121546.98987403777
+    },
+    {
+      "timestamp": "2026-03-08 14:30:39.881878",
+      "equity": 121546.98987403777
+    },
+    {
+      "timestamp": "2026-03-08 18:30:46.551632",
+      "equity": 120696.79487123647
+    },
+    {
+      "timestamp": "2026-03-08 15:30:41.549316",
+      "equity": 120696.79487123647
+    },
+    {
+      "timestamp": "2026-03-08 16:30:43.216755",
+      "equity": 120696.79487123647
+    },
+    {
+      "timestamp": "2026-03-08 17:30:44.884194",
+      "equity": 120696.79487123647
+    },
+    {
+      "timestamp": "2026-03-08 18:30:46.551632",
+      "equity": 120696.79487123647
+    },
+    {
+      "timestamp": "2026-03-08 19:30:48.219071",
+      "equity": 120696.79487123647
+    },
+    {
+      "timestamp": "2026-03-08 20:30:49.886510",
+      "equity": 120696.79487123647
+    },
+    {
+      "timestamp": "2026-03-08 21:30:51.553948",
+      "equity": 120696.79487123647
+    },
+    {
+      "timestamp": "2026-03-08 22:30:53.221387",
+      "equity": 120696.79487123647
+    },
+    {
+      "timestamp": "2026-03-08 23:30:54.888825",
+      "equity": 120696.79487123647
+    },
+    {
+      "timestamp": "2026-03-09 00:30:56.556264",
+      "equity": 120696.79487123647
+    },
+    {
+      "timestamp": "2026-03-09 01:30:58.223703",
+      "equity": 120696.79487123647
+    },
+    {
+      "timestamp": "2026-03-09 02:30:59.891141",
+      "equity": 120696.79487123647
+    },
+    {
+      "timestamp": "2026-03-09 03:31:01.558580",
+      "equity": 120696.79487123647
+    },
+    {
+      "timestamp": "2026-03-09 04:31:03.226019",
+      "equity": 120696.79487123647
+    },
+    {
+      "timestamp": "2026-03-09 05:31:04.893457",
+      "equity": 120696.79487123647
+    },
+    {
+      "timestamp": "2026-03-09 06:31:06.560896",
+      "equity": 120696.79487123647
+    },
+    {
+      "timestamp": "2026-03-09 07:31:08.228334",
+      "equity": 120696.79487123647
+    },
+    {
+      "timestamp": "2026-03-09 08:31:09.895773",
+      "equity": 120696.79487123647
+    },
+    {
+      "timestamp": "2026-03-09 09:31:11.563212",
+      "equity": 120696.79487123647
+    },
+    {
+      "timestamp": "2026-03-09 10:31:13.230650",
+      "equity": 120696.79487123647
+    },
+    {
+      "timestamp": "2026-03-09 11:31:14.898089",
+      "equity": 120696.79487123647
+    },
+    {
+      "timestamp": "2026-03-09 12:31:16.565528",
+      "equity": 120696.79487123647
+    },
+    {
+      "timestamp": "2026-03-09 13:31:18.232966",
+      "equity": 120696.79487123647
+    },
+    {
+      "timestamp": "2026-03-09 14:31:19.900405",
+      "equity": 120696.79487123647
+    },
+    {
+      "timestamp": "2026-03-09 15:31:21.567843",
+      "equity": 120696.79487123647
+    },
+    {
+      "timestamp": "2026-03-09 16:31:23.235282",
+      "equity": 120696.79487123647
+    },
+    {
+      "timestamp": "2026-03-09 17:31:24.902721",
+      "equity": 120696.79487123647
+    },
+    {
+      "timestamp": "2026-03-09 18:31:26.570159",
+      "equity": 120696.79487123647
+    },
+    {
+      "timestamp": "2026-03-09 19:31:28.237598",
+      "equity": 120696.79487123647
+    },
+    {
+      "timestamp": "2026-03-09 20:31:29.905037",
+      "equity": 120696.79487123647
+    },
+    {
+      "timestamp": "2026-03-09 21:31:31.572475",
+      "equity": 120696.79487123647
+    },
+    {
+      "timestamp": "2026-03-09 22:31:33.239914",
+      "equity": 120696.79487123647
+    },
+    {
+      "timestamp": "2026-03-09 23:31:34.907353",
+      "equity": 120696.79487123647
+    },
+    {
+      "timestamp": "2026-03-10 00:31:36.574791",
+      "equity": 120696.79487123647
+    },
+    {
+      "timestamp": "2026-03-10 01:31:38.242230",
+      "equity": 120696.79487123647
+    },
+    {
+      "timestamp": "2026-03-10 02:31:39.909668",
+      "equity": 120696.79487123647
+    },
+    {
+      "timestamp": "2026-03-10 03:31:41.577107",
+      "equity": 120696.79487123647
+    },
+    {
+      "timestamp": "2026-03-10 04:31:43.244546",
+      "equity": 120696.79487123647
+    },
+    {
+      "timestamp": "2026-03-10 05:31:44.911984",
+      "equity": 120696.79487123647
+    },
+    {
+      "timestamp": "2026-03-10 06:31:46.579423",
+      "equity": 120696.79487123647
+    },
+    {
+      "timestamp": "2026-03-10 07:31:48.246862",
+      "equity": 120696.79487123647
+    },
+    {
+      "timestamp": "2026-03-10 08:31:49.914300",
+      "equity": 120696.79487123647
+    },
+    {
+      "timestamp": "2026-03-10 09:31:51.581739",
+      "equity": 120696.79487123647
+    },
+    {
+      "timestamp": "2026-03-10 10:31:53.249177",
+      "equity": 120696.79487123647
+    },
+    {
+      "timestamp": "2026-03-11 15:32:41.604898",
+      "equity": 122028.8334005024
+    },
+    {
+      "timestamp": "2026-03-10 11:31:54.916616",
+      "equity": 122028.8334005024
+    },
+    {
+      "timestamp": "2026-03-11 15:32:41.604898",
+      "equity": 123378.31693673258
+    },
+    {
+      "timestamp": "2026-03-10 12:31:56.584055",
+      "equity": 123378.31693673258
+    },
+    {
+      "timestamp": "2026-03-10 13:31:58.251493",
+      "equity": 123378.31693673258
+    },
+    {
+      "timestamp": "2026-03-10 14:31:59.918932",
+      "equity": 123378.31693673258
+    },
+    {
+      "timestamp": "2026-03-10 15:32:01.586371",
+      "equity": 123378.31693673258
+    },
+    {
+      "timestamp": "2026-03-10 16:32:03.253809",
+      "equity": 123378.31693673258
+    },
+    {
+      "timestamp": "2026-03-10 17:32:04.921248",
+      "equity": 123378.31693673258
+    },
+    {
+      "timestamp": "2026-03-10 18:32:06.588686",
+      "equity": 123378.31693673258
+    },
+    {
+      "timestamp": "2026-03-10 19:32:08.256125",
+      "equity": 123378.31693673258
+    },
+    {
+      "timestamp": "2026-03-10 20:32:09.923564",
+      "equity": 123378.31693673258
+    },
+    {
+      "timestamp": "2026-03-10 21:32:11.591002",
+      "equity": 123378.31693673258
+    },
+    {
+      "timestamp": "2026-03-10 22:32:13.258441",
+      "equity": 123378.31693673258
+    },
+    {
+      "timestamp": "2026-03-10 23:32:14.925880",
+      "equity": 123378.31693673258
+    },
+    {
+      "timestamp": "2026-03-11 00:32:16.593318",
+      "equity": 123378.31693673258
+    },
+    {
+      "timestamp": "2026-03-11 01:32:18.260757",
+      "equity": 123378.31693673258
+    },
+    {
+      "timestamp": "2026-03-11 02:32:19.928196",
+      "equity": 123378.31693673258
+    },
+    {
+      "timestamp": "2026-03-11 03:32:21.595634",
+      "equity": 123378.31693673258
+    },
+    {
+      "timestamp": "2026-03-11 04:32:23.263073",
+      "equity": 123378.31693673258
+    },
+    {
+      "timestamp": "2026-03-11 05:32:24.930511",
+      "equity": 123378.31693673258
+    },
+    {
+      "timestamp": "2026-03-11 06:32:26.597950",
+      "equity": 123378.31693673258
+    },
+    {
+      "timestamp": "2026-03-11 07:32:28.265389",
+      "equity": 123378.31693673258
+    },
+    {
+      "timestamp": "2026-03-11 08:32:29.932827",
+      "equity": 123378.31693673258
+    },
+    {
+      "timestamp": "2026-03-11 09:32:31.600266",
+      "equity": 123378.31693673258
+    },
+    {
+      "timestamp": "2026-03-11 10:32:33.267705",
+      "equity": 123378.31693673258
+    },
+    {
+      "timestamp": "2026-03-11 11:32:34.935143",
+      "equity": 123378.31693673258
+    },
+    {
+      "timestamp": "2026-03-11 12:32:36.602582",
+      "equity": 123378.31693673258
+    },
+    {
+      "timestamp": "2026-03-11 13:32:38.270020",
+      "equity": 123378.31693673258
+    },
+    {
+      "timestamp": "2026-03-11 14:32:39.937459",
+      "equity": 123378.31693673258
+    },
+    {
+      "timestamp": "2026-03-11 15:32:41.604898",
+      "equity": 123378.31693673258
+    },
+    {
+      "timestamp": "2026-03-11 22:32:53.276968",
+      "equity": 124594.03764346524
+    },
+    {
+      "timestamp": "2026-03-11 16:32:43.272336",
+      "equity": 124594.03764346524
+    },
+    {
+      "timestamp": "2026-03-11 21:32:51.609529",
+      "equity": 125831.7385250252
+    },
+    {
+      "timestamp": "2026-03-11 17:32:44.939775",
+      "equity": 125831.7385250252
+    },
+    {
+      "timestamp": "2026-03-11 21:32:51.609529",
+      "equity": 127024.07823389303
+    },
+    {
+      "timestamp": "2026-03-11 18:32:46.607214",
+      "equity": 127024.07823389303
+    },
+    {
+      "timestamp": "2026-03-11 22:32:53.276968",
+      "equity": 128205.5683788778
+    },
+    {
+      "timestamp": "2026-03-11 19:32:48.274652",
+      "equity": 128205.5683788778
+    },
+    {
+      "timestamp": "2026-03-12 00:32:56.611845",
+      "equity": 129461.46341628084
+    },
+    {
+      "timestamp": "2026-03-11 20:32:49.942091",
+      "equity": 129461.46341628084
+    },
+    {
+      "timestamp": "2026-03-11 21:32:51.609529",
+      "equity": 129461.46341628084
+    },
+    {
+      "timestamp": "2026-03-11 22:32:53.276968",
+      "equity": 129461.46341628084
+    },
+    {
+      "timestamp": "2026-03-11 23:32:54.944407",
+      "equity": 129461.46341628084
+    },
+    {
+      "timestamp": "2026-03-12 00:32:56.611845",
+      "equity": 129461.46341628084
+    },
+    {
+      "timestamp": "2026-03-12 01:32:58.279284",
+      "equity": 129461.46341628084
+    },
+    {
+      "timestamp": "2026-03-12 02:32:59.946723",
+      "equity": 129461.46341628084
+    },
+    {
+      "timestamp": "2026-03-12 03:33:01.614161",
+      "equity": 129461.46341628084
+    },
+    {
+      "timestamp": "2026-03-12 06:33:06.616477",
+      "equity": 128588.08641908554
+    },
+    {
+      "timestamp": "2026-03-12 04:33:03.281600",
+      "equity": 128588.08641908554
+    },
+    {
+      "timestamp": "2026-03-12 05:33:04.949038",
+      "equity": 128588.08641908554
+    },
+    {
+      "timestamp": "2026-03-12 06:33:06.616477",
+      "equity": 128588.08641908554
+    },
+    {
+      "timestamp": "2026-03-12 07:33:08.283916",
+      "equity": 128588.08641908554
+    },
+    {
+      "timestamp": "2026-03-12 08:33:09.951354",
+      "equity": 128588.08641908554
+    },
+    {
+      "timestamp": "2026-03-12 09:33:11.618793",
+      "equity": 128588.08641908554
+    },
+    {
+      "timestamp": "2026-03-12 10:33:13.286232",
+      "equity": 128588.08641908554
+    },
+    {
+      "timestamp": "2026-03-12 11:33:14.953670",
+      "equity": 128588.08641908554
+    },
+    {
+      "timestamp": "2026-03-12 12:33:16.621109",
+      "equity": 128588.08641908554
+    },
+    {
+      "timestamp": "2026-03-12 13:33:18.288548",
+      "equity": 128588.08641908554
+    },
+    {
+      "timestamp": "2026-03-12 14:33:19.955986",
+      "equity": 128588.08641908554
+    },
+    {
+      "timestamp": "2026-03-12 15:33:21.623425",
+      "equity": 128588.08641908554
+    },
+    {
+      "timestamp": "2026-03-12 16:33:23.290863",
+      "equity": 128588.08641908554
+    },
+    {
+      "timestamp": "2026-03-12 17:33:24.958302",
+      "equity": 128588.08641908554
+    },
+    {
+      "timestamp": "2026-03-12 18:33:26.625741",
+      "equity": 128588.08641908554
+    },
+    {
+      "timestamp": "2026-03-12 19:33:28.293179",
+      "equity": 128588.08641908554
+    },
+    {
+      "timestamp": "2026-03-12 20:33:29.960618",
+      "equity": 128588.08641908554
+    },
+    {
+      "timestamp": "2026-03-12 21:33:31.628057",
+      "equity": 128588.08641908554
+    },
+    {
+      "timestamp": "2026-03-12 22:33:33.295495",
+      "equity": 128588.08641908554
+    },
+    {
+      "timestamp": "2026-03-12 23:33:34.962934",
+      "equity": 128588.08641908554
+    },
+    {
+      "timestamp": "2026-03-13 00:33:36.630372",
+      "equity": 128588.08641908554
+    },
+    {
+      "timestamp": "2026-03-13 01:33:38.297811",
+      "equity": 128588.08641908554
+    },
+    {
+      "timestamp": "2026-03-13 02:33:39.965250",
+      "equity": 128588.08641908554
+    },
+    {
+      "timestamp": "2026-03-13 03:33:41.632688",
+      "equity": 128588.08641908554
+    },
+    {
+      "timestamp": "2026-03-13 04:33:43.300127",
+      "equity": 128588.08641908554
+    },
+    {
+      "timestamp": "2026-03-13 05:33:44.967566",
+      "equity": 128588.08641908554
+    },
+    {
+      "timestamp": "2026-03-13 06:33:46.635004",
+      "equity": 128588.08641908554
+    },
+    {
+      "timestamp": "2026-03-13 10:33:53.304759",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-13 07:33:48.302443",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-13 08:33:49.969881",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-13 09:33:51.637320",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-13 10:33:53.304759",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-13 11:33:54.972197",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-13 12:33:56.639636",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-13 13:33:58.307075",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-13 14:33:59.974513",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-13 15:34:01.641952",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-13 16:34:03.309391",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-13 17:34:04.976829",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-13 18:34:06.644268",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-13 19:34:08.311706",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-13 20:34:09.979145",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-13 21:34:11.646584",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-13 22:34:13.314022",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-13 23:34:14.981461",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-14 00:34:16.648900",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-14 01:34:18.316338",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-14 02:34:19.983777",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-14 03:34:21.651215",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-14 04:34:23.318654",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-14 05:34:24.986093",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-14 06:34:26.653531",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-14 07:34:28.320970",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-14 08:34:29.988409",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-14 09:34:31.655847",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-14 10:34:33.323286",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-14 11:34:34.990724",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-14 12:34:36.658163",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-14 13:34:38.325602",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-14 14:34:39.993040",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-14 15:34:41.660479",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-14 16:34:43.327918",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-14 17:34:44.995356",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-14 18:34:46.662795",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-14 19:34:48.330233",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-14 20:34:49.997672",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-14 21:34:51.665111",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-14 22:34:53.332549",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-14 23:34:54.999988",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-15 00:34:56.667427",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-15 01:34:58.334865",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-15 02:35:00.002304",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-15 03:35:01.669743",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-15 04:35:03.337181",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-15 05:35:05.004620",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-15 06:35:06.672058",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-15 07:35:08.339497",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-15 08:35:10.006936",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-15 09:35:11.674374",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-15 10:35:13.341813",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-15 11:35:15.009252",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-15 12:35:16.676690",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-15 13:35:18.344129",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-15 14:35:20.011567",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-15 15:35:21.679006",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-15 16:35:23.346445",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-15 17:35:25.013883",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-15 18:35:26.681322",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-15 19:35:28.348761",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-15 20:35:30.016199",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-15 21:35:31.683638",
+      "equity": 127855.50846858705
+    },
+    {
+      "timestamp": "2026-03-16 04:35:43.355708",
+      "equity": 127298.70419368979
+    },
+    {
+      "timestamp": "2026-03-15 22:35:33.351076",
+      "equity": 127298.70419368979
+    },
+    {
+      "timestamp": "2026-03-17 03:36:21.706797",
+      "equity": 128623.68946220788
+    },
+    {
+      "timestamp": "2026-03-15 23:35:35.018515",
+      "equity": 128623.68946220788
+    },
+    {
+      "timestamp": "2026-03-16 00:35:36.685954",
+      "equity": 128623.68946220788
+    },
+    {
+      "timestamp": "2026-03-16 01:35:38.353392",
+      "equity": 128623.68946220788
+    },
+    {
+      "timestamp": "2026-03-17 03:36:21.706797",
+      "equity": 129923.10430749593
+    },
+    {
+      "timestamp": "2026-03-16 02:35:40.020831",
+      "equity": 129923.10430749593
+    },
+    {
+      "timestamp": "2026-03-16 03:35:41.688270",
+      "equity": 129923.10430749593
+    },
+    {
+      "timestamp": "2026-03-16 04:35:43.355708",
+      "equity": 129923.10430749593
+    },
+    {
+      "timestamp": "2026-03-16 05:35:45.023147",
+      "equity": 129923.10430749593
+    },
+    {
+      "timestamp": "2026-03-16 06:35:46.690586",
+      "equity": 129923.10430749593
+    },
+    {
+      "timestamp": "2026-03-16 15:36:01.697533",
+      "equity": 129280.5058928687
+    },
+    {
+      "timestamp": "2026-03-16 07:35:48.358024",
+      "equity": 129280.5058928687
+    },
+    {
+      "timestamp": "2026-03-17 02:36:20.039358",
+      "equity": 130074.99795509789
+    },
+    {
+      "timestamp": "2026-03-16 08:35:50.025463",
+      "equity": 130074.99795509789
+    },
+    {
+      "timestamp": "2026-03-16 09:35:51.692901",
+      "equity": 130074.99795509789
+    },
+    {
+      "timestamp": "2026-03-16 10:35:53.360340",
+      "equity": 130074.99795509789
+    },
+    {
+      "timestamp": "2026-03-16 11:35:55.027779",
+      "equity": 130074.99795509789
+    },
+    {
+      "timestamp": "2026-03-16 12:35:56.695217",
+      "equity": 130074.99795509789
+    },
+    {
+      "timestamp": "2026-03-16 13:35:58.362656",
+      "equity": 130074.99795509789
+    },
+    {
+      "timestamp": "2026-03-16 14:36:00.030095",
+      "equity": 130074.99795509789
+    },
+    {
+      "timestamp": "2026-03-16 15:36:01.697533",
+      "equity": 130074.99795509789
+    },
+    {
+      "timestamp": "2026-03-16 16:36:03.364972",
+      "equity": 130074.99795509789
+    },
+    {
+      "timestamp": "2026-03-16 17:36:05.032410",
+      "equity": 130074.99795509789
+    },
+    {
+      "timestamp": "2026-03-16 18:36:06.699849",
+      "equity": 130074.99795509789
+    },
+    {
+      "timestamp": "2026-03-16 19:36:08.367288",
+      "equity": 130074.99795509789
+    },
+    {
+      "timestamp": "2026-03-16 20:36:10.034726",
+      "equity": 130074.99795509789
+    },
+    {
+      "timestamp": "2026-03-16 21:36:11.702165",
+      "equity": 130074.99795509789
+    },
+    {
+      "timestamp": "2026-03-16 22:36:13.369604",
+      "equity": 130074.99795509789
+    },
+    {
+      "timestamp": "2026-03-16 23:36:15.037042",
+      "equity": 130074.99795509789
+    },
+    {
+      "timestamp": "2026-03-17 00:36:16.704481",
+      "equity": 130074.99795509789
+    },
+    {
+      "timestamp": "2026-03-17 01:36:18.371919",
+      "equity": 130074.99795509789
+    },
+    {
+      "timestamp": "2026-03-17 02:36:20.039358",
+      "equity": 130074.99795509789
+    },
+    {
+      "timestamp": "2026-03-17 03:36:21.706797",
+      "equity": 130074.99795509789
+    },
+    {
+      "timestamp": "2026-03-17 04:36:23.374235",
+      "equity": 130074.99795509789
+    },
+    {
+      "timestamp": "2026-03-17 05:36:25.041674",
+      "equity": 130074.99795509789
+    },
+    {
+      "timestamp": "2026-03-17 06:36:26.709113",
+      "equity": 130074.99795509789
+    },
+    {
+      "timestamp": "2026-03-17 07:36:28.376551",
+      "equity": 130074.99795509789
+    },
+    {
+      "timestamp": "2026-03-17 08:36:30.043990",
+      "equity": 130074.99795509789
+    },
+    {
+      "timestamp": "2026-03-17 09:36:31.711428",
+      "equity": 130074.99795509789
+    },
+    {
+      "timestamp": "2026-03-17 10:36:33.378867",
+      "equity": 130074.99795509789
+    },
+    {
+      "timestamp": "2026-03-17 11:36:35.046306",
+      "equity": 130074.99795509789
+    },
+    {
+      "timestamp": "2026-03-17 12:36:36.713744",
+      "equity": 130074.99795509789
+    },
+    {
+      "timestamp": "2026-03-17 13:36:38.381183",
+      "equity": 130074.99795509789
+    },
+    {
+      "timestamp": "2026-03-17 14:36:40.048622",
+      "equity": 130074.99795509789
+    },
+    {
+      "timestamp": "2026-03-17 15:36:41.716060",
+      "equity": 130074.99795509789
+    },
+    {
+      "timestamp": "2026-03-17 16:36:43.383499",
+      "equity": 130074.99795509789
+    },
+    {
+      "timestamp": "2026-03-17 17:36:45.050938",
+      "equity": 130074.99795509789
+    },
+    {
+      "timestamp": "2026-03-17 18:36:46.718376",
+      "equity": 130074.99795509789
+    },
+    {
+      "timestamp": "2026-03-17 19:36:48.385815",
+      "equity": 130074.99795509789
+    },
+    {
+      "timestamp": "2026-03-17 20:36:50.053253",
+      "equity": 130074.99795509789
+    },
+    {
+      "timestamp": "2026-03-17 21:36:51.720692",
+      "equity": 130074.99795509789
+    },
+    {
+      "timestamp": "2026-03-17 22:36:53.388131",
+      "equity": 130074.99795509789
+    },
+    {
+      "timestamp": "2026-03-17 23:36:55.055569",
+      "equity": 130074.99795509789
+    },
+    {
+      "timestamp": "2026-03-18 00:36:56.723008",
+      "equity": 130074.99795509789
+    },
+    {
+      "timestamp": "2026-03-18 01:36:58.390447",
+      "equity": 130074.99795509789
+    },
+    {
+      "timestamp": "2026-03-18 02:37:00.057885",
+      "equity": 130074.99795509789
+    },
+    {
+      "timestamp": "2026-03-18 03:37:01.725324",
+      "equity": 130074.99795509789
+    },
+    {
+      "timestamp": "2026-03-18 04:37:03.392762",
+      "equity": 130074.99795509789
+    },
+    {
+      "timestamp": "2026-03-18 05:37:05.060201",
+      "equity": 130074.99795509789
+    },
+    {
+      "timestamp": "2026-03-18 07:37:08.395078",
+      "equity": 129469.62899554275
+    },
+    {
+      "timestamp": "2026-03-18 06:37:06.727640",
+      "equity": 129469.62899554275
+    },
+    {
+      "timestamp": "2026-03-18 07:37:08.395078",
+      "equity": 129469.62899554275
+    },
+    {
+      "timestamp": "2026-03-18 08:37:10.062517",
+      "equity": 129469.62899554275
+    },
+    {
+      "timestamp": "2026-03-18 09:37:11.729956",
+      "equity": 129469.62899554275
+    },
+    {
+      "timestamp": "2026-03-18 10:37:13.397394",
+      "equity": 129469.62899554275
+    },
+    {
+      "timestamp": "2026-03-18 11:37:15.064833",
+      "equity": 129469.62899554275
+    },
+    {
+      "timestamp": "2026-03-18 12:37:16.732271",
+      "equity": 129469.62899554275
+    },
+    {
+      "timestamp": "2026-03-18 13:37:18.399710",
+      "equity": 129469.62899554275
+    },
+    {
+      "timestamp": "2026-03-18 14:37:20.067149",
+      "equity": 129469.62899554275
+    },
+    {
+      "timestamp": "2026-03-18 15:37:21.734587",
+      "equity": 129469.62899554275
+    },
+    {
+      "timestamp": "2026-03-18 16:37:23.402026",
+      "equity": 129469.62899554275
+    },
+    {
+      "timestamp": "2026-03-18 17:37:25.069465",
+      "equity": 129469.62899554275
+    },
+    {
+      "timestamp": "2026-03-18 18:37:26.736903",
+      "equity": 129469.62899554275
+    },
+    {
+      "timestamp": "2026-03-18 19:37:28.404342",
+      "equity": 129469.62899554275
+    }
+  ]
+}

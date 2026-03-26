@@ -1,0 +1,91 @@
+{
+  "strategy_id": "regime_adaptive_v1",
+  "name": "Regime-Adaptive Multi-Engine Strategy",
+  "description": "Routes signals to specialized engines based on detected market regime. Uses breakout engine for breakout regimes, trend engine for trending markets, mean_reversion for ranging, etc.",
+  "version": "1.0.0",
+  "created_at": "2026-03-16T20:00:00.000000",
+  "status": "saved_for_later",
+
+  "routing_mode": "auto_by_regime",
+  "slim_map_enabled": false,
+
+  "regime_engine_mapping": {
+    "trending_up": {
+      "primary": "trend",
+      "fallback": "unified",
+      "notes": "Use trend engine for pullback entries in uptrends"
+    },
+    "trending_down": {
+      "primary": "trend",
+      "fallback": "unified",
+      "notes": "Use trend engine for pullback entries in downtrends"
+    },
+    "breakout": {
+      "primary": "breakout",
+      "fallback": "unified",
+      "notes": "Use breakout engine for compression breakouts"
+    },
+    "ranging": {
+      "primary": "mean_reversion",
+      "fallback": "unified",
+      "notes": "Use mean reversion for range-bound markets"
+    },
+    "mean_reverting": {
+      "primary": "mean_reversion",
+      "fallback": "unified",
+      "notes": "Use mean reversion for mean-reverting regimes"
+    },
+    "vol_expansion": {
+      "primary": "breakout",
+      "fallback": "unified",
+      "notes": "Use breakout engine during volatility expansion"
+    },
+    "vol_contraction": {
+      "primary": "mean_reversion",
+      "fallback": "unified",
+      "notes": "Use mean reversion during low volatility"
+    },
+    "chaotic": {
+      "primary": "liquidity_reversal",
+      "fallback": "unified",
+      "notes": "Use liquidity reversal for stop-hunt opportunities"
+    },
+    "neutral": {
+      "primary": "unified",
+      "fallback": "quick",
+      "notes": "Default to unified for neutral conditions"
+    }
+  },
+
+  "engines_used": [
+    "breakout",
+    "trend",
+    "mean_reversion",
+    "liquidity_reversal",
+    "unified"
+  ],
+
+  "forward_test_results": {
+    "period": "2026-03-14 to 2026-03-16",
+    "tickers": ["BTCUSD", "ETHUSD", "US30", "NAS100", "SPX500", "MES", "MNQ", "MYM"],
+    "total_trades": 34,
+    "win_rate": 67.6,
+    "total_pnl": 7947.74,
+    "max_drawdown_pct": 2.6,
+    "notes": "Initial forward test before slim map implementation"
+  },
+
+  "backtest_config": {
+    "use_true_engine_paths": true,
+    "engines_to_compare": ["breakout", "trend", "mean_reversion", "liquidity_reversal", "unified"],
+    "default_days": 30,
+    "default_ticker": "MES"
+  },
+
+  "activation_instructions": {
+    "step_1": "Set SMARTFLOW_SLIM_MAP=false in environment",
+    "step_2": "Load regime rankings with this mapping",
+    "step_3": "Restart forward test with --dynamic flag",
+    "command": "python3 scripts/run_live_forward_test.py --tickers US30 NAS100 SPX500 BTCUSD ETHUSD --interval 60 --dynamic"
+  }
+}

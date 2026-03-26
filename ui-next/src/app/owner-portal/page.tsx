@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -120,6 +120,7 @@ interface EnvDoctor {
 
 const tabs = [
   { id: "overview", label: "Overview", icon: BarChart3 },
+  { id: "smartflow", label: "SmartFlow", icon: Shield },
   { id: "pipeline", label: "Pipeline", icon: Activity },
   { id: "logs", label: "Logs", icon: ScrollText },
   { id: "users", label: "Users", icon: Users },
@@ -145,6 +146,8 @@ export default function OwnerPortal() {
   const [connectedAccounts, setConnectedAccounts] = useState<any>(null);
   const [allEnvVars, setAllEnvVars] = useState<any>(null);
   const [systemLogs, setSystemLogs] = useState<any>(null);
+  const [smartflowIntegrity, setSmartflowIntegrity] = useState<any>(null);
+  const [smartflowTopology, setSmartflowTopology] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<typeof tabs[number]["id"]>("overview");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -251,6 +254,20 @@ export default function OwnerPortal() {
         if (response.ok) {
           const data = await response.json();
           setEnvDoctor(data);
+        }
+      } else if (activeTab === "smartflow") {
+        // Fetch both integrity status and topology
+        const [integrityRes, topologyRes] = await Promise.all([
+          fetch("/api/v1/smartflow/integrity/status", { credentials: "include" }),
+          fetch("/api/v1/smartflow/integrity/topology", { credentials: "include" }),
+        ]);
+        if (integrityRes.ok) {
+          const data = await integrityRes.json();
+          setSmartflowIntegrity(data);
+        }
+        if (topologyRes.ok) {
+          const data = await topologyRes.json();
+          setSmartflowTopology(data);
         }
       }
     } catch (error) {
@@ -407,6 +424,14 @@ export default function OwnerPortal() {
           >
             {activeTab === "overview" && (
               <OverviewTab overview={overview} loading={loading} />
+            )}
+            {activeTab === "smartflow" && (
+              <SmartFlowIntegrityTab
+                integrity={smartflowIntegrity}
+                topology={smartflowTopology}
+                loading={loading}
+                onRefresh={fetchData}
+              />
             )}
             {activeTab === "pipeline" && (
               <PipelineTab pipelineStatus={pipelineStatus} loading={loading} />
@@ -2090,6 +2115,270 @@ function BroadcastTab() {
           </CardContent>
         </Card>
       )}
+    </div>
+  );
+}
+
+// SmartFlow Integrity Tab - Live System Health & Topology
+function SmartFlowIntegrityTab({
+  integrity,
+  topology,
+  loading,
+  onRefresh,
+}: {
+  integrity: any;
+  topology: any;
+  loading: boolean;
+  onRefresh: () => void;
+}) {
+  if (loading && !integrity && !topology) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-32" />
+        <Skeleton className="h-64" />
+        <div className="grid gap-4 md:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-40" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "healthy":
+        return "bg-emerald-500";
+      case "warning":
+        return "bg-amber-500";
+      case "critical":
+        return "bg-red-500";
+      default:
+        return "bg-gray-500";
+    }
+  };
+
+  const getStatusBg = (status: string) => {
+    switch (status) {
+      case "healthy":
+        return "bg-emerald-500/10 border-emerald-500/50";
+      case "warning":
+        return "bg-amber-500/10 border-amber-500/50";
+      case "critical":
+        return "bg-red-500/10 border-red-500/50";
+      default:
+        return "bg-gray-500/10 border-gray-500/50";
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Health Score Banner */}
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className={`p-4 rounded-xl border ${getStatusBg(integrity?.overall_status || "unknown")}`}
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className={`w-4 h-4 rounded-full ${getStatusColor(integrity?.overall_status || "unknown")} animate-pulse`} />
+            <div>
+              <h3 className="font-semibold text-lg">
+                SmartFlow Health: {integrity?.overall_status?.toUpperCase() || "CHECKING..."}
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                Score: {integrity?.health_score ?? "..."} / 100 |
+                Baseline: {integrity?.baseline_version || "None"} |
+                Drift: {integrity?.drift_count ?? 0} finding(s)
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {integrity?.critical_drift_count > 0 && (
+              <Badge variant="destructive" className="animate-pulse">
+                <AlertTriangle className="h-3 w-3 mr-1" />
+                {integrity.critical_drift_count} Critical
+              </Badge>
+            )}
+            <Button variant="outline" size="sm" onClick={onRefresh} className="gap-2">
+              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Category Scores */}
+      {integrity?.category_scores && (
+        <div className="grid gap-4 md:grid-cols-4 lg:grid-cols-8">
+          {Object.entries(integrity.category_scores).map(([category, score]: [string, any], i) => (
+            <motion.div
+              key={category}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: i * 0.05 }}
+            >
+              <Card className={`border ${score >= 80 ? "border-emerald-500/30" : score >= 50 ? "border-amber-500/30" : "border-red-500/30"}`}>
+                <CardContent className="pt-4 pb-3 text-center">
+                  <div className={`text-2xl font-bold ${score >= 80 ? "text-emerald-500" : score >= 50 ? "text-amber-500" : "text-red-500"}`}>
+                    {score}
+                  </div>
+                  <p className="text-xs text-muted-foreground capitalize">{category.replace(/_/g, " ")}</p>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+      )}
+
+      {/* Topology Visualization */}
+      <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Activity className="h-5 w-5 text-primary" />
+            SmartFlow Runtime Topology
+          </CardTitle>
+          <CardDescription>
+            Live signal processing pipeline status
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="relative overflow-x-auto">
+            <div className="flex items-center justify-between min-w-[1000px] py-6">
+              {topology?.nodes?.map((node: any, i: number) => (
+                <React.Fragment key={node.id}>
+                  {i > 0 && (
+                    <div className="flex-1 flex items-center justify-center relative mx-1">
+                      <motion.div
+                        initial={{ scaleX: 0 }}
+                        animate={{ scaleX: 1 }}
+                        transition={{ delay: i * 0.05 }}
+                        className="h-0.5 bg-gradient-to-r from-primary/30 to-primary/60 w-full"
+                      />
+                      <motion.div
+                        animate={{ x: [0, 15, 0] }}
+                        transition={{ repeat: Infinity, duration: 2, delay: i * 0.2 }}
+                        className="absolute w-1.5 h-1.5 bg-primary rounded-full"
+                      />
+                    </div>
+                  )}
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.05 }}
+                    className="flex flex-col items-center"
+                  >
+                    <div
+                      className={`w-14 h-14 rounded-xl border-2 flex items-center justify-center relative ${getStatusBg(node.status)}`}
+                    >
+                      {node.drift_flag && (
+                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-amber-500 rounded-full animate-pulse" />
+                      )}
+                      <div className={`w-2 h-2 rounded-full ${getStatusColor(node.status)}`} />
+                    </div>
+                    <span className="text-[10px] mt-1.5 font-medium text-center max-w-[60px] truncate">
+                      {node.name}
+                    </span>
+                  </motion.div>
+                </React.Fragment>
+              )) || (
+                <div className="text-center py-8 text-muted-foreground w-full">
+                  <Activity className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p>Loading topology...</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Components Grid */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {integrity?.components?.map((component: any, i: number) => (
+          <motion.div
+            key={component.name}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.03 }}
+          >
+            <Card className={`border ${getStatusBg(component.status)}`}>
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-2 h-2 rounded-full ${getStatusColor(component.status)} animate-pulse`} />
+                    <CardTitle className="text-sm font-medium">{component.name}</CardTitle>
+                  </div>
+                  {component.drift_flag && (
+                    <Badge variant="outline" className="text-amber-500 border-amber-500/50 text-[10px]">
+                      Drift
+                    </Badge>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-xs text-muted-foreground">{component.message}</p>
+                {component.last_success && (
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    Last: {new Date(component.last_success).toLocaleString()}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Notes / Warnings */}
+      {integrity?.notes?.length > 0 && (
+        <Card className="border-amber-500/30 bg-amber-500/5">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-500" />
+              Notes
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="text-sm text-muted-foreground space-y-1">
+              {integrity.notes.map((note: string, i: number) => (
+                <li key={i}>• {note}</li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Baseline Info */}
+      <Card className="border-border/50 bg-card/50">
+        <CardHeader>
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Database className="h-4 w-4 text-primary" />
+            Golden Baseline
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-3">
+            <div>
+              <p className="text-xs text-muted-foreground">Version</p>
+              <p className="font-medium">{integrity?.baseline_version || "Not loaded"}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Last Check</p>
+              <p className="font-medium">
+                {integrity?.timestamp ? new Date(integrity.timestamp).toLocaleString() : "-"}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Health Score</p>
+              <p className={`font-bold text-xl ${
+                (integrity?.health_score ?? 0) >= 80 ? "text-emerald-500" :
+                (integrity?.health_score ?? 0) >= 50 ? "text-amber-500" : "text-red-500"
+              }`}>
+                {integrity?.health_score ?? "-"}%
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

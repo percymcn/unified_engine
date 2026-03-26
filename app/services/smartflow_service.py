@@ -25,6 +25,7 @@ import asyncio
 import json
 import logging
 import time
+import threading
 import os
 from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Optional, Tuple, Any
@@ -188,7 +189,54 @@ except ImportError:
     VWAPConfluence = None
     get_vwap_features_for_ensemble = None
 
+
+# LuxAlgo Native Indicator Engine (5 ported indicators)
+try:
+    from app.services.luxalgo_engine import get_luxalgo_engine, LuxAlgoEngine
+    LUXALGO_AVAILABLE = True
+except ImportError:
+    LUXALGO_AVAILABLE = False
+    get_luxalgo_engine = None
+    LuxAlgoEngine = None
+
 logger = logging.getLogger(__name__)
+
+# --- LuxAlgo background cache (avoids 1-2s blocking on every signal eval) ---
+_luxalgo_cache = {'results': None, 'timestamp': None}
+_cache_lock = threading.Lock()
+
+
+def _refresh_luxalgo_cache():
+    """Refresh LuxAlgo results in a background daemon thread."""
+    try:
+        engine = get_luxalgo_engine()
+        results = engine.run_once()
+        with _cache_lock:
+            _luxalgo_cache['results'] = results
+            _luxalgo_cache['timestamp'] = datetime.utcnow()
+    except Exception as e:
+        logger.warning(f"LuxAlgo cache refresh failed: {e}")
+
+
+def get_luxalgo_boost(direction: str, symbol: str) -> float:
+    """Return LuxAlgo confidence boost fraction (0.0-0.15) without blocking."""
+    with _cache_lock:
+        cache = _luxalgo_cache.copy()
+    # Trigger background refresh if stale (>60s) or never populated
+    if cache["timestamp"] is None or \
+            (datetime.utcnow() - cache["timestamp"]).total_seconds() > 60:
+        threading.Thread(target=_refresh_luxalgo_cache, daemon=True).start()
+        return 0.0   # non-blocking: return 0 until cache is warm
+    # Use cached results to compute boost
+    if cache["results"]:
+        agreeing = sum(
+            1 for r in cache["results"].values()
+            if r.get("signal") == direction and r.get("confidence", 0) >= 0.65
+        )
+        return min(0.15, agreeing * 0.05)  # +5% per agreeing indicator, max +15%
+    return 0.0
+# ---------------------------------------------------------------------------
+
 
 # Fire-and-forget thread pool for webhook posts
 _webhook_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="smartflow_webhook")
@@ -277,10 +325,10 @@ class SmartFlowService:
         self.webhook_urls: List[str] = []  # User's webhook URLs
 
         # Configuration (Symmetric thresholds for 50/50 balance)
-        self.score_threshold_buy = 4.0  # Less sensitive - requires stronger flow consensus
-        self.score_threshold_sell = -4.0  # Less sensitive - requires stronger flow consensus
+        self.score_threshold_buy = 3.0  # TUNED: Lowered from 4.0 to generate more signals
+        self.score_threshold_sell = -3.0  # TUNED: Lowered from -4.0 to generate more signals
         self.close_threshold = 1.0  # Close when score returns near zero after extreme
-        self.score_window_minutes = 5
+        self.score_window_minutes = 10  # TUNED: Widened from 5 to catch more flow
         self.update_interval_seconds = 45  # Compute scores every 45s
         self.per_ticker_delay_seconds = 5  # Prevent CPU spikes during per-ticker scans
 
@@ -289,7 +337,7 @@ class SmartFlowService:
         self.enable_golden_sweeps = False
         self.enable_leveraged_etfs = False
         self.vix_golden_threshold = 100000.0  # VIX golden sweep threshold
-        self.min_premium = 30000.0  # LOWERED from 50k to catch more flow signals
+        self.min_premium = 20000.0  # TUNED: Lowered from 30k to catch more opportunities
 
         # Confirmation filter toggles
         self.enable_price_confirmation = False  # EMA filter
@@ -463,10 +511,10 @@ class SmartFlowService:
         self.enable_regime_asymmetric = True
 
         # Trending Up: Stricter requirements for longs
-        self.uptrend_flow_require = 'HIGH'               # Require HIGH/EXTREME flow for longs in uptrend
+        self.uptrend_flow_require = 'MEDIUM'             # TUNED: Lowered from HIGH to allow more long entries
         self.uptrend_fib_extensions = True               # Use Fib extensions as targets
-        self.uptrend_imbalance_min = 0.45                # Min imbalance for longs in uptrend
-        self.uptrend_rr_min = 4.0                        # 1:4 or 1:5 R:R in uptrend
+        self.uptrend_imbalance_min = 0.35                # TUNED: Lowered from 0.45 to catch more opportunities
+        self.uptrend_rr_min = 3.0                        # TUNED: Lowered from 4.0 for better entry timing
         self.uptrend_target_pct = 0.8                    # 0.8% target (from 0.2% risk = 1:4)
         self.uptrend_ensemble_min_probability = 0.66     # Override base 0.62 in trending_up
 
@@ -2472,6 +2520,22 @@ class SmartFlowService:
         else:
             # If disabled, don't penalize
             score += 10  # Partial credit
+
+
+        # 7. LuxAlgo consensus boost (up to +15 points) -- cached, non-blocking
+        if LUXALGO_AVAILABLE:
+            try:
+                lux_boost_pct = get_luxalgo_boost(signal_direction, ticker)
+                if lux_boost_pct > 0:
+                    lux_boost_pts = lux_boost_pct * 100  # 0.0-15.0 points
+                    score += lux_boost_pts
+                    details['luxalgo_boost'] = lux_boost_pts
+                    logger.info(
+                        f"LuxAlgo boost for {ticker} {signal_direction}: "
+                        f"+{lux_boost_pts:.1f}pts (cached)"
+                    )
+            except Exception as lux_e:
+                logger.debug(f"LuxAlgo confidence check failed: {lux_e}")
 
         return min(score, 100.0), details
 

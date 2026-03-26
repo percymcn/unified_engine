@@ -43,8 +43,9 @@ export async function GET() {
     return NextResponse.json(accounts);
   } catch (error) {
     console.error('Error fetching accounts:', error);
-    // Return empty accounts on error (graceful degradation)
-    return NextResponse.json({ accounts: [], total: 0 }, { status: 200 });
+    // Return empty array on error (graceful degradation)
+    // Frontend expects array directly, not wrapped object
+    return NextResponse.json([], { status: 200 });
   }
 }
 

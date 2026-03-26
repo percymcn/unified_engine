@@ -12,6 +12,7 @@ from datetime import datetime, date as date_type, timedelta
 from typing import List, Dict, Any
 from collections import defaultdict
 from sqlalchemy.orm import Session
+from sqlalchemy import func, desc
 
 from app.tasks.celery_app import celery_app
 from app.db.database import get_db_session
@@ -463,11 +464,7 @@ def sync_positions() -> Dict[str, Any]:
 
                         # Get current open positions from broker
                         import asyncio
-                        loop = asyncio.new_event_loop()
-                        asyncio.set_event_loop(loop)
-
-                        broker_positions = loop.run_until_complete(executor.get_open_positions())
-                        loop.close()
+                        broker_positions = asyncio.run(executor.get_positions())
 
                         # Create lookup of broker position IDs
                         broker_position_ids = {
@@ -508,10 +505,7 @@ def sync_positions() -> Dict[str, Any]:
                     finally:
                         if executor:
                             try:
-                                loop = asyncio.new_event_loop()
-                                asyncio.set_event_loop(loop)
-                                loop.run_until_complete(executor.disconnect())
-                                loop.close()
+                                asyncio.run(executor.disconnect())
                             except:
                                 pass
 
@@ -674,29 +668,72 @@ def update_smartflow_outcomes() -> Dict[str, Any]:
                     SmartFlowSignalOutcome.is_winner == False
                 ).scalar() or 0.0
 
-                # Update or create ML metrics
-                ml_metrics = db.query(SmartFlowMLMetrics).order_by(
-                    desc(SmartFlowMLMetrics.created_at)
-                ).first()
+                # Update or create ML metrics per ticker
+                # Get breakdown by ticker from outcomes
+                from sqlalchemy import distinct
+                tickers = db.query(distinct(SmartFlowSignalLog.ticker)).all()
+                tickers = [t[0] for t in tickers if t[0]]
 
-                if ml_metrics and (datetime.utcnow() - ml_metrics.created_at).total_seconds() < 3600:
-                    # Update existing if less than 1 hour old
-                    ml_metrics.win_rate = win_rate
-                    ml_metrics.total_signals = total_outcomes
-                    ml_metrics.avg_winner_pnl = float(avg_winner)
-                    ml_metrics.avg_loser_pnl = float(avg_loser)
-                    ml_metrics.updated_at = datetime.utcnow()
-                else:
-                    # Create new metrics record
-                    new_metrics = SmartFlowMLMetrics(
-                        win_rate=win_rate,
-                        total_signals=total_outcomes,
-                        avg_winner_pnl=float(avg_winner),
-                        avg_loser_pnl=float(avg_loser),
-                        confidence_calibration=1.0,  # Default
-                        model_version="v1.0"
-                    )
-                    db.add(new_metrics)
+                if not tickers:
+                    tickers = ['SPY']  # Default if no signals yet
+
+                today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+
+                for ticker in tickers:
+                    # Get ticker-specific metrics
+                    ticker_outcomes = db.query(SmartFlowSignalOutcome).join(
+                        SmartFlowSignalLog
+                    ).filter(
+                        SmartFlowSignalLog.ticker == ticker,
+                        SmartFlowSignalOutcome.trade_executed == True
+                    ).all()
+
+                    ticker_total = len(ticker_outcomes)
+                    ticker_winners = len([o for o in ticker_outcomes if o.is_winner])
+                    ticker_losers = ticker_total - ticker_winners
+                    ticker_win_rate = (ticker_winners / ticker_total * 100) if ticker_total > 0 else 0.0
+
+                    # Calculate P&L
+                    gross_profit = sum(o.pnl for o in ticker_outcomes if o.pnl and o.pnl > 0)
+                    gross_loss = abs(sum(o.pnl for o in ticker_outcomes if o.pnl and o.pnl < 0))
+                    net_pnl = gross_profit - gross_loss
+                    profit_factor = (gross_profit / gross_loss) if gross_loss > 0 else 0.0
+                    expectancy = (net_pnl / ticker_total) if ticker_total > 0 else 0.0
+
+                    # Check if record exists for today
+                    existing = db.query(SmartFlowMLMetrics).filter(
+                        SmartFlowMLMetrics.ticker == ticker,
+                        SmartFlowMLMetrics.metric_date >= today
+                    ).first()
+
+                    if existing:
+                        # Update existing
+                        existing.signals_executed = ticker_total
+                        existing.winners = ticker_winners
+                        existing.losers = ticker_losers
+                        existing.win_rate = ticker_win_rate
+                        existing.gross_profit = gross_profit
+                        existing.gross_loss = gross_loss
+                        existing.net_pnl = net_pnl
+                        existing.profit_factor = profit_factor
+                        existing.expectancy = expectancy
+                    else:
+                        # Create new daily record
+                        new_metrics = SmartFlowMLMetrics(
+                            ticker=ticker,
+                            metric_date=today,
+                            signals_generated=ticker_total,
+                            signals_executed=ticker_total,
+                            winners=ticker_winners,
+                            losers=ticker_losers,
+                            win_rate=ticker_win_rate,
+                            gross_profit=gross_profit,
+                            gross_loss=gross_loss,
+                            net_pnl=net_pnl,
+                            profit_factor=profit_factor,
+                            expectancy=expectancy
+                        )
+                        db.add(new_metrics)
 
                 db.commit()
 
@@ -853,3 +890,182 @@ def process_trade(trade_data: dict) -> Dict[str, Any]:
     # Placeholder for future trade processing logic
     logger.info(f"Processing trade: {trade_data}")
     return {"status": "processed", "data": trade_data}
+
+
+@celery_app.task(name="trading_tasks.capture_strategy_health_snapshots")
+def capture_strategy_health_snapshots() -> Dict[str, Any]:
+    """
+    Capture health snapshots for all strategies in the registry.
+
+    Compares current forward-test performance against baseline backtest metrics
+    to detect drift and strategy degradation.
+
+    Runs every 30 minutes.
+    """
+    try:
+        with get_db_session() as db:
+            from app.models.strategy_registry_models import (
+                SmartFlowStrategy, StrategyHealthSnapshot
+            )
+            from app.services.strategy_registry.health import get_health_monitor
+
+            health_monitor = get_health_monitor()
+
+            # Get all active strategies
+            strategies = db.query(SmartFlowStrategy).filter(
+                SmartFlowStrategy.status.in_(['approved', 'built_in'])
+            ).all()
+
+            results = {
+                "strategies_checked": 0,
+                "snapshots_created": 0,
+                "errors": 0
+            }
+
+            for strategy in strategies:
+                try:
+                    # Calculate health score
+                    health = health_monitor.calculate_health_score(strategy.strategy_id)
+
+                    if health:
+                        # Create snapshot
+                        snapshot = StrategyHealthSnapshot(
+                            strategy_id=strategy.strategy_id,
+                            health_score=health.score,
+                            health_status=health.status.value,
+                            sharpe_drift_pct=health.drift_metrics.sharpe_drift_pct,
+                            win_rate_drift_pct=health.drift_metrics.win_rate_drift_pct,
+                            drawdown_drift_pct=health.drift_metrics.drawdown_drift_pct,
+                            notes="; ".join(health.notes) if health.notes else None
+                        )
+                        db.add(snapshot)
+                        results["snapshots_created"] += 1
+
+                    results["strategies_checked"] += 1
+
+                except Exception as e:
+                    results["errors"] += 1
+                    logger.error(f"Error capturing health for {strategy.strategy_id}: {e}")
+
+            db.commit()
+            logger.info(
+                f"Strategy health snapshots: {results['snapshots_created']} created "
+                f"for {results['strategies_checked']} strategies"
+            )
+
+            return results
+
+    except Exception as e:
+        logger.error(f"Error in capture_strategy_health_snapshots: {e}", exc_info=True)
+        return {"success": False, "error": str(e)}
+
+
+@celery_app.task(name="trading_tasks.capture_forward_test_snapshots")
+def capture_forward_test_snapshots() -> Dict[str, Any]:
+    """
+    Capture forward test performance snapshots for strategy registry.
+
+    Saves current forward test metrics to DB so Strategy Registry UI
+    can display live forward test data.
+
+    Runs every 5 minutes.
+    """
+    try:
+        from app.services.forward_test import get_forward_tester
+
+        tester = get_forward_tester()
+        stats = tester.get_status()
+
+        if not stats.get('active'):
+            logger.debug("Forward test not active, skipping snapshot")
+            return {"success": True, "message": "Forward test not active"}
+
+        # Save snapshot for pyramid_dynamic_v1 (what forward test uses)
+        success = tester.save_snapshot_to_registry("pyramid_dynamic_v1")
+
+        if success:
+            logger.info(
+                f"Forward test snapshot saved: trades={stats.get('total_trades', 0)}, "
+                f"win_rate={stats.get('win_rate', 0):.1f}%"
+            )
+            return {
+                "success": True,
+                "total_trades": stats.get('total_trades', 0),
+                "win_rate": stats.get('win_rate', 0),
+                "total_pnl": stats.get('total_pnl', 0)
+            }
+        else:
+            return {"success": False, "error": "Failed to save snapshot"}
+
+    except Exception as e:
+        logger.error(f"Error in capture_forward_test_snapshots: {e}", exc_info=True)
+        return {"success": False, "error": str(e)}
+
+
+@celery_app.task(name="trading_tasks.capture_portfolio_risk_snapshot")
+def capture_portfolio_risk_snapshot() -> Dict[str, Any]:
+    """
+    Capture portfolio-level risk metrics snapshot.
+
+    Aggregates risk across all active strategies and calculates:
+    - Portfolio VaR
+    - Total exposure
+    - Correlation risk
+    - Drawdown status
+
+    Runs every hour.
+    """
+    try:
+        with get_db_session() as db:
+            from app.models.strategy_registry_models import (
+                SmartFlowStrategy, PortfolioRiskSnapshot
+            )
+            from app.services.strategy_registry.portfolio_risk import get_portfolio_risk_engine
+
+            risk_engine = get_portfolio_risk_engine(db)
+
+            # Get active strategies
+            active_strategies = db.query(SmartFlowStrategy).filter(
+                SmartFlowStrategy.status.in_(['approved', 'built_in']),
+                SmartFlowStrategy.is_paused == False
+            ).all()
+
+            strategy_ids = [s.strategy_id for s in active_strategies]
+
+            if not strategy_ids:
+                logger.info("No active strategies for portfolio risk snapshot")
+                return {"success": True, "strategies": 0}
+
+            # Calculate portfolio risk
+            portfolio_metrics = risk_engine.calculate_portfolio_risk(strategy_ids)
+
+            # Create snapshot
+            snapshot = PortfolioRiskSnapshot(
+                total_strategies=len(strategy_ids),
+                active_strategies=len(strategy_ids),
+                total_allocation_pct=100.0,  # Default to 100% allocation
+                portfolio_var=portfolio_metrics.portfolio_var if portfolio_metrics else 0.0,
+                current_leverage=portfolio_metrics.current_leverage if portfolio_metrics else 1.0,
+                current_drawdown_pct=portfolio_metrics.current_drawdown_pct if portfolio_metrics else 0.0,
+                risk_budget_used=portfolio_metrics.risk_budget_used if portfolio_metrics else 0.0,
+                is_halted=portfolio_metrics.has_risk_breach if portfolio_metrics else False,
+                halt_reason=portfolio_metrics.breach_reason if portfolio_metrics and portfolio_metrics.has_risk_breach else None
+            )
+            db.add(snapshot)
+            db.commit()
+
+            logger.info(
+                f"Portfolio risk snapshot: {len(strategy_ids)} strategies, "
+                f"VaR={snapshot.portfolio_var:.2f}, DD={snapshot.current_drawdown_pct:.1f}%"
+            )
+
+            return {
+                "success": True,
+                "strategies": len(strategy_ids),
+                "var": snapshot.portfolio_var,
+                "drawdown_pct": snapshot.current_drawdown_pct
+            }
+
+    except Exception as e:
+        logger.error(f"Error in capture_portfolio_risk_snapshot: {e}", exc_info=True)
+        return {"success": False, "error": str(e)}

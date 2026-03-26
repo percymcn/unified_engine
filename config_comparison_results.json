@@ -1,0 +1,150 @@
+{
+  "timestamp": "2026-03-18T20:47:09.500302",
+  "results": {
+    "A_CURRENT": {
+      "name": "A_CURRENT",
+      "trades": 127,
+      "win_rate": 49.60629921259843,
+      "net_pnl": 1575.5464294704564,
+      "return_pct": 6.302185717881825,
+      "sharpe": 1.537159515067977,
+      "sortino": 3.188042134315397,
+      "max_dd": 5.0781145906752805,
+      "profit_factor": 1.2488956573058592,
+      "expectancy": 12.40587739740517,
+      "avg_win": 125.48721840630321,
+      "avg_loss": -98.90856765822886,
+      "regime_wr": {
+        "trending_down": 48.61111111111111,
+        "trending_up": 50.90909090909091
+      },
+      "regime_pnl": {
+        "trending_down": 1645.8584826735296,
+        "trending_up": -70.31205320307312
+      },
+      "mc_worst_dd": 6.504854238656706,
+      "flow_confirmed_wr": 49.60629921259843
+    },
+    "B_STRICT_65": {
+      "name": "B_STRICT_65",
+      "trades": 104,
+      "win_rate": 44.230769230769226,
+      "net_pnl": 643.3134364477675,
+      "return_pct": 2.57325374579107,
+      "sharpe": 0.9258970344717582,
+      "sortino": 3.2593119722212,
+      "max_dd": 5.107459364947229,
+      "profit_factor": 1.1374129224298632,
+      "expectancy": 6.185706119690067,
+      "avg_win": 115.75916158229086,
+      "avg_loss": -80.71737924720021,
+      "regime_wr": {
+        "trending_down": 47.61904761904761,
+        "trending_up": 39.02439024390244
+      },
+      "regime_pnl": {
+        "trending_down": 975.248179224771,
+        "trending_up": -331.93474277700386
+      },
+      "mc_worst_dd": 5.23362356851376,
+      "flow_confirmed_wr": 44.230769230769226
+    },
+    "C_1TO3_RR": {
+      "name": "C_1TO3_RR",
+      "trades": 127,
+      "win_rate": 49.60629921259843,
+      "net_pnl": 1575.5464294704564,
+      "return_pct": 6.302185717881825,
+      "sharpe": 1.537159515067977,
+      "sortino": 3.188042134315397,
+      "max_dd": 5.0781145906752805,
+      "profit_factor": 1.2488956573058592,
+      "expectancy": 12.40587739740517,
+      "avg_win": 125.48721840630321,
+      "avg_loss": -98.90856765822886,
+      "regime_wr": {
+        "trending_down": 48.61111111111111,
+        "trending_up": 50.90909090909091
+      },
+      "regime_pnl": {
+        "trending_down": 1645.8584826735296,
+        "trending_up": -70.31205320307312
+      },
+      "mc_worst_dd": 6.1906641619030625,
+      "flow_confirmed_wr": 49.60629921259843
+    },
+    "D_STRICT_1TO3": {
+      "name": "D_STRICT_1TO3",
+      "trades": 104,
+      "win_rate": 44.230769230769226,
+      "net_pnl": 643.3134364477675,
+      "return_pct": 2.57325374579107,
+      "sharpe": 0.9258970344717582,
+      "sortino": 3.2593119722212,
+      "max_dd": 5.107459364947229,
+      "profit_factor": 1.1374129224298632,
+      "expectancy": 6.185706119690067,
+      "avg_win": 115.75916158229086,
+      "avg_loss": -80.71737924720021,
+      "regime_wr": {
+        "trending_down": 47.61904761904761,
+        "trending_up": 39.02439024390244
+      },
+      "regime_pnl": {
+        "trending_down": 975.248179224771,
+        "trending_up": -331.93474277700386
+      },
+      "mc_worst_dd": 5.4397664360583695,
+      "flow_confirmed_wr": 44.230769230769226
+    },
+    "E_UPTREND_FIX": {
+      "name": "E_UPTREND_FIX",
+      "trades": 104,
+      "win_rate": 44.230769230769226,
+      "net_pnl": 643.3134364477675,
+      "return_pct": 2.57325374579107,
+      "sharpe": 0.9258970344717582,
+      "sortino": 3.2593119722212,
+      "max_dd": 5.107459364947229,
+      "profit_factor": 1.1374129224298632,
+      "expectancy": 6.185706119690067,
+      "avg_win": 115.75916158229086,
+      "avg_loss": -80.71737924720021,
+      "regime_wr": {
+        "trending_down": 47.61904761904761,
+        "trending_up": 39.02439024390244
+      },
+      "regime_pnl": {
+        "trending_down": 975.248179224771,
+        "trending_up": -331.93474277700386
+      },
+      "mc_worst_dd": 4.994667250027619,
+      "flow_confirmed_wr": 44.230769230769226
+    },
+    "F_OPTIMAL": {
+      "name": "F_OPTIMAL",
+      "trades": 143,
+      "win_rate": 39.16083916083916,
+      "net_pnl": 380183.7293539615,
+      "return_pct": 1520.734917415846,
+      "sharpe": 2.231708568629682,
+      "sortino": 4.052326418164751,
+      "max_dd": 34.92538570073726,
+      "profit_factor": 2.200813785564211,
+      "expectancy": 2658.627477999729,
+      "avg_win": 12442.657082521082,
+      "avg_loss": -3639.138704220912,
+      "regime_wr": {
+        "trending_down": 25.757575757575758,
+        "trending_up": 50.649350649350644
+      },
+      "regime_pnl": {
+        "trending_down": -160452.15159533411,
+        "trending_up": 540635.8809492955
+      },
+      "mc_worst_dd": 375.7375524071495,
+      "flow_confirmed_wr": 39.16083916083916
+    }
+  },
+  "best_config": "F_OPTIMAL"
+}

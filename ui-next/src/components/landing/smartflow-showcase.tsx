@@ -304,7 +304,10 @@ export function SmartFlowShowcase() {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="relative"
           >
-            <div className="p-6 rounded-3xl bg-gradient-to-br from-background/80 to-background/40 backdrop-blur-xl border border-white/10 shadow-2xl">
+            <div
+              className="p-6 rounded-3xl bg-gradient-to-br from-background/80 to-background/40 backdrop-blur-xl border border-white/10 shadow-2xl w-full max-w-[560px] min-h-[520px]"
+              style={{ willChange: "transform", contain: "layout style", overflow: "hidden" }}
+            >
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-2">
                   <Radio className="w-4 h-4 text-green-400 animate-pulse" />
@@ -312,7 +315,7 @@ export function SmartFlowShowcase() {
                 </div>
                 <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/10 border border-green-500/20">
                   <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                  <span className="text-xs text-green-400">Connected</span>
+                  <span className="text-xs text-green-400">Demo</span>
                 </div>
               </div>
 

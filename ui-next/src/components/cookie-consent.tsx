@@ -66,54 +66,60 @@ export function CookieConsent() {
     setIsVisible(false);
   };
 
+  useEffect(() => {
+    if (!isVisible || showSettings) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      handleDeclineOptional();
+    }, 10000);
+    return () => clearTimeout(timer);
+  }, [isVisible, showSettings]);
+
   if (!isVisible) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 p-4 md:p-6">
-      <div className="mx-auto max-w-4xl">
-        <div className="rounded-lg border border-border bg-card shadow-lg">
+    <div className="fixed bottom-0 left-0 right-0 z-50 p-4 md:p-6 pointer-events-none">
+      <div className="mx-auto max-w-4xl pointer-events-auto">
+        <div className={`rounded-lg border border-border bg-card shadow-lg ${showSettings ? "" : "max-h-[80px]"}`}>
           {!showSettings ? (
             // Main consent view
-            <div className="p-4 md:p-6">
-              <div className="flex items-start gap-4">
-                <div className="hidden md:flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-                  <Cookie className="h-6 w-6 text-primary" />
+            <div className="p-3 md:p-4">
+              <div className="flex items-center gap-3">
+                <div className="hidden md:flex h-9 w-9 items-center justify-center rounded-full bg-primary/10">
+                  <Cookie className="h-4 w-4 text-primary" />
                 </div>
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold mb-2">We value your privacy</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    We use cookies to enhance your browsing experience, analyze site traffic,
-                    and personalize content. By clicking &quot;Accept All&quot;, you consent to our use of cookies.
-                    You can manage your preferences or learn more in our{" "}
-                    <Link href="/privacy" className="text-primary underline hover:no-underline">
-                      Privacy Policy
-                    </Link>.
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    <Button onClick={handleAcceptAll} size="sm">
-                      Accept All
-                    </Button>
-                    <Button onClick={handleDeclineOptional} variant="outline" size="sm">
-                      Necessary Only
-                    </Button>
-                    <Button
-                      onClick={() => setShowSettings(true)}
-                      variant="ghost"
-                      size="sm"
-                      className="gap-2"
-                    >
-                      <Settings className="h-4 w-4" />
-                      Customize
-                    </Button>
-                  </div>
+                <div className="flex-1 text-xs text-muted-foreground">
+                  We use cookies to improve TradeFlow.{" "}
+                  <Link href="/privacy" className="text-primary underline hover:no-underline">
+                    Privacy Policy
+                  </Link>
+                  .
                 </div>
-                <button
-                  onClick={handleDeclineOptional}
-                  className="text-muted-foreground hover:text-foreground"
-                  aria-label="Close"
-                >
-                  <X className="h-5 w-5" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <Button onClick={handleAcceptAll} size="sm">
+                    Accept
+                  </Button>
+                  <Button onClick={handleDeclineOptional} variant="outline" size="sm">
+                    Necessary
+                  </Button>
+                  <Button
+                    onClick={() => setShowSettings(true)}
+                    variant="ghost"
+                    size="sm"
+                    className="gap-2"
+                  >
+                    <Settings className="h-4 w-4" />
+                    Customize
+                  </Button>
+                  <button
+                    onClick={handleDeclineOptional}
+                    className="text-muted-foreground hover:text-foreground"
+                    aria-label="Close"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
             </div>
           ) : (

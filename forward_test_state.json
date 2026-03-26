@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-03-17T00:02:39.259687",
+  "tickers": [
+    "BTCUSD"
+  ],
+  "dynamic_strategy": true,
+  "active": true,
+  "session_id": "FT_20260317_000159",
+  "start_time": "2026-03-17T00:01:59.023901",
+  "capital": 25000.0,
+  "total_pnl": 0.0,
+  "total_trades": 2,
+  "win_rate": 0.0,
+  "max_drawdown": 0.0,
+  "open_positions": 2,
+  "daily_pnl": 0.0,
+  "regime_stats": {},
+  "current_regimes": {
+    "BTCUSD": "ranging"
+  }
+}

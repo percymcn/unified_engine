@@ -899,7 +899,18 @@ async def get_webhook_logs(
             user_webhook_keys.append(config.webhook_key)
 
     # Query logs
-    logs = db.query(WebhookLog).order_by(WebhookLog.created_at.desc()).offset(skip).limit(limit).all()
+    is_admin = getattr(current_user, 'is_admin', False)
+    filtered_by_payload = False
+    logs_query = db.query(WebhookLog).order_by(WebhookLog.created_at.desc())
+    if not is_admin:
+        if not user_webhook_keys:
+            return []
+        filtered_by_payload = True
+        from sqlalchemy import or_
+        payload_filters = [WebhookLog.payload.contains(key) for key in set(user_webhook_keys)]
+        logs_query = logs_query.filter(or_(*payload_filters))
+
+    logs = logs_query.offset(skip).limit(limit).all()
 
     # Enrich logs with parsed data and execution info
     enriched_logs = []
@@ -914,8 +925,8 @@ async def get_webhook_logs(
         log_webhook_key = payload_data.get("webhook_key", "")
         is_user_log = log_webhook_key in user_webhook_keys if user_webhook_keys else False
 
-        # Filter to user's logs only (unless admin)
-        if not is_user_log and not getattr(current_user, 'is_admin', False):
+        # Filter to user's logs only (unless already filtered or admin)
+        if not filtered_by_payload and not is_user_log and not is_admin:
             continue
 
         # Get execution logs if signal_id available in response

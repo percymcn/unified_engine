@@ -1,0 +1,90 @@
+{
+  "trending_up": {
+    "ranked_engines": ["trend", "breakout", "unified", "quick"],
+    "engine_stats": {},
+    "sample_count": 1,
+    "last_updated": "2026-03-16T20:00:00.000000",
+    "comparison_ids": ["regime_adaptive_v1"],
+    "notes": "Regime-Adaptive: trend engine for uptrends"
+  },
+  "trending_down": {
+    "ranked_engines": ["trend", "breakout", "unified", "quick"],
+    "engine_stats": {},
+    "sample_count": 1,
+    "last_updated": "2026-03-16T20:00:00.000000",
+    "comparison_ids": ["regime_adaptive_v1"],
+    "notes": "Regime-Adaptive: trend engine for downtrends"
+  },
+  "breakout": {
+    "ranked_engines": ["breakout", "trend", "unified", "quick"],
+    "engine_stats": {},
+    "sample_count": 1,
+    "last_updated": "2026-03-16T20:00:00.000000",
+    "comparison_ids": ["regime_adaptive_v1"],
+    "notes": "Regime-Adaptive: breakout engine for breakout regimes"
+  },
+  "ranging": {
+    "ranked_engines": ["mean_reversion", "liquidity_reversal", "unified", "quick"],
+    "engine_stats": {},
+    "sample_count": 1,
+    "last_updated": "2026-03-16T20:00:00.000000",
+    "comparison_ids": ["regime_adaptive_v1"],
+    "notes": "Regime-Adaptive: mean reversion for ranging markets"
+  },
+  "mean_reverting": {
+    "ranked_engines": ["mean_reversion", "liquidity_reversal", "unified", "quick"],
+    "engine_stats": {},
+    "sample_count": 1,
+    "last_updated": "2026-03-16T20:00:00.000000",
+    "comparison_ids": ["regime_adaptive_v1"],
+    "notes": "Regime-Adaptive: mean reversion for mean-reverting regimes"
+  },
+  "vol_expansion": {
+    "ranked_engines": ["breakout", "trend", "unified", "quick"],
+    "engine_stats": {},
+    "sample_count": 1,
+    "last_updated": "2026-03-16T20:00:00.000000",
+    "comparison_ids": ["regime_adaptive_v1"],
+    "notes": "Regime-Adaptive: breakout for volatility expansion"
+  },
+  "vol_contraction": {
+    "ranked_engines": ["mean_reversion", "unified", "quick"],
+    "engine_stats": {},
+    "sample_count": 1,
+    "last_updated": "2026-03-16T20:00:00.000000",
+    "comparison_ids": ["regime_adaptive_v1"],
+    "notes": "Regime-Adaptive: mean reversion for low volatility"
+  },
+  "chaotic": {
+    "ranked_engines": ["liquidity_reversal", "mean_reversion", "unified", "quick"],
+    "engine_stats": {},
+    "sample_count": 1,
+    "last_updated": "2026-03-16T20:00:00.000000",
+    "comparison_ids": ["regime_adaptive_v1"],
+    "notes": "Regime-Adaptive: liquidity reversal for chaotic markets"
+  },
+  "neutral": {
+    "ranked_engines": ["unified", "quick", "mean_reversion"],
+    "engine_stats": {},
+    "sample_count": 1,
+    "last_updated": "2026-03-16T20:00:00.000000",
+    "comparison_ids": ["regime_adaptive_v1"],
+    "notes": "Regime-Adaptive: unified for neutral conditions"
+  },
+  "volatile": {
+    "ranked_engines": ["breakout", "liquidity_reversal", "unified", "quick"],
+    "engine_stats": {},
+    "sample_count": 1,
+    "last_updated": "2026-03-16T20:00:00.000000",
+    "comparison_ids": ["regime_adaptive_v1"],
+    "notes": "Regime-Adaptive: breakout for volatile markets"
+  },
+  "default": {
+    "ranked_engines": ["unified", "quick", "trend", "breakout"],
+    "engine_stats": {},
+    "sample_count": 1,
+    "last_updated": "2026-03-16T20:00:00.000000",
+    "comparison_ids": ["regime_adaptive_v1"],
+    "notes": "Regime-Adaptive: unified as default fallback"
+  }
+}

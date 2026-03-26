@@ -1,0 +1,34 @@
+{
+  "comparison_id": "comp_20260314_224449",
+  "timestamp": "2026-03-14T22:44:59.548318",
+  "ticker": "MES",
+  "start_date": "2026-03-05",
+  "end_date": "2026-03-13",
+  "engines_compared": [
+    "deterministic"
+  ],
+  "leaderboard": [
+    {
+      "engine": "deterministic",
+      "total_return_pct": -1.0042204607697003,
+      "net_profit": -251.0551151924251,
+      "sharpe_ratio": -7.6767844933447575,
+      "win_rate": 35.714285714285715,
+      "max_drawdown_pct": 1.2941418771343185,
+      "profit_factor": 0.36425815214404517,
+      "total_trades": 28,
+      "avg_trade": -8.966254114015182,
+      "avg_holding_time_hours": 8.535714285714286,
+      "rank": 1
+    }
+  ],
+  "regime_comparison": {
+    "": {
+      "deterministic": {
+        "win_rate": 35.714285714285715,
+        "pnl": -251.0551151924251
+      }
+    }
+  },
+  "warnings": []
+}

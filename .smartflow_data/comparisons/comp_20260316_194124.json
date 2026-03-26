@@ -1,0 +1,107 @@
+{
+  "comparison_id": "comp_20260316_194124",
+  "timestamp": "2026-03-16T19:41:29.277351",
+  "ticker": "MES",
+  "start_date": "2026-03-13",
+  "end_date": "2026-03-13",
+  "engines_compared": [
+    "quick",
+    "unified",
+    "breakout",
+    "trend",
+    "mean_reversion",
+    "liquidity_reversal",
+    "deterministic"
+  ],
+  "leaderboard": [
+    {
+      "engine": "breakout",
+      "total_return_pct": 0.0,
+      "net_profit": 0.0,
+      "sharpe_ratio": 0.0,
+      "win_rate": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0.0,
+      "total_trades": 0,
+      "avg_trade": 0.0,
+      "avg_holding_time_hours": 0.0,
+      "rank": 1
+    },
+    {
+      "engine": "trend",
+      "total_return_pct": 0.0,
+      "net_profit": 0.0,
+      "sharpe_ratio": 0.0,
+      "win_rate": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0.0,
+      "total_trades": 0,
+      "avg_trade": 0.0,
+      "avg_holding_time_hours": 0.0,
+      "rank": 2
+    },
+    {
+      "engine": "mean_reversion",
+      "total_return_pct": 0.0,
+      "net_profit": 0.0,
+      "sharpe_ratio": 0.0,
+      "win_rate": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0.0,
+      "total_trades": 0,
+      "avg_trade": 0.0,
+      "avg_holding_time_hours": 0.0,
+      "rank": 3
+    },
+    {
+      "engine": "liquidity_reversal",
+      "total_return_pct": 0.0,
+      "net_profit": 0.0,
+      "sharpe_ratio": 0.0,
+      "win_rate": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0.0,
+      "total_trades": 0,
+      "avg_trade": 0.0,
+      "avg_holding_time_hours": 0.0,
+      "rank": 4
+    },
+    {
+      "engine": "deterministic",
+      "total_return_pct": 0.0,
+      "net_profit": 0.0,
+      "sharpe_ratio": 0.0,
+      "win_rate": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0.0,
+      "total_trades": 0,
+      "avg_trade": 0.0,
+      "avg_holding_time_hours": 0.0,
+      "rank": 5
+    },
+    {
+      "engine": "unified",
+      "total_return_pct": -0.29320956499985673,
+      "net_profit": -73.30239124996417,
+      "sharpe_ratio": -104.15535427975013,
+      "win_rate": 0.0,
+      "max_drawdown_pct": 0.29320956499985185,
+      "profit_factor": 0.0,
+      "total_trades": 2,
+      "avg_trade": -36.65119562498209,
+      "avg_holding_time_hours": 1.5,
+      "rank": 6
+    }
+  ],
+  "regime_comparison": {
+    "trending_down": {
+      "unified": {
+        "win_rate": 0.0,
+        "pnl": -73.30239124996417
+      }
+    }
+  },
+  "warnings": [
+    "Engine quick failed: cannot access local variable 'daily_returns' where it is not associated with a value"
+  ]
+}

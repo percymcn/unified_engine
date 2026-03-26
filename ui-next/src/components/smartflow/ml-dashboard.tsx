@@ -71,6 +71,13 @@ interface MLDashboardData {
   is_learning: boolean;
 }
 
+const normalizeWinRate = (value?: number) => {
+  if (value === null || value === undefined) {
+    return 0;
+  }
+  return value <= 1 ? value * 100 : value;
+};
+
 export function MLDashboard() {
   const [loading, setLoading] = useState(true);
   const [optimizing, setOptimizing] = useState(false);
@@ -425,30 +432,33 @@ export function MLDashboard() {
           <CardContent>
             {data?.daily_metrics && data.daily_metrics.length > 0 ? (
               <div className="space-y-2">
-                {data.daily_metrics.slice(0, 7).map((metric, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center justify-between p-2 rounded-lg bg-muted/30"
-                  >
-                    <span className="text-sm font-mono">
-                      {new Date(metric.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                    </span>
-                    <div className="flex items-center gap-4">
-                      <Badge variant={metric.win_rate >= 0.5 ? 'default' : 'destructive'}>
-                        {(metric.win_rate * 100).toFixed(0)}%
-                      </Badge>
-                      <span className={cn(
-                        "font-mono text-sm",
-                        metric.pnl >= 0 ? "text-green-500" : "text-red-500"
-                      )}>
-                        {metric.pnl >= 0 ? '+' : ''}{metric.pnl?.toFixed(2) || '0.00'}
+                {data.daily_metrics.slice(0, 7).map((metric, idx) => {
+                  const winRatePct = normalizeWinRate(metric.win_rate);
+                  return (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between p-2 rounded-lg bg-muted/30"
+                    >
+                      <span className="text-sm font-mono">
+                        {new Date(metric.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                       </span>
-                      <span className="text-xs text-muted-foreground">
-                        {metric.signals} signals
-                      </span>
+                      <div className="flex items-center gap-4">
+                        <Badge variant={winRatePct >= 50 ? 'default' : 'destructive'}>
+                          {winRatePct.toFixed(0)}%
+                        </Badge>
+                        <span className={cn(
+                          "font-mono text-sm",
+                          metric.pnl >= 0 ? "text-green-500" : "text-red-500"
+                        )}>
+                          {metric.pnl >= 0 ? '+' : ''}{metric.pnl?.toFixed(2) || '0.00'}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {metric.signals} signals
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="text-center py-8 text-muted-foreground">

@@ -9,7 +9,12 @@ import secrets
 import os
 
 # Security settings
-SECRET_KEY = os.getenv("SECRET_KEY", secrets.token_urlsafe(32))
+# Use settings.SECRET_KEY for consistency across restarts
+try:
+    from app.core.config import settings as _settings
+    SECRET_KEY = _settings.SECRET_KEY or os.getenv("SECRET_KEY", "mytradeflow-super-secret-key-2024")
+except Exception:
+    SECRET_KEY = os.getenv("SECRET_KEY", "mytradeflow-super-secret-key-2024")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))

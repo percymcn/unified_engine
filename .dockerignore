@@ -78,3 +78,78 @@ REPO_SIGNAL_MAP.txt
 *.audit.log
 harness*.log
 ralph*.log
+
+# === SAGE ADDITIONS (2026-03-22) ===
+# UI is a separate Docker image - don't include in API build
+ui-next/
+
+# Virtual environments
+flow_venv/
+
+# Large log files
+confluence.log
+*.log
+
+# Screenshots and images not needed in container
+*.png
+*.jpg
+*.jpeg
+*.html
+
+# Backtest data files
+*backtest*.json
+forward_test_log.json
+forward_test_state.json
+flow_data_sample.json
+config_comparison_results.json
+
+# Development/planning files
+.claude/
+.gsd/
+.planning/
+.local/
+.data/
+.metaapi/
+.smartflow_data/
+.forward_test_session.json
+
+# Test files in root
+test_*.py
+
+# Operations
+_ops/
+deploy/
+
+# Reports and session files
+*REPORT*.md
+*STATUS*.md
+*COMPLETE*.md
+*SUMMARY*.md
+*CHECKLIST*.md
+SESSION_*.md
+PHASE*.md
+STATE.md
+ROADMAP.md
+PROJECT.md
+
+# Misc junk files
+=*
+echo
+Timestamp*
+Log\ saved*
+claude-progress.txt
+api_errors.txt
+baseline_services.txt
+celery_errors.txt
+funnel_errors.txt
+model_import_test.txt
+feature_list.json
+chisteveession*
+smoke_trading.db
+trading_db.db
+data.db
+app_spec.txt
+
+# OpenClaw files
+OPENCLAW_*.md
+openclaw_*

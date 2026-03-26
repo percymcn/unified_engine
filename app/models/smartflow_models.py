@@ -77,6 +77,20 @@ class SmartFlowConfig(Base):
     ai_only_confidence_threshold = Column(Float, default=70.0, nullable=False)  # Min confidence to trade
     ai_only_instruments = Column(JSON, default=['MES', 'NQ', 'RTY', 'USDJPY', 'BTCUSD'])  # Instruments to trade
 
+    # Deterministic Indicator Engine (PREVIOUSLY HARDCODED)
+    enable_deterministic_mode = Column(Boolean, default=True, nullable=False)  # Multi-timeframe indicators
+    deterministic_min_confidence = Column(Float, default=75.0, nullable=False)  # Min confidence score
+    deterministic_min_aligned_tfs = Column(Integer, default=4, nullable=False)  # Min aligned timeframes (out of 5)
+    deterministic_min_rr = Column(Float, default=2.0, nullable=False)  # Min risk:reward ratio
+    deterministic_rr_preset = Column(String(20), default='balanced', nullable=False)  # 'aggressive', 'balanced', 'conservative'
+
+    # Quick Mode / Scalping Engine (PREVIOUSLY HARDCODED)
+    enable_quick_mode = Column(Boolean, default=True, nullable=False)  # 5m momentum scalping
+    quick_scan_interval = Column(Integer, default=60, nullable=False)  # Seconds between scans
+    quick_min_confidence = Column(Float, default=60.0, nullable=False)  # Min confidence score
+    quick_min_rr = Column(Float, default=1.5, nullable=False)  # Min risk:reward ratio
+    quick_require_15m_confirmation = Column(Boolean, default=True, nullable=False)  # Require 15m trend confirmation
+
     # Metadata
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
@@ -112,6 +126,9 @@ class SmartFlowSignalLog(Base):
     confidence = Column(Float, nullable=True)  # AI confidence % (for AI-Only signals)
     reason = Column(Text, nullable=True)  # AI reasoning or flow details
 
+    # Engine Source Tracking (Phase 0.5)
+    engine_type = Column(String(50), nullable=True)  # 'flow', 'ai_enhancement', 'ai_only', 'deterministic', 'quick'
+
     # Webhook posting
     webhooks_posted = Column(JSON, nullable=False, default=list)  # List of webhook URLs posted to
     post_successful = Column(Boolean, default=False)  # All webhooks succeeded
@@ -145,6 +162,30 @@ class SmartFlowScoreHistory(Base):
     timestamp = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
 
     # Note: This table can grow large, consider periodic cleanup (keep last 7 days)
+
+
+class SmartFlowTrade(Base):
+    """
+    SmartFlow trade journal entry.
+
+    Stores executed or paper trades for performance tracking.
+    """
+    __tablename__ = "smartflow_trades"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    symbol = Column(String(20), nullable=False, index=True)
+    direction = Column(String(10), nullable=False)  # buy/sell/close
+    entry_price = Column(Float, nullable=True)
+    exit_price = Column(Float, nullable=True)
+    quantity = Column(Float, nullable=False, default=0.0)
+    entry_time = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    exit_time = Column(DateTime, nullable=True, index=True)
+    pnl = Column(Float, nullable=True)
+    strategy = Column(String(100), nullable=True)
+    status = Column(String(30), nullable=False, default="open")
+    notes = Column(Text, nullable=True)
 
 
 # ============================================

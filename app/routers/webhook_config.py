@@ -111,7 +111,7 @@ def serialize_webhook_config(config: WebhookConfig) -> dict:
     }
 
 
-@router.get("/", response_model=List[WebhookConfigResponse])
+@router.get("/", response_model=None)
 async def get_webhook_configs(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)

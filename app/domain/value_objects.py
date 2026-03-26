@@ -24,12 +24,8 @@ class Money:
     currency: str = "USD"
 
     def __post_init__(self):
-        if self.amount < 0:
-            raise ValidationError(
-                "Money amount cannot be negative",
-                field="amount",
-                context={"amount": self.amount}
-            )
+        # Allow negative amounts (account losses, debts, unrealized P&L)
+        # Trading accounts can have negative balances
         if len(self.currency) != 3:
             raise ValidationError(
                 "Currency must be 3-letter ISO code",

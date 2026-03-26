@@ -616,12 +616,17 @@ async def get_live_accounts_summary(
 
                     # Get account info - pass account_id if required
                     try:
-                        account_info = await executor.get_account_info(broker_account_id)
+                        account_info = await asyncio.wait_for(executor.get_account_info(broker_account_id), timeout=4.0)
                     except TypeError:
                         # Fallback for executors that don't require account_id
-                        account_info = await executor.get_account_info()
+                        account_info = await asyncio.wait_for(executor.get_account_info(), timeout=4.0)
+                    except asyncio.TimeoutError:
+                        raise RuntimeError(f"Timed out fetching account info for account {account.id}")
 
-                    positions = await executor.get_positions()
+                    try:
+                        positions = await asyncio.wait_for(executor.get_positions(), timeout=4.0)
+                    except asyncio.TimeoutError:
+                        positions = []
 
                     balance = 0
                     equity = 0
