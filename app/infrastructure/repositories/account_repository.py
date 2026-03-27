@@ -156,12 +156,14 @@ class SQLAlchemyAccountRepository(AccountRepository):
 
             # Delete all related records before deleting the account
             # This handles foreign key constraints from various tables
+            # Order matters: delete child tables before parent tables
             related_tables = [
                 "account_equity_history",
                 "account_strategies",
                 "alerts",
                 "broker_symbol_formats",
                 "daily_pnl",
+                "trade_journal",  # Must come before execution_logs (FK constraint)
                 "execution_logs",
                 "orders",
                 "performance_metrics",

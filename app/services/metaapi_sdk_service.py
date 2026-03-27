@@ -726,7 +726,14 @@ class MetaAPISDKService:
             raise RuntimeError("Not connected")
 
         try:
-            if volume:
+            if volume is not None:
+                # FIX: Validate volume before sending to MT5
+                if volume <= 0:
+                    logger.error(f"Invalid volume for close_position: {volume}")
+                    return {"success": False, "error": f"Invalid volume: {volume}"}
+                # Round to standard lot precision
+                volume = round(volume * 100) / 100
+                logger.info(f"Closing position {position_id} with volume {volume}")
                 result = await self._connection.close_position_partially(
                     position_id=position_id,
                     volume=volume

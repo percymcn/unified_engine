@@ -28,6 +28,7 @@ Routing Strategies (configured in WebhookConfig):
 import logging
 import uuid
 import json
+from json import JSONDecodeError
 import asyncio
 from datetime import datetime, timezone, timedelta
 from decimal import Decimal
@@ -1073,7 +1074,7 @@ async def _execute_tradingview_signal_inner(
             or raw_payload.get("signal_confidence")
         )
         confidence_pct = normalize_confidence(confidence_raw)
-        min_confidence = 60.0
+        min_confidence = 50.0  # Lowered from 60% to allow more signals through
 
         if confidence_pct is None or confidence_pct <= 0:
             confidence_reason = "Confidence missing or zero"

@@ -666,15 +666,9 @@ class DeleteAccountUseCase:
                     error="Unauthorized",
                 )
 
-            # Soft delete credentials first
-            credentials = await self._credential_repo.list_by_user(
-                user_id=account.user_id,
-                service=account.broker.value,
-                active_only=True,
-            )
-
-            for cred in credentials:
-                await self._credential_repo.soft_delete(cred.id)
+            # DO NOT delete credentials when deleting an account
+            # Credentials may be shared across multiple accounts (e.g., ProjectX with 5 sub-accounts)
+            # Users can manually delete credentials separately if needed
 
             # Delete account
             await self._account_repo.delete(AccountId(request.account_id))
