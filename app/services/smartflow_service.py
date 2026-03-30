@@ -3269,9 +3269,10 @@ class SmartFlowService:
                 # Update last scan time
                 self.last_ai_scan_time[instrument] = now
 
-                # Compute composite recommendation
-                buy_votes = 0
-                sell_votes = 0
+                # Compute composite recommendation with MTF-weighted voting
+                # This ensures AI follows actual market direction
+                buy_votes = 0.0
+                sell_votes = 0.0
                 total_confidence = 0
 
                 for analysis in analyses:
@@ -3288,6 +3289,17 @@ class SmartFlowService:
                 if buy_votes == 0 and sell_votes == 0:
                     continue  # Neutral - no signal
 
+                # Apply MTF bias weighting - follow actual market direction
+                # If market is 70% bearish, boost sell votes by 0.7
+                # If market is 70% bullish, boost buy votes by 0.7
+                mtf_buy_boost = mtf_bullish_pct / 100.0  # 0.0 to 1.0
+                mtf_sell_boost = mtf_bearish_pct / 100.0  # 0.0 to 1.0
+
+                weighted_buy_votes = buy_votes + (buy_votes * mtf_buy_boost * 0.5)  # Up to +50% boost
+                weighted_sell_votes = sell_votes + (sell_votes * mtf_sell_boost * 0.5)  # Up to +50% boost
+
+                logger.debug(f"🤖 {instrument}: Raw votes B:{buy_votes}/S:{sell_votes} → Weighted B:{weighted_buy_votes:.2f}/S:{weighted_sell_votes:.2f} (MTF: {mtf_bullish_pct:.0f}%↑/{mtf_bearish_pct:.0f}%↓)")
+
                 avg_confidence = total_confidence / len(analyses) if analyses else 0
 
                 # Only trade if confidence meets threshold
@@ -3295,11 +3307,11 @@ class SmartFlowService:
                     logger.debug(f"🤖 {instrument}: Confidence {avg_confidence:.0f}% < {self.ai_only_confidence_threshold}% threshold")
                     continue
 
-                # Determine action
-                if buy_votes > sell_votes:
+                # Determine action using weighted votes
+                if weighted_buy_votes > weighted_sell_votes:
                     action = 'buy'
                     direction = 'bullish'
-                elif sell_votes > buy_votes:
+                elif weighted_sell_votes > weighted_buy_votes:
                     action = 'sell'
                     direction = 'bearish'
                 else:
@@ -3312,14 +3324,21 @@ class SmartFlowService:
                     if (now - last_signal.timestamp).total_seconds() < 1800:
                         continue
 
-                # Check if MTF bias conflicts with AI direction - require alignment
+                # Block signals that CONFLICT with strong MTF bias (>55%)
+                # This prevents buying in strong downtrends and selling in strong uptrends
                 mtf_aligned = False
-                if direction == 'bullish' and mtf_bias in ['bullish', 'strong_bullish']:
-                    mtf_aligned = True
-                elif direction == 'bearish' and mtf_bias in ['bearish', 'strong_bearish']:
-                    mtf_aligned = True
-                elif mtf_bias == 'neutral':
-                    mtf_aligned = True  # Neutral doesn't conflict
+                if direction == 'bullish':
+                    if mtf_bearish_pct >= 55:
+                        # Strong bearish market - block buy signal
+                        logger.info(f"🚫 {instrument}: Blocking BUY - market is {mtf_bearish_pct:.0f}% bearish")
+                        continue
+                    mtf_aligned = mtf_bullish_pct >= 40 or mtf_bias in ['bullish', 'strong_bullish', 'neutral']
+                elif direction == 'bearish':
+                    if mtf_bullish_pct >= 55:
+                        # Strong bullish market - block sell signal
+                        logger.info(f"🚫 {instrument}: Blocking SELL - market is {mtf_bullish_pct:.0f}% bullish")
+                        continue
+                    mtf_aligned = mtf_bearish_pct >= 40 or mtf_bias in ['bearish', 'strong_bearish', 'neutral']
 
                 # Generate signal with TRADING ticker (not data ticker)
                 mtf_str = f"MTF: {mtf_bias} ({mtf_bullish_pct:.0f}%↑/{mtf_bearish_pct:.0f}%↓)"
