@@ -60,6 +60,22 @@ audit_logs = []
 class CredentialManager:
     """Manages secure credential storage and access"""
 
+    # Conventional credential_data field requirements per credential type.
+    # Each entry maps a type to a list of field groups; a credential is
+    # structurally valid when every group has at least one of its accepted
+    # field names present and non-empty. Field name aliases make validation
+    # robust to the varied shapes callers store credential data in.
+    _REQUIRED_FIELDS_BY_TYPE = {
+        "api_key": [("api_key", "apiKey", "key")],
+        "password": [
+            ("username", "user", "login", "account"),
+            ("password", "pass", "secret"),
+        ],
+        "certificate": [("certificate", "cert", "pem")],
+        "token": [("token", "access_token", "accessToken")],
+        "oauth": [("access_token", "accessToken", "token")],
+    }
+
     def __init__(self, repository: CredentialRepository):
         self._repository = repository
         self.supported_services = [
@@ -149,7 +165,45 @@ class CredentialManager:
             "access_count": credential.access_count,
             "last_accessed": credential.last_accessed.isoformat() if credential.last_accessed else None
         }
-    
+
+    def validate_credential_data(
+        self, credential_type: str, credential_data: Dict[str, Any]
+    ) -> List[str]:
+        """Structurally validate decrypted credential data for its type.
+
+        Performs service/type-specific checks that the credential actually
+        carries the fields required to authenticate against its service (for
+        example, an ``api_key`` credential must contain an API key, and a
+        ``password`` credential must contain both a username and a password).
+
+        Args:
+            credential_type: The credential's type (api_key, password, etc.)
+            credential_data: The decrypted credential payload.
+
+        Returns:
+            A list of human-readable error messages. An empty list means the
+            credential data contains all fields required for its type.
+        """
+        errors: List[str] = []
+
+        if not isinstance(credential_data, dict) or not credential_data:
+            errors.append("Credential data is empty")
+            return errors
+
+        field_groups = self._REQUIRED_FIELDS_BY_TYPE.get(credential_type)
+        if not field_groups:
+            # Unknown/unconstrained type: a non-empty payload is all we can check.
+            return errors
+
+        for group in field_groups:
+            if not any(str(credential_data.get(name, "")).strip() for name in group):
+                errors.append(
+                    f"Missing required field for {credential_type} credential: "
+                    f"one of {list(group)}"
+                )
+
+        return errors
+
     async def update_credential(self, credential_id: str, update_data: CredentialUpdate, user_id: int) -> Dict[str, Any]:
         """Update credential metadata"""
         credential = await self._repository.update(
@@ -500,23 +554,34 @@ async def validate_credential(
 ):
     """Validate credential against its service"""
     try:
-        # Get credential
+        # Get credential (also enforces active + not-expired checks)
         credential = await credential_manager.get_credential(credential_id, current_user.id, "validation")
-        
-        # TODO: Implement service-specific validation
+
+        # Service-specific structural validation of the decrypted payload
+        errors = credential_manager.validate_credential_data(
+            credential["type"], credential.get("credential_data") or {}
+        )
+        is_valid = len(errors) == 0
+
         validation_result = {
-            "valid": True,
+            "valid": is_valid,
             "service": credential["service"],
+            "type": credential["type"],
             "validated_at": datetime.now().isoformat(),
-            "message": "Credential validation successful"
+            "errors": errors,
+            "message": (
+                "Credential validation successful"
+                if is_valid
+                else "Credential validation failed"
+            ),
         }
-        
+
         # Log validation
         await credential_manager.log_audit_event(
-            "credential_validated", 
-            credential_id, 
-            current_user.id, 
-            True,
+            "credential_validated",
+            credential_id,
+            current_user.id,
+            is_valid,
             {"validation_result": validation_result}
         )
         
