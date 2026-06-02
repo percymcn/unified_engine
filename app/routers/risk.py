@@ -144,9 +144,13 @@ async def get_risk_dashboard_summary(
     equity_repo = EquityHistoryRepository(db)
     drawdown_service = DrawdownService(pnl_repo, equity_repo)
 
+    # Initialize position counter for open position usage
+    position_counter = PositionCounterAdapter(session=db)
+
     for account in accounts:
         counters = await counter_service.get_counters(account.id)
         drawdown = await drawdown_service.get_current_state(account.id)
+        open_positions = await position_counter.count_open(account.id)
 
         # Calculate usage percentages
         trades_usage = 0
@@ -155,8 +159,7 @@ async def get_risk_dashboard_summary(
 
         positions_usage = 0
         if account.max_open_positions:
-            # TODO: Calculate from positions table
-            positions_usage = 0
+            positions_usage = (open_positions / account.max_open_positions) * 100
 
         drawdown_usage = 0
         if account.max_drawdown_pct and drawdown:
@@ -177,7 +180,7 @@ async def get_risk_dashboard_summary(
                 "usage_pct": min(100, trades_usage)
             },
             "open_positions": {
-                "current": 0,  # TODO: Query positions table
+                "current": open_positions,
                 "limit": account.max_open_positions,
                 "usage_pct": min(100, positions_usage)
             },
