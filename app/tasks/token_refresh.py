@@ -11,7 +11,9 @@ from sqlalchemy.orm import Session
 
 from app.db.database import SessionLocal
 from app.models.database_models import TradingAccount, BrokerType
+from app.models.enhanced_models import NotificationType, NotificationChannel
 from app.services.tradovate_token_service import TradovateTokenService
+from app.services.notification_service import NotificationService
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +67,7 @@ async def refresh_expiring_tokens() -> None:
                         f"Failed to refresh token for account {account.id} "
                         f"(user_id={account.user_id}), user may need to re-authenticate"
                     )
-                    # TODO: Send notification to user about expired token
+                    await _notify_token_expired(db, account)
             except Exception as e:
                 failure_count += 1
                 logger.error(f"Error refreshing account {account.id}: {e}")
@@ -77,6 +79,37 @@ async def refresh_expiring_tokens() -> None:
 
     finally:
         db.close()
+
+
+async def _notify_token_expired(db: Session, account: TradingAccount) -> None:
+    """
+    Notify a user that their Tradovate token could not be refreshed.
+
+    Best-effort: any failure to deliver the notification is logged but does not
+    interrupt the token refresh task. The notification prompts the user to
+    re-authenticate the affected account.
+    """
+    account_label = account.account_name or account.account_number or f"#{account.id}"
+    try:
+        await NotificationService.create_notification(
+            user_id=account.user_id,
+            notification_type=NotificationType.ALERT,
+            title="Tradovate re-authentication required",
+            message=(
+                f"We couldn't refresh the access token for your Tradovate account "
+                f"{account_label}. Please reconnect the account to resume trading."
+            ),
+            channel=NotificationChannel.IN_APP,
+            action_url="/settings/accounts",
+            priority="high",
+            metadata={"account_id": account.id, "broker": BrokerType.TRADOVATE.value},
+            db=db,
+        )
+    except Exception as e:
+        logger.error(
+            f"Failed to send token-expiry notification for account {account.id} "
+            f"(user_id={account.user_id}): {e}"
+        )
 
 
 async def check_token_health() -> dict:
