@@ -39,3 +39,7 @@ class SessionFactory:
             AsyncSession: New async SQLAlchemy session
         """
         return self._session_factory()
+
+    def create(self) -> AsyncSession:
+        """Alias used by the dependency container."""
+        return self.create_session()

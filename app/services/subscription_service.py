@@ -14,6 +14,7 @@ from app.models.enhanced_models import (
     Organization, UsageMetric
 )
 from app.core.config import settings
+from app.core.entitlements import legacy_subscription_tier
 
 logger = logging.getLogger(__name__)
 
@@ -47,25 +48,22 @@ class SubscriptionService:
     
     @staticmethod
     def get_user_tier(user: User, db: Session) -> SubscriptionTier:
-        """Get user's subscription tier"""
-        if user.subscription_tier:
-            return user.subscription_tier
-        
-        # Check subscription record
-        subscription = db.query(UserSubscription).filter(
-            UserSubscription.user_id == user.id,
-            UserSubscription.status == SubscriptionStatus.ACTIVE
-        ).first()
-        
-        if subscription:
-            return subscription.tier
-        
-        return SubscriptionTier.FREE
+        """Get user's subscription tier using canonical product ids."""
+        raw = user.subscription_tier
+        if not raw:
+            subscription = db.query(UserSubscription).filter(
+                UserSubscription.user_id == user.id,
+                UserSubscription.status == SubscriptionStatus.ACTIVE
+            ).first()
+            raw = subscription.tier if subscription else SubscriptionTier.FREE
+
+        return SubscriptionTier(legacy_subscription_tier(raw))
     
     @staticmethod
     def get_tier_limits(tier: SubscriptionTier) -> Dict[str, Any]:
-        """Get limits for a subscription tier"""
-        return TIER_LIMITS.get(tier, TIER_LIMITS[SubscriptionTier.FREE])
+        """Get limits for a subscription tier, including tier_4 / enterprise aliases."""
+        legacy = SubscriptionTier(legacy_subscription_tier(tier))
+        return TIER_LIMITS.get(legacy, TIER_LIMITS[SubscriptionTier.FREE])
     
     @staticmethod
     def check_account_limit(user: User, db: Session) -> bool:

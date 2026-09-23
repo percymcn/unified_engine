@@ -116,19 +116,18 @@ def get_broker_limit(tier: str) -> int:
     Get the maximum number of brokers allowed for a tier.
 
     Args:
-        tier: Tier ID ('free', 'tier_1', 'tier_2', 'tier_3', 'tier_4')
+        tier: Tier ID, including aliases such as basic, enterprise, and pro
 
     Returns:
         Maximum brokers allowed (1-4)
     """
-    if tier == "free":
+    from app.core.entitlements import canonical_tier_id
+
+    canonical = canonical_tier_id(tier)
+    if canonical == "free":
         return FREE_TIER["brokers"]
-    if tier in PRICING_TIERS:
-        return PRICING_TIERS[tier]["brokers"]
-    # Legacy "pro" tier maps to tier_4 (unlimited-ish, 4 brokers)
-    if tier == "pro":
-        return PRICING_TIERS["tier_4"]["brokers"]
-    # Default to free tier limit
+    if canonical in PRICING_TIERS:
+        return PRICING_TIERS[canonical]["brokers"]
     return FREE_TIER["brokers"]
 
 

@@ -35,6 +35,7 @@ class Account:
     server: Optional[str] = None
     last_sync: Optional[datetime] = None
     created_at: datetime = field(default_factory=datetime.utcnow)
+    extra_metadata: Optional[dict] = None
 
     @property
     def free_margin(self) -> Decimal:

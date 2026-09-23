@@ -7,12 +7,40 @@ from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 from sqlalchemy import func, and_
+from pydantic import BaseModel
 
 from app.db.database import get_db
 from app.models.models import Strategy, AccountStrategy, Account, Signal, User
 from app.routers.auth import get_current_user
 
 router = APIRouter(prefix="/strategies", tags=["strategies"])
+
+
+class StrategyCreateBody(BaseModel):
+    strategy_id: str
+    strategy_name: str
+    strategy_source: str = "manual"
+    strategy_version: str = "1.0.0"
+    description: Optional[str] = None
+    parameters: Optional[Dict[str, Any]] = None
+    is_active: bool = True
+
+
+def _serialize_strategy(strategy: Strategy) -> Dict[str, Any]:
+    return {
+        "id": strategy.id,
+        "strategy_id": strategy.strategy_id,
+        "strategy_name": strategy.strategy_name,
+        "strategy_version": strategy.strategy_version,
+        "strategy_source": strategy.strategy_source,
+        "strategy_type": strategy.strategy_source,
+        "description": strategy.description,
+        "is_active": strategy.is_active,
+        "status": "active" if strategy.is_active else "inactive",
+        "sharpe_ratio": None,
+        "win_rate": None,
+        "created_at": strategy.created_at.isoformat() if strategy.created_at else None,
+    }
 
 @router.get("/top")
 async def get_top_strategies(
@@ -62,20 +90,37 @@ async def list_strategies(
         query = query.filter(Strategy.strategy_source == source)
     
     strategies = query.all()
-    
-    return [
-        {
-            "id": s.id,
-            "strategy_id": s.strategy_id,
-            "strategy_name": s.strategy_name,
-            "strategy_version": s.strategy_version,
-            "strategy_source": s.strategy_source,
-            "description": s.description,
-            "is_active": s.is_active,
-            "created_at": s.created_at.isoformat()
-        }
-        for s in strategies
-    ]
+    serialized = [_serialize_strategy(s) for s in strategies]
+    return {"strategies": serialized, "total": len(serialized)}
+
+
+@router.post("/", status_code=status.HTTP_201_CREATED)
+async def create_strategy(
+    body: StrategyCreateBody,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Create a strategy record. Does not start live trading."""
+    existing = db.query(Strategy).filter(Strategy.strategy_id == body.strategy_id).first()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Strategy already exists",
+        )
+
+    strategy = Strategy(
+        strategy_id=body.strategy_id,
+        strategy_name=body.strategy_name,
+        strategy_version=body.strategy_version,
+        strategy_source=body.strategy_source,
+        description=body.description,
+        is_active=body.is_active,
+        parameters=body.parameters,
+    )
+    db.add(strategy)
+    db.commit()
+    db.refresh(strategy)
+    return _serialize_strategy(strategy)
 
 @router.get("/{strategy_id}/stats")
 async def get_strategy_stats(

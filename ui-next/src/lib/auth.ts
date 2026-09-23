@@ -28,7 +28,14 @@ const getCookieOptions = (maxAge?: number) => ({
  */
 export async function getTokenFromCookies(): Promise<string | undefined> {
   const cookieStore = await cookies();
-  return cookieStore.get(AUTH_COOKIE_NAME)?.value;
+  const names = [AUTH_COOKIE_NAME, 'auth_token'];
+  for (const name of names) {
+    const value = cookieStore.get(name)?.value;
+    if (value) {
+      return value;
+    }
+  }
+  return undefined;
 }
 
 /**

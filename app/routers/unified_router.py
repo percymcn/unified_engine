@@ -7,6 +7,7 @@ import logging
 from typing import Dict, List, Optional, Any, Union
 from datetime import datetime
 from fastapi import APIRouter, HTTPException, Depends, Query, Path
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from app.services.signal_processor import signal_processor
 from app.models.pydantic_schemas import (
@@ -17,10 +18,8 @@ from app.models.pydantic_schemas import (
 from app.models.schemas import (
     Order, Trade, Signal
 )
-from app.models.pydantic_schemas import (
-    HealthResponse
-)
 from app.db.database import get_db
+from app.core.broker_health import broker_is_connected, build_unified_health
 from app.routers.auth import get_current_user, verify_api_key
 from app.models.models import User
 
@@ -43,7 +42,7 @@ class UnifiedRouter:
             )
         
         broker = self.brokers[broker_name]
-        if not broker.is_connected:
+        if not broker_is_connected(broker):
             raise HTTPException(
                 status_code=503,
                 detail=f"Broker {broker_name} is not connected"
@@ -56,7 +55,7 @@ class UnifiedRouter:
         results = []
         
         for broker_name, broker in self.brokers.items():
-            if not broker.is_connected:
+            if not broker_is_connected(broker):
                 continue
             
             try:
@@ -82,32 +81,15 @@ class UnifiedRouter:
 unified_router = UnifiedRouter()
 
 # Health and Status Endpoints
-@router.get("/health", response_model=HealthResponse)
+@router.get("/health")
 async def health_check():
-    """Unified health check across all brokers"""
-    try:
-        broker_status = {}
-        overall_healthy = True
-        
-        for broker_name, broker in unified_router.brokers.items():
-            is_healthy = broker.is_connected
-            broker_status[broker_name] = {
-                "connected": is_healthy,
-                "status": "healthy" if is_healthy else "unhealthy"
-            }
-            if not is_healthy:
-                overall_healthy = False
-        
-        return HealthResponse(
-            status="healthy" if overall_healthy else "degraded",
-            timestamp=datetime.now(),
-            brokers=broker_status,
-            uptime=datetime.now().isoformat()  # Would track actual uptime
-        )
-        
-    except Exception as e:
-        logger.error(f"Health check error: {e}")
-        raise HTTPException(status_code=500, detail="Health check failed")
+    """Unified health check across all brokers.
+
+    Disconnected brokers return HTTP 200 with status degraded. The API process
+    is up; broker connectivity is reported per broker.
+    """
+    payload = build_unified_health(unified_router.brokers, version="2.0.0")
+    return JSONResponse(status_code=200, content=payload)
 
 @router.get("/status")
 async def get_system_status(api_key: str = Depends(verify_api_key)):
@@ -118,7 +100,7 @@ async def get_system_status(api_key: str = Depends(verify_api_key)):
             "version": "2.0.0",
             "supported_brokers": unified_router.supported_brokers,
             "broker_connections": {
-                name: broker.is_connected 
+                name: broker_is_connected(broker)
                 for name, broker in unified_router.brokers.items()
             },
             "signal_processor": {

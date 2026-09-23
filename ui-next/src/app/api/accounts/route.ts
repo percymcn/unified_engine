@@ -31,7 +31,8 @@ export async function GET() {
       throw new Error(`Backend returned ${response.status}`);
     }
 
-    const accounts = await response.json();
+    const payload = await response.json();
+    const accounts = Array.isArray(payload) ? payload : (payload?.accounts ?? []);
 
     return NextResponse.json(accounts);
   } catch (error) {

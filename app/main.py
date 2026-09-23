@@ -55,7 +55,11 @@ from app.routers.risk import router as risk_router
 from app.routers.users import router as users_router
 from app.routers.dashboard import router as dashboard_router
 from app.routers.trial import router as trial_router
+from app.routers.market_scans import router as market_scans_router
+from app.routers.ai_strategy import router as ai_strategy_router
+from app.routers.smartflow_status import router as smartflow_status_router
 from app.core.event_emitter import event_emitter
+from app.core.broker_health import broker_is_connected
 from app.tasks.token_refresh import refresh_expiring_tokens
 
 # Configure structured logging
@@ -221,6 +225,9 @@ app.include_router(risk_router, tags=["risk"])
 app.include_router(users_router, prefix="/api/v1/users", tags=["users"])
 app.include_router(dashboard_router, tags=["dashboard"])
 app.include_router(trial_router, prefix="/api/trial", tags=["trial"])
+app.include_router(market_scans_router)
+app.include_router(ai_strategy_router)
+app.include_router(smartflow_status_router)
 
 # WebSocket endpoint
 @app.websocket("/ws")
@@ -284,10 +291,7 @@ async def health_check():
         # Check broker connections
         broker_status = {}
         for name, broker in signal_processor.brokers.items():
-            try:
-                broker_status[name] = broker.is_connected()
-            except:
-                broker_status[name] = False
+            broker_status[name] = broker_is_connected(broker)
         
         # Overall health - Redis is required, brokers are optional
         # If no brokers configured, that's OK. If brokers are configured, at least one should be connected.
@@ -330,7 +334,7 @@ async def get_metrics():
         broker_metrics = {}
         for name, broker in signal_processor.brokers.items():
             broker_metrics[name] = {
-                "connected": broker.is_connected,
+                "connected": broker_is_connected(broker),
                 "type": name
             }
         
@@ -359,10 +363,7 @@ async def get_status():
         redis_status = await redis_client.ping()
         broker_status = {}
         for name, broker in signal_processor.brokers.items():
-            try:
-                broker_status[name] = broker.is_connected()
-            except:
-                broker_status[name] = False
+            broker_status[name] = broker_is_connected(broker)
         
         return {
             "service": "unified-trading-engine",
@@ -401,15 +402,26 @@ async def get_today_tasks():
 
 @app.get("/errors")
 async def get_errors():
-    """Get recent system errors"""
-    return {
-        "errors": [
-            {"timestamp": "2025-11-30T17:50:00Z", "level": "warning", "message": "TradeLocker broker disconnected", "component": "brokers"},
-            {"timestamp": "2025-11-30T17:45:00Z", "level": "info", "message": "Signal processed successfully", "component": "signal_processor"}
-        ],
-        "total_count": 2,
-        "critical_count": 0
-    }
+    """Get recent webhook errors stored in the database."""
+    from app.db.database import SessionLocal
+    from app.models.models import WebhookLog
+    from app.services.ops_status import build_errors_payload, empty_errors_payload
+
+    db = SessionLocal()
+    try:
+        rows = (
+            db.query(WebhookLog)
+            .filter(WebhookLog.error_message.isnot(None))
+            .order_by(WebhookLog.created_at.desc())
+            .limit(50)
+            .all()
+        )
+        return build_errors_payload(rows)
+    except Exception as e:
+        logger.error(f"Error listing webhook errors: {e}")
+        return empty_errors_payload()
+    finally:
+        db.close()
 
 @app.get("/test")
 async def test_endpoint():
@@ -434,38 +446,39 @@ async def run_workflow(workflow_data: dict):
 
 @app.get("/api/keys")
 async def get_api_keys():
-    """Get API keys status"""
-    return {
-        "api_keys": {
-            "mt4": {"status": "configured", "last_used": "2025-11-30T17:00:00Z"},
-            "mt5": {"status": "configured", "last_used": "2025-11-30T17:00:00Z"},
-            "tradelocker": {"status": "error", "error": "Connection failed"},
-            "tradovate": {"status": "configured", "last_used": "2025-11-30T16:30:00Z"},
-            "projectx": {"status": "configured", "last_used": "2025-11-30T17:00:00Z"}
-        }
-    }
+    """Get API key status without secret material."""
+    from app.db.database import SessionLocal
+    from app.models.models import ApiKey
+    from app.services.ops_status import build_api_keys_payload, empty_api_keys_payload
+
+    db = SessionLocal()
+    try:
+        rows = db.query(ApiKey).order_by(ApiKey.created_at.desc()).all()
+        return build_api_keys_payload(rows)
+    except Exception as e:
+        logger.error(f"Error listing API keys: {e}")
+        return empty_api_keys_payload()
+    finally:
+        db.close()
 
 @app.get("/daily")
 async def get_daily_summary():
-    """Get daily trading summary"""
-    return {
-        "date": datetime.now().strftime("%Y-%m-%d"),
-        "summary": {
-            "total_trades": 45,
-            "winning_trades": 28,
-            "losing_trades": 17,
-            "win_rate": 0.62,
-            "total_pnl": 1250.50,
-            "best_trade": 350.25,
-            "worst_trade": -125.75
-        },
-        "brokers": {
-            "mt4": {"trades": 15, "pnl": 450.25},
-            "mt5": {"trades": 12, "pnl": 325.50},
-            "tradovate": {"trades": 10, "pnl": 275.00},
-            "projectx": {"trades": 8, "pnl": 199.75}
-        }
-    }
+    """Get today's trading summary from stored trades."""
+    from app.db.database import SessionLocal
+    from app.models.models import Trade
+    from app.services.ops_status import build_daily_summary, empty_daily_summary
+
+    day = datetime.utcnow().strftime("%Y-%m-%d")
+    start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    db = SessionLocal()
+    try:
+        rows = db.query(Trade).filter(Trade.created_at >= start).all()
+        return build_daily_summary(rows, day)
+    except Exception as e:
+        logger.error(f"Error building daily summary: {e}")
+        return empty_daily_summary(day)
+    finally:
+        db.close()
 
 # Background task for system health monitoring
 async def monitor_system_health():
