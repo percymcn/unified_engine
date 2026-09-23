@@ -169,23 +169,45 @@ const TIER_LEVELS: Record<string, number> = {
  * Normalize tier name to canonical form
  */
 export function normalizeTier(tier: string): SubscriptionTier {
-  const t = tier?.toLowerCase() || 'free';
+  const t = (tier || '')
+    .toString()
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_');
   switch (t) {
     case 'tier_1':
+    case 'tier1':
     case 'starter':
       return 'starter';
     case 'tier_2':
+    case 'tier2':
     case 'trader':
       return 'trader';
     case 'tier_3':
+    case 'tier3':
     case 'pro':
       return 'pro';
     case 'tier_4':
+    case 'tier4':
     case 'enterprise':
       return 'enterprise';
+    case 'free':
+    case 'free_user':
+    case 'basic':
+    case '':
+      return 'free';
     default:
+      // Unknown ids stay on the free gate instead of unlocking paid features.
       return 'free';
   }
+}
+
+export function isEnterpriseTier(tier: string): boolean {
+  return normalizeTier(tier) === 'enterprise';
+}
+
+export function isFreeTier(tier: string): boolean {
+  return normalizeTier(tier) === 'free';
 }
 
 /**
@@ -194,8 +216,9 @@ export function normalizeTier(tier: string): SubscriptionTier {
 export function hasFeatureAccess(userTier: SubscriptionTier | string, featureId: string): boolean {
   const feature = FEATURES[featureId];
   if (!feature) return false;
-  const normalizedTier = typeof userTier === 'string' ? userTier.toLowerCase() : userTier;
-  const userLevel = TIER_LEVELS[normalizedTier] ?? 0;
+  // normalizeTier maps enterprise and tier_4 onto the same rank, and unknown
+  // ids onto free so the webhook-logs gate still applies.
+  const userLevel = TIER_LEVELS[normalizeTier(String(userTier || 'free'))] ?? 0;
   const requiredLevel = TIER_LEVELS[feature.minTier] ?? 0;
   return userLevel >= requiredLevel;
 }

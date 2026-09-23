@@ -46,11 +46,58 @@ class SignalSource(str, Enum):
     Source of trading signals.
 
     Identifies where a trading signal originated from for tracking and routing.
+
+    Postgres ``signalsource`` was created before ``CUSTOM`` existed. Persisting
+    the name ``CUSTOM`` (or the value ``custom``) raises
+    ``invalid input value for enum signalsource``. ``TRAILHACKER`` is a label
+    that already exists. Unknown and custom sources coerce to ``API``.
     """
     TRADINGVIEW = "tradingview"
+    TRAILHACKER = "trailhacker"
     MANUAL = "manual"
     API = "api"
+    # Accepted in Python only. coerce_signal_source() never returns this.
     CUSTOM = "custom"
+
+
+# Labels that already exist on the Postgres signalsource enum.
+_PERSISTED_SIGNAL_SOURCES = {
+    "tradingview": SignalSource.TRADINGVIEW,
+    "tv": SignalSource.TRADINGVIEW,
+    "trailhacker": SignalSource.TRAILHACKER,
+    "trail_hacker": SignalSource.TRAILHACKER,
+    "manual": SignalSource.MANUAL,
+    "api": SignalSource.API,
+}
+
+
+def coerce_signal_source(raw: object, *, default: "SignalSource | None" = None) -> "SignalSource":
+    """Map a webhook/source token onto a SignalSource Postgres will accept.
+
+    TrailHacker (any casing) becomes ``TRAILHACKER``. ``CUSTOM`` / ``custom`` /
+    empty / unknown tokens become ``API`` so test pings and custom webhooks
+    do not insert an enum label the database rejects. TradingView stays
+    ``TRADINGVIEW``.
+    """
+    fallback = default if default is not None else SignalSource.API
+    if isinstance(raw, SignalSource):
+        if raw is SignalSource.CUSTOM:
+            return fallback if fallback is not SignalSource.CUSTOM else SignalSource.API
+        return raw
+
+    token = str(raw or "").strip().lower().replace("-", "_").replace(" ", "_")
+    if token in ("custom", "unknown", "none", "null", ""):
+        return fallback if fallback is not SignalSource.CUSTOM else SignalSource.API
+    return _PERSISTED_SIGNAL_SOURCES.get(token, fallback if fallback is not SignalSource.CUSTOM else SignalSource.API)
+
+
+def is_empty_signal_payload(payload: object) -> bool:
+    """True when a webhook body has no symbol and no action (empty/test POST)."""
+    if not isinstance(payload, dict) or not payload:
+        return True
+    symbol = payload.get("symbol") or payload.get("ticker")
+    action = payload.get("signal") or payload.get("action") or payload.get("order_action")
+    return not str(symbol or "").strip() and not str(action or "").strip()
 
 
 class SignalAction(str, Enum):

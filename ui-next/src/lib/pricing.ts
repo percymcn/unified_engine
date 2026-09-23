@@ -183,20 +183,33 @@ export function getTierFeatures(tier_id: string): string[] {
  * @returns Canonical tier ID
  */
 export function normalizeTierId(tier_id: string): string {
-  const t = tier_id?.toLowerCase() || "free";
+  const t = (tier_id || "")
+    .toString()
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
   switch (t) {
     case "starter":
     case "tier_1":
+    case "tier1":
       return "tier_1";
     case "trader":
     case "tier_2":
+    case "tier2":
       return "tier_2";
     case "pro":
     case "tier_3":
+    case "tier3":
       return "tier_3";
     case "enterprise":
     case "tier_4":
+    case "tier4":
       return "tier_4";
+    case "free":
+    case "free_user":
+    case "basic":
+    case "":
+      return "free";
     default:
       return "free";
   }
