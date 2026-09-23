@@ -168,7 +168,15 @@ class SignalService:
             return {"success": False, "error": f"No broker adapter for {account.broker}"}
 
         if not await broker.is_connected():
-            return {"success": False, "error": "Broker not connected"}
+            connect = getattr(broker, "connect", None)
+            if callable(connect):
+                try:
+                    await connect()
+                except Exception as exc:
+                    logger.warning(f"Broker connect failed before execution: {exc}")
+                    return {"success": False, "error": "SDK not initialized"}
+            if not await broker.is_connected():
+                return {"success": False, "error": "SDK not initialized"}
 
         # Convert signal action to order
         if signal.action == SignalAction.BUY:

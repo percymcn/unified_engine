@@ -296,12 +296,26 @@ export function AccountForm({
         console.log('Create account - credential keys:', Object.keys(backendCredentials));
       }
 
-      // Include discovered account selections in broker_config
+      // Include discovered account selections and balance snapshots in broker_config
       const brokerConfigWithAccounts = { ...backendCredentials };
       if (selectedAccountIds.size > 0) {
+        const selectedSnapshots = discoveredAccounts
+          .filter((acc) => selectedAccountIds.has(acc.id))
+          .map((acc) => ({
+            id: acc.id,
+            name: acc.name,
+            balance: acc.balance,
+            equity: acc.equity,
+            currency: acc.currency,
+            account_type: acc.account_type,
+          }));
         brokerConfigWithAccounts.selected_account_ids = Array.from(selectedAccountIds);
-        if (defaultAccountId && selectedAccountIds.has(defaultAccountId)) {
-          brokerConfigWithAccounts.default_account_id = defaultAccountId;
+        brokerConfigWithAccounts.selected_accounts = selectedSnapshots;
+        const preferred =
+          selectedSnapshots.find((acc) => acc.id === defaultAccountId) || selectedSnapshots[0];
+        if (preferred) {
+          brokerConfigWithAccounts.selected_subaccount = preferred;
+          brokerConfigWithAccounts.default_account_id = preferred.id;
         }
       }
 

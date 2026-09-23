@@ -6,6 +6,7 @@ from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import NamedTuple
 
+from app.core.entitlements import canonical_tier_id
 from app.db.database import get_db
 from app.routers.auth import get_current_user
 from app.models.models import User, Account
@@ -62,10 +63,19 @@ TIER_LIMITS = {
     ),
 }
 
+# Alias product ids that mean the same plan.
+TIER_LIMITS["basic"] = TIER_LIMITS["free"]
+TIER_LIMITS["starter"] = TIER_LIMITS["tier_1"]
+TIER_LIMITS["growth"] = TIER_LIMITS["tier_2"]
+TIER_LIMITS["standard"] = TIER_LIMITS["tier_2"]
+TIER_LIMITS["premium"] = TIER_LIMITS["tier_3"]
+TIER_LIMITS["enterprise"] = TIER_LIMITS["tier_4"]
+
 
 def get_tier_limits(tier: str) -> SubscriptionLimits:
-    """Get limits for a subscription tier"""
-    return TIER_LIMITS.get(tier, TIER_LIMITS["free"])
+    """Get limits for a subscription tier, including legacy aliases."""
+    canonical = canonical_tier_id(tier)
+    return TIER_LIMITS.get(canonical, TIER_LIMITS["free"])
 
 
 def get_user_limits(user: User) -> SubscriptionLimits:
@@ -152,9 +162,8 @@ def _get_tier_display_name(tier: str) -> str:
         "tier_2": "Growth",
         "tier_3": "Pro",
         "tier_4": "Enterprise",
-        "pro": "Pro",  # Legacy
     }
-    return names.get(tier, "Free")
+    return names.get(canonical_tier_id(tier), "Free")
 
 
 def get_subscription_info(user: User, db: Session) -> dict:

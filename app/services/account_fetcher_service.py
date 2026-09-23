@@ -129,27 +129,44 @@ class AccountFetcherService:
                 return []
 
             try:
-                # Get account state for balance/equity info
+                from app.services.account_balance import (
+                    balance_for_nested_account,
+                    coerce_account_rows,
+                )
+
+                # Get account state for the currently selected account only
                 account_state = await wrapper.get_account_state()
 
                 # TradeLocker SDK provides account numbers and IDs
                 acc_nums = wrapper._tl.get_acc_nums() if wrapper._tl else []
                 acc_ids = wrapper._tl.get_acc_ids() if wrapper._tl else []
+                selected_account_id = str(acc_ids[0]) if acc_ids else None
+
+                detail_rows = []
+                if wrapper._tl and hasattr(wrapper._tl, "get_all_accounts"):
+                    try:
+                        detail_rows = coerce_account_rows(wrapper._tl.get_all_accounts())
+                    except Exception as row_error:
+                        logger.warning(f"TradeLocker get_all_accounts failed: {row_error}")
+                        detail_rows = []
+                rows_by_id = {}
+                for row in detail_rows:
+                    row_id = row.get("id") or row.get("accountId") or row.get("accNum")
+                    if row_id is not None:
+                        rows_by_id[str(row_id)] = row
 
                 for i, (acc_num, acc_id) in enumerate(zip(acc_nums, acc_ids)):
                     # Determine account type from name/config
                     env = credentials.get("environment", "")
                     account_type = "demo" if "demo" in env.lower() else "live"
 
-                    # Get balance from account state if available
-                    balance = None
-                    equity = None
-                    currency = "USD"
-
-                    if account_state:
-                        balance = account_state.get("balance", account_state.get("Balance"))
-                        equity = account_state.get("equity", account_state.get("Equity"))
-                        currency = account_state.get("currency", "USD")
+                    row = rows_by_id.get(str(acc_id)) or rows_by_id.get(str(acc_num)) or {}
+                    balance, equity, currency = balance_for_nested_account(
+                        row,
+                        account_state,
+                        acc_id,
+                        selected_account_id,
+                    )
 
                     account = BrokerAccountInfo(
                         id=str(acc_id),  # Numeric ID

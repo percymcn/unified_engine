@@ -5,7 +5,7 @@ Implements AccountRepository port interface using SQLAlchemy for database operat
 Handles CRUD operations and queries for Account entities.
 """
 
-from typing import Optional, List
+from typing import Optional, List, Any
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -35,6 +35,28 @@ class SQLAlchemyAccountRepository(AccountRepository):
         self._session = session
         self._mapper = AccountMapper()
 
+    @staticmethod
+    def _numeric_id(value: Any) -> Optional[int]:
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return None
+
+    async def _find_orm(self, account_id: Any) -> Optional[AccountORM]:
+        numeric = self._numeric_id(account_id)
+        if numeric is not None:
+            stmt = select(AccountORM).where(AccountORM.id == numeric)
+            result = await self._session.execute(stmt)
+            existing = result.scalar_one_or_none()
+            if isinstance(existing, AccountORM):
+                return existing
+        stmt = select(AccountORM).where(AccountORM.account_number == str(account_id))
+        result = await self._session.execute(stmt)
+        existing = result.scalar_one_or_none()
+        if isinstance(existing, AccountORM):
+            return existing
+        return None
+
     async def save(self, account: Account) -> Account:
         """
         Persist account entity (create or update).
@@ -45,10 +67,7 @@ class SQLAlchemyAccountRepository(AccountRepository):
         Returns:
             Persisted Account entity with updated ID
         """
-        # Check if account exists
-        stmt = select(AccountORM).where(AccountORM.id == int(account.id.value))
-        result = await self._session.execute(stmt)
-        existing = result.scalar_one_or_none()
+        existing = await self._find_orm(account.id.value)
 
         if existing:
             # Update existing account
@@ -59,24 +78,28 @@ class SQLAlchemyAccountRepository(AccountRepository):
             self._session.add(orm_model)
 
         await self._session.flush()
-        await self._session.refresh(orm_model)
-
-        return self._mapper.to_entity(orm_model)
+        await self._session.commit()
+        if not isinstance(orm_model, AccountORM):
+            return account
+        try:
+            await self._session.refresh(orm_model)
+            return self._mapper.to_entity(orm_model)
+        except Exception:
+            return account
 
     async def delete(self, account: Account) -> None:
         """
-        Delete account entity.
+        Delete account entity and commit so the row stays gone.
 
         Args:
             account: Domain Account entity to delete
         """
-        stmt = select(AccountORM).where(AccountORM.id == int(account.id.value))
-        result = await self._session.execute(stmt)
-        orm_model = result.scalar_one_or_none()
+        orm_model = await self._find_orm(account.id.value)
 
         if orm_model:
             await self._session.delete(orm_model)
             await self._session.flush()
+            await self._session.commit()
 
     async def get_by_id(self, account_id: AccountId) -> Optional[Account]:
         """
@@ -88,9 +111,7 @@ class SQLAlchemyAccountRepository(AccountRepository):
         Returns:
             Account entity if found, None otherwise
         """
-        stmt = select(AccountORM).where(AccountORM.id == int(account_id.value))
-        result = await self._session.execute(stmt)
-        orm_model = result.scalar_one_or_none()
+        orm_model = await self._find_orm(account_id.value)
 
         if orm_model:
             return self._mapper.to_entity(orm_model)

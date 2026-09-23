@@ -111,6 +111,9 @@ class AccountMapper:
         orm_model.last_sync = entity.last_sync
         orm_model.created_at = entity.created_at
 
+        if getattr(entity, "extra_metadata", None) is not None:
+            orm_model.extra_metadata = entity.extra_metadata
+
         return orm_model
 
     @staticmethod

@@ -76,33 +76,21 @@ async def get_accounts(
     skip: int = 0,
     limit: int = 100,
     current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
-    """Get all accounts for current user via hexagonal architecture"""
-    container = get_container(request)
-    use_case = container.get_accounts_use_case()
+    """Get account cards for the current user, including selected subaccount balances."""
+    from app.models.database_models import TradingAccount
+    from app.services.account_balance import serialize_trading_account
 
-    # Execute use case
-    dto_request = GetAccountsRequest(
-        user_id=current_user.id,
-        broker=None,  # Get all brokers
-        active_only=False,  # Include inactive accounts
+    rows = (
+        db.query(TradingAccount)
+        .filter(TradingAccount.user_id == current_user.id)
+        .order_by(TradingAccount.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
     )
-    response = await use_case.execute(dto_request)
-
-    # Convert to API response format
-    return {
-        "accounts": [
-            {
-                "id": acc.id,
-                "broker": acc.broker.value,
-                "balance": float(acc.balance),
-                "equity": float(acc.equity),
-                "is_connected": acc.is_connected,
-            }
-            for acc in response.accounts
-        ],
-        "total": response.total,
-    }
+    return [serialize_trading_account(row) for row in rows]
 
 @router.post("/test-connection")
 async def test_connection(
@@ -450,6 +438,12 @@ async def get_available_accounts(
             "stored_account_id": stored.id if stored else None,
         })
 
+    from app.services.account_balance import apply_discovered_balances
+
+    updated = apply_discovered_balances(stored_accounts, result_accounts)
+    if updated or result_accounts:
+        db.commit()
+
     return {
         "broker_type": broker_type,
         "accounts": result_accounts,
@@ -785,29 +779,22 @@ async def delete_account(
     request: Request,
     account_id: str,
     current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
-    """Delete account and soft-delete its credentials"""
-    container = get_container(request)
-    use_case = container.delete_account_use_case()
+    """Delete a trading account and commit so it stays gone after reload."""
+    from app.services.account_balance import delete_trading_account
 
-    # Execute use case
-    dto_request = DeleteAccountRequest(
-        account_id=account_id,
-        user_id=current_user.id,
-    )
-
-    response = await use_case.execute(dto_request)
-
-    if response.error:
+    deleted = delete_trading_account(db, current_user.id, account_id)
+    if not deleted:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=response.error,
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Account not found",
         )
 
     return {
-        "id": response.account_id,
-        "deleted": response.deleted,
-        "message": "Account and credentials deleted successfully",
+        "id": account_id,
+        "deleted": True,
+        "message": "Account deleted successfully",
     }
 
 @router.post("/{account_id}/sync")

@@ -283,6 +283,23 @@ class CreateAccountUseCase:
         """Create new account with encrypted credentials and auto-detected aliases"""
         try:
             import uuid
+            from app.services.account_balance import (
+                metadata_for_selected_snapshot,
+                selected_snapshot_from_credentials,
+            )
+
+            snapshot = selected_snapshot_from_credentials(request.credentials)
+            balance_amount = Decimal("0")
+            equity_amount = Decimal("0")
+            extra_metadata = None
+            if snapshot:
+                if snapshot.get("balance") is not None:
+                    balance_amount = Decimal(str(snapshot.get("balance") or 0))
+                if snapshot.get("equity") is not None:
+                    equity_amount = Decimal(str(snapshot.get("equity") or 0))
+                elif balance_amount:
+                    equity_amount = balance_amount
+                extra_metadata = metadata_for_selected_snapshot(request.credentials, snapshot)
 
             # Create domain account entity
             account = Account(
@@ -290,14 +307,15 @@ class CreateAccountUseCase:
                 user_id=request.user_id,
                 broker=request.broker,
                 account_type=request.account_type,
-                balance=Money(Decimal("0"), request.currency),
-                equity=Money(Decimal("0"), request.currency),
+                balance=Money(balance_amount, request.currency),
+                equity=Money(equity_amount, request.currency),
                 margin=Money(Decimal("0"), request.currency),
                 leverage=request.leverage,
                 currency=request.currency,
                 server=request.server,
                 is_active=True,
                 is_connected=False,
+                extra_metadata=extra_metadata,
             )
 
             # Save account to repository
@@ -463,8 +481,8 @@ class DeleteAccountUseCase:
             for cred in credentials:
                 await self._credential_repo.soft_delete(cred.id)
 
-            # Delete account
-            await self._account_repo.delete(AccountId(request.account_id))
+            # Delete account and commit
+            await self._account_repo.delete(account)
 
             logger.info(f"Account deleted: {request.account_id}")
 

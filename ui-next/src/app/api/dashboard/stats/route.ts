@@ -31,7 +31,10 @@ export async function GET() {
 
     // Parse responses (handle failures gracefully)
     const signals = signalsRes.ok ? await signalsRes.json() : [];
-    const accounts = accountsRes.ok ? await accountsRes.json() : [];
+    const accountsPayload = accountsRes.ok ? await accountsRes.json() : [];
+    const accounts = Array.isArray(accountsPayload)
+      ? accountsPayload
+      : (accountsPayload?.accounts ?? []);
     const trades = tradesRes.ok ? await tradesRes.json() : [];
 
     // Calculate today's trades

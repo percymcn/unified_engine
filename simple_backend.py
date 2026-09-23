@@ -101,15 +101,9 @@ async def get_today_tasks():
 
 @app.get("/errors")
 async def get_errors():
-    """Get recent system errors"""
-    return {
-        "errors": [
-            {"timestamp": "2025-11-30T17:50:00Z", "level": "warning", "message": "TradeLocker broker disconnected", "component": "brokers"},
-            {"timestamp": "2025-11-30T17:45:00Z", "level": "info", "message": "Signal processed successfully", "component": "signal_processor"}
-        ],
-        "total_count": 2,
-        "critical_count": 0
-    }
+    """Recent errors. This demo process has no webhook log database."""
+    from app.services.ops_status import empty_errors_payload
+    return empty_errors_payload()
 
 @app.get("/test")
 async def test_endpoint():
@@ -134,38 +128,15 @@ async def run_workflow(workflow_data: dict):
 
 @app.get("/api/keys")
 async def get_api_keys():
-    """Get API keys status"""
-    return {
-        "api_keys": {
-            "mt4": {"status": "configured", "last_used": "2025-11-30T17:00:00Z"},
-            "mt5": {"status": "configured", "last_used": "2025-11-30T17:00:00Z"},
-            "tradelocker": {"status": "error", "error": "Connection failed"},
-            "tradovate": {"status": "configured", "last_used": "2025-11-30T16:30:00Z"},
-            "projectx": {"status": "configured", "last_used": "2025-11-30T17:00:00Z"}
-        }
-    }
+    """API key status. This demo process does not invent broker credentials."""
+    from app.services.ops_status import empty_api_keys_payload
+    return empty_api_keys_payload()
 
 @app.get("/daily")
 async def get_daily_summary():
-    """Get daily trading summary"""
-    return {
-        "date": datetime.now().strftime("%Y-%m-%d"),
-        "summary": {
-            "total_trades": 45,
-            "winning_trades": 28,
-            "losing_trades": 17,
-            "win_rate": 0.62,
-            "total_pnl": 1250.50,
-            "best_trade": 350.25,
-            "worst_trade": -125.75
-        },
-        "brokers": {
-            "mt4": {"trades": 15, "pnl": 450.25},
-            "mt5": {"trades": 12, "pnl": 325.50},
-            "tradovate": {"trades": 10, "pnl": 275.00},
-            "projectx": {"trades": 8, "pnl": 199.75}
-        }
-    }
+    """Daily summary. This demo process has no trade history to invent."""
+    from app.services.ops_status import empty_daily_summary
+    return empty_daily_summary(datetime.now().strftime("%Y-%m-%d"))
 
 # Mock trading endpoints
 @app.get("/api/v1/accounts")

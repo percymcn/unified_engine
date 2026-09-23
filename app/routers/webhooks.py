@@ -15,6 +15,7 @@ from app.routers.auth import get_current_user
 from app.dependencies import get_container
 from app.application.dto.signal_dto import ProcessSignalRequest
 from app.domain.enums import SignalSource, SignalAction
+from app.core.signal_sources import is_empty_trailhacker_payload, resolve_signal_source
 from app.domain.services.routing_service import (
     RoutingEngine,
     RoutingConfig,
@@ -151,6 +152,8 @@ async def tradingview_webhook(request: Request, db: Session = Depends(get_db)):
 async def trailhacker_webhook(request: Request, db: Session = Depends(get_db)):
     """TrailHacker webhook endpoint"""
     start_time = datetime.utcnow()
+    webhook_id = str(uuid.uuid4())
+    payload = {}
 
     try:
         # Get request data
@@ -159,6 +162,9 @@ async def trailhacker_webhook(request: Request, db: Session = Depends(get_db)):
         else:
             form_data = await request.form()
             payload = dict(form_data)
+
+        if not isinstance(payload, dict):
+            payload = {}
 
         # Create webhook log
         webhook_id = str(uuid.uuid4())
@@ -173,6 +179,20 @@ async def trailhacker_webhook(request: Request, db: Session = Depends(get_db)):
         db_webhook = WebhookLog(**webhook_log.dict())
         db.add(db_webhook)
         db.commit()
+
+        if is_empty_trailhacker_payload(payload):
+            result = {
+                "success": False,
+                "error": "Empty TrailHacker payload",
+                "source": SignalSource.TRAILHACKER.value,
+                "executed": False,
+            }
+            db_webhook.processed = False
+            db_webhook.error_message = result["error"]
+            db_webhook.response_status = 200
+            db_webhook.response_body = json.dumps(result)
+            db.commit()
+            return result
 
         # Get container and use case from hexagonal architecture
         container = get_container(request)
@@ -543,12 +563,8 @@ async def process_routed_signal(
         container = get_container(request)
         use_case = container.process_signal_use_case()
 
-        # Determine source
-        source_map = {
-            "tradingview": SignalSource.TRADINGVIEW,
-            "trailhacker": SignalSource.TRAILHACKER,
-        }
-        source = source_map.get(webhook_config.source.lower(), SignalSource.TRADINGVIEW)
+        # Determine source. TrailHacker aliases stay on TRAILHACKER, never a missing enum.
+        source = resolve_signal_source(webhook_config.source)
 
         # Map action string to enum
         action_str = signal_data.get("action", "buy").lower()

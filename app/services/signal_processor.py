@@ -21,6 +21,7 @@ from app.brokers.tradelocker_executor import TradeLockerExecutor
 from app.brokers.tradovate_executor import TradovateExecutor
 from app.brokers.projectx_executor import ProjectXExecutor
 from app.db.database import get_db
+from app.core.signal_sources import resolve_signal_source
 from app.domain.services.symbol_normalization_service import SymbolNormalizationService
 from app.services.signal_deduplication_service import (
     SignalDeduplicationService,
@@ -174,9 +175,10 @@ class SignalProcessor:
                     "error": f"Unsupported broker: {signal_request.broker}"
                 }
 
-            # Check if broker is connected
+            # Check if broker is connected (method or bool flag)
+            from app.core.broker_health import broker_is_connected
             broker = self.brokers[signal_request.broker]
-            if not broker.is_connected:
+            if not broker_is_connected(broker):
                 return {
                     "valid": False,
                     "error": f"Broker {signal_request.broker} is not connected"
@@ -1211,7 +1213,7 @@ class SignalProcessor:
                     price=float(payload.get("entry", 0)),
                     stop_loss=float(payload.get("stop", 0)),
                     take_profit=float(payload.get("target", 0)),
-                    source="trailhacker"
+                    source=resolve_signal_source("trailhacker").value
                 )
             
             return None

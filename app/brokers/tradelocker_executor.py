@@ -55,6 +55,7 @@ class TradeLockerExecutor(BaseExecutor):
         self._sdk_wrapper: Optional[TradeLockerSDKWrapper] = None
         self.access_token = None
         self._use_sdk = False  # Track which mode is active
+        self._connected_flag = False
 
         # Determine availability: SDK credentials OR Brand API key
         self._sdk_available = all([self._sdk_username, self._sdk_password, self._sdk_server])
@@ -87,7 +88,7 @@ class TradeLockerExecutor(BaseExecutor):
                     self._use_sdk = True
                     # Still set up WebSocket for real-time updates
                     await self._initialize_websocket()
-                    self.is_connected = True
+                    self._connected_flag = True
                     logger.info("TradeLocker executor initialized via SDK")
                     return True
                 else:
@@ -98,7 +99,7 @@ class TradeLockerExecutor(BaseExecutor):
                 success = await self._initialize_brand_api()
                 if success:
                     self._use_sdk = False
-                    self.is_connected = True
+                    self._connected_flag = True
                     logger.info("TradeLocker executor initialized via Brand API")
                     return True
 
@@ -172,7 +173,7 @@ class TradeLockerExecutor(BaseExecutor):
         if self._sdk_wrapper:
             self._sdk_wrapper.shutdown()
             self._sdk_wrapper = None
-        self.is_connected = False
+        self._connected_flag = False
         self._use_sdk = False
         logger.info("TradeLocker executor disconnected")
     
@@ -307,14 +308,32 @@ class TradeLockerExecutor(BaseExecutor):
             return []
     
     async def place_order(self, order: OrderRequest) -> OrderResponse:
-        """Place order with TradeLocker"""
+        """Place order with TradeLocker.
+
+        Initializes from existing settings when the SDK or brand session is
+        not ready. If initialization still fails, the order is not sent.
+        """
         try:
-            # Use SDK if available
-            if self._use_sdk and self._sdk_wrapper:
+            if not self.is_connected():
+                await self.initialize()
+
+            wrapper_ready = (
+                self._use_sdk
+                and self._sdk_wrapper is not None
+                and getattr(self._sdk_wrapper, "is_initialized", False)
+            )
+            if wrapper_ready:
                 return await self._place_order_sdk(order)
 
-            # Fall back to Brand API
-            return await self._place_order_brand_api(order)
+            session_ready = self.session is not None and not getattr(self.session, "is_closed", True)
+            if session_ready:
+                return await self._place_order_brand_api(order)
+
+            logger.error("TradeLocker order refused: SDK not initialized")
+            return OrderResponse(
+                success=False,
+                error="SDK not initialized",
+            )
 
         except Exception as e:
             logger.error(f"Error placing TradeLocker order: {e}")
@@ -661,6 +680,14 @@ class TradeLockerExecutor(BaseExecutor):
         return {"error": "Not implemented"}
 
     def is_connected(self) -> bool:
-        """Check if broker is connected"""
-        return hasattr(self, 'session') and self.session is not None and not self.session.is_closed
+        """Check if the SDK or Brand API session is connected."""
+        if getattr(self, "_connected_flag", False):
+            return True
+        wrapper = getattr(self, "_sdk_wrapper", None)
+        if wrapper is not None and getattr(wrapper, "is_initialized", False):
+            return True
+        session = getattr(self, "session", None)
+        if session is not None and not getattr(session, "is_closed", True):
+            return True
+        return False
 
