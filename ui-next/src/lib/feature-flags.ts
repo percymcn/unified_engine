@@ -1,7 +1,9 @@
 /**
  * Feature Flags System for Tradeflow
- * Tier-gated features for subscription management
+ * Tier-gated features for subscription management.
+ * Canonical ids live in normalizeTierId (pricing.ts): enterprise ≡ tier_4.
  */
+import { normalizeTierId } from './pricing';
 
 export type SubscriptionTier = 'free' | 'starter' | 'trader' | 'pro' | 'enterprise';
 
@@ -168,38 +170,20 @@ const TIER_LEVELS: Record<string, number> = {
 /**
  * Normalize tier name to canonical form
  */
+const CANONICAL_TO_NAME: Record<string, SubscriptionTier> = {
+  free: 'free',
+  tier_1: 'starter',
+  tier_2: 'trader',
+  tier_3: 'pro',
+  tier_4: 'enterprise',
+};
+
+/**
+ * Display name for a tier. enterprise and tier_4 both become 'enterprise'.
+ * Unknown ids become 'free' so paid gates stay closed.
+ */
 export function normalizeTier(tier: string): SubscriptionTier {
-  const t = (tier || '')
-    .toString()
-    .trim()
-    .toLowerCase()
-    .replace(/[\s-]+/g, '_');
-  switch (t) {
-    case 'tier_1':
-    case 'tier1':
-    case 'starter':
-      return 'starter';
-    case 'tier_2':
-    case 'tier2':
-    case 'trader':
-      return 'trader';
-    case 'tier_3':
-    case 'tier3':
-    case 'pro':
-      return 'pro';
-    case 'tier_4':
-    case 'tier4':
-    case 'enterprise':
-      return 'enterprise';
-    case 'free':
-    case 'free_user':
-    case 'basic':
-    case '':
-      return 'free';
-    default:
-      // Unknown ids stay on the free gate instead of unlocking paid features.
-      return 'free';
-  }
+  return CANONICAL_TO_NAME[normalizeTierId(tier)] ?? 'free';
 }
 
 export function isEnterpriseTier(tier: string): boolean {

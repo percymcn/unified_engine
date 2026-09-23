@@ -801,7 +801,7 @@ async def trailhacker_webhook(request: Request, db: Session = Depends(get_db)):
 
         # Build command (TrailHacker uses "size", "entry", "stop", "target")
         command = ProcessSignalRequest(
-            source=coerce_signal_source("trailhacker"),
+            source=SignalSource.TRAILHACKER,
             symbol=symbol,
             action=action,
             volume=Decimal(str(payload.get("size", payload.get("volume", 1)))),
@@ -840,7 +840,7 @@ async def trailhacker_webhook(request: Request, db: Session = Depends(get_db)):
         guard_response = await evaluate_guard_layer(
             db=db,
             command=command,
-            source=coerce_signal_source("trailhacker"),
+            source=SignalSource.TRAILHACKER,
             action=action,
             user_id=user_id,
             account_ids=account_ids if account_ids else None,

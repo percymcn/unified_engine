@@ -27,7 +27,7 @@ import {
 import { Plus, Lock, Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/providers/user-provider';
-import { hasFeatureAccess, FEATURES, SubscriptionTier } from '@/lib/feature-flags';
+import { hasFeatureAccess, FEATURES, normalizeTier } from '@/lib/feature-flags';
 import Link from 'next/link';
 
 export default function ApiKeysPage() {
@@ -42,7 +42,7 @@ export default function ApiKeysPage() {
   const { toast } = useToast();
   const { user } = useUser();
 
-  const userTier = (user?.subscription_tier || 'free') as SubscriptionTier;
+  const userTier = normalizeTier(user?.subscription_tier || 'free');
   const hasAccess = hasFeatureAccess(userTier, 'API_KEYS');
 
   useEffect(() => {

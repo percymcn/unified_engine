@@ -1,78 +1,73 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { AUTH_COOKIE_NAME, getTokenFromCookies } from '@/lib/auth';
+import { getTokenFromCookies } from '@/lib/auth';
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8765';
 
 /**
- * Read the session JWT the rest of the dashboard BFF uses.
- * Primary cookie is `auth-token`. `auth_token` is accepted as a legacy alias.
- */
-async function readSessionToken(): Promise<string | undefined> {
-  const primary = await getTokenFromCookies();
-  if (primary) {
-    return primary;
-  }
-  const cookieStore = await cookies();
-  return cookieStore.get('auth_token')?.value || cookieStore.get(AUTH_COOKIE_NAME)?.value;
-}
-
-/**
  * GET /api/webhooks/logs
- * BFF: proxy to GET /api/v1/webhooks/logs with the session JWT.
- * The v1 route returns 401 without a Bearer token. The browser only has the
- * httpOnly session cookie, so this route attaches it.
+ * BFF pattern: Proxy webhook-log request to backend GET /api/v1/webhooks/logs.
+ * Same auth-forward as signals/trades/webhook-configs: session cookie -> Bearer JWT.
+ * Forwards query params (skip, limit, and any others the logs endpoint accepts).
  */
 export async function GET(request: NextRequest) {
   try {
-    const token = await readSessionToken();
+    const token = await getTokenFromCookies();
 
     if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json(
+        { error: 'Unauthorized - no auth token' },
+        { status: 401 }
+      );
     }
 
     const { searchParams } = new URL(request.url);
-    const skipRaw = searchParams.get('skip') || '0';
-    const limitRaw = searchParams.get('limit') || '100';
-    const skip = Number.isFinite(Number(skipRaw)) ? String(Math.max(0, Number(skipRaw))) : '0';
-    const limitNum = Number(limitRaw);
-    const limit = Number.isFinite(limitNum) ? String(Math.min(500, Math.max(1, limitNum))) : '100';
+    const queryString = searchParams.toString();
+    const url = queryString
+      ? `${BACKEND_URL}/api/v1/webhooks/logs?${queryString}`
+      : `${BACKEND_URL}/api/v1/webhooks/logs`;
 
-    const response = await fetch(
-      `${BACKEND_URL}/api/v1/webhooks/logs?skip=${encodeURIComponent(skip)}&limit=${encodeURIComponent(limit)}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/json',
-        },
-        cache: 'no-store',
-      }
-    );
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      redirect: 'manual',
+    });
 
-    const text = await response.text();
-    let body: unknown = null;
-    if (text) {
-      try {
-        body = JSON.parse(text);
-      } catch {
-        body = { error: text };
+    if (response.status === 307 || response.status === 308) {
+      const location = response.headers.get('location');
+      if (location) {
+        const redirectResponse = await fetch(location, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+        if (!redirectResponse.ok) {
+          const errorText = await redirectResponse.text();
+          console.error(`Backend redirect error (${redirectResponse.status}):`, errorText);
+          return NextResponse.json(
+            { error: `Backend error: ${redirectResponse.status}` },
+            { status: redirectResponse.status }
+          );
+        }
+        return NextResponse.json(await redirectResponse.json());
       }
     }
 
     if (!response.ok) {
-      const errorBody =
-        body && typeof body === 'object'
-          ? body
-          : { error: 'Failed to fetch webhook logs' };
-      return NextResponse.json(errorBody, { status: response.status });
+      const errorText = await response.text();
+      console.error(`Backend error (${response.status}):`, errorText);
+      return NextResponse.json(
+        { error: `Backend error: ${response.status}` },
+        { status: response.status }
+      );
     }
 
-    return NextResponse.json(body ?? []);
+    return NextResponse.json(await response.json());
   } catch (error) {
     console.error('Error fetching webhook logs:', error);
     return NextResponse.json(
       { error: 'Failed to fetch webhook logs' },
-      { status: 502 }
+      { status: 500 }
     );
   }
 }

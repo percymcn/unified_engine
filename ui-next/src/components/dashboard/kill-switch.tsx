@@ -19,7 +19,7 @@ import { Power, AlertTriangle, Shield, Loader2, Lock, Sparkles } from 'lucide-re
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useUser } from '@/providers/user-provider';
-import { hasFeatureAccess, FEATURES, SubscriptionTier } from '@/lib/feature-flags';
+import { hasFeatureAccess, FEATURES, normalizeTier } from '@/lib/feature-flags';
 import Link from 'next/link';
 
 interface KillSwitchProps {
@@ -29,7 +29,7 @@ interface KillSwitchProps {
 
 export function KillSwitch({ className, variant = 'full' }: KillSwitchProps) {
   const { user } = useUser();
-  const userTier = (user?.subscription_tier || 'free') as SubscriptionTier;
+  const userTier = normalizeTier(user?.subscription_tier || 'free');
   const hasAccess = hasFeatureAccess(userTier, 'KILL_SWITCH');
   const [isKilling, setIsKilling] = useState(false);
   const [isPausing, setIsPausing] = useState(false);

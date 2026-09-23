@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUser } from '@/providers/user-provider';
-import { hasFeatureAccess, FEATURES, SubscriptionTier } from '@/lib/feature-flags';
+import { hasFeatureAccess, FEATURES, normalizeTier } from '@/lib/feature-flags';
 import Link from 'next/link';
 
 interface PropFirmRule {
@@ -65,7 +65,7 @@ interface ComplianceData {
 
 export function PropFirmCompliance() {
   const { user } = useUser();
-  const userTier = (user?.subscription_tier || 'free') as SubscriptionTier;
+  const userTier = normalizeTier(user?.subscription_tier || 'free');
   const hasAccess = hasFeatureAccess(userTier, 'PROP_FIRM_DASHBOARD');
 
   const [accounts, setAccounts] = useState<ComplianceData[]>([]);

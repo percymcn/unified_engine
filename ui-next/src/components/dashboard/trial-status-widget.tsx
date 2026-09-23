@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { getTierInfo } from "@/lib/pricing";
+import { isFreeTier } from "@/lib/feature-flags";
 
 interface TrialStatus {
   status: "not_started" | "active" | "expired" | "not_applicable" | null;
@@ -100,7 +101,7 @@ export function TrialStatusWidget() {
   // Determine if user is on a paid tier
   const isPaidUser =
     trialStatus?.status === "not_applicable" ||
-    (billingStatus?.tier && billingStatus.tier !== "free");
+    (!!billingStatus?.tier && !isFreeTier(billingStatus.tier));
 
   // Get tier info for paid users
   const tierInfo = isPaidUser ? getTierInfo(billingStatus?.tier || "free") : null;
