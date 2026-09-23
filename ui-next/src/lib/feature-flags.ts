@@ -1,7 +1,9 @@
 /**
  * Feature Flags System for Tradeflow
- * Tier-gated features for subscription management
+ * Tier-gated features for subscription management.
+ * Canonical ids live in normalizeTierId (pricing.ts): enterprise ≡ tier_4.
  */
+import { normalizeTierId } from './pricing';
 
 export type SubscriptionTier = 'free' | 'starter' | 'trader' | 'pro' | 'enterprise';
 
@@ -168,24 +170,28 @@ const TIER_LEVELS: Record<string, number> = {
 /**
  * Normalize tier name to canonical form
  */
+const CANONICAL_TO_NAME: Record<string, SubscriptionTier> = {
+  free: 'free',
+  tier_1: 'starter',
+  tier_2: 'trader',
+  tier_3: 'pro',
+  tier_4: 'enterprise',
+};
+
+/**
+ * Display name for a tier. enterprise and tier_4 both become 'enterprise'.
+ * Unknown ids become 'free' so paid gates stay closed.
+ */
 export function normalizeTier(tier: string): SubscriptionTier {
-  const t = tier?.toLowerCase() || 'free';
-  switch (t) {
-    case 'tier_1':
-    case 'starter':
-      return 'starter';
-    case 'tier_2':
-    case 'trader':
-      return 'trader';
-    case 'tier_3':
-    case 'pro':
-      return 'pro';
-    case 'tier_4':
-    case 'enterprise':
-      return 'enterprise';
-    default:
-      return 'free';
-  }
+  return CANONICAL_TO_NAME[normalizeTierId(tier)] ?? 'free';
+}
+
+export function isEnterpriseTier(tier: string): boolean {
+  return normalizeTier(tier) === 'enterprise';
+}
+
+export function isFreeTier(tier: string): boolean {
+  return normalizeTier(tier) === 'free';
 }
 
 /**
@@ -194,8 +200,9 @@ export function normalizeTier(tier: string): SubscriptionTier {
 export function hasFeatureAccess(userTier: SubscriptionTier | string, featureId: string): boolean {
   const feature = FEATURES[featureId];
   if (!feature) return false;
-  const normalizedTier = typeof userTier === 'string' ? userTier.toLowerCase() : userTier;
-  const userLevel = TIER_LEVELS[normalizedTier] ?? 0;
+  // normalizeTier maps enterprise and tier_4 onto the same rank, and unknown
+  // ids onto free so the webhook-logs gate still applies.
+  const userLevel = TIER_LEVELS[normalizeTier(String(userTier || 'free'))] ?? 0;
   const requiredLevel = TIER_LEVELS[feature.minTier] ?? 0;
   return userLevel >= requiredLevel;
 }

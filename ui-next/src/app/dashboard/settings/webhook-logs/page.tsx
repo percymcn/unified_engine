@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { formatDistanceToNow } from 'date-fns';
 import { useUser } from '@/providers/user-provider';
-import { hasFeatureAccess, FEATURES, SubscriptionTier } from '@/lib/feature-flags';
+import { hasFeatureAccess, FEATURES, normalizeTier } from '@/lib/feature-flags';
 import Link from 'next/link';
 
 interface WebhookExecution {
@@ -46,8 +46,10 @@ interface WebhookLog {
 
 export default function WebhookLogsPage() {
   const { user } = useUser();
-  const userTier = (user?.subscription_tier || 'free') as SubscriptionTier;
-  const hasAccess = hasFeatureAccess(userTier, 'WEBHOOK_LOGS');
+  const rawTier = user?.subscription_tier || 'free';
+  // enterprise and tier_4 both clear the Pro gate; unknown ids stay Free.
+  const userTier = normalizeTier(rawTier);
+  const hasAccess = hasFeatureAccess(rawTier, 'WEBHOOK_LOGS');
 
   const [logs, setLogs] = useState<WebhookLog[]>([]);
   const [loading, setLoading] = useState(true);

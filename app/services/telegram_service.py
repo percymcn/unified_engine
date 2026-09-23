@@ -16,6 +16,7 @@ from enum import Enum
 from datetime import datetime
 
 from app.core.config import settings
+from app.core.billing import tier_level
 
 logger = logging.getLogger(__name__)
 
@@ -48,21 +49,13 @@ TIER_REQUIREMENTS: Dict[TelegramNotificationType, str] = {
     TelegramNotificationType.TIER_UPGRADE: "free",  # All tiers
 }
 
-# Tier hierarchy for comparison
-TIER_HIERARCHY = {
-    "free": 0,
-    "starter": 1,
-    "trader": 2,
-    "pro": 3,
-    "enterprise": 4,
-}
-
-
 def user_has_tier_access(user_tier: str, required_tier: str) -> bool:
-    """Check if user's tier meets the required tier for a notification type"""
-    user_level = TIER_HIERARCHY.get(user_tier.lower(), 0)
-    required_level = TIER_HIERARCHY.get(required_tier.lower(), 0)
-    return user_level >= required_level
+    """Check if user's tier meets the required tier for a notification type.
+
+    ``enterprise`` and ``tier_4`` are the same rank. An unrecognized id is
+    free, so it does not pass a paid gate.
+    """
+    return tier_level(user_tier) >= tier_level(required_tier)
 
 
 async def send_telegram_message(

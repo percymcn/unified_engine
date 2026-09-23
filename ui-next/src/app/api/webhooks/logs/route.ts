@@ -5,37 +5,64 @@ const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8765';
 
 /**
  * GET /api/webhooks/logs
- * BFF pattern: Fetch webhook logs from backend
+ * BFF pattern: Proxy webhook-log request to backend GET /api/v1/webhooks/logs.
+ * Same auth-forward as signals/trades/webhook-configs: session cookie -> Bearer JWT.
+ * Forwards query params (skip, limit, and any others the logs endpoint accepts).
  */
 export async function GET(request: NextRequest) {
   try {
     const token = await getTokenFromCookies();
 
     if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json(
+        { error: 'Unauthorized - no auth token' },
+        { status: 401 }
+      );
     }
 
-    // Get query params for pagination
     const { searchParams } = new URL(request.url);
-    const skip = searchParams.get('skip') || '0';
-    const limit = searchParams.get('limit') || '100';
+    const queryString = searchParams.toString();
+    const url = queryString
+      ? `${BACKEND_URL}/api/v1/webhooks/logs?${queryString}`
+      : `${BACKEND_URL}/api/v1/webhooks/logs`;
 
-    const response = await fetch(`${BACKEND_URL}/api/v1/webhooks/logs?skip=${skip}&limit=${limit}`, {
+    const response = await fetch(url, {
       headers: {
         'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
       },
+      redirect: 'manual',
     });
 
-    if (!response.ok) {
-      if (response.status === 401) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (response.status === 307 || response.status === 308) {
+      const location = response.headers.get('location');
+      if (location) {
+        const redirectResponse = await fetch(location, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+        if (!redirectResponse.ok) {
+          const errorText = await redirectResponse.text();
+          console.error(`Backend redirect error (${redirectResponse.status}):`, errorText);
+          return NextResponse.json(
+            { error: `Backend error: ${redirectResponse.status}` },
+            { status: redirectResponse.status }
+          );
+        }
+        return NextResponse.json(await redirectResponse.json());
       }
-      throw new Error(`Backend returned ${response.status}`);
     }
 
-    const data = await response.json();
-    return NextResponse.json(data);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Backend error (${response.status}):`, errorText);
+      return NextResponse.json(
+        { error: `Backend error: ${response.status}` },
+        { status: response.status }
+      );
+    }
+
+    return NextResponse.json(await response.json());
   } catch (error) {
     console.error('Error fetching webhook logs:', error);
     return NextResponse.json(

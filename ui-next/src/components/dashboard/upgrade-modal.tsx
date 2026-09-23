@@ -14,7 +14,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Check, Crown, Star, Loader2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getAllTiers, formatPrice, type PricingTier } from "@/lib/pricing";
+import { getAllTiers, formatPrice, isTierHigher, normalizeTierId, type PricingTier } from "@/lib/pricing";
 
 interface UpgradeModalProps {
   open: boolean;
@@ -38,7 +38,7 @@ export function UpgradeModal({ open, onOpenChange, currentTier = "free" }: Upgra
   };
 
   const handleUpgrade = async (tier: PricingTier) => {
-    if (tier.tier_id === "free" || tier.tier_id === currentTier) return;
+    if (tier.tier_id === "free" || normalizeTierId(tier.tier_id) === normalizeTierId(currentTier)) return;
 
     setLoading(tier.tier_id);
     try {
@@ -64,31 +64,10 @@ export function UpgradeModal({ open, onOpenChange, currentTier = "free" }: Upgra
     }
   };
 
-  const isCurrent = (tierId: string) => {
-    // Map tier_id to subscription_tier values
-    const tierMap: Record<string, string> = {
-      "free": "free",
-      "tier_1": "starter",
-      "tier_2": "trader",
-      "tier_3": "pro",
-      "tier_4": "enterprise",
-    };
-    return tierMap[tierId] === currentTier || tierId === currentTier;
-  };
+  const isCurrent = (tierId: string) =>
+    normalizeTierId(tierId) === normalizeTierId(currentTier);
 
-  const isUpgrade = (tierId: string) => {
-    const tierOrder = ["free", "tier_1", "tier_2", "tier_3", "tier_4"];
-    const currentMap: Record<string, string> = {
-      "free": "free",
-      "starter": "tier_1",
-      "trader": "tier_2",
-      "pro": "tier_3",
-      "enterprise": "tier_4",
-    };
-    const currentIndex = tierOrder.indexOf(currentMap[currentTier] || "free");
-    const targetIndex = tierOrder.indexOf(tierId);
-    return targetIndex > currentIndex;
-  };
+  const isUpgrade = (tierId: string) => isTierHigher(tierId, currentTier);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

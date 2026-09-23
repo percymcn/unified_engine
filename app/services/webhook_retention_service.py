@@ -18,6 +18,7 @@ from sqlalchemy import and_, delete
 from app.db.database import SessionLocal
 from app.models.models import WebhookLog, User
 from app.models.database_models import WebhookConfig
+from app.core.billing import normalize_tier_id
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +34,14 @@ RETENTION_DAYS = {
 
 
 def get_retention_days(tier: str) -> int:
-    """Get retention days for a subscription tier."""
+    """Get retention days for a subscription tier.
+
+    ``enterprise`` and ``tier_4`` both use the Enterprise window. Unknown
+    ids use the free window.
+    """
+    canonical = normalize_tier_id(tier)
+    if canonical in RETENTION_DAYS:
+        return RETENTION_DAYS[canonical]
     return RETENTION_DAYS.get(tier, RETENTION_DAYS["free"])
 
 

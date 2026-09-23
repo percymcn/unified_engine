@@ -83,9 +83,73 @@ TIER_LIMITS = {
 }
 
 
+# Canonical ids used by feature gates. Display aliases and tier_N ids compare equal.
+_TIER_CANONICAL = {
+    "free": "free",
+    "free_user": "free",
+    "basic": "free",
+    "starter": "tier_1",
+    "tier_1": "tier_1",
+    "tier1": "tier_1",
+    "trader": "tier_2",
+    "tier_2": "tier_2",
+    "tier2": "tier_2",
+    "pro": "tier_3",
+    "tier_3": "tier_3",
+    "tier3": "tier_3",
+    "enterprise": "tier_4",
+    "tier_4": "tier_4",
+    "tier4": "tier_4",
+}
+
+_TIER_LEVELS = {
+    "free": 0,
+    "tier_1": 1,
+    "tier_2": 2,
+    "tier_3": 3,
+    "tier_4": 4,
+}
+
+
+def normalize_tier_id(tier: str | None) -> str:
+    """Fold enterprise/tier_4 (and the other aliases) onto free|tier_1..tier_4.
+
+    Unknown, blank, and mixed-case values become ``free`` so the free gate
+    stays closed. ``enterprise`` and ``tier_4`` both become ``tier_4``.
+    """
+    if tier is None:
+        return "free"
+    key = str(tier).strip().lower().replace("-", "_").replace(" ", "_")
+    return _TIER_CANONICAL.get(key, "free")
+
+
+def tier_level(tier: str | None) -> int:
+    """Numeric rank for gate comparisons. Free is 0, Enterprise/tier_4 is 4."""
+    return _TIER_LEVELS.get(normalize_tier_id(tier), 0)
+
+
+def is_free_tier(tier: str | None) -> bool:
+    return normalize_tier_id(tier) == "free"
+
+
+def is_enterprise_tier(tier: str | None) -> bool:
+    return normalize_tier_id(tier) == "tier_4"
+
+
 def get_tier_limits(tier: str) -> SubscriptionLimits:
-    """Get limits for a subscription tier"""
-    return TIER_LIMITS.get(tier, TIER_LIMITS["free"])
+    """Get limits for a subscription tier.
+
+    Case and aliases are accepted. Broker caps stay on the stored row when
+    that row exists (``enterprise`` is unlimited, ``tier_4`` is 4) so this
+    does not change a plan's connection count. Unknown ids use free limits.
+    """
+    if not tier:
+        return TIER_LIMITS["free"]
+    direct = TIER_LIMITS.get(str(tier).strip().lower())
+    if direct is not None:
+        return direct
+    canonical = normalize_tier_id(tier)
+    return TIER_LIMITS.get(canonical, TIER_LIMITS["free"])
 
 
 def get_user_limits(user: User) -> SubscriptionLimits:
@@ -96,6 +160,8 @@ def get_user_limits(user: User) -> SubscriptionLimits:
     if user.subscription_status not in ["active", "trialing", "canceling"]:
         tier = "free"
 
+    # Case-fold and alias lookup happen in get_tier_limits. Pass the stored
+    # id through so "enterprise" keeps its row and "tier_4" keeps its row.
     return get_tier_limits(tier)
 
 
@@ -136,13 +202,13 @@ def require_broker_slot(
     can_add, current, max_allowed = check_broker_limit(current_user, db)
 
     if not can_add:
-        tier = current_user.subscription_tier or "free"
+        tier = normalize_tier_id(current_user.subscription_tier)
         tier_name = _get_tier_display_name(tier)
 
         # Build upgrade message based on current tier
-        if tier == "free":
+        if is_free_tier(tier):
             upgrade_message = "Upgrade to a paid plan for more broker connections."
-        elif tier == "tier_4":
+        elif is_enterprise_tier(tier):
             upgrade_message = "You've reached the maximum broker limit for Enterprise tier."
         else:
             # Suggest next tier
@@ -165,24 +231,20 @@ def require_broker_slot(
 
 
 def _get_tier_display_name(tier: str) -> str:
-    """Get display name for a tier"""
+    """Get display name for a tier. enterprise and tier_4 are both Enterprise."""
     names = {
         "free": "Free",
         "tier_1": "Starter",
         "tier_2": "Growth",
         "tier_3": "Pro",
         "tier_4": "Enterprise",
-        "starter": "Starter",
-        "trader": "Trader",
-        "pro": "Pro",
-        "enterprise": "Enterprise",
     }
-    return names.get(tier, "Free")
+    return names.get(normalize_tier_id(tier), "Free")
 
 
 def get_subscription_info(user: User, db: Session) -> dict:
     """Get user's subscription info for display"""
-    tier = user.subscription_tier or "free"
+    tier = normalize_tier_id(user.subscription_tier)
     limits = get_user_limits(user)
     _, broker_count, broker_limit = check_broker_limit(user, db)
 

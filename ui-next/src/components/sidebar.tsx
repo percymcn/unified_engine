@@ -29,6 +29,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useUser } from '@/providers/user-provider';
 import { Badge } from '@/components/ui/badge';
+import { normalizeTier } from '@/lib/feature-flags';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -62,19 +63,14 @@ interface SidebarProps {
 
 // Helper to get tier display info
 function getTierDisplay(tier: string): { name: string; color: string; icon: typeof Crown } {
-  const t = tier?.toLowerCase() || 'free';
-  switch (t) {
+  switch (normalizeTier(tier)) {
     case 'enterprise':
-    case 'tier_4':
       return { name: 'Enterprise', color: 'bg-purple-500/20 text-purple-400 border-purple-500/30', icon: Crown };
     case 'pro':
-    case 'tier_3':
       return { name: 'Pro', color: 'bg-amber-500/20 text-amber-400 border-amber-500/30', icon: Crown };
     case 'trader':
-    case 'tier_2':
       return { name: 'Trader', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30', icon: Sparkles };
     case 'starter':
-    case 'tier_1':
       return { name: 'Starter', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30', icon: Sparkles };
     default:
       return { name: 'Free', color: 'bg-muted text-muted-foreground', icon: Sparkles };

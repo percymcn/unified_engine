@@ -10,7 +10,8 @@ from decimal import Decimal
 
 from app.models.database_models import Signal as SignalORM
 from app.domain.entities.signal import Signal
-from app.domain.enums import SignalSource, SignalAction, SignalStatus
+from app.domain.enums import SignalAction, SignalStatus, coerce_signal_source
+from app.models.models import SignalSource as OrmSignalSource
 from app.domain.value_objects import SignalId, Symbol, Volume, Price, StopLoss, TakeProfit, AccountId
 
 
@@ -47,15 +48,17 @@ class SignalMapper:
         stop_loss = StopLoss(Price(Decimal(str(orm_model.stop_loss)))) if orm_model.stop_loss else None
         take_profit = TakeProfit(Price(Decimal(str(orm_model.take_profit)))) if orm_model.take_profit else None
 
-        # Handle source enum - may be stored as enum or string
+        # Handle source enum - may be stored as enum name or value.
+        # Never surface CUSTOM; postgres does not have that label.
         source_value = orm_model.source.value if hasattr(orm_model.source, 'value') else orm_model.source
+        source_value = coerce_signal_source(source_value)
 
         # Handle status - may be stored as string
         status = SignalMapper._map_status_to_domain(orm_model.status)
 
         return Signal(
             id=SignalId(str(orm_model.id)),  # Use integer ID from DB
-            source=SignalSource(source_value),
+            source=source_value,
             symbol=Symbol(orm_model.symbol),
             action=SignalAction(orm_model.action.lower()),  # Normalize to lowercase
             volume=volume,
@@ -91,8 +94,10 @@ class SignalMapper:
             # For new signals, store the domain's UUID as signal_id for external tracking
             orm_model.signal_id = entity.id.value
 
-        # Basic fields
-        orm_model.source = entity.source.value
+        # Basic fields. Persist an ORM member whose label exists in Postgres.
+        # CUSTOM is coerced to API; TrailHacker stays TRAILHACKER.
+        persisted = coerce_signal_source(entity.source)
+        orm_model.source = OrmSignalSource(persisted.value)
         orm_model.strategy_id = entity.strategy_id
         orm_model.strategy_name = entity.strategy_name
         orm_model.symbol = entity.symbol.value

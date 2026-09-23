@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Check, ExternalLink, Crown, Zap, Sparkles, Building2, CreditCard, Settings, ArrowUpRight } from "lucide-react";
 import { normalizeTierId, getTierInfo, getAllTiers, formatPrice, type PricingTier } from "@/lib/pricing";
+import { isFreeTier } from "@/lib/feature-flags";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -132,7 +133,7 @@ function BillingPageContent() {
 
     const currentTier = billing?.tier || "free";
     const currentPlan = plans.find((p) => p.id === currentTier);
-    const isPaidUser = currentTier !== "free" && billing?.status === "active";
+    const isPaidUser = !isFreeTier(currentTier) && billing?.status === "active";
 
     if (isPaidUser && currentPlan) {
       // Calculate price difference (prorated amount user will pay now)
@@ -273,7 +274,7 @@ function BillingPageContent() {
   }
 
   const currentTier = billing?.tier || "free";
-  const isPaid = currentTier !== "free" && billing?.status === "active";
+  const isPaid = !isFreeTier(currentTier) && billing?.status === "active";
   
   // Get current plan info from plans list
   const currentPlan = plans.find((p) => p.id === currentTier);

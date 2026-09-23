@@ -15,7 +15,14 @@ from app.models.schemas import WebhookLog as WebhookLogSchema, WebhookLogCreate
 from app.routers.auth import get_current_user, get_current_user_optional, verify_api_key
 from app.dependencies import get_container
 from app.application.dto.signal_dto import ProcessSignalRequest
-from app.domain.enums import SignalSource, SignalAction, SignalStatus, BrokerType
+from app.domain.enums import (
+    SignalSource,
+    SignalAction,
+    SignalStatus,
+    BrokerType,
+    coerce_signal_source,
+    is_empty_signal_payload,
+)
 from app.domain.services.routing_service import (
     RoutingEngine,
     RoutingConfig,
@@ -728,12 +735,20 @@ async def trailhacker_webhook(request: Request, db: Session = Depends(get_db)):
     start_time = datetime.utcnow()
 
     try:
-        # Get request data
-        if request.headers.get("content-type", "").startswith("application/json"):
-            payload = await request.json()
-        else:
-            form_data = await request.form()
-            payload = dict(form_data)
+        # Get request data. Empty bodies are test pings, not invalid JSON.
+        payload = {}
+        try:
+            if request.headers.get("content-type", "").startswith("application/json"):
+                raw_body = await request.body()
+                if raw_body and raw_body.strip():
+                    payload = json.loads(raw_body)
+                    if not isinstance(payload, dict):
+                        payload = {"value": payload}
+            else:
+                form_data = await request.form()
+                payload = dict(form_data)
+        except Exception:
+            payload = {}
 
         # Create webhook log
         webhook_id = str(uuid.uuid4())
@@ -749,14 +764,32 @@ async def trailhacker_webhook(request: Request, db: Session = Depends(get_db)):
         db.add(db_webhook)
         db.commit()
 
+        # Empty/test POST: acknowledge without creating a signal or placing an order.
+        # A real TrailHacker payload includes symbol/ticker plus signal/action.
+        if is_empty_signal_payload(payload):
+            result = {
+                "success": True,
+                "message": "TrailHacker webhook received",
+                "test": True,
+                "webhook_id": webhook_id,
+                "processing_time_ms": int((datetime.utcnow() - start_time).total_seconds() * 1000),
+            }
+            db_webhook.processed = True
+            db_webhook.response_status = 200
+            db_webhook.response_body = json.dumps(result)
+            db_webhook.processing_time_ms = result["processing_time_ms"]
+            db.commit()
+            return result
+
         # Get container and use case from hexagonal architecture
         container = get_container(request)
         use_case = container.process_signal_use_case()
 
         # Build ProcessSignalRequest from webhook payload
-        # Map TrailHacker payload fields to domain command
-        symbol = payload.get("symbol", "UNKNOWN")
-        action_str = payload.get("signal", payload.get("action", "buy")).lower()
+        # Map TrailHacker payload fields to domain command.
+        # Persist TRAILHACKER, never CUSTOM (not in the Postgres enum).
+        symbol = payload.get("symbol") or payload.get("ticker") or "UNKNOWN"
+        action_str = str(payload.get("signal") or payload.get("action") or "buy").lower()
 
         # Map action string to enum
         action_map = {
@@ -768,7 +801,7 @@ async def trailhacker_webhook(request: Request, db: Session = Depends(get_db)):
 
         # Build command (TrailHacker uses "size", "entry", "stop", "target")
         command = ProcessSignalRequest(
-            source=SignalSource.CUSTOM,
+            source=SignalSource.TRAILHACKER,
             symbol=symbol,
             action=action,
             volume=Decimal(str(payload.get("size", payload.get("volume", 1)))),
@@ -807,7 +840,7 @@ async def trailhacker_webhook(request: Request, db: Session = Depends(get_db)):
         guard_response = await evaluate_guard_layer(
             db=db,
             command=command,
-            source=SignalSource.CUSTOM,
+            source=SignalSource.TRAILHACKER,
             action=action,
             user_id=user_id,
             account_ids=account_ids if account_ids else None,
@@ -1380,11 +1413,11 @@ async def process_routed_signal(
         use_case = container.process_signal_use_case()
 
         # Determine source
-        source_map = {
-            "tradingview": SignalSource.TRADINGVIEW,
-            "custom": SignalSource.CUSTOM,
-        }
-        source = source_map.get(webhook_config.source.lower(), SignalSource.TRADINGVIEW)
+        # TradingView stays TRADINGVIEW. TrailHacker stays TRAILHACKER.
+        # custom/unknown must not become CUSTOM (rejected by signalsource).
+        source = coerce_signal_source(webhook_config.source, default=SignalSource.API)
+        if str(webhook_config.source or "").strip().lower() == "tradingview":
+            source = SignalSource.TRADINGVIEW
 
         # Map action string to enum
         action_str = signal_data.get("action", "buy").lower()

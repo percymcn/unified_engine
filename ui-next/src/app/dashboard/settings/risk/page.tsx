@@ -13,6 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useUser } from "@/providers/user-provider";
+import { isFreeTier as isFreeTierId } from "@/lib/feature-flags";
 import Link from "next/link";
 
 interface GlobalRiskSettings {
@@ -103,7 +104,7 @@ export default function RiskSettingsPage() {
   const { user } = useUser();
 
   // Check if user is on free tier (trading session not available for free users)
-  const isFreeTier = user?.subscription_tier === "free" || !user?.subscription_tier;
+  const isFreeTier = isFreeTierId(user?.subscription_tier);
 
   useEffect(() => {
     fetchSettings();
